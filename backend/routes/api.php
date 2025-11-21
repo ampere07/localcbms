@@ -23,6 +23,16 @@ use App\Http\Controllers\TransactionController;
 use App\Models\User;
 use App\Services\ActivityLogService;
 
+// Handle all OPTIONS requests
+Route::options('{any}', function() {
+    return response('', 200)
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With, X-XSRF-TOKEN')
+        ->header('Access-Control-Allow-Credentials', 'true')
+        ->header('Access-Control-Max-Age', '86400');
+})->where('any', '.*');
+
 // CORS Test Endpoint - First route to test CORS configuration
 Route::get('/cors-test', function (Request $request) {
     return response()->json([

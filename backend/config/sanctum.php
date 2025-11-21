@@ -5,7 +5,7 @@ use Laravel\Sanctum\Sanctum;
 return [
 
     'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS',
-        'sync.atssfiber.ph,backend.atssfiber.ph,www.atssfiber.ph,atssfiber.ph'
+        'localhost:3000,localhost:8000,http://127.0.0.1:8000,http://127.0.0.1:3000'
     )),
 
     'guard' => ['web'],

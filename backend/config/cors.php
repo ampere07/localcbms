@@ -15,13 +15,13 @@ return [
 
     'allowed_methods' => ['*'],
 
-    // Only list actual domains — no "/public"
     'allowed_origins' => [
-        'https://sync.atssfiber.ph',
-        'https://backend.atssfiber.ph',
-        'https://www.atssfiber.ph',
-        'https://atssfiber.ph',
+        'http://localhost:3000',
+        'http://localhost:8000',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:8000',
     ],
+
 
     'allowed_origins_patterns' => [],
 
