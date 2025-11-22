@@ -8,8 +8,7 @@ use App\Models\Invoice;
 use App\Models\StatementOfAccount;
 use App\Models\AppPlan;
 use App\Models\Discount;
-use App\Models\Installment;
-use App\Models\InstallmentSchedule;
+use App\Models\StaggeredInstallation;
 use App\Models\AdvancedPayment;
 use App\Models\MassRebate;
 use App\Models\Barangay;
@@ -139,9 +138,14 @@ class EnhancedBillingGenerationService
     {
         $targetDay = $this->adjustBillingDayForMonth($billingDay, $generationDate);
 
-        $query = BillingAccount::with(['customer'])
+        $query = BillingAccount::with([
+            'customer',
+            'technicalDetails',
+            'plan'
+        ])
             ->where('billing_status_id', 2)
-            ->whereNotNull('date_installed');
+            ->whereNotNull('date_installed')
+            ->whereNotNull('account_no');
 
         if ($billingDay === self::END_OF_MONTH_BILLING) {
             $query->where('billing_day', self::END_OF_MONTH_BILLING);
@@ -149,7 +153,22 @@ class EnhancedBillingGenerationService
             $query->where('billing_day', $targetDay);
         }
 
-        return $query->get();
+        $accounts = $query->get();
+
+        Log::info('Loaded accounts with complete data', [
+            'billing_day' => $billingDay,
+            'generation_date' => $generationDate->format('Y-m-d'),
+            'accounts_count' => $accounts->count(),
+            'sample_account' => $accounts->first() ? [
+                'account_no' => $accounts->first()->account_no,
+                'has_customer' => $accounts->first()->customer ? true : false,
+                'has_technical_details' => $accounts->first()->technicalDetails->count() > 0,
+                'customer_name' => $accounts->first()->customer?->full_name ?? 'N/A',
+                'desired_plan' => $accounts->first()->customer?->desired_plan ?? 'N/A'
+            ] : null
+        ]);
+
+        return $accounts;
     }
 
     protected function getAdvanceGenerationDay(): int
@@ -221,23 +240,6 @@ class EnhancedBillingGenerationService
         return $billingDay;
     }
 
-    /**
-     * Generate Statement of Account for a billing account
-     * 
-     * IMPORTANT: This method should be called BEFORE invoice generation to ensure
-     * the "Balance from Previous Bill" uses the correct previous balance.
-     * 
-     * Logic:
-     * 1. Get previous balance from last SOA's total_amount_due (or account_balance if first SOA)
-     * 2. Calculate payment received from last period
-     * 3. Calculate remaining balance: previous_balance - payment_received
-     * 4. Calculate current period charges (monthly fee, VAT, others)
-     * 5. Calculate total_amount_due: remaining_balance + amount_due
-     * 
-     * This ensures the SOA shows:
-     * - balance_from_previous_bill = Last SOA's total_amount_due (e.g., 6694)
-     * - NOT the account_balance which may have been updated by invoice generation
-     */
     public function createEnhancedStatement(BillingAccount $account, Carbon $statementDate, int $userId): StatementOfAccount
     {
         DB::beginTransaction();
@@ -255,19 +257,10 @@ class EnhancedBillingGenerationService
 
             $planName = $this->extractPlanName($desiredPlan);
             
-            Log::info('Looking up plan', [
-                'plan_name_extracted' => $planName,
-                'original_desired_plan' => $desiredPlan
-            ]);
-            
             $plan = AppPlan::where('plan_name', $planName)->first();
                 
             if (!$plan) {
                 $allPlans = AppPlan::select('id', 'plan_name', 'price')->get();
-                Log::error('Plan not found', [
-                    'searching_for' => $planName,
-                    'available_plans' => $allPlans->toArray()
-                ]);
                 throw new \Exception("Plan '{$planName}' not found in plan_list table (extracted from '{$desiredPlan}'). Available plans: " . $allPlans->pluck('plan_name')->implode(', '));
             }
 
@@ -290,11 +283,12 @@ class EnhancedBillingGenerationService
                 $statementDate, 
                 $userId, 
                 $invoiceId,
-                $plan->price
+                $plan->price,
+                false,
+                false
             );
             
-            $othersAndBasicCharges = $charges['staggered_fees'] + 
-                                     $charges['staggered_install_fees'] + 
+            $othersAndBasicCharges = $charges['staggered_install_fees'] + 
                                      $charges['service_fees'] - 
                                      $charges['total_deductions'];
 
@@ -306,7 +300,7 @@ class EnhancedBillingGenerationService
             $totalAmountDue = $remainingBalance + $amountDue;
 
             $statement = StatementOfAccount::create([
-                'account_id' => $account->id,
+                'account_no' => $account->account_no,
                 'statement_date' => $statementDate,
                 'balance_from_previous_bill' => round($previousBalance, 2),
                 'payment_received_previous' => round($paymentReceived, 2),
@@ -331,19 +325,6 @@ class EnhancedBillingGenerationService
         }
     }
 
-    /**
-     * Generate Invoice for a billing account
-     * 
-     * IMPORTANT: This method should be called AFTER SOA generation because it updates
-     * the account_balance, which would affect the SOA's "Balance from Previous Bill".
-     * 
-     * This method:
-     * 1. Calculates the invoice amount
-     * 2. Updates account_balance to new ending balance (previous + new charges)
-     * 3. Creates the invoice record
-     * 
-     * The updated account_balance will be used by the next period's SOA.
-     */
     public function createEnhancedInvoice(BillingAccount $account, Carbon $invoiceDate, int $userId): Invoice
     {
         DB::beginTransaction();
@@ -381,11 +362,12 @@ class EnhancedBillingGenerationService
                 $invoiceDate, 
                 $userId, 
                 $invoiceId,
-                $plan->price
+                $plan->price,
+                true,
+                true
             );
             
-            $othersBasicCharges = $charges['staggered_fees'] + 
-                                  $charges['staggered_install_fees'] + 
+            $othersBasicCharges = $charges['staggered_install_fees'] + 
                                   $charges['service_fees'] - 
                                   $charges['total_deductions'];
 
@@ -396,7 +378,7 @@ class EnhancedBillingGenerationService
             }
 
             $invoice = Invoice::create([
-                'account_id' => $account->id,
+                'account_no' => $account->account_no,
                 'invoice_date' => $invoiceDate,
                 'invoice_balance' => round($prorateAmount, 2),
                 'others_and_basic_charges' => round($othersBasicCharges, 2),
@@ -410,6 +392,8 @@ class EnhancedBillingGenerationService
                 'updated_by' => (string) $userId
             ]);
 
+            $appliedDiscounts = $charges['discounts'];
+            
             $newBalance = $account->account_balance > 0 
                 ? $totalAmount + $account->account_balance 
                 : $totalAmount;
@@ -418,6 +402,19 @@ class EnhancedBillingGenerationService
                 'account_balance' => round($newBalance, 2),
                 'balance_update_date' => $invoiceDate
             ]);
+            
+            Log::info('Invoice created with discount applied to balance', [
+                'account_no' => $account->account_no,
+                'invoice_balance' => $prorateAmount,
+                'others_basic_charges' => $othersBasicCharges,
+                'total_amount' => $totalAmount,
+                'discounts_applied' => $appliedDiscounts,
+                'previous_balance' => $account->account_balance,
+                'new_balance' => $newBalance,
+                'note' => 'Discount already included in others_basic_charges calculation'
+            ]);
+            
+            $this->markDiscountsAsUsed($account, $userId, $invoiceId);
 
             DB::commit();
             return $invoice;
@@ -475,18 +472,18 @@ class EnhancedBillingGenerationService
         Carbon $date, 
         int $userId, 
         string $invoiceId,
-        float $monthlyFee
+        float $monthlyFee,
+        bool $updateDiscountStatus = false,
+        bool $includeDiscounts = true
     ): array {
-        $staggeredFees = $this->calculateStaggeredFees($account, $userId, $invoiceId);
-        $staggeredInstallFees = $this->calculateStaggeredInstallFees($account, $userId, $invoiceId);
-        $discounts = $this->calculateDiscounts($account, $userId, $invoiceId);
+        $staggeredInstallFees = $this->calculateStaggeredInstallFees($account, $userId, $invoiceId, $updateDiscountStatus);
+        $discounts = $includeDiscounts ? $this->calculateDiscounts($account, $userId, $invoiceId, $updateDiscountStatus) : 0;
         $advancedPayments = $this->calculateAdvancedPayments($account, $date, $userId, $invoiceId);
         $rebates = $this->calculateRebates($account, $date, $monthlyFee);
         $serviceFees = $this->calculateServiceFees($account, $date, $userId);
         $paymentReceived = $this->calculatePaymentReceived($account, $date);
 
         return [
-            'staggered_fees' => $staggeredFees,
             'staggered_install_fees' => $staggeredInstallFees,
             'discounts' => $discounts,
             'advanced_payments' => $advancedPayments,
@@ -497,156 +494,94 @@ class EnhancedBillingGenerationService
         ];
     }
 
-    protected function calculateStaggeredFees(BillingAccount $account, int $userId, string $invoiceId): float
+    protected function calculateStaggeredInstallFees(BillingAccount $account, int $userId, string $invoiceId, bool $updateStatus = false): float
     {
         $total = 0;
 
-        $installments = Installment::where('account_id', $account->id)
-            ->where('status', 'active')
-            ->with('schedules')
-            ->get();
-
-        foreach ($installments as $installment) {
-            $nextPendingSchedule = InstallmentSchedule::where('installment_id', $installment->id)
-                ->where('status', 'pending')
-                ->orderBy('installment_no', 'asc')
-                ->first();
-
-            if ($nextPendingSchedule) {
-                $total += $nextPendingSchedule->amount;
-                
-                $nextPendingSchedule->update([
-                    'invoice_id' => $invoiceId,
-                    'status' => 'paid',
-                    'updated_by' => $userId
-                ]);
-
-                $remainingSchedules = InstallmentSchedule::where('installment_id', $installment->id)
-                    ->where('status', 'pending')
-                    ->count();
-
-                if ($remainingSchedules === 0) {
-                    $installment->update([
-                        'status' => 'completed',
-                        'updated_by' => $userId
-                    ]);
-                }
-            }
-        }
-
-        return round($total, 2);
-    }
-
-    /**
-     * Calculate staggered installation fees and process monthly payments
-     * 
-     * This method handles staggered payment plans where:
-     * 1. An installment is created with total_balance split across months_to_pay
-     * 2. Each billing cycle adds monthly_payment to the balance
-     * 3. Decrements months_to_pay by 1 each cycle
-     * 4. When months_to_pay reaches 0, marks installment as completed and stops adding fees
-     * 
-     * Initial Payment Flow:
-     * - Account balance: 999
-     * - Staggered balance: 888
-     * - Immediate deduction: 999 - 888 = 111 (new account balance)
-     * - Invoice status: Unpaid (if remaining balance > 0)
-     * 
-     * Monthly Addition:
-     * - Each billing cycle: balance += monthly_payment
-     * - Decrements: months_to_pay -= 1
-     * - Completion: months_to_pay = 0, status = completed
-     * 
-     * @param BillingAccount $account
-     * @param int $userId
-     * @param string $invoiceId
-     * @return float Total staggered fees to add to current billing
-     */
-    protected function calculateStaggeredInstallFees(BillingAccount $account, int $userId, string $invoiceId): float
-    {
-        $total = 0;
-
-        $installments = Installment::where('account_id', $account->id)
-            ->where('status', 'active')
+        $staggeredInstallations = StaggeredInstallation::where('account_no', $account->account_no)
             ->where('months_to_pay', '>', 0)
             ->get();
 
-        Log::info('Processing staggered installments', [
-            'account_id' => $account->id,
+        Log::info('Processing staggered installations', [
             'account_no' => $account->account_no,
-            'installments_count' => $installments->count()
+            'staggered_installations_count' => $staggeredInstallations->count()
         ]);
 
-        foreach ($installments as $installment) {
-            $total += $installment->monthly_payment;
+        foreach ($staggeredInstallations as $installation) {
+            $total += $installation->monthly_payment;
             
-            $newMonthsToPay = $installment->months_to_pay - 1;
-            
-            Log::info('Processing installment', [
-                'installment_id' => $installment->id,
-                'monthly_payment' => $installment->monthly_payment,
-                'previous_months_to_pay' => $installment->months_to_pay,
-                'new_months_to_pay' => $newMonthsToPay
-            ]);
-            
-            if ($newMonthsToPay <= 0) {
-                $installment->update([
-                    'months_to_pay' => 0,
-                    'status' => 'completed',
-                    'updated_by' => $userId
+            if ($updateStatus) {
+                $newMonthsToPay = $installation->months_to_pay - 1;
+                
+                Log::info('Processing staggered installation', [
+                    'staggered_install_no' => $installation->staggered_install_no,
+                    'monthly_payment' => $installation->monthly_payment,
+                    'previous_months_to_pay' => $installation->months_to_pay,
+                    'new_months_to_pay' => $newMonthsToPay
                 ]);
                 
-                Log::info('Installment completed', [
-                    'installment_id' => $installment->id
-                ]);
-            } else {
-                $installment->update([
+                $installation->update([
                     'months_to_pay' => $newMonthsToPay,
-                    'updated_by' => $userId
+                    'modified_by' => $userId,
+                    'modified_date' => now()
                 ]);
             }
         }
 
-        Log::info('Staggered installments total', [
-            'account_id' => $account->id,
+        Log::info('Staggered installations total', [
+            'account_no' => $account->account_no,
             'total_staggered_fees' => $total
         ]);
 
         return round($total, 2);
     }
 
-    protected function calculateDiscounts(BillingAccount $account, int $userId, string $invoiceId): float
+    protected function calculateDiscounts(BillingAccount $account, int $userId, string $invoiceId, bool $updateStatus = false): float
     {
         $total = 0;
 
-        $discounts = Discount::where('account_id', $account->id)
+        $discounts = Discount::where('account_no', $account->account_no)
             ->whereIn('status', ['Unused', 'Permanent', 'Monthly'])
             ->get();
+
+        Log::info('Calculating discounts', [
+            'account_no' => $account->account_no,
+            'discounts_count' => $discounts->count()
+        ]);
 
         foreach ($discounts as $discount) {
             if ($discount->status === 'Unused') {
                 $total += $discount->discount_amount;
-                $discount->update([
-                    'status' => 'Used',
-                    'invoice_used_id' => $invoiceId,
-                    'used_date' => now(),
-                    'updated_by' => $userId
+                
+                Log::info('Found Unused discount', [
+                    'discount_id' => $discount->id,
+                    'account_no' => $account->account_no,
+                    'discount_amount' => $discount->discount_amount
                 ]);
             } elseif ($discount->status === 'Permanent') {
                 $total += $discount->discount_amount;
-                $discount->update([
-                    'invoice_used_id' => $invoiceId,
-                    'updated_by' => $userId
+                
+                Log::info('Found Permanent discount', [
+                    'discount_id' => $discount->id,
+                    'account_no' => $account->account_no,
+                    'discount_amount' => $discount->discount_amount
                 ]);
             } elseif ($discount->status === 'Monthly' && $discount->remaining > 0) {
                 $total += $discount->discount_amount;
-                $discount->update([
-                    'invoice_used_id' => $invoiceId,
-                    'remaining' => $discount->remaining - 1,
-                    'updated_by' => $userId
+                
+                Log::info('Found Monthly discount', [
+                    'discount_id' => $discount->id,
+                    'account_no' => $account->account_no,
+                    'discount_amount' => $discount->discount_amount,
+                    'remaining' => $discount->remaining
                 ]);
             }
         }
+
+        Log::info('Total discounts calculated', [
+            'account_no' => $account->account_no,
+            'total_discount' => $total
+        ]);
 
         return round($total, 2);
     }
@@ -660,10 +595,16 @@ class EnhancedBillingGenerationService
         $total = 0;
         $currentMonth = $date->format('F');
 
-        $advancedPayments = AdvancedPayment::where('account_id', $account->id)
+        $advancedPayments = AdvancedPayment::where('account_no', $account->account_no)
             ->where('payment_month', $currentMonth)
             ->where('status', 'Unused')
             ->get();
+
+        Log::info('Calculating advanced payments', [
+            'account_no' => $account->account_no,
+            'current_month' => $currentMonth,
+            'advanced_payments_count' => $advancedPayments->count()
+        ]);
 
         foreach ($advancedPayments as $payment) {
             $total += $payment->payment_amount;
@@ -704,9 +645,12 @@ class EnhancedBillingGenerationService
             ->where('status', 'Unused')
             ->get();
 
+        $daysInCurrentMonth = $date->daysInMonth;
+
         foreach ($rebates as $rebate) {
-            $dailyRate = $monthlyFee / self::DAYS_IN_MONTH;
-            $total += $dailyRate * $rebate->rebate_days;
+            $dailyRate = $monthlyFee / $daysInCurrentMonth;
+            $rebateValue = $dailyRate * $rebate->rebate_days;
+            $total += $rebateValue;
         }
 
         return round($total, 2);
@@ -717,7 +661,7 @@ class EnhancedBillingGenerationService
         $total = 0;
 
         $serviceFees = DB::table('service_charge_logs')
-            ->where('account_id', $account->id)
+            ->where('account_no', $account->account_no)
             ->where('status', 'Unused')
             ->get();
 
@@ -738,18 +682,16 @@ class EnhancedBillingGenerationService
 
     protected function calculatePaymentReceived(BillingAccount $account, Carbon $date): float
     {
-        $lastMonth = $date->copy()->subMonth()->format('F');
+        $lastMonth = $date->copy()->subMonth();
         
-        $lastInvoice = Invoice::where('account_id', $account->id)
-            ->whereMonth('invoice_date', $date->copy()->subMonth()->month)
-            ->whereYear('invoice_date', $date->copy()->subMonth()->year)
-            ->first();
+        $transactions = DB::table('transactions')
+            ->where('account_no', $account->account_no)
+            ->where('status', 'Done')
+            ->whereMonth('payment_date', $lastMonth->month)
+            ->whereYear('payment_date', $lastMonth->year)
+            ->sum('received_payment');
 
-        if ($lastInvoice) {
-            return $lastInvoice->received_payment ?? 0;
-        }
-
-        return 0;
+        return floatval($transactions);
     }
 
     protected function getDaysBetweenDatesIncludingDueDate(Carbon $startDate, Carbon $endDate): int
@@ -818,30 +760,71 @@ class EnhancedBillingGenerationService
         return trim($desiredPlan);
     }
 
-    /**
-     * Get the previous balance for SOA generation
-     * 
-     * This method retrieves the correct previous balance to use in the SOA:
-     * 1. If a previous SOA exists: Use its total_amount_due (the ending balance from last period)
-     * 2. If this is the first SOA: Use the current account_balance
-     * 
-     * Example:
-     * - Previous SOA: total_amount_due = 6694 (this becomes current period's starting balance)
-     * - Current SOA: balance_from_previous_bill = 6694
-     * 
-     * CRITICAL: This method must be called BEFORE invoice generation updates account_balance
-     */
     protected function getPreviousBalance(BillingAccount $account, Carbon $currentDate): float
     {
-        $lastSoa = StatementOfAccount::where('account_id', $account->id)
-            ->where('statement_date', '<', $currentDate)
-            ->orderBy('statement_date', 'desc')
-            ->first();
+        $accountBalance = floatval($account->account_balance);
+        
+        Log::info('Getting previous balance for SOA', [
+            'account_no' => $account->account_no,
+            'account_balance' => $accountBalance,
+            'current_date' => $currentDate->format('Y-m-d')
+        ]);
+        
+        return $accountBalance;
+    }
 
-        if ($lastSoa) {
-            return $lastSoa->total_amount_due ?? 0;
+    protected function markDiscountsAsUsed(BillingAccount $account, int $userId, string $invoiceId): void
+    {
+        $discounts = Discount::where('account_no', $account->account_no)
+            ->whereIn('status', ['Unused', 'Permanent', 'Monthly'])
+            ->get();
+
+        Log::info('Marking discounts as used after invoice generation', [
+            'account_no' => $account->account_no,
+            'discounts_count' => $discounts->count(),
+            'invoice_id' => $invoiceId
+        ]);
+
+        foreach ($discounts as $discount) {
+            if ($discount->status === 'Unused') {
+                Log::info('Marking Unused discount as Used', [
+                    'discount_id' => $discount->id,
+                    'account_no' => $account->account_no,
+                    'discount_amount' => $discount->discount_amount
+                ]);
+                
+                $discount->update([
+                    'status' => 'Used',
+                    'invoice_used_id' => $invoiceId,
+                    'used_date' => now(),
+                    'updated_by_user_id' => $userId
+                ]);
+            } elseif ($discount->status === 'Permanent') {
+                Log::info('Updating Permanent discount with invoice reference', [
+                    'discount_id' => $discount->id,
+                    'account_no' => $account->account_no,
+                    'discount_amount' => $discount->discount_amount
+                ]);
+                
+                $discount->update([
+                    'invoice_used_id' => $invoiceId,
+                    'updated_by_user_id' => $userId
+                ]);
+            } elseif ($discount->status === 'Monthly' && $discount->remaining > 0) {
+                Log::info('Decrementing Monthly discount remaining', [
+                    'discount_id' => $discount->id,
+                    'account_no' => $account->account_no,
+                    'discount_amount' => $discount->discount_amount,
+                    'remaining_before' => $discount->remaining,
+                    'remaining_after' => $discount->remaining - 1
+                ]);
+                
+                $discount->update([
+                    'invoice_used_id' => $invoiceId,
+                    'remaining' => $discount->remaining - 1,
+                    'updated_by_user_id' => $userId
+                ]);
+            }
         }
-
-        return $account->account_balance ?? 0;
     }
 }

@@ -5,7 +5,6 @@ import { soaService, SOARecord } from '../services/soaService';
 
 interface SOARecordUI {
   id: string;
-  accountId: number;
   accountNo: string;
   statementDate: string;
   balanceFromPreviousBill: number;
@@ -95,8 +94,7 @@ const SOA: React.FC = () => {
       
       const transformedData: SOARecordUI[] = data.map(record => ({
         id: record.id.toString(),
-        accountId: record.account_id,
-        accountNo: record.account?.account_no || '',
+        accountNo: record.account_no || record.account?.account_no || '',
         statementDate: new Date(record.statement_date).toLocaleDateString(),
         balanceFromPreviousBill: Number(record.balance_from_previous_bill) || 0,
         paymentReceivedPrevious: Number(record.payment_received_previous) || 0,

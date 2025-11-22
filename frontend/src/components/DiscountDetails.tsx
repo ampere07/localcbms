@@ -1,5 +1,6 @@
-import React from 'react';
-import { Mail, ExternalLink, Edit, ChevronLeft, ChevronRight, Maximize2, X, Info } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Mail, ExternalLink, Check, ChevronLeft, ChevronRight, Maximize2, X, Info } from 'lucide-react';
+import { update } from '../services/discountService';
 
 interface DiscountRecord {
   id?: string;
@@ -17,6 +18,7 @@ interface DiscountRecord {
   processedBy: string;
   processedDate: string;
   approvedBy: string;
+  approvedByEmail?: string;
   modifiedBy: string;
   modifiedDate: string;
   userEmail: string;
@@ -28,9 +30,72 @@ interface DiscountRecord {
 
 interface DiscountDetailsProps {
   discountRecord: DiscountRecord;
+  onClose?: () => void;
+  onApproveSuccess?: () => void;
 }
 
-const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord }) => {
+const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClose, onApproveSuccess }) => {
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
+  const [showApproveButton, setShowApproveButton] = useState<boolean>(false);
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [isApproving, setIsApproving] = useState<boolean>(false);
+
+  useEffect(() => {
+    const authData = localStorage.getItem('authData');
+    if (authData) {
+      try {
+        const userData = JSON.parse(authData);
+        const userEmail = userData.email || '';
+        setCurrentUserEmail(userEmail);
+        
+        const isApprovedByUser = discountRecord.approvedByEmail && userEmail && discountRecord.approvedByEmail === userEmail;
+        const isPendingStatus = discountRecord.discountStatus === 'Pending';
+        
+        setShowApproveButton(isApprovedByUser && isPendingStatus);
+      } catch (error) {
+        console.error('Error parsing auth data:', error);
+      }
+    }
+  }, [discountRecord.approvedByEmail, discountRecord.discountStatus]);
+
+  const handleApprove = () => {
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmApprove = async () => {
+    if (!discountRecord.id) {
+      alert('Discount ID is missing');
+      return;
+    }
+
+    setIsApproving(true);
+    
+    try {
+      const response = await update(parseInt(discountRecord.id), {
+        status: 'Unused'
+      });
+
+      if (response.success) {
+        alert('Discount approved successfully! Status updated to Unused.');
+        setShowConfirmModal(false);
+        if (onApproveSuccess) {
+          onApproveSuccess();
+        }
+      } else {
+        alert('Failed to approve discount: ' + (response.message || 'Unknown error'));
+      }
+    } catch (error: any) {
+      console.error('Error approving discount:', error);
+      alert('Error approving discount: ' + (error.response?.data?.message || error.message || 'Unknown error'));
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handleCancelApprove = () => {
+    setShowConfirmModal(false);
+  };
+
   return (
     <div className="bg-gray-900 text-white h-full flex flex-col">
       <div className="bg-gray-800 px-4 py-3 flex items-center justify-between border-b border-gray-700">
@@ -38,13 +103,15 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord }) => 
           {discountRecord.fullName}
         </h1>
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <button className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm transition-colors flex items-center space-x-1">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-            <span>Edit</span>
-          </button>
+          {showApproveButton && (
+            <button 
+              onClick={handleApprove}
+              className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors flex items-center space-x-1"
+            >
+              <Check size={16} />
+              <span>Approve</span>
+            </button>
+          )}
           <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
             <ChevronLeft size={18} />
           </button>
@@ -54,9 +121,11 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord }) => 
           <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
             <Maximize2 size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
-            <X size={18} />
-          </button>
+          {onClose && (
+            <button onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+              <X size={18} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -193,6 +262,78 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord }) => 
           </div>
         </div>
       </div>
+
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-700">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-white">Confirm Approval</h2>
+              <button
+                onClick={handleCancelApprove}
+                disabled={isApproving}
+                className="text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-300 mb-4">
+                Are you sure you want to approve this discount?
+              </p>
+              <div className="bg-gray-900 p-4 rounded border border-gray-700 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Account No:</span>
+                  <span className="text-white">{discountRecord.accountNo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Customer:</span>
+                  <span className="text-white">{discountRecord.fullName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Amount:</span>
+                  <span className="text-white">₱{discountRecord.discountAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Current Status:</span>
+                  <span className="text-yellow-400">{discountRecord.discountStatus}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">New Status:</span>
+                  <span className="text-green-400">Unused</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={handleCancelApprove}
+                disabled={isApproving}
+                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmApprove}
+                disabled={isApproving}
+                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {isApproving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Approving...
+                  </>
+                ) : (
+                  <>
+                    <Check size={16} className="mr-2" />
+                    Confirm Approval
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -6,36 +6,40 @@ import {
 import { transactionService } from '../services/transactionService';
 import LoadingModal from './LoadingModal';
 
-interface TransactionListDetailsProps {
-  transaction: {
-    id: string;
-    dateProcessed: string;
-    accountNo: string;
-    receivedPayment: number;
-    paymentMethod: string;
-    processedBy: string;
-    fullName: string;
-    orNo: string;
-    referenceNo: string;
-    remarks: string;
-    status: string;
-    transactionType: string;
-    image?: string;
-    barangay: string;
-    transactionId: string;
-    contactNo: string;
-    modifiedBy: string;
-    modifiedDate: string;
-    provider: string;
-    paymentDate: string;
-    city: string;
-    plan: string;
-    accountBalance: number;
-    relatedInvoices: string;
-    created_at: string;
-    updated_at: string;
-    [key: string]: any;
+interface Transaction {
+  id: string;
+  account_no: string;
+  transaction_type: string;
+  received_payment: number;
+  payment_date: string;
+  date_processed: string;
+  processed_by_user: string;
+  payment_method: string;
+  reference_no: string;
+  or_no: string;
+  remarks: string;
+  status: string;
+  image_url: string | null;
+  created_at: string;
+  updated_at: string;
+  account?: {
+    id: number;
+    account_no: string;
+    customer: {
+      full_name: string;
+      contact_number_primary: string;
+      barangay: string;
+      city: string;
+      desired_plan: string;
+      address: string;
+      region: string;
+    };
+    account_balance: number;
   };
+}
+
+interface TransactionListDetailsProps {
+  transaction: Transaction;
   onClose: () => void;
 }
 
@@ -44,9 +48,26 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  // Format currency
   const formatCurrency = (amount: number) => {
     return `₱${amount.toFixed(2)}`;
+  };
+
+  const formatDate = (dateStr?: string): string => {
+    if (!dateStr) return 'No date';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+    } catch (e) {
+      return dateStr;
+    }
   };
 
   const handleApproveTransaction = async () => {
@@ -91,8 +112,15 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   };
 
   const getAccountDisplayText = () => {
-    // Create the full account display text like "202306310 | Jocelyn H Roncales | 0 (A) Ojascastro St, Tatala, Binangonan, Rizal"
-    return `${transaction.accountNo} | ${transaction.fullName} | 0 (A) Ojascastro St, ${transaction.barangay}, ${transaction.city}, Rizal`;
+    const accountNo = transaction.account?.account_no || '-';
+    const fullName = transaction.account?.customer?.full_name || '-';
+    const address = transaction.account?.customer?.address || '';
+    const barangay = transaction.account?.customer?.barangay || '';
+    const city = transaction.account?.customer?.city || '';
+    const region = transaction.account?.customer?.region || '';
+    
+    const location = [address, barangay, city, region].filter(Boolean).join(', ');
+    return `${accountNo} | ${fullName}${location ? ` | ${location}` : ''}`;
   };
 
   return (
@@ -104,7 +132,6 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
       />
       
       <div className="w-full h-full bg-gray-950 flex flex-col overflow-hidden border-l border-white border-opacity-30">
-      {/* Header */}
       <div className="bg-gray-800 p-3 flex items-center justify-between border-b border-gray-700">
         <div className="flex items-center min-w-0 flex-1">
           <h2 className="text-white font-medium truncate pr-4">{getAccountDisplayText()}</h2>
@@ -125,21 +152,24 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
         </div>
       </div>
       
-      {/* Error message if any */}
       {error && (
         <div className="bg-red-900 bg-opacity-20 border border-red-700 text-red-400 p-3 m-3 rounded">
           {error}
         </div>
       )}
       
-      {/* Transaction Details */}
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto py-1 px-4 bg-gray-950">
           <div className="space-y-1">
             <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">Transaction ID</div>
+              <div className="text-white flex-1">{transaction.id}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
               <div className="w-40 text-gray-400 text-sm">Account No.</div>
               <div className="text-red-400 flex-1 font-medium flex items-center">
-                {getAccountDisplayText()}
+                {transaction.account?.account_no || '-'}
                 <button className="ml-2 text-gray-400 hover:text-white">
                   <Info size={16} />
                 </button>
@@ -147,34 +177,39 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
             </div>
             
             <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Transaction ID</div>
-              <div className="text-white flex-1">{transaction.transactionId}</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
               <div className="w-40 text-gray-400 text-sm">Full Name</div>
-              <div className="text-white flex-1">{transaction.fullName}</div>
+              <div className="text-white flex-1">{transaction.account?.customer?.full_name || '-'}</div>
             </div>
             
             <div className="flex border-b border-gray-800 py-2">
               <div className="w-40 text-gray-400 text-sm">Contact No.</div>
-              <div className="text-white flex-1">{transaction.contactNo}</div>
+              <div className="text-white flex-1">{transaction.account?.customer?.contact_number_primary || '-'}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">Transaction Type</div>
+              <div className="text-white flex-1">{transaction.transaction_type}</div>
             </div>
             
             <div className="flex border-b border-gray-800 py-2">
               <div className="w-40 text-gray-400 text-sm">Received Payment</div>
-              <div className="text-white flex-1 font-bold text-lg">{formatCurrency(transaction.receivedPayment)}</div>
+              <div className="text-white flex-1 font-bold text-lg">{formatCurrency(transaction.received_payment)}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">Payment Date</div>
+              <div className="text-white flex-1">{formatDate(transaction.payment_date)}</div>
             </div>
             
             <div className="flex border-b border-gray-800 py-2">
               <div className="w-40 text-gray-400 text-sm">Date Processed</div>
-              <div className="text-white flex-1">{transaction.dateProcessed}</div>
+              <div className="text-white flex-1">{formatDate(transaction.date_processed)}</div>
             </div>
             
             <div className="flex border-b border-gray-800 py-2">
               <div className="w-40 text-gray-400 text-sm">Processed By</div>
               <div className="text-white flex-1 flex items-center">
-                {transaction.processedBy}
+                {transaction.processed_by_user || '-'}
                 <button className="ml-2 text-gray-400 hover:text-white">
                   <Info size={16} />
                 </button>
@@ -184,7 +219,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
             <div className="flex border-b border-gray-800 py-2">
               <div className="w-40 text-gray-400 text-sm">Payment Method</div>
               <div className="text-white flex-1 flex items-center">
-                {transaction.paymentMethod}
+                {transaction.payment_method}
                 <button className="ml-2 text-gray-400 hover:text-white">
                   <Info size={16} />
                 </button>
@@ -193,32 +228,17 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
             
             <div className="flex border-b border-gray-800 py-2">
               <div className="w-40 text-gray-400 text-sm">Reference No.</div>
-              <div className="text-white flex-1">{transaction.referenceNo}</div>
+              <div className="text-white flex-1">{transaction.reference_no}</div>
             </div>
             
             <div className="flex border-b border-gray-800 py-2">
               <div className="w-40 text-gray-400 text-sm">OR No.</div>
-              <div className="text-white flex-1">{transaction.orNo}</div>
+              <div className="text-white flex-1">{transaction.or_no}</div>
             </div>
             
             <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Modified By</div>
-              <div className="text-white flex-1">shainemiraflor@gmail.com</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Modified Date</div>
-              <div className="text-white flex-1">{transaction.modifiedDate}</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">User Email</div>
-              <div className="text-white flex-1 flex items-center">
-                shainemiraflor@gmail.com
-                <button className="ml-2 text-gray-400 hover:text-white">
-                  <Mail size={16} />
-                </button>
-              </div>
+              <div className="w-40 text-gray-400 text-sm">Remarks</div>
+              <div className="text-white flex-1">{transaction.remarks || 'No remarks'}</div>
             </div>
             
             <div className="flex border-b border-gray-800 py-2">
@@ -246,29 +266,9 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
             </div>
             
             <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Provider</div>
-              <div className="text-white flex-1 flex items-center">
-                {transaction.provider}
-                <button className="ml-2 text-gray-400 hover:text-white">
-                  <Info size={16} />
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Transaction Type</div>
-              <div className="text-white flex-1">{transaction.transactionType}</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Payment Date</div>
-              <div className="text-white flex-1">{transaction.paymentDate}</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
               <div className="w-40 text-gray-400 text-sm">Barangay</div>
               <div className="text-white flex-1 flex items-center">
-                {transaction.barangay}
+                {transaction.account?.customer?.barangay || '-'}
                 <button className="ml-2 text-gray-400 hover:text-white">
                   <Info size={16} />
                 </button>
@@ -277,13 +277,18 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
             
             <div className="flex border-b border-gray-800 py-2">
               <div className="w-40 text-gray-400 text-sm">City</div>
-              <div className="text-white flex-1">{transaction.city}</div>
+              <div className="text-white flex-1">{transaction.account?.customer?.city || '-'}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">Region</div>
+              <div className="text-white flex-1">{transaction.account?.customer?.region || '-'}</div>
             </div>
             
             <div className="flex border-b border-gray-800 py-2">
               <div className="w-40 text-gray-400 text-sm">Plan</div>
               <div className="text-white flex-1 flex items-center">
-                {transaction.plan}
+                {transaction.account?.customer?.desired_plan || '-'}
                 <button className="ml-2 text-gray-400 hover:text-white">
                   <Info size={16} />
                 </button>
@@ -292,12 +297,37 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
             
             <div className="flex border-b border-gray-800 py-2">
               <div className="w-40 text-gray-400 text-sm">Account Balance</div>
-              <div className="text-white flex-1">{formatCurrency(transaction.accountBalance)}</div>
+              <div className="text-white flex-1">{formatCurrency(transaction.account?.account_balance || 0)}</div>
+            </div>
+            
+            {transaction.image_url && (
+              <div className="flex border-b border-gray-800 py-2">
+                <div className="w-40 text-gray-400 text-sm">Payment Proof</div>
+                <div className="text-white flex-1">
+                  <a 
+                    href={transaction.image_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-orange-500 hover:text-orange-400 flex items-center"
+                  >
+                    View Image <ExternalLink size={14} className="ml-1" />
+                  </a>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">Created At</div>
+              <div className="text-white flex-1">{formatDate(transaction.created_at)}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">Updated At</div>
+              <div className="text-white flex-1">{formatDate(transaction.updated_at)}</div>
             </div>
           </div>
         </div>
         
-        {/* Related Invoices Section */}
         <div className="mx-auto px-4 bg-gray-950 mt-4">
           <div className="border-t border-gray-800 pt-4">
             <div className="flex items-center mb-4">

@@ -218,10 +218,21 @@ class BillingGenerationController extends Controller
     public function getInvoices(Request $request): JsonResponse
     {
         try {
-            $query = \App\Models\Invoice::with(['billingAccount.customer']);
+            $query = \App\Models\Invoice::with([
+                'billingAccount.customer',
+                'billingAccount.technicalDetails',
+                'billingAccount.plan',
+                'discounts',
+                'staggeredInstallations',
+                'transactions'
+            ]);
+
+            if ($request->has('account_no')) {
+                $query->where('account_no', $request->account_no);
+            }
 
             if ($request->has('account_id')) {
-                $query->where('account_id', $request->account_id);
+                $query->where('account_no', $request->account_id);
             }
 
             if ($request->has('status')) {
@@ -236,6 +247,18 @@ class BillingGenerationController extends Controller
             }
 
             $invoices = $query->orderBy('invoice_date', 'desc')->get();
+
+            Log::info('Fetched invoices with complete data', [
+                'count' => $invoices->count(),
+                'sample_invoice' => $invoices->first() ? [
+                    'id' => $invoices->first()->id,
+                    'account_no' => $invoices->first()->account_number,
+                    'has_customer' => $invoices->first()->billingAccount?->customer ? true : false,
+                    'has_technical_details' => $invoices->first()->billingAccount?->technicalDetails->count() > 0,
+                    'discounts_count' => $invoices->first()->discounts->count(),
+                    'staggered_installations_count' => $invoices->first()->staggeredInstallations->count()
+                ] : null
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -256,10 +279,21 @@ class BillingGenerationController extends Controller
     public function getStatements(Request $request): JsonResponse
     {
         try {
-            $query = \App\Models\StatementOfAccount::with(['billingAccount.customer']);
+            $query = \App\Models\StatementOfAccount::with([
+                'billingAccount.customer',
+                'billingAccount.technicalDetails',
+                'billingAccount.plan',
+                'discounts',
+                'staggeredInstallations',
+                'transactions'
+            ]);
+
+            if ($request->has('account_no')) {
+                $query->where('account_no', $request->account_no);
+            }
 
             if ($request->has('account_id')) {
-                $query->where('account_id', $request->account_id);
+                $query->where('account_no', $request->account_id);
             }
 
             if ($request->has('date_from') && $request->has('date_to')) {
@@ -270,6 +304,18 @@ class BillingGenerationController extends Controller
             }
 
             $statements = $query->orderBy('statement_date', 'desc')->get();
+
+            Log::info('Fetched statements with complete data', [
+                'count' => $statements->count(),
+                'sample_statement' => $statements->first() ? [
+                    'id' => $statements->first()->id,
+                    'account_no' => $statements->first()->account_number,
+                    'has_customer' => $statements->first()->billingAccount?->customer ? true : false,
+                    'has_technical_details' => $statements->first()->billingAccount?->technicalDetails->count() > 0,
+                    'discounts_count' => $statements->first()->discounts->count(),
+                    'staggered_installations_count' => $statements->first()->staggeredInstallations->count()
+                ] : null
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -299,37 +345,24 @@ class BillingGenerationController extends Controller
                 ? Carbon::parse($validated['generation_date']) 
                 : Carbon::now();
 
-            $allBillingAccounts = \App\Models\BillingAccount::with(['customer'])->get();
-            
-            Log::info('All billing accounts found', [
-                'total' => $allBillingAccounts->count(),
-                'accounts' => $allBillingAccounts->map(function($acc) {
-                    return [
-                        'account_no' => $acc->account_no,
-                        'billing_status_id' => $acc->billing_status_id,
-                        'billing_status_id_type' => gettype($acc->billing_status_id),
-                        'date_installed' => $acc->date_installed,
-                        'has_customer' => $acc->customer ? true : false
-                    ];
-                })->toArray()
-            ]);
-
             $accounts = \App\Models\BillingAccount::with(['customer'])
                 ->whereNotNull('date_installed')
+                ->whereNotNull('account_no')
                 ->get();
 
-            Log::info('Force generate started', [
+            Log::info('Force generate started - ALL ACCOUNTS', [
                 'total_accounts' => $accounts->count(),
-                'generation_date' => $generationDate->format('Y-m-d')
+                'generation_date' => $generationDate->format('Y-m-d'),
+                'note' => 'Generating for ALL accounts regardless of billing_status_id or billing_day'
             ]);
 
             if ($accounts->count() === 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No active accounts found. Check billing_status_id=2 and date_installed is not null',
+                    'message' => 'No accounts found with date_installed and account_no',
                     'data' => [
                         'total_accounts' => 0,
-                        'criteria' => 'billing_status_id = 2 AND date_installed IS NOT NULL'
+                        'criteria' => 'date_installed IS NOT NULL AND account_no IS NOT NULL'
                     ]
                 ], 404);
             }
@@ -337,55 +370,119 @@ class BillingGenerationController extends Controller
             $invoiceResults = [
                 'success' => 0,
                 'failed' => 0,
-                'errors' => []
+                'errors' => [],
+                'details' => []
             ];
 
             $soaResults = [
                 'success' => 0,
                 'failed' => 0,
-                'errors' => []
+                'errors' => [],
+                'details' => []
             ];
 
             foreach ($accounts as $account) {
+                if (!$account->account_no || trim($account->account_no) === '') {
+                    $error = [
+                        'account_id' => $account->id,
+                        'account_no' => $account->account_no ?? 'NULL',
+                        'error' => 'Billing account has no account_no value',
+                        'customer_id' => $account->customer_id ?? 'NULL'
+                    ];
+                    $invoiceResults['failed']++;
+                    $soaResults['failed']++;
+                    $invoiceResults['errors'][] = $error;
+                    $soaResults['errors'][] = $error;
+                    Log::error('Account has no account_no', $error);
+                    continue;
+                }
+
+                if (!$account->customer) {
+                    $error = [
+                        'account_id' => $account->id,
+                        'account_no' => $account->account_no,
+                        'error' => 'No customer linked to this billing account',
+                        'customer_id' => $account->customer_id ?? 'NULL'
+                    ];
+                    $invoiceResults['failed']++;
+                    $soaResults['failed']++;
+                    $invoiceResults['errors'][] = $error;
+                    $soaResults['errors'][] = $error;
+                    Log::error('Account has no customer', $error);
+                    continue;
+                }
+
+                $customerName = $account->customer->full_name;
+                $desiredPlan = $account->customer->desired_plan ?? 'NO PLAN';
+
                 Log::info('Processing account', [
                     'account_no' => $account->account_no,
-                    'customer' => $account->customer ? $account->customer->full_name : 'NO CUSTOMER'
+                    'customer_id' => $account->customer_id,
+                    'customer_name' => $customerName,
+                    'desired_plan' => $desiredPlan,
+                    'billing_day' => $account->billing_day,
+                    'billing_status_id' => $account->billing_status_id,
+                    'date_installed' => $account->date_installed
                 ]);
 
                 try {
                     $account->refresh();
-                    $this->enhancedBillingService->createEnhancedStatement($account, $generationDate, $userId);
+                    $statement = $this->enhancedBillingService->createEnhancedStatement($account, $generationDate, $userId);
                     $soaResults['success']++;
-                    Log::info('SOA created successfully', ['account_no' => $account->account_no]);
+                    $soaResults['details'][] = [
+                        'account_no' => $account->account_no,
+                        'customer_name' => $customerName,
+                        'statement_id' => $statement->id,
+                        'total_amount_due' => $statement->total_amount_due
+                    ];
+                    Log::info('SOA created successfully', [
+                        'account_no' => $account->account_no,
+                        'customer_name' => $customerName,
+                        'statement_id' => $statement->id
+                    ]);
                 } catch (\Exception $e) {
                     $soaResults['failed']++;
                     $soaResults['errors'][] = [
                         'account_id' => $account->id,
                         'account_no' => $account->account_no,
+                        'customer_name' => $customerName,
                         'error' => $e->getMessage(),
                         'trace' => $e->getTraceAsString()
                     ];
                     Log::error('SOA generation failed', [
                         'account_no' => $account->account_no,
+                        'customer_name' => $customerName,
                         'error' => $e->getMessage()
                     ]);
                 }
 
                 try {
                     $account->refresh();
-                    $this->enhancedBillingService->createEnhancedInvoice($account, $generationDate, $userId);
+                    $invoice = $this->enhancedBillingService->createEnhancedInvoice($account, $generationDate, $userId);
                     $invoiceResults['success']++;
-                    Log::info('Invoice created successfully', ['account_no' => $account->account_no]);
+                    $invoiceResults['details'][] = [
+                        'account_no' => $account->account_no,
+                        'customer_name' => $customerName,
+                        'invoice_id' => $invoice->id,
+                        'total_amount' => $invoice->total_amount
+                    ];
+                    Log::info('Invoice created successfully', [
+                        'account_no' => $account->account_no,
+                        'customer_name' => $customerName,
+                        'invoice_id' => $invoice->id
+                    ]);
                 } catch (\Exception $e) {
                     $invoiceResults['failed']++;
                     $invoiceResults['errors'][] = [
                         'account_id' => $account->id,
                         'account_no' => $account->account_no,
+                        'customer_name' => $customerName,
                         'error' => $e->getMessage(),
                         'trace' => $e->getTraceAsString()
                     ];
                     Log::error('Invoice generation failed', [
                         'account_no' => $account->account_no,
+                        'customer_name' => $customerName,
                         'error' => $e->getMessage()
                     ]);
                 }
@@ -395,12 +492,13 @@ class BillingGenerationController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Force generated {$totalGenerated} billing records for {$accounts->count()} active accounts",
+                'message' => "Force generated {$totalGenerated} billing records for {$accounts->count()} accounts (regardless of billing day or status)",
                 'data' => [
                     'invoices' => $invoiceResults,
                     'statements' => $soaResults,
                     'total_accounts' => $accounts->count(),
-                    'generation_date' => $generationDate->format('Y-m-d')
+                    'generation_date' => $generationDate->format('Y-m-d'),
+                    'note' => 'Generated for ALL accounts with date_installed and account_no, ignoring billing_day and billing_status_id'
                 ]
             ]);
         } catch (\Exception $e) {

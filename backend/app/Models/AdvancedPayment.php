@@ -9,7 +9,6 @@ class AdvancedPayment extends Model
     protected $table = 'advanced_payments';
 
     protected $fillable = [
-        'account_id',
         'account_no',
         'payment_amount',
         'payment_month',
@@ -28,6 +27,6 @@ class AdvancedPayment extends Model
 
     public function billingAccount()
     {
-        return $this->belongsTo(BillingAccount::class, 'account_id');
+        return $this->belongsTo(BillingAccount::class, 'account_no', 'account_no');
     }
 }

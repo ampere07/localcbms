@@ -9,7 +9,7 @@ class Discount extends Model
     protected $table = 'discounts';
 
     protected $fillable = [
-        'account_id',
+        'account_no',
         'discount_amount',
         'status',
         'remaining',
@@ -32,7 +32,7 @@ class Discount extends Model
 
     public function billingAccount()
     {
-        return $this->belongsTo(BillingAccount::class, 'account_id');
+        return $this->belongsTo(BillingAccount::class, 'account_no', 'account_no');
     }
 
     public function processedByUser()

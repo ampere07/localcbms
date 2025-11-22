@@ -1,16 +1,11 @@
 import axios from 'axios';
 
 const getApiBaseUrl = (): string => {
-  if (process.env.REACT_APP_API_BASE_URL) {
-    return process.env.REACT_APP_API_BASE_URL;
+  const baseUrl = process.env.REACT_APP_API_BASE_URL;
+  if (!baseUrl) {
+    throw new Error("REACT_APP_API_BASE_URL is not defined");
   }
-  
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:8000/api';
-  }
-  
-  return `${window.location.protocol}//${window.location.host}/sync/api`;
+  return baseUrl;
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -32,10 +27,10 @@ axiosInstance.interceptors.request.use((config) => {
 });
 
 export interface DiscountData {
-  account_id: number;
+  account_no: string;
   discount_amount: number;
   remaining: number;
-  status: 'Unused' | 'Used' | 'Permanent' | 'Monthly';
+  status: 'Pending' | 'Unused' | 'Used' | 'Permanent' | 'Monthly';
   processed_date: string;
   processed_by_user_id: number;
   approved_by_user_id: number;

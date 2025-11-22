@@ -1,10 +1,10 @@
 import axios from 'axios';
 
-const API_URL = 'https://backend.atssfiber.ph/api';
+const API_URL = 'http://192.168.100.10:8000/api';
 
 export interface InvoiceRecord {
   id: number;
-  account_id: number;
+  account_no: string;
   invoice_date: string;
   invoice_balance: number;
   others_and_basic_charges: number;

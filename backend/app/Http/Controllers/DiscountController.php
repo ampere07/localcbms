@@ -14,7 +14,8 @@ class DiscountController extends Controller
     {
         try {
             $discounts = Discount::with([
-                'billingAccount',
+                'billingAccount.customer',
+                'billingAccount.plan',
                 'processedByUser',
                 'approvedByUser',
                 'createdByUser',
@@ -42,10 +43,10 @@ class DiscountController extends Controller
     {
         try {
             $validated = $request->validate([
-                'account_id' => 'required|exists:billing_accounts,id',
+                'account_no' => 'required|exists:billing_accounts,account_no',
                 'discount_amount' => 'required|numeric|min:0',
                 'remaining' => 'required|integer|min:0',
-                'status' => 'required|in:Unused,Used,Permanent,Monthly',
+                'status' => 'required|in:Pending,Unused,Used,Permanent,Monthly',
                 'processed_date' => 'required|date',
                 'processed_by_user_id' => 'required|exists:users,id',
                 'approved_by_user_id' => 'required|exists:users,id',
@@ -75,7 +76,8 @@ class DiscountController extends Controller
                 'success' => true,
                 'message' => 'Discount created successfully',
                 'data' => $discount->load([
-                    'billingAccount',
+                    'billingAccount.customer',
+                    'billingAccount.plan',
                     'processedByUser',
                     'approvedByUser',
                     'createdByUser',
@@ -104,7 +106,8 @@ class DiscountController extends Controller
     {
         try {
             $discount = Discount::with([
-                'billingAccount',
+                'billingAccount.customer',
+                'billingAccount.plan',
                 'processedByUser',
                 'approvedByUser',
                 'createdByUser',
@@ -132,10 +135,10 @@ class DiscountController extends Controller
             $discount = Discount::findOrFail($id);
 
             $validated = $request->validate([
-                'account_id' => 'sometimes|exists:billing_accounts,id',
+                'account_no' => 'sometimes|exists:billing_accounts,account_no',
                 'discount_amount' => 'sometimes|numeric|min:0',
                 'remaining' => 'sometimes|integer|min:0',
-                'status' => 'sometimes|in:Unused,Used,Permanent,Monthly',
+                'status' => 'sometimes|in:Pending,Unused,Used,Permanent,Monthly',
                 'processed_date' => 'sometimes|date',
                 'processed_by_user_id' => 'sometimes|exists:users,id',
                 'approved_by_user_id' => 'sometimes|exists:users,id',
@@ -164,7 +167,8 @@ class DiscountController extends Controller
                 'success' => true,
                 'message' => 'Discount updated successfully',
                 'data' => $discount->load([
-                    'billingAccount',
+                    'billingAccount.customer',
+                    'billingAccount.plan',
                     'processedByUser',
                     'approvedByUser',
                     'createdByUser',

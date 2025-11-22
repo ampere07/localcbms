@@ -4,16 +4,11 @@ import { BillingRecord, BillingDetailRecord } from '../types/billing';
 export type { BillingRecord, BillingDetailRecord };
 
 const getApiBaseUrl = (): string => {
-  if (process.env.REACT_APP_API_BASE_URL) {
-    return process.env.REACT_APP_API_BASE_URL;
+  const baseUrl = process.env.REACT_APP_API_BASE_URL;
+  if (!baseUrl) {
+    throw new Error("REACT_APP_API_BASE_URL is not defined");
   }
-  
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:8000/api';
-  }
-  
-  return `${window.location.protocol}//${window.location.host}/sync/api`;
+  return baseUrl;
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -55,8 +50,14 @@ export const getBillingRecords = async (): Promise<BillingRecord[]> => {
       return responseData.data.map((item: any): BillingRecord => ({
         id: item.Account_No || item.id,
         applicationId: item.Account_No || '',
+        accountNo: item.Account_No || '',
+        account_no: item.Account_No || '',
         customerName: item.Full_Name || '',
+        firstName: item.First_Name || item.first_name || '',
+        middleInitial: item.Middle_Initial || item.middle_initial || '',
+        lastName: item.Last_Name || item.last_name || '',
         address: item.Address || '',
+        location: item.Location || item.location || '',
         status: item.Status || 'Inactive',
         balance: parseFloat(item.Account_Balance) || 0,
         onlineStatus: item.Status === 'Active' ? 'Online' : 'Offline',

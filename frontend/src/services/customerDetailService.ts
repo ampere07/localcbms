@@ -1,16 +1,11 @@
 import axios from 'axios';
 
 const getApiBaseUrl = (): string => {
-  if (process.env.REACT_APP_API_BASE_URL) {
-    return process.env.REACT_APP_API_BASE_URL;
+  const baseUrl = process.env.REACT_APP_API_BASE_URL;
+  if (!baseUrl) {
+    throw new Error("REACT_APP_API_BASE_URL is not defined");
   }
-  
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:8000/api';
-  }
-  
-  return `${window.location.protocol}//${window.location.host}/sync/api`;
+  return baseUrl;
 };
 
 const API_BASE_URL = getApiBaseUrl();

@@ -91,7 +91,7 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markerRef = useRef<google.maps.Marker | null>(null);
 
-  const API_BASE_URL = 'https://backend.atssfiber.ph/api';
+  const API_BASE_URL = 'http://192.168.100.10:8000/api';
 
   useEffect(() => {
     if (isOpen) {

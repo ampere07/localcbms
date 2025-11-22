@@ -1,8 +1,14 @@
 export interface BillingRecord {
   id: string;
   applicationId: string;
+  accountNo?: string;
+  account_no?: string;
   customerName: string;
+  firstName?: string;
+  middleInitial?: string;
+  lastName?: string;
   address: string;
+  location?: string;
   status: 'Active' | 'Inactive';
   balance: number;
   onlineStatus: 'Online' | 'Offline';

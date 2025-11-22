@@ -546,7 +546,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-800 transition-colors"
           >
             <div className="flex items-center space-x-2">
-              <span className="text-white font-medium">Related Staggered Installations</span>
+              <span className="text-white font-medium">Related Staggered</span>
               <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded">0</span>
             </div>
             {expandedSections.staggeredInstallations ? (

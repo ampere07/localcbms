@@ -575,25 +575,31 @@ const Customer: React.FC = () => {
   };
 
   const handleGenerateSampleData = async () => {
+    if (!window.confirm('Generate sample SOA and invoices for ALL accounts in database (regardless of billing day, status, or any restrictions)?\n\nThis will process EVERY account that has a date_installed value.\n\nContinue?')) {
+      return;
+    }
+    
     setIsLoading(true);
     
     const API_BASE_URL = window.location.hostname === 'localhost' 
-      ? 'http://localhost:8000/api'
-      : 'https://backend.atssfiber.ph/api';
+      ? 'http://192.168.100.10:8000/api'
+      : 'http://192.168.100.10:8000/api';
 
     const generationDate = new Date().toISOString().split('T')[0];
     
-    fetch(`${API_BASE_URL}/billing-generation/force-generate-all`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        generation_date: generationDate
-      })
-    }).then(async (response) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/billing-generation/force-generate-all`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          generation_date: generationDate
+        })
+      });
+      
       const result = await response.json();
       
       if (!result.success) {
@@ -631,15 +637,15 @@ const Customer: React.FC = () => {
         console.error('Generation errors:', errors);
         alert(`Generated ${invoiceCount} invoices and ${soaCount} statements for ${accountCount} accounts.\n\nFailed: ${invoiceErrors} invoices, ${soaErrors} statements.\n\nCheck console for errors.`);
       } else {
-        alert(`Successfully generated ${invoiceCount} invoices and ${soaCount} statements for ${accountCount} active accounts`);
+        alert(`Successfully generated ${invoiceCount} invoices and ${soaCount} statements for ${accountCount} accounts (all accounts with date_installed, regardless of billing day or status)`);
       }
-    }).catch((err) => {
+    } catch (err) {
       console.error('Generation failed:', err);
       setError('Generation failed. Please try again.');
       alert('Generation failed: ' + (err as Error).message);
-    }).finally(() => {
+    } finally {
       setIsLoading(false);
-    });
+    }
   };
 
   const handleToggleColumn = (columnKey: string) => {

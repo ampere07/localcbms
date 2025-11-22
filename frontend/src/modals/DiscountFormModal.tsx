@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, ChevronDown, Minus, Plus } from 'lucide-react';
 import LoadingModal from '../components/LoadingModal';
 import * as discountService from '../services/discountService';
+import { userService } from '../services/userService';
+import { getBillingRecords } from '../services/billingService';
 
 interface DiscountFormModalProps {
   isOpen: boolean;
@@ -11,7 +13,7 @@ interface DiscountFormModalProps {
 }
 
 interface DiscountFormData {
-  accountId: number | null;
+  accountNo: string | null;
   discountAmount: string;
   remaining: string;
   status: string;
@@ -33,10 +35,10 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
   };
 
   const [formData, setFormData] = useState<DiscountFormData>(() => ({
-    accountId: null,
+    accountNo: null,
     discountAmount: '0.00',
     remaining: '0.00',
-    status: 'Unused',
+    status: 'Pending',
     processedDate: getCurrentDateTime(),
     processedByUserId: null,
     approvedByUserId: null,
@@ -46,15 +48,58 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
+  const [users, setUsers] = useState<any[]>([]);
+  const [billingAccounts, setBillingAccounts] = useState<any[]>([]);
 
   useEffect(() => {
     if (customerData) {
       setFormData(prev => ({
         ...prev,
-        accountId: customerData.accountId || null
+        accountNo: customerData.accountNo || null
       }));
     }
   }, [customerData]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await userService.getAllUsers();
+        if (response.success && response.data) {
+          setUsers(response.data);
+          
+          const authData = localStorage.getItem('authData');
+          if (authData) {
+            const userData = JSON.parse(authData);
+            const currentUser = response.data.find(
+              (user: any) => user.email_address === userData.email || user.email === userData.email
+            );
+            if (currentUser) {
+              setFormData(prev => ({
+                ...prev,
+                processedByUserId: currentUser.id
+              }));
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    };
+
+    const fetchBillingAccounts = async () => {
+      try {
+        const accounts = await getBillingRecords();
+        setBillingAccounts(accounts);
+      } catch (error) {
+        console.error('Error fetching billing accounts:', error);
+      }
+    };
+
+    if (isOpen) {
+      fetchUsers();
+      fetchBillingAccounts();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (formData.status === 'Monthly') {
@@ -99,7 +144,7 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.accountId) newErrors.accountId = 'Account No. is required';
+    if (!formData.accountNo) newErrors.accountNo = 'Account No. is required';
     if (!formData.discountAmount.trim()) newErrors.discountAmount = 'Discount Amount is required';
     if (!formData.processedByUserId) newErrors.processedByUserId = 'Processed By is required';
     if (!formData.approvedByUserId) newErrors.approvedByUserId = 'Approved By is required';
@@ -140,10 +185,10 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
       setLoadingPercentage(20);
       
       const payload: discountService.DiscountData = {
-        account_id: formData.accountId!,
+        account_no: formData.accountNo!,
         discount_amount: parseFloat(formData.discountAmount) || 0,
         remaining: parseInt(formData.remaining) || 0,
-        status: formData.status as 'Unused' | 'Used' | 'Permanent' | 'Monthly',
+        status: formData.status as 'Pending' | 'Unused' | 'Used' | 'Permanent' | 'Monthly',
         processed_date: formData.processedDate,
         processed_by_user_id: formData.processedByUserId!,
         approved_by_user_id: formData.approvedByUserId!,
@@ -223,18 +268,53 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
               </label>
               <div className="relative">
                 <select
-                  value={formData.accountId || ''}
-                  onChange={(e) => handleInputChange('accountId', parseInt(e.target.value) || null)}
-                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.accountId ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
+                  value={formData.accountNo || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    handleInputChange('accountNo', value || null);
+                  }}
+                  className={`w-full px-3 py-2 bg-gray-800 border ${
+                    errors.accountNo ? 'border-red-500' : 'border-gray-700'
+                  } rounded text-white focus:outline-none focus:border-orange-500 cursor-pointer overflow-hidden text-ellipsis`}
+                  style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 >
-                  <option value="">Select Account</option>
-                  <option value={customerData?.accountId || ''}>
-                    {customerData?.accountNo || ''} | {customerData?.fullName || ''} | {customerData?.address || ''}
+                  <option value="" className="bg-gray-800 text-white">
+                    Select Account
                   </option>
+                  {billingAccounts.map((account) => {
+                    const fullName = [
+                      account.firstName || '',
+                      account.middleInitial || '',
+                      account.lastName || ''
+                    ].filter(Boolean).join(' ');
+                    
+                    const addressParts = [
+                      account.address || '',
+                      account.location || '',
+                      account.barangay || '',
+                      account.city || '',
+                      account.region || ''
+                    ].filter(Boolean).join(', ');
+                    
+                    const accountNumber = account.accountNo || account.account_no || '';
+                    const displayText = `${accountNumber} | ${fullName || account.customerName} | ${addressParts}`;
+                    const truncatedText = displayText.length > 80 ? displayText.substring(0, 77) + '...' : displayText;
+                    
+                    return (
+                      <option 
+                        key={account.id} 
+                        value={accountNumber} 
+                        className="bg-gray-800 text-white"
+                        title={displayText}
+                      >
+                        {truncatedText}
+                      </option>
+                    );
+                  })}
                 </select>
                 <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
               </div>
-              {errors.accountId && <p className="text-red-500 text-xs mt-1">{errors.accountId}</p>}
+              {errors.accountNo && <p className="text-red-500 text-xs mt-1">{errors.accountNo}</p>}
             </div>
 
             <div>
@@ -245,12 +325,13 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                 <select
                   value={formData.status}
                   onChange={(e) => handleInputChange('status', e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500 appearance-none"
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500 cursor-pointer"
+                  style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 >
-                  <option value="Unused">Unused</option>
-                  <option value="Used">Used</option>
-                  <option value="Permanent">Permanent</option>
-                  <option value="Monthly">Monthly</option>
+                  <option value="Pending" className="bg-gray-800 text-white">Pending</option>
+                  <option value="Unused" className="bg-gray-800 text-white">Unused</option>
+                  <option value="Permanent" className="bg-gray-800 text-white">Permanent</option>
+                  <option value="Monthly" className="bg-gray-800 text-white">Monthly</option>
                 </select>
                 <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
               </div>
@@ -296,13 +377,20 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
               <div className="relative">
                 <select
                   value={formData.processedByUserId || ''}
-                  onChange={(e) => handleInputChange('processedByUserId', parseInt(e.target.value) || null)}
-                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.processedByUserId ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    handleInputChange('processedByUserId', value ? parseInt(value) : null);
+                  }}
+                  disabled
+                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.processedByUserId ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 cursor-not-allowed opacity-60`}
+                  style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 >
-                  <option value="">Select Processor</option>
-                  <option value="1">admin@ampere.com</option>
-                  <option value="2">billing@ampere.com</option>
-                  <option value="3">finance@ampere.com</option>
+                  <option value="" className="bg-gray-800 text-white">Select Processor</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id} className="bg-gray-800 text-white">
+                      {user.email_address || user.username}
+                    </option>
+                  ))}
                 </select>
                 <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
               </div>
@@ -316,13 +404,19 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
               <div className="relative">
                 <select
                   value={formData.approvedByUserId || ''}
-                  onChange={(e) => handleInputChange('approvedByUserId', parseInt(e.target.value) || null)}
-                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.approvedByUserId ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    handleInputChange('approvedByUserId', value ? parseInt(value) : null);
+                  }}
+                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.approvedByUserId ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 cursor-pointer`}
+                  style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 >
-                  <option value="">Select Approver</option>
-                  <option value="1">admin@ampere.com</option>
-                  <option value="4">manager@ampere.com</option>
-                  <option value="5">supervisor@ampere.com</option>
+                  <option value="" className="bg-gray-800 text-white">Select Approver</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id} className="bg-gray-800 text-white">
+                      {user.email_address || user.username}
+                    </option>
+                  ))}
                 </select>
                 <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
               </div>

@@ -12,7 +12,7 @@ class Transaction extends Model
     protected $table = 'transactions';
 
     protected $fillable = [
-        'account_id',
+        'account_no',
         'transaction_type',
         'received_payment',
         'payment_date',
@@ -37,7 +37,7 @@ class Transaction extends Model
 
     public function account()
     {
-        return $this->belongsTo(BillingAccount::class, 'account_id');
+        return $this->belongsTo(BillingAccount::class, 'account_no', 'account_no');
     }
 
     public function processedByUser()

@@ -3,7 +3,7 @@ import DCNotice from './DCNotice';
 import Discounts from './Discounts';
 import Overdue from './Overdue';
 import StaggeredPayment from './StaggeredPayment';
-import MassRebate from './MassRebate';
+import MassRebate from './Rebate';
 import SMSBlast from './SMSBlast';
 import SMSBlastLogs from './SMSBlastLogs';
 import DisconnectionLogs from './DisconnectionLogs';

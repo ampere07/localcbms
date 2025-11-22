@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, ChevronRight, Tag, X } from 'lucide-react';
+import { Search, ChevronRight, Tag } from 'lucide-react';
 import DiscountDetails from '../components/DiscountDetails';
+import * as discountService from '../services/discountService';
 
 interface DiscountRecord {
   id: string;
@@ -18,6 +19,7 @@ interface DiscountRecord {
   processedBy: string;
   processedDate: string;
   approvedBy: string;
+  approvedByEmail?: string;
   modifiedBy: string;
   modifiedDate: string;
   userEmail: string;
@@ -35,63 +37,56 @@ interface LocationItem {
   count: number;
 }
 
-  // Mock service functions for the demo
 const getDiscountRecords = async (): Promise<DiscountRecord[]> => {
-  // In a real implementation, this would be an API call
-  return [
-    {
-      id: '1',
-      fullName: 'Michael C Cerda',
-      accountNo: '202301255',
-      contactNumber: '9568823688',
-      emailAddress: 'mikecerda924@gmail.com',
-      address: '0066 Sitio Kabilang Tabi',
-      completeAddress: '0066 Sitio Kabilang Tabi, Pila Pila, Binangonan, Rizal',
-      plan: 'SwitchNet - P999',
-      provider: 'SWITCH',
-      discountId: '20250902154042',
-      discountAmount: 133.20,
-      discountStatus: 'Unused',
-      dateCreated: '9/2/2025',
-      processedBy: 'Cheryll Mae Briones',
-      processedDate: '9/2/2025',
-      approvedBy: 'Maria Zolina C. Anore',
-      modifiedBy: 'Cheryll Mae Briones',
-      modifiedDate: '9/2/2025 3:40:42 PM',
-      userEmail: 'cheryll.briones@switchfiber.ph',
-      remarks: 'rebate for 4 days high loss',
-      cityId: 1,
-      barangay: 'Pila Pila',
-      city: 'Binangonan',
-      onlineStatus: 'Online'
-    },
-    {
-      id: '2',
-      fullName: 'Jane Smith',
-      accountNo: '202306002',
-      contactNumber: '9456789123',
-      emailAddress: 'jane.smith@example.com',
-      address: '456 Oak St',
-      completeAddress: '456 Oak St, Malaban, Binangonan, Rizal',
-      plan: 'SwitchLite - P699',
-      provider: 'SWITCH',
-      discountId: '20250903154043',
-      discountAmount: 200,
-      discountStatus: 'Used',
-      dateCreated: '9/3/2025',
-      processedBy: 'Cheryll Mae Briones',
-      processedDate: '9/3/2025',
-      approvedBy: 'Maria Zolina C. Anore',
-      modifiedBy: 'Cheryll Mae Briones',
-      modifiedDate: '9/3/2025 1:15:22 PM',
-      userEmail: 'cheryll.briones@switchfiber.ph',
-      remarks: 'referral discount',
-      cityId: 1,
-      barangay: 'Malaban',
-      city: 'Binangonan',
-      onlineStatus: 'Offline'
+  try {
+    const response = await discountService.getAll();
+    if (response.success && response.data) {
+      return response.data.map((discount: any) => {
+        const customer = discount.billing_account?.customer;
+        const plan = discount.billing_account?.plan;
+        
+        return {
+          id: String(discount.id),
+          fullName: customer?.full_name || 
+                    [customer?.first_name, customer?.middle_initial, customer?.last_name]
+                      .filter(Boolean).join(' ') || 'N/A',
+          accountNo: discount.account_no || 'N/A',
+          contactNumber: customer?.contact_number_primary || 'N/A',
+          emailAddress: customer?.email_address || 'N/A',
+          address: customer?.address || 'N/A',
+          completeAddress: [
+            customer?.address,
+            customer?.location,
+            customer?.barangay,
+            customer?.city,
+            customer?.region
+          ].filter(Boolean).join(', ') || 'N/A',
+          plan: plan?.plan_name || 'N/A',
+          provider: 'N/A',
+          discountId: String(discount.id),
+          discountAmount: parseFloat(discount.discount_amount) || 0,
+          discountStatus: discount.status || 'Unknown',
+          dateCreated: discount.created_at ? new Date(discount.created_at).toLocaleDateString() : 'N/A',
+          processedBy: discount.processed_by_user?.full_name || discount.processed_by_user?.username || 'N/A',
+          processedDate: discount.processed_date ? new Date(discount.processed_date).toLocaleDateString() : 'N/A',
+          approvedBy: discount.approved_by_user?.full_name || discount.approved_by_user?.username || 'N/A',
+          approvedByEmail: discount.approved_by_user?.email_address || discount.approved_by_user?.email,
+          modifiedBy: discount.updated_by_user?.full_name || discount.updated_by_user?.username || 'N/A',
+          modifiedDate: discount.updated_at ? new Date(discount.updated_at).toLocaleString() : 'N/A',
+          userEmail: discount.processed_by_user?.email_address || discount.processed_by_user?.email || 'N/A',
+          remarks: discount.remarks || '',
+          cityId: undefined,
+          barangay: customer?.barangay,
+          city: customer?.city,
+          onlineStatus: undefined
+        };
+      });
     }
-  ];
+    return [];
+  } catch (error) {
+    console.error('Error fetching discount records:', error);
+    throw error;
+  }
 };
 
 const getCities = async () => {
@@ -300,7 +295,6 @@ const Discounts: React.FC = () => {
 
       {/* Main Content */}
       <div className="flex-1 bg-gray-950 overflow-hidden order-1 md:order-2">
-        {/* Main content without the search bar */}
         <div className="flex flex-col h-full">
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto">
@@ -360,18 +354,14 @@ const Discounts: React.FC = () => {
       </div>
 
       {selectedDiscount && (
-        <div className="w-full max-w-3xl bg-gray-900 border-l border-gray-700 flex-shrink-0 relative">
-          <div className="absolute top-4 right-4 z-10">
-            <button
-              onClick={handleCloseDetails}
-              className="text-gray-400 hover:text-white transition-colors bg-gray-800 rounded p-1"
-            >
-              <X size={20} />
-            </button>
+        <div className="flex-shrink-0 overflow-hidden order-3">
+          <div className="w-[600px] bg-gray-900 border-l border-gray-700 h-full">
+            <DiscountDetails
+              discountRecord={selectedDiscount}
+              onClose={handleCloseDetails}
+              onApproveSuccess={handleRefresh}
+            />
           </div>
-          <DiscountDetails
-            discountRecord={selectedDiscount}
-          />
         </div>
       )}
     </div>

@@ -5,7 +5,6 @@ import { invoiceService, InvoiceRecord } from '../services/invoiceService';
 
 interface InvoiceRecordUI {
   id: string;
-  accountId: number;
   accountNo: string;
   invoiceDate: string;
   invoiceBalance: number;
@@ -96,8 +95,7 @@ const Invoice: React.FC = () => {
       
       const transformedData: InvoiceRecordUI[] = data.map(record => ({
         id: record.id.toString(),
-        accountId: record.account_id,
-        accountNo: record.account?.account_no || '',
+        accountNo: record.account_no || record.account?.account_no || '',
         invoiceDate: new Date(record.invoice_date).toLocaleDateString(),
         invoiceBalance: Number(record.invoice_balance) || 0,
         othersAndBasicCharges: Number(record.others_and_basic_charges) || 0,

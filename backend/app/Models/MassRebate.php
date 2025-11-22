@@ -6,23 +6,76 @@ use Illuminate\Database\Eloquent\Model;
 
 class MassRebate extends Model
 {
-    protected $table = 'mass_rebates';
+    protected $table = 'rebates';
 
     protected $fillable = [
-        'rebate_days',
-        'billing_day',
+        'number_of_dates',
+        'rebate_type',
+        'selected_rebate',
         'status',
-        'rebate_date',
-        'barangay_code',
-        'description',
-        'remarks',
-        'created_by_user_id',
-        'updated_by_user_id'
+        'modified_by',
+        'modified_date'
     ];
 
     protected $casts = [
-        'rebate_days' => 'integer',
-        'billing_day' => 'integer',
-        'rebate_date' => 'date'
+        'number_of_dates' => 'integer'
     ];
+
+    public $timestamps = false;
+
+    const STATUS_UNUSED = 'Unused';
+    const STATUS_USED = 'Used';
+
+    const TYPE_LCPNAP = 'lcpnap';
+    const TYPE_LCP = 'lcp';
+    const TYPE_LOCATION = 'location';
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            $model->modified_date = now()->format('Y-m-d H:i:s');
+        });
+
+        static::updating(function ($model) {
+            $model->modified_date = now()->format('Y-m-d H:i:s');
+        });
+    }
+
+    public function scopeUnused($query)
+    {
+        return $query->where('status', self::STATUS_UNUSED);
+    }
+
+    public function scopeUsed($query)
+    {
+        return $query->where('status', self::STATUS_USED);
+    }
+
+    public function scopeByType($query, $type)
+    {
+        return $query->where('rebate_type', $type);
+    }
+
+    public function scopeByRebate($query, $rebateName)
+    {
+        return $query->where('selected_rebate', 'like', "%{$rebateName}%");
+    }
+
+    public function markAsUsed()
+    {
+        $this->status = self::STATUS_USED;
+        return $this->save();
+    }
+
+    public function isUsed()
+    {
+        return $this->status === self::STATUS_USED;
+    }
+
+    public function isUnused()
+    {
+        return $this->status === self::STATUS_UNUSED;
+    }
 }

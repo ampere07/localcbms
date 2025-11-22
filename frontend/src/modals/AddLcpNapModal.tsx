@@ -62,7 +62,7 @@ const AddLcpNapModal: React.FC<AddLcpNapModalProps> = ({
   const [napList, setNapList] = useState<any[]>([]);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.100.10:8000/api';
 
   useEffect(() => {
     // Get current user email from localStorage

@@ -20,7 +20,7 @@ const PromoList: React.FC = () => {
   const [editingPromo, setEditingPromo] = useState<Promo | null>(null);
   const [deletingItems, setDeletingItems] = useState<Set<number>>(new Set());
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://backend.atssfiber.ph/api';
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.100.10:8000/api';
 
   useEffect(() => {
     loadPromos();

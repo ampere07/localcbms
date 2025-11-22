@@ -40,11 +40,11 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   };
 
   const [formData, setFormData] = useState<TransactionFormData>(() => ({
-    provider: 'SWITCH',
+    provider: '',
     accountNo: billingRecord?.applicationId || '',
     fullName: billingRecord?.customerName || '',
     contactNo: billingRecord?.contactNumber || '',
-    plan: billingRecord?.plan || 'SwitchLite - P699',
+    plan: billingRecord?.plan || '',
     accountBalance: billingRecord?.accountBalance?.toString() || '0.00',
     paymentDate: getCurrentDateTime(),
     receivedPayment: '0.00',
@@ -240,7 +240,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       }
       
       const payload = {
-        account_id: billingRecord?.id || undefined,
+        account_no: formData.accountNo || undefined,
         transaction_type: formData.transactionType,
         received_payment: parseFloat(formData.receivedPayment) || 0,
         payment_date: formData.paymentDate,
@@ -327,6 +327,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                 className={`w-full px-3 py-2 bg-gray-800 border ${errors.provider ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
               >
                 <option value="SWITCH">SWITCH</option>
+                <option value="sample">sample</option>
               </select>
               <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
             </div>

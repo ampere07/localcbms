@@ -60,7 +60,7 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://backend.atssfiber.ph/api';
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.100.10:8000/api';
 
   const statusOptions = [
     { value: 'pending', label: 'Pending', color: 'text-orange-400' },

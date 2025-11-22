@@ -7,7 +7,7 @@ const getApiBaseUrl = (): string => {
   
   const hostname = window.location.hostname;
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:8000/api';
+    return 'http://192.168.100.10:8000/api';
   }
   
   return `${window.location.protocol}//${window.location.host}/sync/api`;

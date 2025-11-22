@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
+import RebateFormModal from '../modals/RebateFormModal';
 
 interface DateItem {
   date: string;
@@ -31,6 +32,7 @@ const MassRebate: React.FC = () => {
   const [massRebateRecords, setMassRebateRecords] = useState<MassRebateRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
   // Log when component is mounted
   useEffect(() => {
@@ -84,7 +86,7 @@ const MassRebate: React.FC = () => {
             <div>
               <button 
                 className="flex items-center space-x-1 bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-sm"
-                onClick={() => alert('Add new mass rebate')}
+                onClick={() => setIsModalOpen(true)}
               >
                 <span className="font-bold">+</span>
                 <span>Add</span>
@@ -175,6 +177,14 @@ const MassRebate: React.FC = () => {
           </div>
         </div>
       </div>
+      <RebateFormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={() => {
+          setIsModalOpen(false);
+          handleRefresh();
+        }}
+      />
     </div>
   );
 };

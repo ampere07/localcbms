@@ -21,7 +21,7 @@ use App\Http\Controllers\RadiusController;
 use App\Http\Controllers\RadiusConfigController;
 use App\Http\Controllers\TransactionController;
 use App\Models\User;
-use App\Services\ActivityLogService;
+use App\Models\MassRebate;
 
 // Handle all OPTIONS requests
 Route::options('{any}', function() {
@@ -103,8 +103,15 @@ Route::prefix('service-charges')->group(function () {
     Route::get('/', function(Request $request) {
         $query = DB::table('service_charge_logs');
         
+        if ($request->has('account_no')) {
+            $query->where('account_no', $request->account_no);
+        }
+        
         if ($request->has('account_id')) {
-            $query->where('account_id', $request->account_id);
+            $billingAccount = \App\Models\BillingAccount::find($request->account_id);
+            if ($billingAccount) {
+                $query->where('account_no', $billingAccount->account_no);
+            }
         }
         
         if ($request->has('status')) {
@@ -123,7 +130,7 @@ Route::prefix('service-charges')->group(function () {
     Route::post('/', function(Request $request) {
         try {
             $validated = $request->validate([
-                'account_id' => 'required|exists:billing_accounts,id',
+                'account_no' => 'required|string|exists:billing_accounts,account_no',
                 'service_charge' => 'required|numeric|min:0',
                 'remarks' => 'nullable|string'
             ]);
@@ -154,10 +161,17 @@ Route::prefix('service-charges')->group(function () {
 // Installment Management Routes (Enhanced)
 Route::prefix('installments')->group(function () {
     Route::get('/', function(Request $request) {
-        $query = \App\Models\Installment::with(['billingAccount', 'invoice', 'schedules']);
+        $query = \App\Models\Installment::with(['billingAccount.customer', 'billingAccount.technicalDetails', 'invoice', 'schedules']);
+        
+        if ($request->has('account_no')) {
+            $query->where('account_no', $request->account_no);
+        }
         
         if ($request->has('account_id')) {
-            $query->where('account_id', $request->account_id);
+            $billingAccount = \App\Models\BillingAccount::find($request->account_id);
+            if ($billingAccount) {
+                $query->where('account_no', $billingAccount->account_no);
+            }
         }
         
         if ($request->has('status')) {
@@ -176,7 +190,7 @@ Route::prefix('installments')->group(function () {
     Route::post('/', function(Request $request) {
         try {
             $validated = $request->validate([
-                'account_id' => 'required|exists:billing_accounts,id',
+                'account_no' => 'required|string|exists:billing_accounts,account_no',
                 'invoice_id' => 'nullable|exists:invoices,id',
                 'total_balance' => 'required|numeric|min:0',
                 'months_to_pay' => 'required|integer|min:1',
@@ -197,7 +211,7 @@ Route::prefix('installments')->group(function () {
             
             if (isset($validated['invoice_id'])) {
                 $invoice = \App\Models\Invoice::find($validated['invoice_id']);
-                $billingAccount = \App\Models\BillingAccount::find($validated['account_id']);
+                $billingAccount = \App\Models\BillingAccount::where('account_no', $validated['account_no'])->first();
                 
                 if ($invoice && $billingAccount) {
                     $staggeredBalance = $validated['total_balance'];
@@ -245,7 +259,7 @@ Route::prefix('installments')->group(function () {
                     
                     \Illuminate\Support\Facades\Log::info('Staggered installment created', [
                         'installment_id' => $installment->id,
-                        'account_id' => $validated['account_id'],
+                        'account_no' => $validated['account_no'],
                         'invoice_id' => $validated['invoice_id'],
                         'balance_changes' => $balanceChanges
                     ]);
@@ -1864,6 +1878,310 @@ Route::prefix('transactions')->group(function () {
     Route::get('/{id}', [\App\Http\Controllers\TransactionController::class, 'show']);
     Route::post('/{id}/approve', [\App\Http\Controllers\TransactionController::class, 'approve']);
     Route::put('/{id}/status', [\App\Http\Controllers\TransactionController::class, 'updateStatus']);
+});
+
+// Mass Rebate Management Routes
+Route::prefix('mass-rebates')->group(function () {
+    Route::post('/test', function(Request $request) {
+        try {
+            $data = $request->all();
+            
+            \Illuminate\Support\Facades\Log::info('Test endpoint received data', [
+                'data' => $data,
+                'headers' => $request->headers->all()
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Test endpoint working',
+                'received_data' => $data,
+                'validation_would_pass' => true
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
+    });
+    
+    Route::get('/test-connection', function() {
+        try {
+            $tableExists = \Illuminate\Support\Facades\Schema::hasTable('rebates');
+            
+            if (!$tableExists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rebates table does not exist'
+                ], 404);
+            }
+            
+            $columns = \Illuminate\Support\Facades\Schema::getColumnListing('rebates');
+            $count = \Illuminate\Support\Facades\DB::table('rebates')->count();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Database connection successful',
+                'table_exists' => true,
+                'columns' => $columns,
+                'record_count' => $count
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Database connection failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    Route::get('/', function(Request $request) {
+        try {
+            $query = MassRebate::query();
+            
+            if ($request->has('rebate_type')) {
+                $query->byType($request->rebate_type);
+            }
+            
+            if ($request->has('status')) {
+                if ($request->status === 'Unused') {
+                    $query->unused();
+                } elseif ($request->status === 'Used') {
+                    $query->used();
+                }
+            }
+            
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->byRebate($search)
+                      ->orWhere('modified_by', 'like', "%{$search}%");
+                });
+            }
+            
+            $rebates = $query->orderBy('id', 'desc')->get();
+            
+            \Illuminate\Support\Facades\Log::info('Fetched mass rebates', [
+                'count' => $rebates->count(),
+                'filters' => $request->only(['rebate_type', 'status', 'search'])
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'data' => $rebates,
+                'count' => $rebates->count()
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error fetching rebates', [
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching rebates',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    Route::post('/', function(Request $request) {
+        try {
+            \Illuminate\Support\Facades\Log::info('Received mass rebate creation request', [
+                'data' => $request->all(),
+                'method' => $request->method(),
+                'path' => $request->path()
+            ]);
+            
+            $validated = $request->validate([
+                'number_of_dates' => 'required|integer|min:1',
+                'rebate_type' => 'required|in:lcpnap,lcp,location',
+                'selected_rebate' => 'required|string|max:255',
+                'status' => 'required|in:Unused,Used',
+                'modified_by' => 'required|string|max:255'
+            ]);
+            
+            \Illuminate\Support\Facades\Log::info('Validation passed, creating mass rebate', [
+                'data' => $validated
+            ]);
+            
+            $rebate = MassRebate::create($validated);
+            
+            \Illuminate\Support\Facades\Log::info('Mass rebate created successfully', [
+                'id' => $rebate->id,
+                'rebate' => $rebate->toArray()
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Mass rebate created successfully',
+                'data' => $rebate
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Illuminate\Support\Facades\Log::error('Mass rebate validation failed', [
+                'errors' => $e->errors(),
+                'input' => $request->all()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to create mass rebate', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'input' => $request->all()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create mass rebate',
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ], 500);
+        }
+    });
+    
+    Route::get('/{id}', function($id) {
+        try {
+            $rebate = MassRebate::find($id);
+            
+            if (!$rebate) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rebate not found'
+                ], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => $rebate
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching rebate',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    Route::put('/{id}', function($id, Request $request) {
+        try {
+            $rebate = MassRebate::find($id);
+            
+            if (!$rebate) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rebate not found'
+                ], 404);
+            }
+            
+            $validated = $request->validate([
+                'number_of_dates' => 'sometimes|integer|min:1',
+                'rebate_type' => 'sometimes|in:lcpnap,lcp,location',
+                'selected_rebate' => 'sometimes|string|max:255',
+                'status' => 'sometimes|in:Unused,Used',
+                'modified_by' => 'sometimes|string|max:255'
+            ]);
+            
+            \Illuminate\Support\Facades\Log::info('Updating mass rebate', [
+                'id' => $id,
+                'data' => $validated
+            ]);
+            
+            $rebate->update($validated);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Mass rebate updated successfully',
+                'data' => $rebate->fresh()
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to update mass rebate', [
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update mass rebate',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    Route::delete('/{id}', function($id) {
+        try {
+            $rebate = MassRebate::find($id);
+            
+            if (!$rebate) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rebate not found'
+                ], 404);
+            }
+            
+            \Illuminate\Support\Facades\Log::info('Deleting mass rebate', ['id' => $id]);
+            
+            $rebate->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Mass rebate deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to delete mass rebate', [
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete mass rebate',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    });
+    
+    Route::post('/{id}/mark-used', function($id) {
+        try {
+            $rebate = MassRebate::find($id);
+            
+            if (!$rebate) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rebate not found'
+                ], 404);
+            }
+            
+            \Illuminate\Support\Facades\Log::info('Marking mass rebate as used', ['id' => $id]);
+            
+            $rebate->markAsUsed();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Mass rebate marked as used',
+                'data' => $rebate->fresh()
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to mark rebate as used', [
+                'id' => $id,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to mark rebate as used',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    });
 });
 
 // Staggered Installation Management Routes

@@ -7,7 +7,7 @@ const getApiBaseUrl = (): string => {
   
   const hostname = window.location.hostname;
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:8000/api';
+    return 'http://192.168.100.10:8000/api';
   }
   
   return `${window.location.protocol}//${window.location.host}/sync/api`;
@@ -45,7 +45,7 @@ interface ApproveTransactionResponse {
 }
 
 interface CreateTransactionPayload {
-  account_id?: number;
+  account_no?: string;
   transaction_type: string;
   received_payment: number;
   payment_date: string;
@@ -63,6 +63,7 @@ interface CreateTransactionResponse {
   success: boolean;
   message?: string;
   data?: any;
+  error?: string;
 }
 
 export const transactionService = {
@@ -85,17 +86,23 @@ export const transactionService = {
 
   createTransaction: async (payload: CreateTransactionPayload): Promise<CreateTransactionResponse> => {
     try {
+      console.log('[API CALL] Creating transaction with payload:', payload);
       const response = await axiosInstance.post<ApiResponse>('/transactions', payload);
+      console.log('[API SUCCESS] Transaction created:', response.data);
       return {
         success: true,
         message: response.data.message || 'Transaction created successfully',
         data: response.data.data
       };
     } catch (error: any) {
-      console.error('Error creating transaction:', error);
+      console.error('[API ERROR] Error creating transaction:', error);
+      console.error('[API ERROR] Error response:', error.response?.data);
+      console.error('[API ERROR] Error status:', error.response?.status);
+      console.error('[API ERROR] Error message:', error.message);
       return {
         success: false,
-        message: error.response?.data?.message || error.message || 'Failed to create transaction'
+        message: error.response?.data?.message || error.message || 'Failed to create transaction',
+        error: error.response?.data?.error || error.message
       };
     }
   },

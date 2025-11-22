@@ -54,7 +54,7 @@ const LcpNapLocation: React.FC = () => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
 
-  const API_BASE_URL = 'https://backend.atssfiber.ph/api';
+  const API_BASE_URL = 'http://192.168.100.10:8000/api';
 
   useEffect(() => {
     loadGoogleMapsScript();

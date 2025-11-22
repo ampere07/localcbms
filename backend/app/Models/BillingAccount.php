@@ -54,4 +54,9 @@ class BillingAccount extends Model
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
+
+    public function staggeredInstallations()
+    {
+        return $this->hasMany(StaggeredInstallation::class, 'account_no', 'account_no');
+    }
 }

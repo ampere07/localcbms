@@ -1,10 +1,10 @@
 import axios from 'axios';
 
-const API_URL = 'https://backend.atssfiber.ph/api';
+const API_URL = 'http://192.168.100.10:8000/api';
 
 export interface SOARecord {
   id: number;
-  account_id: number;
+  account_no: string;
   statement_date: string;
   balance_from_previous_bill: number;
   payment_received_previous: number;
