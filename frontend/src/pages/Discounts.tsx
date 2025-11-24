@@ -386,13 +386,11 @@ const Discounts: React.FC = () => {
 
       {selectedDiscount && (
         <div className="flex-shrink-0 overflow-hidden order-3">
-          <div className="w-[600px] bg-gray-900 border-l border-gray-700 h-full">
-            <DiscountDetails
-              discountRecord={selectedDiscount}
-              onClose={handleCloseDetails}
-              onApproveSuccess={handleRefresh}
-            />
-          </div>
+          <DiscountDetails
+            discountRecord={selectedDiscount}
+            onClose={handleCloseDetails}
+            onApproveSuccess={handleRefresh}
+          />
         </div>
       )}
     </div>

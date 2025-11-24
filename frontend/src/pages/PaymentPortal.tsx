@@ -395,7 +395,7 @@ const PaymentPortal: React.FC = () => {
 
       {/* Payment Portal Detail View - Only visible when a record is selected */}
       {selectedRecord && (
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-shrink-0 overflow-hidden">
           <PaymentPortalDetails 
             record={selectedRecord}
             onClose={() => setSelectedRecord(null)}

@@ -407,15 +407,7 @@ const Invoice: React.FC = () => {
       </div>
 
       {selectedRecord && (
-        <div className="w-full max-w-3xl bg-gray-900 border-l border-gray-700 flex-shrink-0 relative">
-          <div className="absolute top-4 right-4 z-10">
-            <button
-              onClick={handleCloseDetails}
-              className="text-gray-400 hover:text-white transition-colors bg-gray-800 rounded p-1"
-            >
-              <X size={20} />
-            </button>
-          </div>
+        <div className="flex-shrink-0 overflow-hidden">
           <InvoiceDetails invoiceRecord={selectedRecord} />
         </div>
       )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, ArrowRight, Maximize2, X, Info, 
   ExternalLink, CheckCircle
@@ -61,6 +61,10 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
+  const [detailsWidth, setDetailsWidth] = useState<number>(600);
+  const [isResizing, setIsResizing] = useState<boolean>(false);
+  const startXRef = useRef<number>(0);
+  const startWidthRef = useRef<number>(0);
 
   useEffect(() => {
     const authData = localStorage.getItem('authData');
@@ -73,6 +77,38 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      
+      const diff = startXRef.current - e.clientX;
+      const newWidth = Math.max(600, Math.min(1200, startWidthRef.current + diff));
+      
+      setDetailsWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const handleMouseDownResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = detailsWidth;
+  };
 
   const formatCurrency = (amount: number | string) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -166,7 +202,11 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
         percentage={loadingPercentage} 
       />
       
-      <div className="w-full h-full bg-gray-950 flex flex-col overflow-hidden border-l border-white border-opacity-30">
+      <div className="bg-gray-950 flex flex-col overflow-hidden border-l border-white border-opacity-30 relative" style={{ width: `${detailsWidth}px`, height: '100%' }}>
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
+          onMouseDown={handleMouseDownResize}
+        />
         <div className="bg-gray-800 p-3 flex items-center justify-between border-b border-gray-700">
           <div className="flex items-center min-w-0 flex-1">
             <h2 className="text-white font-medium truncate pr-4">{getAccountDisplayText()}</h2>

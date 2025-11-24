@@ -340,7 +340,7 @@ const StaggeredPayment: React.FC = () => {
       </div>
 
       {selectedStaggered && (
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-shrink-0 overflow-hidden">
           <StaggeredListDetails 
             staggered={selectedStaggered}
             onClose={() => setSelectedStaggered(null)}

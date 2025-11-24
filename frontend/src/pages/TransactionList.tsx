@@ -374,7 +374,7 @@ const TransactionList: React.FC = () => {
       </div>
 
       {selectedTransaction && (
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-shrink-0 overflow-hidden">
           <TransactionListDetails 
             transaction={selectedTransaction}
             onClose={() => setSelectedTransaction(null)}
