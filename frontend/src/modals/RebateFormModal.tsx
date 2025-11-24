@@ -5,6 +5,7 @@ import * as massRebateService from '../services/massRebateService';
 import * as lcpnapService from '../services/lcpnapService';
 import * as lcpService from '../services/lcpService';
 import * as locationDetailService from '../services/locationDetailService';
+import { userService } from '../services/userService';
 
 interface RebateFormModalProps {
   isOpen: boolean;
@@ -24,7 +25,7 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
       const authData = localStorage.getItem('authData');
       if (authData) {
         const userData = JSON.parse(authData);
-        return userData.email || 'unknown@example.com';
+        return userData.email || userData.user?.email || 'unknown@example.com';
       }
       return 'unknown@example.com';
     } catch (error) {
@@ -38,13 +39,16 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
     rebateType: null as RebateType,
     selectedId: null as number | null,
     month: '',
-    status: 'Unused',
-    modifiedBy: getUserEmail()
+    status: 'Pending',
+    createdBy: getUserEmail(),
+    approvedBy: '',
+    modifiedBy: null as string | null
   });
 
   const [lcpnapList, setLcpnapList] = useState<lcpnapService.LCPNAP[]>([]);
   const [lcpList, setLcpList] = useState<lcpService.LCP[]>([]);
   const [locationList, setLocationList] = useState<locationDetailService.LocationDetail[]>([]);
+  const [usersList, setUsersList] = useState<Array<{ email: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -53,7 +57,8 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
     if (isOpen) {
       setFormData(prev => ({
         ...prev,
-        modifiedBy: getUserEmail()
+        createdBy: getUserEmail(),
+        status: 'Pending'
       }));
       loadAllData();
     }
@@ -61,10 +66,11 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
 
   const loadAllData = async () => {
     try {
-      const [lcpnapResponse, lcpResponse, locationResponse] = await Promise.all([
+      const [lcpnapResponse, lcpResponse, locationResponse, usersResponse] = await Promise.all([
         lcpnapService.getAllLCPNAPs(),
         lcpService.getAllLCPs(),
-        locationDetailService.locationDetailService.getAll()
+        locationDetailService.locationDetailService.getAll(),
+        userService.getAllUsers()
       ]);
 
       if (lcpnapResponse.success) {
@@ -77,6 +83,13 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
 
       if (locationResponse.success) {
         setLocationList(locationResponse.data);
+      }
+
+      if (usersResponse.success && usersResponse.data) {
+        const users = usersResponse.data.map(user => ({
+          email: user.email_address || user.username || 'No email'
+        }));
+        setUsersList(users);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -134,6 +147,10 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
       newErrors.month = 'Please select a month';
     }
 
+    if (!formData.approvedBy || formData.approvedBy.trim() === '') {
+      newErrors.approvedBy = 'Approved By is required';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -167,8 +184,9 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
         rebate_type: formData.rebateType as 'lcpnap' | 'lcp' | 'location',
         selected_rebate: selectedRebateName,
         month: formData.month,
-        status: formData.status as 'Unused' | 'Used',
-        modified_by: formData.modifiedBy
+        status: 'Pending',
+        created_by: formData.createdBy,
+        modified_by: formData.approvedBy
       };
 
       setLoadingPercentage(50);
@@ -177,12 +195,12 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
       setLoadingPercentage(100);
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      alert('Mass rebate created successfully!');
+      alert('Rebate created successfully!');
       onSave();
       onClose();
     } catch (error) {
-      console.error('Error creating mass rebate:', error);
-      alert(`Failed to save mass rebate: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error creating rebate:', error);
+      alert(`Failed to save rebate: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
       setLoadingPercentage(0);
@@ -195,8 +213,10 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
       rebateType: null,
       selectedId: null,
       month: '',
-      status: 'Unused',
-      modifiedBy: getUserEmail()
+      status: 'Pending',
+      createdBy: getUserEmail(),
+      approvedBy: '',
+      modifiedBy: null
     });
     setErrors({});
     onClose();
@@ -208,14 +228,14 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
     <>
       <LoadingModal 
         isOpen={loading} 
-        message="Saving mass rebate..." 
+        message="Saving rebate..." 
         percentage={loadingPercentage} 
       />
       
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
         <div className="h-full w-full max-w-2xl bg-gray-900 shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col">
           <div className="bg-gray-800 px-6 py-4 flex items-center justify-between border-b border-gray-700">
-            <h2 className="text-xl font-semibold text-white">Mass Rebate Form</h2>
+            <h2 className="text-xl font-semibold text-white">Rebate Form</h2>
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleCancel}
@@ -431,21 +451,49 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                 readOnly
                 className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-400 cursor-not-allowed"
               />
+              <p className="text-gray-500 text-xs mt-1">Default status is Pending when creating a new rebate</p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Modified By
+                Created By
               </label>
               <input
                 type="text"
-                value={formData.modifiedBy}
+                value={formData.createdBy}
                 readOnly
                 className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-400 cursor-not-allowed"
               />
             </div>
 
-
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Approved By<span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <select
+                  value={formData.approvedBy}
+                  onChange={(e) => handleInputChange('approvedBy', e.target.value)}
+                  className={`w-full px-3 py-2 bg-gray-800 border ${
+                    errors.approvedBy ? 'border-red-500' : 'border-gray-700'
+                  } rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
+                >
+                  <option value="">Select Approver</option>
+                  {usersList.map((user, index) => (
+                    <option key={index} value={user.email}>
+                      {user.email}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+              </div>
+              {errors.approvedBy && (
+                <p className="text-red-500 text-xs mt-1">{errors.approvedBy}</p>
+              )}
+              <p className="text-gray-500 text-xs mt-1">
+                Select the person who will approve this rebate
+              </p>
+            </div>
           </div>
         </div>
       </div>

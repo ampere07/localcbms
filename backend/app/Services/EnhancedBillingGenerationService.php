@@ -628,14 +628,15 @@ class EnhancedBillingGenerationService
             ->where('month', $currentMonth)
             ->get();
 
-        Log::info('Calculating rebates', [
+        Log::info('Calculating rebates - only Unused status', [
             'account_no' => $account->account_no,
             'current_month' => $currentMonth,
-            'total_rebates_available' => $rebates->count(),
+            'total_unused_rebates_available' => $rebates->count(),
             'customer_lcpnap' => $technicalDetails->lcpnap,
             'customer_lcp' => $technicalDetails->lcp,
             'customer_location' => $customer->location,
-            'customer_barangay' => $customer->barangay
+            'customer_barangay' => $customer->barangay,
+            'note' => 'Only rebates with status=Unused will be processed (not Pending or Used)'
         ]);
 
         $daysInCurrentMonth = $date->daysInMonth;
@@ -670,12 +671,13 @@ class EnhancedBillingGenerationService
                     $rebateValue = $dailyRate * $rebateDays;
                     $total += $rebateValue;
 
-                    Log::info('Rebate matched and applied', [
+                    Log::info('Rebate matched and applied - status is Unused', [
                         'rebate_id' => $rebate->id,
                         'rebate_usage_id' => $rebateUsage->id,
                         'account_no' => $account->account_no,
                         'rebate_type' => $rebate->rebate_type,
                         'selected_rebate' => $rebate->selected_rebate,
+                        'rebate_status' => $rebate->status,
                         'rebate_days' => $rebateDays,
                         'daily_rate' => $dailyRate,
                         'rebate_value' => $rebateValue
@@ -887,11 +889,12 @@ class EnhancedBillingGenerationService
             ->where('month', $currentMonth)
             ->get();
 
-        Log::info('Marking rebates as used after invoice generation', [
+        Log::info('Marking rebates as used after invoice generation - only Unused status', [
             'account_no' => $account->account_no,
             'current_month' => $currentMonth,
             'rebates_count' => $rebates->count(),
-            'invoice_id' => $invoiceId
+            'invoice_id' => $invoiceId,
+            'note' => 'Only rebates with status=Unused will be marked as used (not Pending or Used)'
         ]);
 
         foreach ($rebates as $rebate) {
@@ -919,12 +922,13 @@ class EnhancedBillingGenerationService
                     ->first();
 
                 if ($rebateUsage) {
-                    Log::info('Marking rebate_usage as Used', [
+                    Log::info('Marking rebate_usage as Used - rebate status was Unused', [
                         'rebate_id' => $rebate->id,
                         'rebate_usage_id' => $rebateUsage->id,
                         'account_no' => $account->account_no,
                         'rebate_type' => $rebate->rebate_type,
-                        'selected_rebate' => $rebate->selected_rebate
+                        'selected_rebate' => $rebate->selected_rebate,
+                        'rebate_status' => $rebate->status
                     ]);
 
                     $rebateUsage->update([

@@ -2051,9 +2051,12 @@ Route::prefix('mass-rebates')->group(function () {
                 'rebate_type' => 'required|in:lcpnap,lcp,location',
                 'selected_rebate' => 'required|string|max:255',
                 'month' => 'required|string|max:50',
-                'status' => 'required|in:Unused,Used',
-                'modified_by' => 'required|string|max:255'
+                'status' => 'sometimes|in:Unused,Used,Pending',
+                'created_by' => 'required|string|max:255',
+                'modified_by' => 'nullable|string|max:255'
             ]);
+            
+            $validated['status'] = $validated['status'] ?? 'Pending';
             
             \Illuminate\Support\Facades\Log::info('Validation passed, creating mass rebate', [
                 'data' => $validated
@@ -2078,6 +2081,15 @@ Route::prefix('mass-rebates')->group(function () {
                     ->whereNotNull('billing_accounts.date_installed')
                     ->pluck('billing_accounts.account_no')
                     ->toArray();
+                    
+                \Illuminate\Support\Facades\Log::info('LCPNAP query results', [
+                    'query' => \Illuminate\Support\Facades\DB::table('billing_accounts')
+                        ->join('technical_details', 'billing_accounts.id', '=', 'technical_details.account_id')
+                        ->where('technical_details.lcpnap', $validated['selected_rebate'])
+                        ->whereNotNull('billing_accounts.date_installed')
+                        ->toSql(),
+                    'count' => count($accountNumbers)
+                ]);
             } elseif ($validated['rebate_type'] === 'lcp') {
                 $accountNumbers = \Illuminate\Support\Facades\DB::table('billing_accounts')
                     ->join('technical_details', 'billing_accounts.id', '=', 'technical_details.account_id')
@@ -2085,13 +2097,33 @@ Route::prefix('mass-rebates')->group(function () {
                     ->whereNotNull('billing_accounts.date_installed')
                     ->pluck('billing_accounts.account_no')
                     ->toArray();
+                    
+                \Illuminate\Support\Facades\Log::info('LCP query results', [
+                    'query' => \Illuminate\Support\Facades\DB::table('billing_accounts')
+                        ->join('technical_details', 'billing_accounts.id', '=', 'technical_details.account_id')
+                        ->where('technical_details.lcp', $validated['selected_rebate'])
+                        ->whereNotNull('billing_accounts.date_installed')
+                        ->toSql(),
+                    'selected_rebate' => $validated['selected_rebate'],
+                    'count' => count($accountNumbers),
+                    'accounts' => $accountNumbers
+                ]);
             } elseif ($validated['rebate_type'] === 'location') {
                 $accountNumbers = \Illuminate\Support\Facades\DB::table('billing_accounts')
                     ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
-                    ->where('customers.village', $validated['selected_rebate'])
+                    ->where('customers.location', $validated['selected_rebate'])
                     ->whereNotNull('billing_accounts.date_installed')
                     ->pluck('billing_accounts.account_no')
                     ->toArray();
+                    
+                \Illuminate\Support\Facades\Log::info('Location query results', [
+                    'query' => \Illuminate\Support\Facades\DB::table('billing_accounts')
+                        ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                        ->where('customers.location', $validated['selected_rebate'])
+                        ->whereNotNull('billing_accounts.date_installed')
+                        ->toSql(),
+                    'count' => count($accountNumbers)
+                ]);
             }
             
             \Illuminate\Support\Facades\Log::info('Found matching accounts', [
@@ -2295,6 +2327,48 @@ Route::prefix('mass-rebates')->group(function () {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to mark rebate as used',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    });
+});
+
+// Rebates Usage Routes
+Route::prefix('rebates-usage')->group(function () {
+    Route::get('/', function(Request $request) {
+        try {
+            $query = \Illuminate\Support\Facades\DB::table('rebates_usage');
+            
+            if ($request->has('rebates_id')) {
+                $query->where('rebates_id', $request->rebates_id);
+            }
+            
+            if ($request->has('account_no')) {
+                $query->where('account_no', $request->account_no);
+            }
+            
+            if ($request->has('status')) {
+                $query->where('status', $request->status);
+            }
+            
+            if ($request->has('month')) {
+                $query->where('month', $request->month);
+            }
+            
+            $usages = $query->orderBy('id', 'desc')->get();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $usages,
+                'count' => $usages->count()
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error fetching rebate usages', [
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching rebate usages',
                 'error' => $e->getMessage()
             ], 500);
         }

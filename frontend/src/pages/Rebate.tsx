@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
 import RebateFormModal from '../modals/RebateFormModal';
+import RebateDetails from '../components/RebateDetails';
 import apiClient from '../config/api';
 
 interface RebateRecord {
@@ -10,7 +11,8 @@ interface RebateRecord {
   selected_rebate: string;
   month: string;
   status: string;
-  modified_by: string;
+  created_by: string;
+  modified_by: string | null;
   modified_date: string;
 }
 
@@ -21,6 +23,7 @@ const Rebate: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [selectedRebate, setSelectedRebate] = useState<RebateRecord | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState<number>(256);
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const sidebarStartXRef = useRef<number>(0);
@@ -141,7 +144,7 @@ const Rebate: React.FC = () => {
         />
       </div>
 
-      <div className="bg-gray-900 overflow-hidden flex-1">
+      <div className={`bg-gray-900 overflow-hidden ${selectedRebate ? 'flex-1' : 'flex-1'}`}>
         <div className="flex flex-col h-full">
           <div className="bg-gray-900 p-4 border-b border-gray-700 flex-shrink-0">
             <div className="flex flex-col space-y-3">
@@ -196,7 +199,7 @@ const Rebate: React.FC = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Month</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Number of Dates</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Modified By</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Approved By</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Modified Date</th>
                     </tr>
                   </thead>
@@ -204,6 +207,7 @@ const Rebate: React.FC = () => {
                     {filteredRecords.map((record) => (
                       <tr 
                         key={record.id}
+                        onClick={() => setSelectedRebate(record)}
                         className="hover:bg-gray-800 cursor-pointer"
                       >
                         <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.id}</td>
@@ -212,7 +216,7 @@ const Rebate: React.FC = () => {
                         <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.month}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.number_of_dates}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.status}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.modified_by}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.modified_by || '-'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.modified_date || '-'}</td>
                       </tr>
                     ))}
@@ -228,6 +232,18 @@ const Rebate: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {selectedRebate && (
+        <div className="flex-1 overflow-hidden">
+          <RebateDetails
+            rebate={selectedRebate}
+            onClose={() => {
+              setSelectedRebate(null);
+              handleRefresh();
+            }}
+          />
+        </div>
+      )}
 
       <RebateFormModal
         isOpen={isModalOpen}

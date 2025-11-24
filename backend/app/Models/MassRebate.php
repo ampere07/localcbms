@@ -14,6 +14,7 @@ class MassRebate extends Model
         'selected_rebate',
         'month',
         'status',
+        'created_by',
         'modified_by',
         'modified_date'
     ];

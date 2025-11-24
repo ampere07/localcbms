@@ -5,8 +5,9 @@ export interface MassRebateData {
   rebate_type: 'lcpnap' | 'lcp' | 'location';
   selected_rebate: string;
   month: string;
-  status: 'Unused' | 'Used';
-  modified_by: string;
+  status: 'Unused' | 'Used' | 'Pending';
+  created_by: string;
+  modified_by?: string | null;
 }
 
 export interface MassRebate {
@@ -15,8 +16,9 @@ export interface MassRebate {
   rebate_type: 'lcpnap' | 'lcp' | 'location';
   selected_rebate: string;
   month: string;
-  status: 'Unused' | 'Used';
-  modified_by: string;
+  status: 'Unused' | 'Used' | 'Pending';
+  created_by: string;
+  modified_by?: string | null;
   modified_date?: string;
 }
 
