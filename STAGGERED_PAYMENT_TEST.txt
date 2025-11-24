@@ -1,0 +1,166 @@
+STAGGERED PAYMENT TEST PROCEDURE
+=================================
+
+This document outlines the testing steps to verify the staggered payment fix.
+
+SETUP
+-----
+1. Clear existing test data if needed
+2. Ensure you have a test account (e.g., A0001)
+3. Ensure the account has no pending invoices or staggered installations
+
+TEST SCENARIO 1: NEW STAGGERED WITH EXISTING INVOICE
+-----------------------------------------------------
+STEP 1: Generate initial invoice
+- Action: Force generate invoice for account A0001
+- Expected Result:
+  * Invoice created with balance 1299.00
+  * received_payment: 0.00
+  * status: "Unpaid"
+  * others_and_basic_charges: 0.00
+
+STEP 2: Create staggered installation
+- Action: Create staggered installation
+  * staggered_balance: 1299.00
+  * months_to_pay: 1
+  * monthly_payment: 1299.00
+  * status: "Pending"
+- Expected Result:
+  * Staggered created with status "Pending"
+
+STEP 3: Approve staggered installation
+- Action: Approve the staggered installation
+- Expected Result:
+  * Staggered status changes to "Active"
+  * Invoice 1 received_payment: 1299.00
+  * Invoice 1 status: "Paid"
+  * Account balance decreased by 1299.00
+
+STEP 4: Generate new invoice (THE CRITICAL TEST)
+- Action: Force generate another invoice
+- Expected Result:
+  * NEW invoice created
+  * invoice_balance: 1299.00
+  * others_and_basic_charges: 1299.00 (staggered fee included)
+  * total_amount: 2598.00
+  * received_payment: 0.00 (MUST BE ZERO - THIS IS THE FIX)
+  * status: "Unpaid" (NOT "Partial")
+  * Staggered months_to_pay: 0
+  * Staggered status: "Completed"
+  * Staggered month1 column: contains invoice ID
+
+VERIFICATION CHECKLIST
+----------------------
+✓ New invoice does NOT have automatic payment applied
+✓ New invoice received_payment is 0.00
+✓ New invoice status is "Unpaid"
+✓ Staggered fee is included in others_and_basic_charges
+✓ Staggered months_to_pay decreased by 1
+✓ Staggered month column contains invoice ID
+✓ No duplicate payment application
+
+TEST SCENARIO 2: MULTIPLE MONTHS STAGGERED
+-------------------------------------------
+STEP 1: Generate initial invoice
+- Expected: Unpaid invoice with 1299.00 balance
+
+STEP 2: Create staggered with 3 months
+- staggered_balance: 3897.00
+- months_to_pay: 3
+- monthly_payment: 1299.00
+- Expected: Staggered created as "Pending"
+
+STEP 3: Approve staggered
+- Expected: First invoice becomes "Paid"
+
+STEP 4: Generate second invoice
+- Expected:
+  * received_payment: 0.00 (NOT 1299.00)
+  * status: "Unpaid"
+  * others_and_basic_charges includes 1299.00 staggered fee
+  * Staggered months_to_pay: 2
+  * Staggered month1: contains invoice ID
+
+STEP 5: Generate third invoice
+- Expected:
+  * received_payment: 0.00 (NOT 1299.00)
+  * status: "Unpaid"
+  * Staggered months_to_pay: 1
+  * Staggered month2: contains invoice ID
+
+STEP 6: Generate fourth invoice
+- Expected:
+  * received_payment: 0.00 (NOT 1299.00)
+  * status: "Unpaid"
+  * Staggered months_to_pay: 0
+  * Staggered status: "Completed"
+  * Staggered month3: contains invoice ID
+
+COMMON ISSUES TO WATCH FOR
+---------------------------
+1. If received_payment is NOT 0.00 on new invoice:
+   - Problem: processMonthlyPayment is still being called
+   - Solution: Verify the fix was applied correctly
+
+2. If others_and_basic_charges is 0.00 when it should include staggered fee:
+   - Problem: calculateStaggeredInstallFees not working
+   - Check: Staggered installation status is "Active"
+
+3. If months_to_pay is not decrementing:
+   - Problem: trackStaggeredInvoiceAssociation not being called
+   - Check: Method is called in createEnhancedInvoice
+
+4. If staggered payment applies to multiple invoices during approval:
+   - This is CORRECT behavior (sobra applies to next invoice)
+   - Only oldest unpaid invoices should receive payment
+
+LOG VERIFICATION
+----------------
+Check logs for these key messages:
+
+CORRECT LOGS:
+"Invoice association tracked for staggered installation"
+"note": "Invoice tracked WITHOUT automatic payment application"
+"Invoice created with discount applied to balance"
+"received_payment": 0 (for new invoices after staggered approval)
+
+INCORRECT LOGS (should NOT appear after fix):
+"Monthly payment processed for staggered installation" (during invoice generation)
+
+DATABASE VERIFICATION
+---------------------
+After testing, verify in database:
+
+SELECT 
+    i.id,
+    i.account_no,
+    i.invoice_date,
+    i.total_amount,
+    i.received_payment,
+    i.status,
+    i.others_and_basic_charges
+FROM invoices i
+WHERE i.account_no = 'A0001'
+ORDER BY i.invoice_date DESC;
+
+Expected results:
+- Latest invoice: received_payment = 0.00, status = 'Unpaid'
+- Previous invoice: received_payment = 1299.00, status = 'Paid' (if staggered was approved)
+
+SELECT 
+    s.id,
+    s.account_no,
+    s.staggered_balance,
+    s.months_to_pay,
+    s.status,
+    s.month1,
+    s.month2,
+    s.month3
+FROM staggered_installations s
+WHERE s.account_no = 'A0001'
+ORDER BY s.staggered_date DESC;
+
+Expected results:
+- months_to_pay decrements with each invoice generation
+- month columns contain invoice IDs
+- status changes to "Completed" when months_to_pay = 0

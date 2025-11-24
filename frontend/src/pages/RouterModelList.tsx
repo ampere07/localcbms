@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, Filter, Loader2 } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 import AddRouterModelModal from '../modals/AddRouterModelModal';
 
 interface RouterModel {
@@ -21,8 +22,6 @@ const RouterModelList: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRouter, setEditingRouter] = useState<RouterModel | null>(null);
   const [deletingItems, setDeletingItems] = useState<Set<string>>(new Set());
-
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.100.10:8000/api';
 
   useEffect(() => {
     loadRouters();

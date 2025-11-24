@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = 'http://192.168.100.10:8000/api';
+import apiClient from '../config/api';
 
 export interface InvoiceRecord {
   id: number;
@@ -45,7 +43,7 @@ export interface InvoiceResponse {
 export const invoiceService = {
   async getAllInvoices(): Promise<InvoiceRecord[]> {
     try {
-      const response = await axios.get<InvoiceResponse>(`${API_URL}/billing-generation/invoices`);
+      const response = await apiClient.get<InvoiceResponse>('/billing-generation/invoices');
       if (response.data.success) {
         return response.data.data;
       }
@@ -58,7 +56,7 @@ export const invoiceService = {
 
   async getInvoicesByAccount(accountId: number): Promise<InvoiceRecord[]> {
     try {
-      const response = await axios.get<InvoiceResponse>(`${API_URL}/billing-generation/invoices`, {
+      const response = await apiClient.get<InvoiceResponse>('/billing-generation/invoices', {
         params: { account_id: accountId }
       });
       if (response.data.success) {
@@ -73,7 +71,7 @@ export const invoiceService = {
 
   async getInvoiceById(id: number): Promise<InvoiceRecord> {
     try {
-      const response = await axios.get<{ success: boolean; data: InvoiceRecord }>(`${API_URL}/billing-generation/invoices/${id}`);
+      const response = await apiClient.get<{ success: boolean; data: InvoiceRecord }>(`/billing-generation/invoices/${id}`);
       if (response.data.success) {
         return response.data.data;
       }

@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = 'http://192.168.100.10:8000/api';
+import apiClient from '../config/api';
 
 export interface SOARecord {
   id: number;
@@ -47,7 +45,7 @@ export interface SOAResponse {
 export const soaService = {
   async getAllStatements(): Promise<SOARecord[]> {
     try {
-      const response = await axios.get<SOAResponse>(`${API_URL}/billing-generation/statements`);
+      const response = await apiClient.get<SOAResponse>('/billing-generation/statements');
       if (response.data.success) {
         return response.data.data;
       }
@@ -60,7 +58,7 @@ export const soaService = {
 
   async getStatementsByAccount(accountId: number): Promise<SOARecord[]> {
     try {
-      const response = await axios.get<SOAResponse>(`${API_URL}/billing-generation/statements`, {
+      const response = await apiClient.get<SOAResponse>('/billing-generation/statements', {
         params: { account_id: accountId }
       });
       if (response.data.success) {
@@ -75,7 +73,7 @@ export const soaService = {
 
   async getStatementById(id: number): Promise<SOARecord> {
     try {
-      const response = await axios.get<{ success: boolean; data: SOARecord }>(`${API_URL}/billing-generation/statements/${id}`);
+      const response = await apiClient.get<{ success: boolean; data: SOARecord }>(`/billing-generation/statements/${id}`);
       if (response.data.success) {
         return response.data.data;
       }

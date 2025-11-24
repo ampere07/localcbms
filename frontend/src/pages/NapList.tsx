@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 import EditNapModal from '../modals/EditNapModal';
 
 interface NapItem {
@@ -22,8 +23,6 @@ const NapList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const [deletingItems, setDeletingItems] = useState<Set<number>>(new Set());
-
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.100.10:8000/api';
 
   useEffect(() => {
     loadNapItems();

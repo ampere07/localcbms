@@ -1,35 +1,4 @@
-import axios from 'axios';
-
-const getApiBaseUrl = (): string => {
-  if (process.env.REACT_APP_API_BASE_URL) {
-    return process.env.REACT_APP_API_BASE_URL;
-  }
-  
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://192.168.100.10:8000/api';
-  }
-  
-  return `${window.location.protocol}//${window.location.host}/sync/api`;
-};
-
-const API_BASE_URL = getApiBaseUrl();
-
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  },
-});
-
-axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import apiClient from '../config/api';
 
 interface CreateStaggeredInstallationPayload {
   account_no: string;
@@ -42,6 +11,7 @@ interface CreateStaggeredInstallationPayload {
   modified_date: string;
   user_email: string;
   remarks?: string;
+  status?: string;
 }
 
 interface ApiResponse<T = any> {
@@ -61,7 +31,9 @@ export const staggeredInstallationService = {
   getAll: async (accountNo?: string): Promise<StaggeredInstallationResponse> => {
     try {
       const params = accountNo ? { account_no: accountNo } : {};
-      const response = await axiosInstance.get<ApiResponse>('/staggered-installations', { params });
+      console.log('Fetching staggered installations from API...');
+      const response = await apiClient.get<ApiResponse>('/staggered-installations', { params });
+      console.log('API response:', response.data);
       return {
         success: true,
         data: response.data.data || [],
@@ -69,6 +41,7 @@ export const staggeredInstallationService = {
       };
     } catch (error: any) {
       console.error('Error fetching staggered installations:', error);
+      console.error('Error response:', error.response?.data);
       return {
         success: false,
         message: error.response?.data?.message || error.message || 'Failed to fetch staggered installations',
@@ -79,7 +52,7 @@ export const staggeredInstallationService = {
 
   create: async (payload: CreateStaggeredInstallationPayload): Promise<StaggeredInstallationResponse> => {
     try {
-      const response = await axiosInstance.post<ApiResponse>('/staggered-installations', payload);
+      const response = await apiClient.post<ApiResponse>('/staggered-installations', payload);
       return {
         success: true,
         message: response.data.message || 'Staggered installation created successfully',
@@ -97,7 +70,7 @@ export const staggeredInstallationService = {
 
   getById: async (id: string): Promise<StaggeredInstallationResponse> => {
     try {
-      const response = await axiosInstance.get<ApiResponse>(`/staggered-installations/${id}`);
+      const response = await apiClient.get<ApiResponse>(`/staggered-installations/${id}`);
       return {
         success: true,
         data: response.data.data
@@ -113,7 +86,7 @@ export const staggeredInstallationService = {
 
   update: async (id: string, payload: Partial<CreateStaggeredInstallationPayload>): Promise<StaggeredInstallationResponse> => {
     try {
-      const response = await axiosInstance.put<ApiResponse>(`/staggered-installations/${id}`, payload);
+      const response = await apiClient.put<ApiResponse>(`/staggered-installations/${id}`, payload);
       return {
         success: true,
         message: response.data.message || 'Staggered installation updated successfully',
@@ -130,7 +103,7 @@ export const staggeredInstallationService = {
 
   delete: async (id: string): Promise<StaggeredInstallationResponse> => {
     try {
-      const response = await axiosInstance.delete<ApiResponse>(`/staggered-installations/${id}`);
+      const response = await apiClient.delete<ApiResponse>(`/staggered-installations/${id}`);
       return {
         success: true,
         message: response.data.message || 'Staggered installation deleted successfully'
@@ -140,6 +113,27 @@ export const staggeredInstallationService = {
       return {
         success: false,
         message: error.response?.data?.message || error.message || 'Failed to delete staggered installation'
+      };
+    }
+  },
+
+  approve: async (id: string): Promise<StaggeredInstallationResponse> => {
+    try {
+      console.log('Approving staggered installation:', id);
+      const response = await apiClient.post<ApiResponse>(`/staggered-installations/${id}/approve`);
+      console.log('Approve response:', response.data);
+      return {
+        success: true,
+        message: response.data.message || 'Staggered installation approved successfully',
+        data: response.data.data
+      };
+    } catch (error: any) {
+      console.error('Error approving staggered installation:', error);
+      console.error('Error response:', error.response?.data);
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to approve staggered installation',
+        error: error.response?.data?.error
       };
     }
   }

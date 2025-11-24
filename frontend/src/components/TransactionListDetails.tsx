@@ -47,9 +47,17 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const formatCurrency = (amount: number) => {
-    return `₱${amount.toFixed(2)}`;
+  // Debug logging
+  console.log('TransactionListDetails received transaction:', transaction);
+  console.log('TransactionListDetails customer:', transaction.account?.customer);
+  console.log('TransactionListDetails full_name:', transaction.account?.customer?.full_name);
+
+  const formatCurrency = (amount: number | string) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return `₱${numAmount.toFixed(2)}`;
   };
 
   const formatDate = (dateStr?: string): string => {
@@ -94,11 +102,8 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
         
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        alert(`Transaction approved successfully. Status: ${status}`);
-        
-        if (onClose) {
-          onClose();
-        }
+        setSuccessMessage(`Transaction approved successfully. Status: ${status}`);
+        setShowSuccessModal(true);
       } else {
         setError(result.message || 'Failed to approve transaction');
       }
@@ -139,6 +144,16 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
         </div>
         
         <div className="flex items-center space-x-3">
+          {transaction.status.toLowerCase() === 'pending' && (
+            <button
+              onClick={handleApproveTransaction}
+              disabled={loading}
+              className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded text-sm transition-colors"
+            >
+              <CheckCircle size={16} />
+              <span>{loading ? 'Approving...' : 'Approve'}</span>
+            </button>
+          )}
           <button className="hover:text-white text-gray-400"><ArrowLeft size={16} /></button>
           <button className="hover:text-white text-gray-400"><ArrowRight size={16} /></button>
           <button className="hover:text-white text-gray-400"><Maximize2 size={16} /></button>
@@ -243,7 +258,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
             
             <div className="flex border-b border-gray-800 py-2">
               <div className="w-40 text-gray-400 text-sm">Status</div>
-              <div className="flex-1 flex items-center justify-between">
+              <div className="flex-1">
                 <div className={`capitalize ${
                   transaction.status.toLowerCase() === 'done' ? 'text-green-500' :
                   transaction.status.toLowerCase() === 'pending' ? 'text-yellow-500' :
@@ -252,16 +267,6 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                 }`}>
                   {transaction.status}
                 </div>
-                {transaction.status.toLowerCase() === 'pending' && (
-                  <button
-                    onClick={handleApproveTransaction}
-                    disabled={loading}
-                    className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm transition-colors"
-                  >
-                    <CheckCircle size={16} />
-                    <span>{loading ? 'Approving...' : 'Approve'}</span>
-                  </button>
-                )}
               </div>
             </div>
             
@@ -341,6 +346,29 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
         </div>
       </div>
     </div>
+
+    {/* Success Modal */}
+    {showSuccessModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-700">
+          <h3 className="text-xl font-semibold text-white mb-4">Success</h3>
+          <p className="text-gray-300 mb-6">{successMessage}</p>
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => {
+                setShowSuccessModal(false);
+                if (onClose) {
+                  onClose();
+                }
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition-colors"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 };

@@ -21,8 +21,8 @@ class Invoice extends Model
         'status',
         'payment_portal_log_ref',
         'transaction_id',
-        'created_by_user_id',
-        'updated_by_user_id'
+        'created_by',
+        'updated_by'
     ];
 
     protected $casts = [

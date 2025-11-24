@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Calendar } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
 interface RouterModel {
   SN: string;
@@ -37,10 +38,7 @@ const AddRouterModelModal: React.FC<AddRouterModelModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.100.10:8000/api';
-
   useEffect(() => {
-    // Get current user email from localStorage
     const authData = localStorage.getItem('authData');
     let userEmail = 'Unknown User';
     

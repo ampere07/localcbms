@@ -1,0 +1,7 @@
+
+// Staggered Installation Management Routes
+Route::prefix('staggered-installations')->group(function () {
+    Route::get('/', [\App\Http\Controllers\StaggeredInstallationController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\StaggeredInstallationController::class, 'store']);
+    Route::post('/{id}/approve', [\App\Http\Controllers\StaggeredInstallationController::class, 'approve']);
+});

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Minus } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
 interface AddPlanModalProps {
   isOpen: boolean;
@@ -34,8 +35,6 @@ const AddPlanModal: React.FC<AddPlanModalProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.100.10:8000/api';
 
   useEffect(() => {
     if (isOpen && editingPlan) {

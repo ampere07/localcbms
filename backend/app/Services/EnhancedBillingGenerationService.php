@@ -415,6 +415,10 @@ class EnhancedBillingGenerationService
             ]);
             
             $this->markDiscountsAsUsed($account, $userId, $invoiceId);
+            $this->markRebatesAsUsed($account, $userId, $invoiceId);
+
+            // Track invoice association for staggered installations (without applying payment)
+            $this->trackStaggeredInvoiceAssociation($account->account_no, $invoice->id);
 
             DB::commit();
             return $invoice;
@@ -499,6 +503,7 @@ class EnhancedBillingGenerationService
         $total = 0;
 
         $staggeredInstallations = StaggeredInstallation::where('account_no', $account->account_no)
+            ->where('status', 'Active')
             ->where('months_to_pay', '>', 0)
             ->get();
 
@@ -509,23 +514,6 @@ class EnhancedBillingGenerationService
 
         foreach ($staggeredInstallations as $installation) {
             $total += $installation->monthly_payment;
-            
-            if ($updateStatus) {
-                $newMonthsToPay = $installation->months_to_pay - 1;
-                
-                Log::info('Processing staggered installation', [
-                    'staggered_install_no' => $installation->staggered_install_no,
-                    'monthly_payment' => $installation->monthly_payment,
-                    'previous_months_to_pay' => $installation->months_to_pay,
-                    'new_months_to_pay' => $newMonthsToPay
-                ]);
-                
-                $installation->update([
-                    'months_to_pay' => $newMonthsToPay,
-                    'modified_by' => $userId,
-                    'modified_date' => now()
-                ]);
-            }
         }
 
         Log::info('Staggered installations total', [
@@ -624,34 +612,69 @@ class EnhancedBillingGenerationService
         
         $customer = $account->customer;
         if (!$customer) {
+            Log::info('No customer found for rebate calculation', ['account_no' => $account->account_no]);
             return 0;
         }
 
-        $barangayCode = $customer->barangay_id ?? null;
-        
-        if (!$barangayCode) {
+        $technicalDetails = $account->technicalDetails->first();
+        if (!$technicalDetails) {
+            Log::info('No technical details found for rebate calculation', ['account_no' => $account->account_no]);
             return 0;
         }
 
-        $billingDayToMatch = $account->billing_day === self::END_OF_MONTH_BILLING 
-            ? $date->endOfMonth()->day 
-            : $account->billing_day;
+        $rebates = MassRebate::where('status', 'Unused')->get();
 
-        $rebates = MassRebate::where(function($query) use ($barangayCode) {
-                $query->where('barangay_code', $barangayCode)
-                      ->orWhere('barangay_code', 'All');
-            })
-            ->where('billing_day', $billingDayToMatch)
-            ->where('status', 'Unused')
-            ->get();
+        Log::info('Calculating rebates', [
+            'account_no' => $account->account_no,
+            'total_rebates_available' => $rebates->count(),
+            'customer_lcpnap' => $technicalDetails->lcpnap,
+            'customer_lcp' => $technicalDetails->lcp,
+            'customer_location' => $customer->location,
+            'customer_barangay' => $customer->barangay
+        ]);
 
         $daysInCurrentMonth = $date->daysInMonth;
+        $dailyRate = $monthlyFee / $daysInCurrentMonth;
 
         foreach ($rebates as $rebate) {
-            $dailyRate = $monthlyFee / $daysInCurrentMonth;
-            $rebateValue = $dailyRate * $rebate->rebate_days;
-            $total += $rebateValue;
+            $matchFound = false;
+
+            if ($rebate->rebate_type === 'lcpnap') {
+                if ($technicalDetails->lcpnap && $technicalDetails->lcpnap === $rebate->selected_rebate) {
+                    $matchFound = true;
+                }
+            } elseif ($rebate->rebate_type === 'lcp') {
+                if ($technicalDetails->lcp && $technicalDetails->lcp === $rebate->selected_rebate) {
+                    $matchFound = true;
+                }
+            } elseif ($rebate->rebate_type === 'location') {
+                if (($customer->location && $customer->location === $rebate->selected_rebate) ||
+                    ($customer->barangay && $customer->barangay === $rebate->selected_rebate)) {
+                    $matchFound = true;
+                }
+            }
+
+            if ($matchFound) {
+                $rebateDays = $rebate->number_of_dates ?? 0;
+                $rebateValue = $dailyRate * $rebateDays;
+                $total += $rebateValue;
+
+                Log::info('Rebate matched and applied', [
+                    'rebate_id' => $rebate->id,
+                    'account_no' => $account->account_no,
+                    'rebate_type' => $rebate->rebate_type,
+                    'selected_rebate' => $rebate->selected_rebate,
+                    'rebate_days' => $rebateDays,
+                    'daily_rate' => $dailyRate,
+                    'rebate_value' => $rebateValue
+                ]);
+            }
         }
+
+        Log::info('Total rebates calculated', [
+            'account_no' => $account->account_no,
+            'total_rebate_amount' => $total
+        ]);
 
         return round($total, 2);
     }
@@ -825,6 +848,123 @@ class EnhancedBillingGenerationService
                     'updated_by_user_id' => $userId
                 ]);
             }
+        }
+    }
+
+    protected function markRebatesAsUsed(BillingAccount $account, int $userId, string $invoiceId): void
+    {
+        $customer = $account->customer;
+        if (!$customer) {
+            return;
+        }
+
+        $technicalDetails = $account->technicalDetails->first();
+        if (!$technicalDetails) {
+            return;
+        }
+
+        $rebates = MassRebate::where('status', 'Unused')->get();
+
+        Log::info('Marking rebates as used after invoice generation', [
+            'account_no' => $account->account_no,
+            'rebates_count' => $rebates->count(),
+            'invoice_id' => $invoiceId
+        ]);
+
+        foreach ($rebates as $rebate) {
+            $matchFound = false;
+
+            if ($rebate->rebate_type === 'lcpnap') {
+                if ($technicalDetails->lcpnap && $technicalDetails->lcpnap === $rebate->selected_rebate) {
+                    $matchFound = true;
+                }
+            } elseif ($rebate->rebate_type === 'lcp') {
+                if ($technicalDetails->lcp && $technicalDetails->lcp === $rebate->selected_rebate) {
+                    $matchFound = true;
+                }
+            } elseif ($rebate->rebate_type === 'location') {
+                if (($customer->location && $customer->location === $rebate->selected_rebate) ||
+                    ($customer->barangay && $customer->barangay === $rebate->selected_rebate)) {
+                    $matchFound = true;
+                }
+            }
+
+            if ($matchFound) {
+                Log::info('Marking rebate as Used', [
+                    'rebate_id' => $rebate->id,
+                    'account_no' => $account->account_no,
+                    'rebate_type' => $rebate->rebate_type,
+                    'selected_rebate' => $rebate->selected_rebate
+                ]);
+
+                $rebate->update([
+                    'status' => 'Used',
+                    'modified_by' => (string) $userId,
+                    'modified_date' => now()
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Track invoice association for staggered installations
+     * This method records which invoice corresponds to which month
+     * WITHOUT automatically applying any payment
+     */
+    protected function trackStaggeredInvoiceAssociation(string $accountNo, int $invoiceId): void
+    {
+        try {
+            $staggeredInstallations = StaggeredInstallation::where('account_no', $accountNo)
+                ->where('status', 'Active')
+                ->where('months_to_pay', '>', 0)
+                ->get();
+
+            foreach ($staggeredInstallations as $staggered) {
+                // Find the next empty month column
+                $monthColumn = null;
+                for ($i = 1; $i <= 12; $i++) {
+                    $col = 'month' . $i;
+                    if (empty($staggered->$col)) {
+                        $monthColumn = $col;
+                        break;
+                    }
+                }
+
+                if (!$monthColumn) {
+                    Log::warning('No available month column for staggered installation', [
+                        'staggered_id' => $staggered->id,
+                        'account_no' => $accountNo
+                    ]);
+                    continue;
+                }
+
+                // Store invoice ID in the month column
+                $staggered->$monthColumn = (string)$invoiceId;
+
+                // Decrement months_to_pay
+                $staggered->months_to_pay = $staggered->months_to_pay - 1;
+
+                // Mark as completed if no months remaining
+                if ($staggered->months_to_pay <= 0) {
+                    $staggered->status = 'Completed';
+                }
+
+                $staggered->modified_by = 'system';
+                $staggered->modified_date = now();
+                $staggered->timestamps = false;
+                $staggered->save();
+
+                Log::info('Invoice association tracked for staggered installation', [
+                    'staggered_id' => $staggered->id,
+                    'account_no' => $accountNo,
+                    'invoice_id' => $invoiceId,
+                    'month_column' => $monthColumn,
+                    'months_remaining' => $staggered->months_to_pay,
+                    'note' => 'Invoice tracked WITHOUT automatic payment application'
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error tracking staggered invoice association: ' . $e->getMessage());
         }
     }
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
 interface StatusRemark {
   id: number;
@@ -23,8 +24,6 @@ const StatusRemarksList: React.FC = () => {
   const [formData, setFormData] = useState({
     status_remarks: ''
   });
-
-  const API_BASE_URL = 'http://192.168.100.10:8000/api';
 
   useEffect(() => {
     fetchStatusRemarks();
@@ -191,14 +190,12 @@ const StatusRemarksList: React.FC = () => {
 
   return (
     <div className="bg-gray-950 h-full flex flex-col">
-      {/* Header */}
       <div className="bg-gray-900 px-6 py-4 border-b border-gray-700 flex-shrink-0">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-white">Status Remarks List</h1>
         </div>
       </div>
 
-      {/* Search and Add Section */}
       <div className="bg-gray-900 px-6 py-4 border-b border-gray-700 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="relative flex-1 max-w-md">
@@ -221,7 +218,6 @@ const StatusRemarksList: React.FC = () => {
         </div>
       </div>
 
-      {/* Status Remarks Table */}
       <div className="flex-1 overflow-y-auto">
         {filteredRemarks.length > 0 ? (
           <div className="overflow-x-auto">
@@ -285,7 +281,6 @@ const StatusRemarksList: React.FC = () => {
         )}
       </div>
 
-      {/* Add/Edit Modal */}
       {showAddModal && (
         <>
           <div 

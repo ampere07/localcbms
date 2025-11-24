@@ -25,8 +25,8 @@ class Transaction extends Model
         'remarks',
         'status',
         'image_url',
-        'created_by_user_id',
-        'updated_by_user_id',
+        'created_by_user',
+        'updated_by_user',
     ];
 
     protected $casts = [
@@ -45,15 +45,7 @@ class Transaction extends Model
         return $this->belongsTo(User::class, 'processed_by_user_id');
     }
 
-    public function createdByUser()
-    {
-        return $this->belongsTo(User::class, 'created_by_user_id');
-    }
 
-    public function updatedByUser()
-    {
-        return $this->belongsTo(User::class, 'updated_by_user_id');
-    }
 
     public function invoices()
     {

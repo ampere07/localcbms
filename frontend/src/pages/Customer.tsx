@@ -582,8 +582,8 @@ const Customer: React.FC = () => {
     setIsLoading(true);
     
     const API_BASE_URL = window.location.hostname === 'localhost' 
-      ? 'http://192.168.100.10:8000/api'
-      : 'http://192.168.100.10:8000/api';
+      ? 'http://localhost:8000/api'
+      : 'http://localhost:8000/api';
 
     const generationDate = new Date().toISOString().split('T')[0];
     
@@ -994,7 +994,7 @@ const Customer: React.FC = () => {
                               {record.applicationId} | {record.customerName} | {record.address}
                             </div>
                             <div className="text-white text-sm">
-                              {record.status} | ₱ {record.balance.toFixed(0)}
+                              {record.status} | ₱ {record.balance.toFixed(2)}
                             </div>
                           </div>
                           <div className="flex items-center space-x-2 ml-4 flex-shrink-0">

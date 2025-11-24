@@ -1,35 +1,4 @@
-import axios from 'axios';
-
-const getApiBaseUrl = (): string => {
-  if (process.env.REACT_APP_API_BASE_URL) {
-    return process.env.REACT_APP_API_BASE_URL;
-  }
-  
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://192.168.100.10:8000/api';
-  }
-  
-  return `${window.location.protocol}//${window.location.host}/sync/api`;
-};
-
-const API_BASE_URL = getApiBaseUrl();
-
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  },
-});
-
-axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import apiClient from '../config/api';
 
 interface ApiResponse<T = any> {
   data?: T;
@@ -69,7 +38,7 @@ interface CreateTransactionResponse {
 export const transactionService = {
   approveTransaction: async (transactionId: string): Promise<ApproveTransactionResponse> => {
     try {
-      const response = await axiosInstance.post<ApiResponse>(`/transactions/${transactionId}/approve`);
+      const response = await apiClient.post<ApiResponse>(`/transactions/${transactionId}/approve`);
       return {
         success: true,
         message: response.data.message || 'Transaction approved successfully',
@@ -87,7 +56,7 @@ export const transactionService = {
   createTransaction: async (payload: CreateTransactionPayload): Promise<CreateTransactionResponse> => {
     try {
       console.log('[API CALL] Creating transaction with payload:', payload);
-      const response = await axiosInstance.post<ApiResponse>('/transactions', payload);
+      const response = await apiClient.post<ApiResponse>('/transactions', payload);
       console.log('[API SUCCESS] Transaction created:', response.data);
       return {
         success: true,
@@ -109,7 +78,7 @@ export const transactionService = {
 
   getAllTransactions: async (): Promise<any> => {
     try {
-      const response = await axiosInstance.get<ApiResponse>('/transactions');
+      const response = await apiClient.get<ApiResponse>('/transactions');
       return {
         success: true,
         data: response.data.data || [],
@@ -127,7 +96,7 @@ export const transactionService = {
 
   uploadTransactionImage: async (formData: FormData): Promise<any> => {
     try {
-      const response = await axiosInstance.post<ApiResponse>('/transactions/upload-images', formData, {
+      const response = await apiClient.post<ApiResponse>('/transactions/upload-images', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }

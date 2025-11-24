@@ -1,0 +1,215 @@
+STAGGERED PAYMENT SYSTEM - DEVELOPER QUICK REFERENCE
+====================================================
+
+OVERVIEW
+--------
+The staggered payment system allows customers to pay installation fees or other charges over multiple months. This guide explains how the system works after the duplicate payment fix.
+
+KEY CONCEPTS
+------------
+1. Staggered Installation
+   - A record that tracks a payment plan for a specific charge
+   - Contains: balance, monthly payment amount, number of months
+   - Status: Pending → Active → Completed
+
+2. Invoice Association
+   - Each generated invoice is associated with a staggered installation
+   - Tracked in month columns (month1, month2, etc.)
+   - Does NOT automatically apply payment
+
+3. Payment Application
+   - Only applies when staggered is approved (to existing invoices)
+   - Or when customer makes actual payment through transactions
+
+WORKFLOW STATES
+---------------
+
+STATE 1: STAGGERED CREATION
+Status: Pending
+- User creates staggered installation record
+- No payment has been applied
+- No invoices affected yet
+
+STATE 2: STAGGERED APPROVAL
+Status: Active (after approval)
+- Staggered balance is deducted from account_balance
+- Payment is applied to EXISTING unpaid invoices (oldest first)
+- If payment exceeds invoice amount, excess applies to next invoice
+- This is the ONLY time automatic payment application occurs
+
+STATE 3: INVOICE GENERATION WITH ACTIVE STAGGERED
+Status: Active
+- New invoice is generated
+- Staggered fee is included in "others_and_basic_charges"
+- Invoice ID is recorded in next available month column
+- months_to_pay is decremented by 1
+- received_payment remains 0.00 (NO AUTOMATIC PAYMENT)
+- If months_to_pay reaches 0, status changes to "Completed"
+
+STATE 4: CUSTOMER PAYMENT
+Status: Active or Completed
+- Customer makes payment through transaction system
+- Payment is applied to invoice
+- Invoice status updates accordingly
+- Staggered installation record is not directly affected
+
+CODE STRUCTURE
+--------------
+
+EnhancedBillingGenerationService.php
+├── createEnhancedInvoice()
+│   ├── Calculate charges (includes staggered fees)
+│   ├── Create invoice (received_payment = 0.00)
+│   ├── markDiscountsAsUsed()
+│   └── trackStaggeredInvoiceAssociation() [NEW]
+│       ├── Find next empty month column
+│       ├── Store invoice ID in month column
+│       ├── Decrement months_to_pay
+│       └── Update status to "Completed" if needed
+│
+├── calculateStaggeredInstallFees()
+│   └── Returns sum of monthly payments for active staggered installations
+│
+└── calculateChargesAndDeductions()
+    └── Includes staggered fees in others_and_basic_charges
+
+StaggeredInstallationController.php
+├── approve()
+│   ├── Change status to "Active"
+│   ├── Deduct staggered_balance from account_balance
+│   └── applyStaggeredBalanceToInvoices()
+│       └── Apply payment to existing unpaid invoices
+│
+└── processMonthlyPayment() [NOT CALLED DURING GENERATION]
+    └── Manual payment processing (if needed)
+
+KEY METHODS
+-----------
+
+1. trackStaggeredInvoiceAssociation()
+   Purpose: Record invoice association without applying payment
+   Called: During invoice generation
+   Actions:
+   - Find next empty month column
+   - Store invoice ID
+   - Decrement months_to_pay
+   - Update status if completed
+   Does NOT:
+   - Apply payment to invoice
+   - Update invoice.received_payment
+
+2. calculateStaggeredInstallFees()
+   Purpose: Calculate total staggered fees for invoice
+   Returns: Sum of monthly payments from active staggered installations
+   Used in: others_and_basic_charges calculation
+
+3. applyStaggeredBalanceToInvoices()
+   Purpose: Apply staggered balance to existing unpaid invoices
+   Called: When staggered is approved
+   Actions:
+   - Get unpaid invoices (oldest first)
+   - Apply balance to invoices
+   - Update invoice.received_payment
+   - Update invoice.status
+
+IMPORTANT RULES
+---------------
+
+DO:
+✓ Include staggered fees in others_and_basic_charges
+✓ Track invoice association in month columns
+✓ Decrement months_to_pay with each invoice
+✓ Apply payment when staggered is approved
+✓ Apply payment when customer makes payment
+
+DO NOT:
+✗ Automatically apply payment during invoice generation
+✗ Call processMonthlyPayment() during createEnhancedInvoice()
+✗ Update invoice.received_payment without actual payment
+✗ Skip invoice tracking in month columns
+
+DEBUGGING TIPS
+--------------
+
+Check Logs:
+- "Invoice association tracked for staggered installation"
+- "Invoice tracked WITHOUT automatic payment application"
+- "Staggered installation approved successfully"
+
+Verify Database:
+- staggered_installations.months_to_pay decrements correctly
+- staggered_installations.month1-12 contain invoice IDs
+- invoices.received_payment is 0.00 for new invoices (unless paid)
+- invoices.others_and_basic_charges includes staggered fees
+
+Common Issues:
+1. received_payment not 0.00 on new invoice
+   → Check if processMonthlyPayment is being called
+
+2. Staggered fee not included in invoice
+   → Check calculateStaggeredInstallFees()
+   → Verify staggered status is "Active"
+
+3. months_to_pay not decrementing
+   → Check trackStaggeredInvoiceAssociation() is being called
+
+4. Multiple payments applied
+   → Check applyStaggeredBalanceToInvoices() logic
+   → Should only apply to oldest unpaid invoices
+
+PAYMENT FLOW DIAGRAM
+--------------------
+
+[Create Staggered] → Status: Pending
+                     received_payment: 0.00
+        ↓
+[Approve Staggered] → Status: Active
+                      Apply payment to EXISTING invoices
+                      received_payment: X (actual payment)
+        ↓
+[Generate Invoice 1] → Status: Active
+                       Track invoice (month1)
+                       months_to_pay: N-1
+                       received_payment: 0.00 (NO AUTO PAYMENT)
+        ↓
+[Generate Invoice 2] → Status: Active or Completed
+                       Track invoice (month2)
+                       months_to_pay: N-2
+                       received_payment: 0.00 (NO AUTO PAYMENT)
+        ↓
+[Customer Pays] → Update invoice.received_payment
+                  Update invoice.status
+
+CONFIGURATION
+-------------
+
+Default Values (can be modified):
+- Maximum months: 12
+- Minimum months: 1
+- Status flow: Pending → Active → Completed
+- Month columns: month1 through month12
+
+Database Tables:
+- staggered_installations: Main table
+- invoices: Related through account_no
+- billing_accounts: Related through account_no
+
+TESTING CHECKLIST
+-----------------
+□ Create staggered installation (status: Pending)
+□ Generate invoice before approval (no payment, fee included)
+□ Approve staggered (payment applies to existing invoice)
+□ Generate new invoice (no payment, fee included, tracked)
+□ Verify months_to_pay decrements
+□ Verify month columns populate
+□ Verify status changes to Completed when months_to_pay = 0
+□ Verify no duplicate payments
+□ Verify total amounts are correct
+
+MIGRATION NOTES
+---------------
+If upgrading from previous version:
+1. Review existing staggered installations
+2. Check for invoices with incorrect received_payment
+3. May need to manually correct affected invoices
+4. Test thoroughly with new system before production deployment

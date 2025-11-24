@@ -47,6 +47,46 @@ Route::get('/cors-test', function (Request $request) {
     ]);
 });
 
+// Debug transaction relationships
+Route::get('/debug/transaction-relationships', function() {
+    try {
+        $transaction = \App\Models\Transaction::latest()->first();
+        
+        if (!$transaction) {
+            return response()->json(['success' => false, 'message' => 'No transactions found']);
+        }
+        
+        $billingAccount = \App\Models\BillingAccount::where('account_no', $transaction->account_no)->first();
+        $customer = null;
+        if ($billingAccount) {
+            $customer = \App\Models\Customer::find($billingAccount->customer_id);
+        }
+        
+        return response()->json([
+            'success' => true,
+            'transaction' => [
+                'id' => $transaction->id,
+                'account_no' => $transaction->account_no,
+                'account_no_type' => gettype($transaction->account_no)
+            ],
+            'billing_account' => $billingAccount ? [
+                'id' => $billingAccount->id,
+                'account_no' => $billingAccount->account_no,
+                'customer_id' => $billingAccount->customer_id
+            ] : null,
+            'customer' => $customer ? [
+                'id' => $customer->id,
+                'first_name' => $customer->first_name,
+                'full_name' => $customer->full_name
+            ] : null,
+            'relationship_loaded' => $transaction->account ? true : false,
+            'columns_in_transactions' => \Illuminate\Support\Facades\Schema::getColumnListing('transactions')
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+    }
+});
+
 // Fixed, reliable location endpoints that won't change
 Route::post('/fixed/location/region', [\App\Http\Controllers\Api\LocationFixedEndpointsController::class, 'addRegion']);
 Route::post('/fixed/location/city', [\App\Http\Controllers\Api\LocationFixedEndpointsController::class, 'addCity']);
@@ -2190,5 +2230,6 @@ Route::prefix('staggered-installations')->group(function () {
     Route::post('/', [\App\Http\Controllers\StaggeredInstallationController::class, 'store']);
     Route::get('/{id}', [\App\Http\Controllers\StaggeredInstallationController::class, 'show']);
     Route::put('/{id}', [\App\Http\Controllers\StaggeredInstallationController::class, 'update']);
+    Route::post('/{id}/approve', [\App\Http\Controllers\StaggeredInstallationController::class, 'approve']);
     Route::delete('/{id}', [\App\Http\Controllers\StaggeredInstallationController::class, 'destroy']);
 });

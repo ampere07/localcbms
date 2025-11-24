@@ -8,6 +8,8 @@ class StaggeredInstallation extends Model
 {
     protected $table = 'staggered_installation';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'account_no',
         'staggered_install_no',
@@ -18,7 +20,20 @@ class StaggeredInstallation extends Model
         'modified_by',
         'modified_date',
         'user_email',
-        'remarks'
+        'remarks',
+        'status',
+        'month1',
+        'month2',
+        'month3',
+        'month4',
+        'month5',
+        'month6',
+        'month7',
+        'month8',
+        'month9',
+        'month10',
+        'month11',
+        'month12'
     ];
 
     protected $casts = [
@@ -26,10 +41,20 @@ class StaggeredInstallation extends Model
         'staggered_balance' => 'decimal:2',
         'months_to_pay' => 'integer',
         'monthly_payment' => 'decimal:2',
-        'modified_date' => 'datetime'
+        'modified_date' => 'datetime',
+        'month1' => 'string',
+        'month2' => 'string',
+        'month3' => 'string',
+        'month4' => 'string',
+        'month5' => 'string',
+        'month6' => 'string',
+        'month7' => 'string',
+        'month8' => 'string',
+        'month9' => 'string',
+        'month10' => 'string',
+        'month11' => 'string',
+        'month12' => 'string'
     ];
-
-    public $timestamps = true;
 
     public function billingAccount()
     {

@@ -18,6 +18,17 @@ class TransactionController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get();
 
+            \Log::info('Fetched transactions', [
+                'count' => $transactions->count(),
+                'sample_transaction' => $transactions->first() ? [
+                    'id' => $transactions->first()->id,
+                    'account_no' => $transactions->first()->account_no,
+                    'has_account' => $transactions->first()->account ? true : false,
+                    'has_customer' => $transactions->first()->account && $transactions->first()->account->customer ? true : false,
+                    'customer_full_name' => $transactions->first()->account && $transactions->first()->account->customer ? $transactions->first()->account->customer->full_name : null
+                ] : null
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => $transactions,
@@ -62,10 +73,13 @@ class TransactionController extends Controller
 
             DB::beginTransaction();
 
-            $validated['date_processed'] = $validated['date_processed'] ?? now();
+            $validated['payment_date'] = \Carbon\Carbon::parse($validated['payment_date'])->format('Y-m-d H:i:s');
+            $validated['date_processed'] = isset($validated['date_processed']) 
+                ? \Carbon\Carbon::parse($validated['date_processed'])->format('Y-m-d H:i:s')
+                : now()->format('Y-m-d H:i:s');
             $validated['status'] = $validated['status'] ?? 'Pending';
-            $validated['created_by_user_id'] = Auth::id();
-            $validated['updated_by_user_id'] = Auth::id();
+            $validated['created_by_user'] = Auth::check() ? Auth::user()->email : 'unknown';
+            $validated['updated_by_user'] = Auth::check() ? Auth::user()->email : 'unknown';
 
             $autoApplyPayment = $validated['auto_apply_payment'] ?? false;
             unset($validated['auto_apply_payment']);
@@ -235,7 +249,7 @@ class TransactionController extends Controller
 
             $transaction->status = 'Done';
             $transaction->date_processed = $currentTime;
-            $transaction->updated_by_user_id = $userId;
+            $transaction->updated_by_user = Auth::check() ? Auth::user()->email : 'unknown';
             $transaction->save();
 
             DB::commit();
@@ -383,7 +397,7 @@ class TransactionController extends Controller
             ];
 
             $invoice->transaction_id = $transactionId;
-            $invoice->updated_by_user_id = $userId;
+            $invoice->updated_by = Auth::check() ? Auth::user()->email : 'unknown';
             $invoice->updated_at = $currentTime;
             $invoice->save();
         }
@@ -414,7 +428,7 @@ class TransactionController extends Controller
 
             $transaction = Transaction::findOrFail($id);
             $transaction->status = $request->status;
-            $transaction->updated_by_user_id = Auth::id();
+            $transaction->updated_by_user = Auth::check() ? Auth::user()->email : 'unknown';
             $transaction->save();
 
             DB::commit();

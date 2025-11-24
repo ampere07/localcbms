@@ -33,6 +33,8 @@ class Customer extends Model
         'updated_by',
     ];
 
+    protected $appends = ['full_name'];
+
     /**
      * Get the billing accounts associated with the customer.
      */

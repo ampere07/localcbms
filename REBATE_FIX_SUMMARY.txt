@@ -1,0 +1,150 @@
+REBATE FUNCTIONALITY FIX - SUMMARY
+=====================================
+
+PROBLEM IDENTIFIED
+------------------
+Rebates were not being deducted from invoice balance during auto-generation because:
+1. Wrong matching logic - was matching on barangay_code and billing_day instead of technical details
+2. Wrong field name - was looking for rebate_days instead of number_of_dates
+3. Missing relationship - was not checking customer's technical details (LCP/NAP values)
+
+CHANGES MADE
+------------
+
+File: backend/app/Services/EnhancedBillingGenerationService.php
+
+1. Updated calculateRebates() method:
+   - Now matches rebates based on rebate_type (lcpnap, lcp, or location)
+   - For "lcpnap" type: matches technicalDetails.lcpnap with rebate.selected_rebate
+   - For "lcp" type: matches technicalDetails.lcp with rebate.selected_rebate
+   - For "location" type: matches customer.location or customer.barangay with rebate.selected_rebate
+   - Uses rebate.number_of_dates instead of rebate.rebate_days
+   - Added comprehensive logging to track matching process
+
+2. Added markRebatesAsUsed() method:
+   - Marks matched rebates as "Used" after invoice generation
+   - Updates modified_by and modified_date fields
+   - Prevents rebates from being applied multiple times
+
+3. Updated createEnhancedInvoice() method:
+   - Now calls markRebatesAsUsed() after marking discounts as used
+   - Ensures rebate status is updated correctly
+
+HOW IT WORKS
+------------
+
+Rebate Matching Process:
+1. System retrieves all "Unused" rebates from database
+2. For each billing account, checks customer's technical details
+3. Matches rebate based on type:
+   
+   Type: "lcpnap"
+   - Compares customer's technical_details.lcpnap with rebate.selected_rebate
+   - Example: If rebate.selected_rebate = "LCP-001 to NAP-001"
+             and customer's lcpnap = "LCP-001 to NAP-001"
+             then rebate applies
+   
+   Type: "lcp"
+   - Compares customer's technical_details.lcp with rebate.selected_rebate
+   - Example: If rebate.selected_rebate = "LCP-001"
+             and customer's lcp = "LCP-001"
+             then rebate applies
+   
+   Type: "location"
+   - Compares customer's location OR barangay with rebate.selected_rebate
+   - Example: If rebate.selected_rebate = "Muzon"
+             and customer's barangay = "Muzon"
+             then rebate applies
+
+4. When match is found:
+   - Calculates rebate amount = (monthly_fee / days_in_month) × number_of_dates
+   - Adds to total deductions
+   - Logs the match for verification
+
+5. After invoice generation:
+   - Marks matched rebates as "Used"
+   - Updates modified_by and modified_date
+
+REQUIRED FOR TESTING
+--------------------
+
+1. Verify Technical Details:
+   The customer must have technical_details with lcpnap field populated.
+   
+   Check in database:
+   SELECT td.lcpnap, td.lcp, ba.account_no 
+   FROM technical_details td
+   JOIN billing_accounts ba ON ba.id = td.account_id
+   WHERE ba.account_no = 'A0001';
+   
+   Expected result: lcpnap field should match the rebate's selected_rebate value
+
+2. Verify Rebate Record:
+   SELECT id, rebate_type, selected_rebate, number_of_dates, status 
+   FROM rebates 
+   WHERE status = 'Unused';
+   
+   Expected: 
+   - rebate_type: "lcpnap"
+   - selected_rebate: "LCP-001 to NAP-001" (or whatever the customer's lcpnap value is)
+   - number_of_dates: 2
+   - status: "Unused"
+
+3. Generate Invoice:
+   - Run force generation or normal billing generation
+   - Check logs for "Calculating rebates" message
+   - Check logs for "Rebate matched and applied" message
+   - Verify invoice balance is reduced by rebate amount
+
+4. Check Results:
+   - Invoice others_and_basic_charges should be LOWER due to rebate deduction
+   - Rebate status should change from "Unused" to "Used"
+   - Log should show: "Total rebates calculated" with non-zero amount
+
+EXAMPLE CALCULATION
+-------------------
+
+Customer Plan: FLASH - ₱1,299.00
+Rebate Days: 2
+Days in November: 30
+
+Calculation:
+Daily Rate = ₱1,299.00 / 30 = ₱43.30
+Rebate Amount = ₱43.30 × 2 = ₱86.60
+
+Expected Result:
+- Without rebate: others_and_basic_charges = ₱X
+- With rebate: others_and_basic_charges = ₱X - ₱86.60
+
+TROUBLESHOOTING
+---------------
+
+If rebates still not working:
+
+1. Check Logs for "Calculating rebates" message
+   - Should show customer_lcpnap, customer_lcp, customer_location, customer_barangay
+   - Should show total_rebates_available count
+
+2. If no match found:
+   - Verify technical_details.lcpnap exactly matches rebate.selected_rebate
+   - Check for extra spaces or case sensitivity
+   - Verify rebate_type is correct
+
+3. If rebate not showing in calculations:
+   - Check rebate status is "Unused"
+   - Verify customer has technical_details record
+   - Check account has technicalDetails relationship loaded
+
+4. Common Issues:
+   - Technical details not populated: Add LCP/NAP values in technical_details table
+   - Case mismatch: Ensure exact string match including case
+   - Missing relationship: Verify account.technicalDetails is loaded with eager loading
+
+NEXT STEPS
+----------
+
+1. Update the customer's technical_details.lcpnap field to match the rebate
+2. Run billing generation
+3. Check logs for rebate calculation messages
+4. Verify invoice amounts are reduced
+5. Confirm rebate status changes to "Used"

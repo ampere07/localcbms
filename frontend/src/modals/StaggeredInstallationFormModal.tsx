@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, ChevronDown } from 'lucide-react';
 import { staggeredInstallationService } from '../services/staggeredInstallationService';
+import { userService } from '../services/userService';
 import LoadingModal from '../components/LoadingModal';
 
 interface StaggeredInstallationFormModalProps {
@@ -80,9 +81,9 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
     staggeredBalance: '0.00',
     monthsToPay: '0',
     monthlyPayment: '0.00',
-    modifiedBy: 'ravenampere0123@gmail.com',
+    modifiedBy: '',
     modifiedDate: getCurrentDateTime(),
-    userEmail: 'ravenampere0123@gmail.com',
+    userEmail: '',
     remarks: '',
     barangay: customerData?.barangay || '',
     city: customerData?.city || ''
@@ -91,6 +92,55 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
+  const [users, setUsers] = useState<Array<{ id: number; email: string }>>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoadingUsers(true);
+        const response = await userService.getAllUsers();
+        console.log('Users API response:', response);
+        if (response.data) {
+          const userList = response.data.map((user: any) => ({
+            id: user.id,
+            email: user.email_address
+          }));
+          console.log('Mapped users:', userList);
+          setUsers(userList);
+        }
+      } catch (error) {
+        console.error('Failed to fetch users:', error);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    const getCurrentUser = () => {
+      const authData = localStorage.getItem('authData');
+      if (authData) {
+        try {
+          const userData = JSON.parse(authData);
+          const userEmail = userData.email;
+          console.log('Current user email:', userEmail);
+          if (userEmail) {
+            setFormData(prev => ({
+              ...prev,
+              userEmail,
+              modifiedBy: userEmail
+            }));
+          }
+        } catch (error) {
+          console.error('Failed to parse auth data:', error);
+        }
+      }
+    };
+
+    if (isOpen) {
+      fetchUsers();
+      getCurrentUser();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (customerData) {
@@ -425,12 +475,23 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Modified By
             </label>
-            <input
-              type="text"
-              value={formData.modifiedBy}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
-              readOnly
-            />
+            <div className="relative">
+              <select
+                value={formData.modifiedBy}
+                onChange={(e) => handleInputChange('modifiedBy', e.target.value)}
+                disabled={loadingUsers}
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500 appearance-none"
+              >
+                <option value="">Select user...</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.email}>
+                    {user.email}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+            </div>
+            {loadingUsers && <p className="text-xs text-gray-400 mt-1">Loading users...</p>}
           </div>
 
           <div>

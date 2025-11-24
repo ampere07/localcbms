@@ -67,8 +67,9 @@ const TransactionList: React.FC = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return `₱${amount.toFixed(2)}`;
+  const formatCurrency = (amount: number | string) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return `₱${numAmount.toFixed(2)}`;
   };
 
   useEffect(() => {
@@ -137,6 +138,9 @@ const TransactionList: React.FC = () => {
   });
 
   const handleRowClick = (transaction: Transaction) => {
+    console.log('Transaction clicked:', transaction);
+    console.log('Customer data:', transaction.account?.customer);
+    console.log('Full name:', transaction.account?.customer?.full_name);
     setSelectedTransaction(transaction);
   };
 

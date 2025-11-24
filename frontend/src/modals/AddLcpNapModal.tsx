@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Camera, MapPin } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
 interface AddLcpNapModalProps {
   isOpen: boolean;
@@ -62,10 +63,7 @@ const AddLcpNapModal: React.FC<AddLcpNapModalProps> = ({
   const [napList, setNapList] = useState<any[]>([]);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.100.10:8000/api';
-
   useEffect(() => {
-    // Get current user email from localStorage
     const authData = localStorage.getItem('authData');
     let userEmail = 'Unknown User';
     

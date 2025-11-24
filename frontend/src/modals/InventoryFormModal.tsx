@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Minus, Plus, Camera, Calendar, Loader2 } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 
 interface InventoryFormModalProps {
@@ -54,7 +55,7 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/inventory-categories');
+        const response = await fetch(`${API_BASE_URL}/inventory-categories`);
         const data = await response.json();
         if (data.success) {
           const categoryNames = data.data.map((cat: { id: number; name: string }) => cat.name);
