@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, ChevronRight, Tag } from 'lucide-react';
 import DiscountDetails from '../components/DiscountDetails';
 import * as discountService from '../services/discountService';
@@ -90,7 +90,6 @@ const getDiscountRecords = async (): Promise<DiscountRecord[]> => {
 };
 
 const getCities = async () => {
-  // In a real implementation, this would be an API call
   return [
     { id: 1, name: 'Quezon City' },
     { id: 2, name: 'Manila' },
@@ -99,7 +98,6 @@ const getCities = async () => {
 };
 
 const getRegions = async () => {
-  // In a real implementation, this would be an API call
   return [
     { id: 1, name: 'Metro Manila' },
     { id: 2, name: 'Calabarzon' }
@@ -115,8 +113,11 @@ const Discounts: React.FC = () => {
   const [regions, setRegions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(256);
+  const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
+  const sidebarStartXRef = useRef<number>(0);
+  const sidebarStartWidthRef = useRef<number>(0);
 
-  // Fetch location data
   useEffect(() => {
     const fetchLocationData = async () => {
       try {
@@ -136,7 +137,6 @@ const Discounts: React.FC = () => {
     fetchLocationData();
   }, []);
 
-  // Fetch discount data
   useEffect(() => {
     const fetchDiscountData = async () => {
       try {
@@ -156,7 +156,6 @@ const Discounts: React.FC = () => {
     fetchDiscountData();
   }, []);
 
-  // Memoize city name lookup for performance
   const getCityName = useMemo(() => {
     const cityMap = new Map(cities.map(c => [c.id, c.name]));
     return (cityId: number | null | undefined): string => {
@@ -165,7 +164,6 @@ const Discounts: React.FC = () => {
     };
   }, [cities]);
 
-  // Memoize location items for performance
   const locationItems: LocationItem[] = useMemo(() => {
     const items: LocationItem[] = [
       {
@@ -175,7 +173,6 @@ const Discounts: React.FC = () => {
       }
     ];
     
-    // Add cities with counts
     cities.forEach((city) => {
       const cityCount = discountRecords.filter(record => record.cityId === city.id).length;
       items.push({
@@ -188,7 +185,6 @@ const Discounts: React.FC = () => {
     return items;
   }, [cities, discountRecords]);
 
-  // Memoize filtered records for performance
   const filteredDiscountRecords = useMemo(() => {
     return discountRecords.filter(record => {
       const matchesLocation = selectedLocation === 'all' || 
@@ -225,10 +221,41 @@ const Discounts: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (!isResizingSidebar) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingSidebar) return;
+      
+      const diff = e.clientX - sidebarStartXRef.current;
+      const newWidth = Math.max(200, Math.min(500, sidebarStartWidthRef.current + diff));
+      
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingSidebar(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingSidebar]);
+
+  const handleMouseDownSidebarResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingSidebar(true);
+    sidebarStartXRef.current = e.clientX;
+    sidebarStartWidthRef.current = sidebarWidth;
+  };
+
   return (
     <div className="bg-gray-950 h-full flex flex-col md:flex-row overflow-hidden">
-      {/* Location Sidebar - Desktop / Bottom Navbar - Mobile */}
-      <div className="md:w-64 bg-gray-900 md:border-r border-t md:border-t-0 border-gray-700 flex-shrink-0 flex flex-col order-2 md:order-1">
+      <div className="md:border-r border-t md:border-t-0 border-gray-700 flex-shrink-0 flex flex-col order-2 md:order-1 bg-gray-900 relative" style={{ width: `${sidebarWidth}px` }}>
         <div className="p-4 border-b border-gray-700 flex-shrink-0 hidden md:block">
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-lg font-semibold text-white">Discounts</h2>
@@ -291,9 +318,13 @@ const Discounts: React.FC = () => {
             ))}
           </div>
         </div>
+
+        <div
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-10 hidden md:block"
+          onMouseDown={handleMouseDownSidebarResize}
+        />
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 bg-gray-950 overflow-hidden order-1 md:order-2">
         <div className="flex flex-col h-full">
           <div className="flex-1 overflow-hidden">

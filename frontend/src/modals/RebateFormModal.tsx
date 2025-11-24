@@ -37,6 +37,7 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
     numberOfDays: 0,
     rebateType: null as RebateType,
     selectedId: null as number | null,
+    month: '',
     status: 'Unused',
     modifiedBy: getUserEmail()
   });
@@ -129,6 +130,10 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
       newErrors.selectedId = 'Please select an item from the dropdown';
     }
 
+    if (!formData.month) {
+      newErrors.month = 'Please select a month';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -161,6 +166,7 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
         number_of_dates: formData.numberOfDays,
         rebate_type: formData.rebateType as 'lcpnap' | 'lcp' | 'location',
         selected_rebate: selectedRebateName,
+        month: formData.month,
         status: formData.status as 'Unused' | 'Used',
         modified_by: formData.modifiedBy
       };
@@ -188,6 +194,7 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
       numberOfDays: 0,
       rebateType: null,
       selectedId: null,
+      month: '',
       status: 'Unused',
       modifiedBy: getUserEmail()
     });
@@ -384,6 +391,35 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                 {errors.selectedId && <p className="text-red-500 text-xs mt-1">{errors.selectedId}</p>}
               </div>
             )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Month<span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <select
+                  value={formData.month}
+                  onChange={(e) => handleInputChange('month', e.target.value)}
+                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.month ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
+                >
+                  <option value="">Select Month</option>
+                  <option value="January">January</option>
+                  <option value="February">February</option>
+                  <option value="March">March</option>
+                  <option value="April">April</option>
+                  <option value="May">May</option>
+                  <option value="June">June</option>
+                  <option value="July">July</option>
+                  <option value="August">August</option>
+                  <option value="September">September</option>
+                  <option value="October">October</option>
+                  <option value="November">November</option>
+                  <option value="December">December</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+              </div>
+              {errors.month && <p className="text-red-500 text-xs mt-1">{errors.month}</p>}
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
 import StaggeredListDetails from '../components/StaggeredListDetails';
 import { staggeredInstallationService } from '../services/staggeredInstallationService';
@@ -53,6 +53,10 @@ const StaggeredPayment: React.FC = () => {
   const [staggeredRecords, setStaggeredRecords] = useState<StaggeredInstallation[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(256);
+  const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
+  const sidebarStartXRef = useRef<number>(0);
+  const sidebarStartWidthRef = useRef<number>(0);
 
   const formatCurrency = (amount: number | string) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -73,12 +77,10 @@ const StaggeredPayment: React.FC = () => {
     }
   };
 
-  // Date navigation items
   const dateItems = [
     { date: 'All', id: '' },
   ];
 
-  // Fetch Staggered Payment data
   useEffect(() => {
     const fetchStaggeredPaymentData = async () => {
       try {
@@ -165,9 +167,41 @@ const StaggeredPayment: React.FC = () => {
     );
   };
 
+  useEffect(() => {
+    if (!isResizingSidebar) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingSidebar) return;
+      
+      const diff = e.clientX - sidebarStartXRef.current;
+      const newWidth = Math.max(200, Math.min(500, sidebarStartWidthRef.current + diff));
+      
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingSidebar(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingSidebar]);
+
+  const handleMouseDownSidebarResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingSidebar(true);
+    sidebarStartXRef.current = e.clientX;
+    sidebarStartWidthRef.current = sidebarWidth;
+  };
+
   return (
     <div className="bg-gray-950 h-full flex overflow-hidden">
-      <div className="w-64 bg-gray-900 border-r border-gray-700 flex-shrink-0 flex flex-col">
+      <div className="bg-gray-900 border-r border-gray-700 flex-shrink-0 flex flex-col relative" style={{ width: `${sidebarWidth}px` }}>
         <div className="p-4 border-b border-gray-700 flex-shrink-0">
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-lg font-semibold text-white">Staggered Payment</h2>
@@ -203,6 +237,11 @@ const StaggeredPayment: React.FC = () => {
             </button>
           ))}
         </div>
+
+        <div
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-10"
+          onMouseDown={handleMouseDownSidebarResize}
+        />
       </div>
 
       <div className="bg-gray-900 overflow-hidden flex-1">

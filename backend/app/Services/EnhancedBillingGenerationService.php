@@ -11,6 +11,7 @@ use App\Models\Discount;
 use App\Models\StaggeredInstallation;
 use App\Models\AdvancedPayment;
 use App\Models\MassRebate;
+use App\Models\RebateUsage;
 use App\Models\Barangay;
 use App\Models\BillingConfig;
 use Illuminate\Support\Facades\DB;
@@ -609,6 +610,7 @@ class EnhancedBillingGenerationService
     protected function calculateRebates(BillingAccount $account, Carbon $date, float $monthlyFee): float
     {
         $total = 0;
+        $currentMonth = $date->format('F');
         
         $customer = $account->customer;
         if (!$customer) {
@@ -622,10 +624,13 @@ class EnhancedBillingGenerationService
             return 0;
         }
 
-        $rebates = MassRebate::where('status', 'Unused')->get();
+        $rebates = MassRebate::where('status', 'Unused')
+            ->where('month', $currentMonth)
+            ->get();
 
         Log::info('Calculating rebates', [
             'account_no' => $account->account_no,
+            'current_month' => $currentMonth,
             'total_rebates_available' => $rebates->count(),
             'customer_lcpnap' => $technicalDetails->lcpnap,
             'customer_lcp' => $technicalDetails->lcp,
@@ -655,19 +660,32 @@ class EnhancedBillingGenerationService
             }
 
             if ($matchFound) {
-                $rebateDays = $rebate->number_of_dates ?? 0;
-                $rebateValue = $dailyRate * $rebateDays;
-                $total += $rebateValue;
+                $rebateUsage = \App\Models\RebateUsage::where('rebates_id', $rebate->id)
+                    ->where('account_no', $account->account_no)
+                    ->where('status', 'Unused')
+                    ->first();
 
-                Log::info('Rebate matched and applied', [
-                    'rebate_id' => $rebate->id,
-                    'account_no' => $account->account_no,
-                    'rebate_type' => $rebate->rebate_type,
-                    'selected_rebate' => $rebate->selected_rebate,
-                    'rebate_days' => $rebateDays,
-                    'daily_rate' => $dailyRate,
-                    'rebate_value' => $rebateValue
-                ]);
+                if ($rebateUsage) {
+                    $rebateDays = $rebate->number_of_dates ?? 0;
+                    $rebateValue = $dailyRate * $rebateDays;
+                    $total += $rebateValue;
+
+                    Log::info('Rebate matched and applied', [
+                        'rebate_id' => $rebate->id,
+                        'rebate_usage_id' => $rebateUsage->id,
+                        'account_no' => $account->account_no,
+                        'rebate_type' => $rebate->rebate_type,
+                        'selected_rebate' => $rebate->selected_rebate,
+                        'rebate_days' => $rebateDays,
+                        'daily_rate' => $dailyRate,
+                        'rebate_value' => $rebateValue
+                    ]);
+                } else {
+                    Log::info('Rebate matched but no unused rebate_usage found', [
+                        'rebate_id' => $rebate->id,
+                        'account_no' => $account->account_no
+                    ]);
+                }
             }
         }
 
@@ -853,7 +871,9 @@ class EnhancedBillingGenerationService
 
     protected function markRebatesAsUsed(BillingAccount $account, int $userId, string $invoiceId): void
     {
+        $currentMonth = Carbon::now()->format('F');
         $customer = $account->customer;
+        
         if (!$customer) {
             return;
         }
@@ -863,10 +883,13 @@ class EnhancedBillingGenerationService
             return;
         }
 
-        $rebates = MassRebate::where('status', 'Unused')->get();
+        $rebates = MassRebate::where('status', 'Unused')
+            ->where('month', $currentMonth)
+            ->get();
 
         Log::info('Marking rebates as used after invoice generation', [
             'account_no' => $account->account_no,
+            'current_month' => $currentMonth,
             'rebates_count' => $rebates->count(),
             'invoice_id' => $invoiceId
         ]);
@@ -890,11 +913,41 @@ class EnhancedBillingGenerationService
             }
 
             if ($matchFound) {
-                Log::info('Marking rebate as Used', [
-                    'rebate_id' => $rebate->id,
-                    'account_no' => $account->account_no,
-                    'rebate_type' => $rebate->rebate_type,
-                    'selected_rebate' => $rebate->selected_rebate
+                $rebateUsage = \App\Models\RebateUsage::where('rebates_id', $rebate->id)
+                    ->where('account_no', $account->account_no)
+                    ->where('status', 'Unused')
+                    ->first();
+
+                if ($rebateUsage) {
+                    Log::info('Marking rebate_usage as Used', [
+                        'rebate_id' => $rebate->id,
+                        'rebate_usage_id' => $rebateUsage->id,
+                        'account_no' => $account->account_no,
+                        'rebate_type' => $rebate->rebate_type,
+                        'selected_rebate' => $rebate->selected_rebate
+                    ]);
+
+                    $rebateUsage->update([
+                        'status' => 'Used'
+                    ]);
+
+                    $this->checkAndUpdateRebateStatus($rebate->id, $userId);
+                }
+            }
+        }
+    }
+
+    protected function checkAndUpdateRebateStatus(int $rebateId, int $userId): void
+    {
+        $unusedCount = \App\Models\RebateUsage::where('rebates_id', $rebateId)
+            ->where('status', 'Unused')
+            ->count();
+
+        if ($unusedCount === 0) {
+            $rebate = MassRebate::find($rebateId);
+            if ($rebate) {
+                Log::info('All rebate_usage entries are used, marking rebate as Used', [
+                    'rebate_id' => $rebateId
                 ]);
 
                 $rebate->update([
@@ -903,6 +956,11 @@ class EnhancedBillingGenerationService
                     'modified_date' => now()
                 ]);
             }
+        } else {
+            Log::info('Rebate still has unused entries', [
+                'rebate_id' => $rebateId,
+                'unused_count' => $unusedCount
+            ]);
         }
     }
 

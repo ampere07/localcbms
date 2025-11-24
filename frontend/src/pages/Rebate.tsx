@@ -1,88 +1,106 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
 import RebateFormModal from '../modals/RebateFormModal';
+import apiClient from '../config/api';
 
-interface DateItem {
-  date: string;
-  id: string;
+interface RebateRecord {
+  id: number;
+  number_of_dates: number;
+  rebate_type: string;
+  selected_rebate: string;
+  month: string;
+  status: string;
+  modified_by: string;
+  modified_date: string;
 }
 
-interface MassRebateRecord {
-  id: string;
-  rebateDate: string;
-  dueDate: string;
-  accountNo: string;
-  fullName: string;
-  contactNumber: string;
-  emailAddress: string;
-  address: string;
-  plan: string;
-  rebateNo?: string;
-  rebateStatus: string;
-  totalAmount: number;
-  rebateAmount: number;
-  remainingBalance: number;
-  processedDate?: string;
-  processedBy?: string;
-}
-
-const MassRebate: React.FC = () => {
+const Rebate: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [massRebateRecords, setMassRebateRecords] = useState<MassRebateRecord[]>([]);
+  const [rebateRecords, setRebateRecords] = useState<RebateRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(256);
+  const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
+  const sidebarStartXRef = useRef<number>(0);
+  const sidebarStartWidthRef = useRef<number>(0);
 
-  // Log when component is mounted
-  useEffect(() => {
-    console.log('MassRebate component mounted');
-  }, []);
-
-  // Date navigation items
   const dateItems = [
     { date: 'All', id: '' },
   ];
 
-  // Fetch Mass Rebate data
   useEffect(() => {
-    const fetchMassRebateData = async () => {
-      try {
-        setIsLoading(true);
-        
-        // In a real implementation, this would fetch from an API
-        // For now, we'll simulate loading
-        setTimeout(() => {
-          // For now, set empty array as per the screenshot showing "No items"
-          setMassRebateRecords([]);
-          setError(null);
-          setIsLoading(false);
-        }, 1000);
-      } catch (err) {
-        console.error('Failed to fetch Mass Rebate records:', err);
-        setError('Failed to load Mass Rebate records. Please try again.');
-        setMassRebateRecords([]);
-        setIsLoading(false);
-      }
-    };
-    
-    fetchMassRebateData();
+    fetchRebateData();
   }, []);
 
-  const handleRefresh = async () => {
-    // In a real implementation, this would re-fetch from the API
-    setIsLoading(true);
-    setTimeout(() => {
+  const fetchRebateData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await apiClient.get<RebateRecord[]>('/rebates');
+      console.log('Rebate API response:', response.data);
+      setRebateRecords(response.data);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to fetch Rebate records:', err);
+      setError('Failed to load Rebate records. Please try again.');
+      setRebateRecords([]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
+  };
+
+  const handleRefresh = async () => {
+    await fetchRebateData();
+  };
+
+  const filteredRecords = rebateRecords.filter(record => {
+    const matchesSearch = searchQuery === '' || 
+      record.selected_rebate.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      record.rebate_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      record.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      record.month.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
+  });
+
+  useEffect(() => {
+    if (!isResizingSidebar) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingSidebar) return;
+      
+      const diff = e.clientX - sidebarStartXRef.current;
+      const newWidth = Math.max(200, Math.min(500, sidebarStartWidthRef.current + diff));
+      
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingSidebar(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingSidebar]);
+
+  const handleMouseDownSidebarResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingSidebar(true);
+    sidebarStartXRef.current = e.clientX;
+    sidebarStartWidthRef.current = sidebarWidth;
   };
 
   return (
     <div className="bg-gray-950 h-full flex overflow-hidden">
-      <div className="w-64 bg-gray-900 border-r border-gray-700 flex-shrink-0 flex flex-col">
+      <div className="bg-gray-900 border-r border-gray-700 flex-shrink-0 flex flex-col relative" style={{ width: `${sidebarWidth}px` }}>
         <div className="p-4 border-b border-gray-700 flex-shrink-0">
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-lg font-semibold text-white">Mass Rebate</h2>
+            <h2 className="text-lg font-semibold text-white">Rebates</h2>
             <div>
               <button 
                 className="flex items-center space-x-1 bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-sm"
@@ -115,9 +133,15 @@ const MassRebate: React.FC = () => {
             </button>
           ))}
         </div>
+
+        {/* Resize Handle */}
+        <div
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-10"
+          onMouseDown={handleMouseDownSidebarResize}
+        />
       </div>
 
-      <div className="flex-1 bg-gray-900 overflow-hidden">
+      <div className="bg-gray-900 overflow-hidden flex-1">
         <div className="flex flex-col h-full">
           <div className="bg-gray-900 p-4 border-b border-gray-700 flex-shrink-0">
             <div className="flex flex-col space-y-3">
@@ -125,7 +149,7 @@ const MassRebate: React.FC = () => {
                 <div className="relative flex-1">
                   <input
                     type="text"
-                    placeholder="Search Mass Rebate records..."
+                    placeholder="Search Rebate records..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full bg-gray-800 text-white border border-gray-700 rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
@@ -144,14 +168,14 @@ const MassRebate: React.FC = () => {
           </div>
           
           <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto">
+            <div className="h-full overflow-x-auto overflow-y-auto pb-4">
               {isLoading ? (
                 <div className="px-4 py-12 text-center text-gray-400">
                   <div className="animate-pulse flex flex-col items-center">
                     <div className="h-4 w-1/3 bg-gray-700 rounded mb-4"></div>
                     <div className="h-4 w-1/2 bg-gray-700 rounded"></div>
                   </div>
-                  <p className="mt-4">Loading Mass Rebate records...</p>
+                  <p className="mt-4">Loading Rebate records...</p>
                 </div>
               ) : error ? (
                 <div className="px-4 py-12 text-center text-red-400">
@@ -162,21 +186,49 @@ const MassRebate: React.FC = () => {
                     Retry
                   </button>
                 </div>
-              ) : massRebateRecords.length > 0 ? (
-                <div className="p-4">
-                  {/* Table would go here if there were records */}
-                  <p className="text-white">Mass Rebate records would be displayed here</p>
-                </div>
+              ) : filteredRecords.length > 0 ? (
+                <table className="min-w-full divide-y divide-gray-700 text-sm">
+                  <thead className="bg-gray-800 sticky top-0">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">ID</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Rebate Type</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Selected Rebate</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Month</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Number of Dates</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Modified By</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Modified Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-gray-900 divide-y divide-gray-800">
+                    {filteredRecords.map((record) => (
+                      <tr 
+                        key={record.id}
+                        className="hover:bg-gray-800 cursor-pointer"
+                      >
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.id}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-300 capitalize">{record.rebate_type}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.selected_rebate}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.month}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.number_of_dates}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.status}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.modified_by}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.modified_date || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-gray-500">
-                  <h1 className="text-orange-500 text-2xl mb-4">Mass Rebate Component</h1>
-                  <p className="text-lg">No rebate records found</p>
+                  <h1 className="text-orange-500 text-2xl mb-4">Rebate Component</h1>
+                  <p className="text-lg">No Rebate records found</p>
                 </div>
               )}
             </div>
           </div>
         </div>
       </div>
+
       <RebateFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -189,4 +241,4 @@ const MassRebate: React.FC = () => {
   );
 };
 
-export default MassRebate;
+export default Rebate;

@@ -12,6 +12,7 @@ class MassRebate extends Model
         'number_of_dates',
         'rebate_type',
         'selected_rebate',
+        'month',
         'status',
         'modified_by',
         'modified_date'
@@ -77,5 +78,10 @@ class MassRebate extends Model
     public function isUnused()
     {
         return $this->status === self::STATUS_UNUSED;
+    }
+
+    public function usages()
+    {
+        return $this->hasMany(RebateUsage::class, 'rebates_id');
     }
 }

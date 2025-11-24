@@ -1920,6 +1920,20 @@ Route::prefix('transactions')->group(function () {
     Route::put('/{id}/status', [\App\Http\Controllers\TransactionController::class, 'updateStatus']);
 });
 
+// Rebates endpoint for frontend
+Route::get('/rebates', function() {
+    try {
+        $rebates = \App\Models\MassRebate::orderBy('id', 'desc')->get();
+        return response()->json($rebates);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error fetching rebates',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
 // Mass Rebate Management Routes
 Route::prefix('mass-rebates')->group(function () {
     Route::post('/test', function(Request $request) {
@@ -2036,6 +2050,7 @@ Route::prefix('mass-rebates')->group(function () {
                 'number_of_dates' => 'required|integer|min:1',
                 'rebate_type' => 'required|in:lcpnap,lcp,location',
                 'selected_rebate' => 'required|string|max:255',
+                'month' => 'required|string|max:50',
                 'status' => 'required|in:Unused,Used',
                 'modified_by' => 'required|string|max:255'
             ]);
@@ -2044,19 +2059,79 @@ Route::prefix('mass-rebates')->group(function () {
                 'data' => $validated
             ]);
             
+            \Illuminate\Support\Facades\DB::beginTransaction();
+            
             $rebate = MassRebate::create($validated);
+            
+            \Illuminate\Support\Facades\Log::info('Mass rebate created, finding matching accounts', [
+                'rebate_id' => $rebate->id,
+                'rebate_type' => $validated['rebate_type'],
+                'selected_rebate' => $validated['selected_rebate']
+            ]);
+            
+            $accountNumbers = [];
+            
+            if ($validated['rebate_type'] === 'lcpnap') {
+                $accountNumbers = \Illuminate\Support\Facades\DB::table('billing_accounts')
+                    ->join('technical_details', 'billing_accounts.id', '=', 'technical_details.account_id')
+                    ->where('technical_details.lcpnap', $validated['selected_rebate'])
+                    ->whereNotNull('billing_accounts.date_installed')
+                    ->pluck('billing_accounts.account_no')
+                    ->toArray();
+            } elseif ($validated['rebate_type'] === 'lcp') {
+                $accountNumbers = \Illuminate\Support\Facades\DB::table('billing_accounts')
+                    ->join('technical_details', 'billing_accounts.id', '=', 'technical_details.account_id')
+                    ->where('technical_details.lcp', $validated['selected_rebate'])
+                    ->whereNotNull('billing_accounts.date_installed')
+                    ->pluck('billing_accounts.account_no')
+                    ->toArray();
+            } elseif ($validated['rebate_type'] === 'location') {
+                $accountNumbers = \Illuminate\Support\Facades\DB::table('billing_accounts')
+                    ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                    ->where('customers.village', $validated['selected_rebate'])
+                    ->whereNotNull('billing_accounts.date_installed')
+                    ->pluck('billing_accounts.account_no')
+                    ->toArray();
+            }
+            
+            \Illuminate\Support\Facades\Log::info('Found matching accounts', [
+                'count' => count($accountNumbers),
+                'accounts' => $accountNumbers
+            ]);
+            
+            $usageRecords = [];
+            foreach ($accountNumbers as $accountNo) {
+                $usageRecords[] = [
+                    'rebates_id' => $rebate->id,
+                    'account_no' => $accountNo,
+                    'status' => 'Unused',
+                    'month' => $validated['month']
+                ];
+            }
+            
+            if (!empty($usageRecords)) {
+                \Illuminate\Support\Facades\DB::table('rebates_usage')->insert($usageRecords);
+                \Illuminate\Support\Facades\Log::info('Created rebate usage records', [
+                    'count' => count($usageRecords)
+                ]);
+            }
+            
+            \Illuminate\Support\Facades\DB::commit();
             
             \Illuminate\Support\Facades\Log::info('Mass rebate created successfully', [
                 'id' => $rebate->id,
-                'rebate' => $rebate->toArray()
+                'rebate' => $rebate->toArray(),
+                'usage_records_created' => count($usageRecords)
             ]);
             
             return response()->json([
                 'success' => true,
                 'message' => 'Mass rebate created successfully',
-                'data' => $rebate
+                'data' => $rebate,
+                'usage_records_created' => count($usageRecords)
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
             \Illuminate\Support\Facades\Log::error('Mass rebate validation failed', [
                 'errors' => $e->errors(),
                 'input' => $request->all()
@@ -2067,6 +2142,7 @@ Route::prefix('mass-rebates')->group(function () {
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
             \Illuminate\Support\Facades\Log::error('Failed to create mass rebate', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -2123,6 +2199,7 @@ Route::prefix('mass-rebates')->group(function () {
                 'number_of_dates' => 'sometimes|integer|min:1',
                 'rebate_type' => 'sometimes|in:lcpnap,lcp,location',
                 'selected_rebate' => 'sometimes|string|max:255',
+                'month' => 'sometimes|string|max:50',
                 'status' => 'sometimes|in:Unused,Used',
                 'modified_by' => 'sometimes|string|max:255'
             ]);
