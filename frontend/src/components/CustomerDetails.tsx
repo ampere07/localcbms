@@ -4,6 +4,7 @@ import TransactConfirmationModal from '../modals/TransactConfirmationModal';
 import TransactionFormModal from '../modals/TransactionFormModal';
 import StaggeredInstallationFormModal from '../modals/StaggeredInstallationFormModal';
 import DiscountFormModal from '../modals/DiscountFormModal';
+import SORequestFormModal from '../modals/SORequestFormModal';
 import { BillingDetailRecord } from '../types/billing';
 
 interface OnlineStatusRecord {
@@ -54,6 +55,8 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   const [showTransactionFormModal, setShowTransactionFormModal] = useState(false);
   const [showStaggeredInstallationModal, setShowStaggeredInstallationModal] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [showSORequestConfirmModal, setShowSORequestConfirmModal] = useState(false);
+  const [showSORequestFormModal, setShowSORequestFormModal] = useState(false);
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
@@ -109,7 +112,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   };
 
   const handleTransactConfirm = () => {
-    // Close confirmation modal and open transaction form modal
     setShowTransactModal(false);
     setShowTransactionFormModal(true);
     console.log('Transaction confirmed for:', billingRecord.applicationId);
@@ -122,7 +124,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   const handleTransactionFormSave = (formData: any) => {
     console.log('Transaction form saved:', formData);
     setShowTransactionFormModal(false);
-    // TODO: Implement actual transaction save logic
   };
 
   const handleTransactionFormClose = () => {
@@ -155,7 +156,28 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     setShowDiscountModal(false);
   };
 
-  // Sample online status data based on the image
+  const handleWrenchClick = () => {
+    setShowSORequestConfirmModal(true);
+  };
+
+  const handleSORequestConfirm = () => {
+    setShowSORequestConfirmModal(false);
+    setShowSORequestFormModal(true);
+  };
+
+  const handleSORequestCancel = () => {
+    setShowSORequestConfirmModal(false);
+  };
+
+  const handleSORequestFormSave = () => {
+    console.log('SO Request saved for:', billingRecord.applicationId);
+    setShowSORequestFormModal(false);
+  };
+
+  const handleSORequestFormClose = () => {
+    setShowSORequestFormModal(false);
+  };
+
   const defaultOnlineStatus: OnlineStatusRecord[] = onlineStatusRecords.length > 0 ? onlineStatusRecords : [
     {
       id: '1',
@@ -173,22 +195,21 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
         className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
         onMouseDown={handleMouseDownResize}
       />
-      {/* Header with Customer Name and Actions */}
       <div className="bg-gray-800 px-4 py-3 flex items-center justify-between border-b border-gray-700">
         <h1 className="text-lg font-semibold text-white truncate pr-4 min-w-0 flex-1">
           {billingRecord.applicationId} | {billingRecord.customerName} | {billingRecord.address}
         </h1>
         <div className="flex items-center space-x-2 flex-shrink-0">
           <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
-            <Trash2 size={18} />
-          </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
             <OctagonX size={18} />
           </button>
           <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
             <HandCoins size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button 
+            onClick={handleWrenchClick}
+            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+          >
             <Wrench size={18} />
           </button>
           <button 
@@ -215,7 +236,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
         </div>
       </div>
 
-      {/* Action Buttons */}
       <div className="px-6 py-4 flex items-center space-x-4 border-b border-gray-700">
         <div className="flex flex-col items-center space-y-2">
           <button className="flex items-center justify-center w-10 h-10 bg-orange-600 hover:bg-orange-700 text-white rounded-full transition-colors">
@@ -231,9 +251,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
         </div>
       </div>
 
-      {/* Customer Details Section */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Customer Details */}
         <div className="space-y-4">
           <h3 className="text-white font-semibold text-sm mb-4">Customer Details</h3>
           
@@ -305,7 +323,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           </div>
         </div>
 
-        {/* Technical Details */}
         <div className="space-y-4">
           <h3 className="text-white font-semibold text-sm mb-4">Technical Details</h3>
           
@@ -372,7 +389,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           </div>
         </div>
 
-        {/* Billing Details */}
         <div className="space-y-4">
           <h3 className="text-white font-semibold text-sm mb-4">Billing Details</h3>
           
@@ -408,12 +424,9 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
         </div>
       </div>
 
-      {/* Divider */}
       <div className="border-t border-gray-700"></div>
 
-      {/* Related Sections */}
       <div className="flex-1 overflow-y-auto">
-        {/* Related Invoices */}
         <div className="border-b border-gray-700">
           <button
             onClick={() => toggleSection('invoices')}
@@ -437,7 +450,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           )}
         </div>
 
-        {/* Related Payment Portal Logs */}
         <div className="border-b border-gray-700">
           <button
             onClick={() => toggleSection('paymentPortalLogs')}
@@ -461,7 +473,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           )}
         </div>
 
-        {/* Related Transactions */}
         <div className="border-b border-gray-700">
           <button
             onClick={() => toggleSection('transactions')}
@@ -488,7 +499,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           )}
         </div>
 
-        {/* Related Online Status */}
         <div className="border-b border-gray-700">
           <button
             onClick={() => toggleSection('onlineStatus')}
@@ -538,8 +548,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           )}
         </div>
 
-        {/* Add other sections with similar structure */}
-        {/* Related Staggered Installations with Add Button */}
         <div className="border-b border-gray-700">
           <button
             onClick={() => toggleSection('staggeredInstallations')}
@@ -571,7 +579,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           )}
         </div>
 
-        {/* Related Advanced Payments */}
         <div className="border-b border-gray-700">
           <button
             onClick={() => toggleSection('advancedPayments')}
@@ -598,7 +605,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           )}
         </div>
 
-        {/* Related Discounts with Add Button */}
         <div className="border-b border-gray-700">
           <button
             onClick={() => toggleSection('discounts')}
@@ -670,7 +676,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
         ))}
       </div>
 
-      {/* Transaction Confirmation Modal */}
       <TransactConfirmationModal
         isOpen={showTransactModal}
         onConfirm={handleTransactConfirm}
@@ -680,7 +685,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
         billingRecord={billingRecord}
       />
 
-      {/* Transaction Form Modal */}
       <TransactionFormModal
         isOpen={showTransactionFormModal}
         onClose={handleTransactionFormClose}
@@ -688,7 +692,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
         billingRecord={billingRecord}
       />
 
-      {/* Staggered Installation Form Modal */}
       <StaggeredInstallationFormModal
         isOpen={showStaggeredInstallationModal}
         onClose={handleStaggeredInstallationFormClose}
@@ -705,7 +708,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
         }}
       />
 
-      {/* Discount Form Modal */}
       <DiscountFormModal
         isOpen={showDiscountModal}
         onClose={handleDiscountFormClose}
@@ -714,6 +716,47 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           accountNo: billingRecord.applicationId,
           fullName: billingRecord.customerName,
           address: billingRecord.address
+        }}
+      />
+
+      {showSORequestConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold text-white mb-4">Create Service Order Request</h3>
+            <p className="text-gray-300 mb-6">
+              Do you want to create a service order request for account <span className="font-semibold text-white">{billingRecord.applicationId}</span>?
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={handleSORequestCancel}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSORequestConfirm}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+              >
+                Yes, Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <SORequestFormModal
+        isOpen={showSORequestFormModal}
+        onClose={handleSORequestFormClose}
+        onSave={handleSORequestFormSave}
+        customerData={{
+          accountNo: billingRecord.applicationId,
+          dateInstalled: billingRecord.dateInstalled || '',
+          fullName: billingRecord.customerName,
+          contactNumber: billingRecord.contactNumber || '',
+          plan: billingRecord.plan || '',
+          provider: billingRecord.provider || '',
+          username: billingRecord.username || '',
+          emailAddress: billingRecord.emailAddress || billingRecord.email || ''
         }}
       />
     </div>

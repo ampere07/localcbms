@@ -17,7 +17,7 @@ interface ServiceOrderDetailsProps {
     houseFrontPicture: string;
     emailAddress: string;
     plan: string;
-    provider: string;
+    affiliate: string;
     username: string;
     connectionType: string;
     routerModemSN: string;
@@ -87,7 +87,6 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
         className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
         onMouseDown={handleMouseDownResize}
       />
-      {/* Header */}
       <div className="bg-gray-800 p-3 flex items-center justify-between border-b border-gray-700">
         <div className="flex items-center">
           <h2 className="text-white font-medium truncate max-w-md">{serviceOrder.accountNumber} | {serviceOrder.fullName} | {serviceOrder.contactAddress}</h2>
@@ -114,7 +113,6 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
         </div>
       </div>
       
-      {/* Service Order Details */}
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto py-1 px-4 bg-gray-950">
           <div className="space-y-1">
@@ -157,11 +155,18 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
             
             <div className="flex border-b border-gray-800 py-2">
               <div className="w-40 text-gray-400 text-sm">House Front Picture</div>
-              <div className="text-white flex-1 flex items-center">
-                {serviceOrder.houseFrontPicture}
-                <button className="ml-2 text-white">
-                  <ExternalLink size={16} />
-                </button>
+              <div className="text-white flex-1 flex items-center min-w-0">
+                <span className="truncate mr-2" title={serviceOrder.houseFrontPicture}>
+                  {serviceOrder.houseFrontPicture || '-'}
+                </span>
+                {serviceOrder.houseFrontPicture && (
+                  <button 
+                    className="text-white flex-shrink-0"
+                    onClick={() => window.open(serviceOrder.houseFrontPicture, '_blank')}
+                  >
+                    <ExternalLink size={16} />
+                  </button>
+                )}
               </div>
             </div>
             
@@ -181,9 +186,9 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
             </div>
             
             <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Provider</div>
+              <div className="w-40 text-gray-400 text-sm">Affiliate</div>
               <div className="text-white flex-1 flex items-center">
-                {serviceOrder.provider}
+                {serviceOrder.affiliate}
                 <button className="ml-2 text-gray-400">
                   <Info size={16} />
                 </button>

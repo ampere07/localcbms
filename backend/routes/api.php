@@ -2384,3 +2384,43 @@ Route::prefix('staggered-installations')->group(function () {
     Route::post('/{id}/approve', [\App\Http\Controllers\StaggeredInstallationController::class, 'approve']);
     Route::delete('/{id}', [\App\Http\Controllers\StaggeredInstallationController::class, 'destroy']);
 });
+
+// Concern Management Routes
+Route::prefix('concerns')->group(function () {
+    Route::get('/', [\App\Http\Controllers\ConcernController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\ConcernController::class, 'store']);
+    Route::get('/{id}', [\App\Http\Controllers\ConcernController::class, 'show']);
+    Route::put('/{id}', [\App\Http\Controllers\ConcernController::class, 'update']);
+    Route::delete('/{id}', [\App\Http\Controllers\ConcernController::class, 'destroy']);
+});
+
+// Debug route for concerns
+Route::get('/debug/concerns', function() {
+    try {
+        $tableExists = \Illuminate\Support\Facades\Schema::hasTable('concern');
+        
+        if (!$tableExists) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Table concern does not exist',
+                'table_exists' => false
+            ]);
+        }
+        
+        $columns = \Illuminate\Support\Facades\Schema::getColumnListing('concern');
+        $concerns = \Illuminate\Support\Facades\DB::table('concern')->get();
+        
+        return response()->json([
+            'success' => true,
+            'table_exists' => true,
+            'columns' => $columns,
+            'count' => $concerns->count(),
+            'data' => $concerns
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});

@@ -13,6 +13,7 @@ class TechnicalDetail extends Model
 
     protected $fillable = [
         'account_id',
+        'account_no',
         'username',
         'username_status',
         'connection_type',

@@ -1,59 +1,64 @@
 import apiClient from '../config/api';
 
-// Response interface
 interface ApiResponse<T> {
   success: boolean;
   data: T;
   message?: string;
   count?: number;
   table?: string;
-  debug?: any;
 }
 
 export interface ServiceOrderData {
   id: string;
-  Ticket_ID?: string;
-  Timestamp?: string;
-  Account_Number?: string;
-  Full_Name?: string;
-  Contact_Address?: string;
-  Date_Installed?: string;
-  Contact_Number?: string;
-  Full_Address?: string;
-  House_Front_Picture?: string;
-  Email_Address?: string;
-  Plan?: string;
-  Provider?: string;
-  Username?: string;
-  Connection_Type?: string;
-  Router_Modem_SN?: string;
-  LCP?: string;
-  NAP?: string;
-  PORT?: string;
-  VLAN?: string;
-  Concern?: string;
-  Concern_Remarks?: string;
-  Visit_Status?: string;
-  Visit_By?: string;
-  Visit_With?: string;
-  Visit_With_Other?: string;
-  Visit_Remarks?: string;
-  Modified_By?: string;
-  Modified_Date?: string;
-  User_Email?: string;
-  Requested_By?: string;
-  Assigned_Email?: string;
-  Support_Remarks?: string;
-  Service_Charge?: string;
-  Repair_Category?: string;
-  Support_Status?: string;
+  ticket_id: string;
+  account_no: string;
+  account_id?: number;
+  timestamp: string;
+  full_name: string;
+  contact_number: string;
+  full_address: string;
+  contact_address: string;
+  date_installed?: string;
+  email_address?: string;
+  house_front_picture_url?: string;
+  plan?: string;
+  group_name?: string;
+  username?: string;
+  connection_type?: string;
+  router_modem_sn?: string;
+  lcp?: string;
+  nap?: string;
+  port?: string;
+  vlan?: string;
+  lcpnap?: string;
+  concern?: string;
+  concern_remarks?: string;
+  requested_by?: string;
+  support_status?: string;
+  assigned_email?: string;
+  repair_category?: string;
+  visit_status?: string;
+  priority_level?: string;
+  visit_by_user?: string;
+  visit_with?: string;
+  visit_remarks?: string;
+  support_remarks?: string;
+  service_charge?: number;
+  new_router_sn?: string;
+  new_lcpnap_id?: number;
+  new_plan_id?: number;
+  client_signature_url?: string;
+  image1_url?: string;
+  image2_url?: string;
+  image3_url?: string;
   created_at?: string;
+  created_by_user?: string;
   updated_at?: string;
+  updated_by_user?: string;
 }
 
-export const createServiceOrder = async (serviceOrderData: ServiceOrderData) => {
+export const createServiceOrder = async (serviceOrderData: Partial<ServiceOrderData>) => {
   try {
-    console.log('Creating new service order:', serviceOrderData);
     const response = await apiClient.post<ApiResponse<ServiceOrderData>>('/service-orders', serviceOrderData);
     return response.data;
   } catch (error) {
@@ -64,42 +69,12 @@ export const createServiceOrder = async (serviceOrderData: ServiceOrderData) => 
 
 export const getServiceOrders = async (assignedEmail?: string) => {
   try {
-    console.log('Fetching service orders from service_orders table...');
-    try {
-      const params = assignedEmail ? { assigned_email: assignedEmail } : {};
-      const response = await apiClient.get<ApiResponse<ServiceOrderData[]>>('/service-orders', { params });
-      console.log('Raw API response:', response);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching service orders from /service-orders endpoint:', error);
-      
-      // Try alternate endpoint format without hyphen
-      try {
-        console.log('Trying alternate endpoint /service_orders...');
-        const alternateResponse = await apiClient.get<ApiResponse<ServiceOrderData[]>>('/service_orders');
-        return alternateResponse.data;
-      } catch (altError) {
-        console.error('Error fetching from alternate endpoint:', altError);
-        // Continue to return formatted error response
-      }
-    }
-    
-    // If all endpoint attempts fail, return formatted error
-    return {
-      success: false,
-      data: [],
-      message: 'Service order API endpoints not available',
-      table: 'service_orders' // Explicitly specify table name for debugging
-    };
+    const params = assignedEmail ? { assigned_email: assignedEmail } : {};
+    const response = await apiClient.get<ApiResponse<ServiceOrderData[]>>('/service-orders', { params });
+    return response.data;
   } catch (error) {
     console.error('Error fetching service orders:', error);
-    // Return a formatted error response instead of throwing
-    return {
-      success: false,
-      data: [],
-      message: error instanceof Error ? error.message : 'Unknown error fetching service orders',
-      table: 'service_orders' // Explicitly specify table name for debugging
-    };
+    throw error;
   }
 };
 

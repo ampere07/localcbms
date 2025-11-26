@@ -474,6 +474,7 @@ class JobOrderController extends Controller
 
             $technicalDetail = TechnicalDetail::create([
                 'account_id' => $billingAccount->id,
+                'account_no' => $accountNumber,
                 'username' => $usernameForTechnical,
                 'username_status' => $jobOrder->username_status,
                 'connection_type' => $jobOrder->connection_type,

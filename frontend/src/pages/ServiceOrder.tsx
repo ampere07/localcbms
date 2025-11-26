@@ -51,43 +51,20 @@ interface LocationItem {
 
 type DisplayMode = 'card' | 'table';
 
-// All available columns from service_orders table
 const allColumns = [
-  { key: 'ticketId', label: 'Ticket ID', width: 'min-w-32' },
   { key: 'timestamp', label: 'Timestamp', width: 'min-w-40' },
-  { key: 'accountNumber', label: 'Account Number', width: 'min-w-36' },
   { key: 'fullName', label: 'Full Name', width: 'min-w-40' },
-  { key: 'contactAddress', label: 'Contact Address', width: 'min-w-48' },
-  { key: 'dateInstalled', label: 'Date Installed', width: 'min-w-32' },
   { key: 'contactNumber', label: 'Contact Number', width: 'min-w-36' },
   { key: 'fullAddress', label: 'Full Address', width: 'min-w-56' },
-  { key: 'houseFrontPicture', label: 'House Front Picture', width: 'min-w-40' },
-  { key: 'emailAddress', label: 'Email Address', width: 'min-w-48' },
-  { key: 'plan', label: 'Plan', width: 'min-w-32' },
-  { key: 'provider', label: 'Provider', width: 'min-w-28' },
-  { key: 'username', label: 'Username', width: 'min-w-32' },
-  { key: 'connectionType', label: 'Connection Type', width: 'min-w-36' },
-  { key: 'routerModemSN', label: 'Router/Modem SN', width: 'min-w-36' },
-  { key: 'lcp', label: 'LCP', width: 'min-w-28' },
-  { key: 'nap', label: 'NAP', width: 'min-w-28' },
-  { key: 'port', label: 'PORT', width: 'min-w-28' },
-  { key: 'vlan', label: 'VLAN', width: 'min-w-24' },
   { key: 'concern', label: 'Concern', width: 'min-w-36' },
   { key: 'concernRemarks', label: 'Concern Remarks', width: 'min-w-48' },
-  { key: 'visitStatus', label: 'Visit Status', width: 'min-w-32' },
-  { key: 'visitBy', label: 'Visit By', width: 'min-w-32' },
-  { key: 'visitWith', label: 'Visit With', width: 'min-w-32' },
-  { key: 'visitWithOther', label: 'Visit With Other', width: 'min-w-36' },
-  { key: 'visitRemarks', label: 'Visit Remarks', width: 'min-w-48' },
-  { key: 'modifiedBy', label: 'Modified By', width: 'min-w-32' },
-  { key: 'modifiedDate', label: 'Modified Date', width: 'min-w-40' },
-  { key: 'userEmail', label: 'User Email', width: 'min-w-48' },
   { key: 'requestedBy', label: 'Requested By', width: 'min-w-36' },
+  { key: 'supportStatus', label: 'Support Status', width: 'min-w-32' },
   { key: 'assignedEmail', label: 'Assigned Email', width: 'min-w-48' },
-  { key: 'supportRemarks', label: 'Support Remarks', width: 'min-w-48' },
-  { key: 'serviceCharge', label: 'Service Charge', width: 'min-w-32' },
   { key: 'repairCategory', label: 'Repair Category', width: 'min-w-36' },
-  { key: 'supportStatus', label: 'Support Status', width: 'min-w-32' }
+  { key: 'visitStatus', label: 'Visit Status', width: 'min-w-32' },
+  { key: 'modifiedBy', label: 'Modified By', width: 'min-w-32' },
+  { key: 'modifiedDate', label: 'Modified Date', width: 'min-w-40' }
 ];
 
 const ServiceOrder: React.FC = () => {
@@ -122,7 +99,6 @@ const ServiceOrder: React.FC = () => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
 
-  // Format date function
   const formatDate = (dateStr?: string): string => {
     if (!dateStr) return 'Not scheduled';
     try {
@@ -132,7 +108,6 @@ const ServiceOrder: React.FC = () => {
     }
   };
 
-  // Handle click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -163,18 +138,15 @@ const ServiceOrder: React.FC = () => {
     }
   }, []);
 
-  // Fetch data from API
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         
-        // Fetch cities data
         console.log('Fetching cities...');
         const citiesData = await getCities();
         setCities(citiesData || []);
         
-        // Fetch service orders data with email filter for technicians
         console.log('Fetching service orders from service_orders table...');
         const authData = localStorage.getItem('authData');
         let assignedEmail: string | undefined;
@@ -197,44 +169,43 @@ const ServiceOrder: React.FC = () => {
         if (response.success && Array.isArray(response.data)) {
           console.log(`Found ${response.data.length} service orders`);
           
-          // Map the API response to our interface
           const processedOrders: ServiceOrder[] = response.data.map((order: ServiceOrderData) => ({
             id: order.id || '',
-            ticketId: order.Ticket_ID || '',
-            timestamp: formatDate(order.Timestamp),
-            accountNumber: order.Account_Number || '',
-            fullName: order.Full_Name || '',
-            contactAddress: order.Contact_Address || '',
-            dateInstalled: order.Date_Installed || '',
-            contactNumber: order.Contact_Number || '',
-            fullAddress: order.Full_Address || '',
-            houseFrontPicture: order.House_Front_Picture || '',
-            emailAddress: order.Email_Address || '',
-            plan: order.Plan || '',
-            provider: order.Provider || '',
-            username: order.Username || '',
-            connectionType: order.Connection_Type || '',
-            routerModemSN: order.Router_Modem_SN || '',
-            lcp: order.LCP || '',
-            nap: order.NAP || '',
-            port: order.PORT || '',
-            vlan: order.VLAN || '',
-            concern: order.Concern || '',
-            concernRemarks: order.Concern_Remarks || '',
-            visitStatus: order.Visit_Status || '',
-            visitBy: order.Visit_By || '',
-            visitWith: order.Visit_With || '',
-            visitWithOther: order.Visit_With_Other || '',
-            visitRemarks: order.Visit_Remarks || '',
-            modifiedBy: order.Modified_By || '',
-            modifiedDate: formatDate(order.Modified_Date),
-            userEmail: order.User_Email || '',
-            requestedBy: order.Requested_By || '',
-            assignedEmail: order.Assigned_Email || '',
-            supportRemarks: order.Support_Remarks || '',
-            serviceCharge: order.Service_Charge || '₱0.00',
-            repairCategory: order.Repair_Category || '',
-            supportStatus: order.Support_Status || ''
+            ticketId: order.ticket_id || order.id || '',
+            timestamp: formatDate(order.timestamp),
+            accountNumber: order.account_no || '',
+            fullName: order.full_name || '',
+            contactAddress: order.contact_address || '',
+            dateInstalled: order.date_installed ? formatDate(order.date_installed) : '',
+            contactNumber: order.contact_number || '',
+            fullAddress: order.full_address || '',
+            houseFrontPicture: order.house_front_picture_url || '',
+            emailAddress: order.email_address || '',
+            plan: order.plan || '',
+            provider: '',
+            username: order.username || '',
+            connectionType: order.connection_type || '',
+            routerModemSN: order.router_modem_sn || '',
+            lcp: order.lcp || '',
+            nap: order.nap || '',
+            port: order.port || '',
+            vlan: order.vlan || '',
+            concern: order.concern || '',
+            concernRemarks: order.concern_remarks || '',
+            visitStatus: order.visit_status || '',
+            visitBy: order.visit_by_user || '',
+            visitWith: order.visit_with || '',
+            visitWithOther: '',
+            visitRemarks: order.visit_remarks || '',
+            modifiedBy: order.updated_by_user || '',
+            modifiedDate: formatDate(order.updated_at),
+            userEmail: order.assigned_email || '',
+            requestedBy: order.requested_by || '',
+            assignedEmail: order.assigned_email || '',
+            supportRemarks: order.support_remarks || '',
+            serviceCharge: order.service_charge ? `₱${order.service_charge}` : '₱0.00',
+            repairCategory: order.repair_category || '',
+            supportStatus: order.support_status || ''
           }));
           
           setServiceOrders(processedOrders);
@@ -269,7 +240,6 @@ const ServiceOrder: React.FC = () => {
     fetchData();
   }, []);
   
-  // Generate location items from cities and service orders data
   const locationItems: LocationItem[] = useMemo(() => {
     const items: LocationItem[] = [
       {
@@ -320,7 +290,6 @@ const ServiceOrder: React.FC = () => {
     return items;
   }, [cities, serviceOrders]);
   
-  // Filter and sort service orders based on location, search query, and sorting
   const filteredServiceOrders = useMemo(() => {
     let filtered = serviceOrders.filter(serviceOrder => {
       const matchesLocation = selectedLocation === 'all' || 
@@ -340,29 +309,13 @@ const ServiceOrder: React.FC = () => {
         let bValue: any = '';
 
         switch (sortColumn) {
-          case 'ticketId':
-            aValue = a.ticketId || '';
-            bValue = b.ticketId || '';
-            break;
           case 'timestamp':
             aValue = a.timestamp || '';
             bValue = b.timestamp || '';
             break;
-          case 'accountNumber':
-            aValue = a.accountNumber || '';
-            bValue = b.accountNumber || '';
-            break;
           case 'fullName':
             aValue = a.fullName || '';
             bValue = b.fullName || '';
-            break;
-          case 'contactAddress':
-            aValue = a.contactAddress || '';
-            bValue = b.contactAddress || '';
-            break;
-          case 'dateInstalled':
-            aValue = a.dateInstalled || '';
-            bValue = b.dateInstalled || '';
             break;
           case 'contactNumber':
             aValue = a.contactNumber || '';
@@ -372,46 +325,6 @@ const ServiceOrder: React.FC = () => {
             aValue = a.fullAddress || '';
             bValue = b.fullAddress || '';
             break;
-          case 'emailAddress':
-            aValue = a.emailAddress || '';
-            bValue = b.emailAddress || '';
-            break;
-          case 'plan':
-            aValue = a.plan || '';
-            bValue = b.plan || '';
-            break;
-          case 'provider':
-            aValue = a.provider || '';
-            bValue = b.provider || '';
-            break;
-          case 'username':
-            aValue = a.username || '';
-            bValue = b.username || '';
-            break;
-          case 'connectionType':
-            aValue = a.connectionType || '';
-            bValue = b.connectionType || '';
-            break;
-          case 'routerModemSN':
-            aValue = a.routerModemSN || '';
-            bValue = b.routerModemSN || '';
-            break;
-          case 'lcp':
-            aValue = a.lcp || '';
-            bValue = b.lcp || '';
-            break;
-          case 'nap':
-            aValue = a.nap || '';
-            bValue = b.nap || '';
-            break;
-          case 'port':
-            aValue = a.port || '';
-            bValue = b.port || '';
-            break;
-          case 'vlan':
-            aValue = a.vlan || '';
-            bValue = b.vlan || '';
-            break;
           case 'concern':
             aValue = a.concern || '';
             bValue = b.concern || '';
@@ -420,25 +333,25 @@ const ServiceOrder: React.FC = () => {
             aValue = a.concernRemarks || '';
             bValue = b.concernRemarks || '';
             break;
+          case 'requestedBy':
+            aValue = a.requestedBy || '';
+            bValue = b.requestedBy || '';
+            break;
+          case 'supportStatus':
+            aValue = a.supportStatus || '';
+            bValue = b.supportStatus || '';
+            break;
+          case 'assignedEmail':
+            aValue = a.assignedEmail || '';
+            bValue = b.assignedEmail || '';
+            break;
+          case 'repairCategory':
+            aValue = a.repairCategory || '';
+            bValue = b.repairCategory || '';
+            break;
           case 'visitStatus':
             aValue = a.visitStatus || '';
             bValue = b.visitStatus || '';
-            break;
-          case 'visitBy':
-            aValue = a.visitBy || '';
-            bValue = b.visitBy || '';
-            break;
-          case 'visitWith':
-            aValue = a.visitWith || '';
-            bValue = b.visitWith || '';
-            break;
-          case 'visitWithOther':
-            aValue = a.visitWithOther || '';
-            bValue = b.visitWithOther || '';
-            break;
-          case 'visitRemarks':
-            aValue = a.visitRemarks || '';
-            bValue = b.visitRemarks || '';
             break;
           case 'modifiedBy':
             aValue = a.modifiedBy || '';
@@ -447,34 +360,6 @@ const ServiceOrder: React.FC = () => {
           case 'modifiedDate':
             aValue = a.modifiedDate || '';
             bValue = b.modifiedDate || '';
-            break;
-          case 'userEmail':
-            aValue = a.userEmail || '';
-            bValue = b.userEmail || '';
-            break;
-          case 'requestedBy':
-            aValue = a.requestedBy || '';
-            bValue = b.requestedBy || '';
-            break;
-          case 'assignedEmail':
-            aValue = a.assignedEmail || '';
-            bValue = b.assignedEmail || '';
-            break;
-          case 'supportRemarks':
-            aValue = a.supportRemarks || '';
-            bValue = b.supportRemarks || '';
-            break;
-          case 'serviceCharge':
-            aValue = a.serviceCharge || '';
-            bValue = b.serviceCharge || '';
-            break;
-          case 'repairCategory':
-            aValue = a.repairCategory || '';
-            bValue = b.repairCategory || '';
-            break;
-          case 'supportStatus':
-            aValue = a.supportStatus || '';
-            bValue = b.supportStatus || '';
             break;
           default:
             return 0;
@@ -494,7 +379,6 @@ const ServiceOrder: React.FC = () => {
     return filtered;
   }, [serviceOrders, selectedLocation, searchQuery, sortColumn, sortDirection]);
   
-  // Status text color component
   const StatusText = ({ status, type }: { status?: string, type: 'support' | 'visit' }) => {
     if (!status) return <span className="text-gray-400">Unknown</span>;
     
@@ -571,41 +455,41 @@ const ServiceOrder: React.FC = () => {
       if (response.success && Array.isArray(response.data)) {
         const processedOrders: ServiceOrder[] = response.data.map((order: ServiceOrderData) => ({
           id: order.id || '',
-          ticketId: order.Ticket_ID || '',
-          timestamp: formatDate(order.Timestamp),
-          accountNumber: order.Account_Number || '',
-          fullName: order.Full_Name || '',
-          contactAddress: order.Contact_Address || '',
-          dateInstalled: order.Date_Installed || '',
-          contactNumber: order.Contact_Number || '',
-          fullAddress: order.Full_Address || '',
-          houseFrontPicture: order.House_Front_Picture || '',
-          emailAddress: order.Email_Address || '',
-          plan: order.Plan || '',
-          provider: order.Provider || '',
-          username: order.Username || '',
-          connectionType: order.Connection_Type || '',
-          routerModemSN: order.Router_Modem_SN || '',
-          lcp: order.LCP || '',
-          nap: order.NAP || '',
-          port: order.PORT || '',
-          vlan: order.VLAN || '',
-          concern: order.Concern || '',
-          concernRemarks: order.Concern_Remarks || '',
-          visitStatus: order.Visit_Status || '',
-          visitBy: order.Visit_By || '',
-          visitWith: order.Visit_With || '',
-          visitWithOther: order.Visit_With_Other || '',
-          visitRemarks: order.Visit_Remarks || '',
-          modifiedBy: order.Modified_By || '',
-          modifiedDate: formatDate(order.Modified_Date),
-          userEmail: order.User_Email || '',
-          requestedBy: order.Requested_By || '',
-          assignedEmail: order.Assigned_Email || '',
-          supportRemarks: order.Support_Remarks || '',
-          serviceCharge: order.Service_Charge || '₱0.00',
-          repairCategory: order.Repair_Category || '',
-          supportStatus: order.Support_Status || ''
+          ticketId: order.ticket_id || order.id || '',
+          timestamp: formatDate(order.timestamp),
+          accountNumber: order.account_no || '',
+          fullName: order.full_name || '',
+          contactAddress: order.contact_address || '',
+          dateInstalled: order.date_installed ? formatDate(order.date_installed) : '',
+          contactNumber: order.contact_number || '',
+          fullAddress: order.full_address || '',
+          houseFrontPicture: order.house_front_picture_url || '',
+          emailAddress: order.email_address || '',
+          plan: order.plan || '',
+          provider: '',
+          username: order.username || '',
+          connectionType: order.connection_type || '',
+          routerModemSN: order.router_modem_sn || '',
+          lcp: order.lcp || '',
+          nap: order.nap || '',
+          port: order.port || '',
+          vlan: order.vlan || '',
+          concern: order.concern || '',
+          concernRemarks: order.concern_remarks || '',
+          visitStatus: order.visit_status || '',
+          visitBy: order.visit_by_user || '',
+          visitWith: order.visit_with || '',
+          visitWithOther: '',
+          visitRemarks: order.visit_remarks || '',
+          modifiedBy: order.updated_by_user || '',
+          modifiedDate: formatDate(order.updated_at),
+          userEmail: order.assigned_email || '',
+          requestedBy: order.requested_by || '',
+          assignedEmail: order.assigned_email || '',
+          supportRemarks: order.support_remarks || '',
+          serviceCharge: order.service_charge ? `₱${order.service_charge}` : '₱0.00',
+          repairCategory: order.repair_category || '',
+          supportStatus: order.support_status || ''
         }));
         
         setServiceOrders(processedOrders);
@@ -776,76 +660,32 @@ const ServiceOrder: React.FC = () => {
 
   const renderCellValue = (serviceOrder: ServiceOrder, columnKey: string) => {
     switch (columnKey) {
-      case 'ticketId':
-        return <span className="text-red-400">{serviceOrder.ticketId}</span>;
       case 'timestamp':
         return serviceOrder.timestamp;
-      case 'accountNumber':
-        return serviceOrder.accountNumber || '-';
       case 'fullName':
         return serviceOrder.fullName;
-      case 'contactAddress':
-        return serviceOrder.contactAddress || '-';
-      case 'dateInstalled':
-        return serviceOrder.dateInstalled || '-';
       case 'contactNumber':
         return serviceOrder.contactNumber;
       case 'fullAddress':
         return <span title={serviceOrder.fullAddress}>{serviceOrder.fullAddress}</span>;
-      case 'houseFrontPicture':
-        return serviceOrder.houseFrontPicture ? 'Yes' : 'No';
-      case 'emailAddress':
-        return serviceOrder.emailAddress || '-';
-      case 'plan':
-        return serviceOrder.plan || '-';
-      case 'provider':
-        return serviceOrder.provider || '-';
-      case 'username':
-        return serviceOrder.username || '-';
-      case 'connectionType':
-        return serviceOrder.connectionType || '-';
-      case 'routerModemSN':
-        return serviceOrder.routerModemSN || '-';
-      case 'lcp':
-        return serviceOrder.lcp || '-';
-      case 'nap':
-        return serviceOrder.nap || '-';
-      case 'port':
-        return serviceOrder.port || '-';
-      case 'vlan':
-        return serviceOrder.vlan || '-';
       case 'concern':
         return serviceOrder.concern;
       case 'concernRemarks':
         return serviceOrder.concernRemarks || '-';
+      case 'requestedBy':
+        return serviceOrder.requestedBy || '-';
+      case 'supportStatus':
+        return <StatusText status={serviceOrder.supportStatus} type="support" />;
+      case 'assignedEmail':
+        return serviceOrder.assignedEmail || '-';
+      case 'repairCategory':
+        return serviceOrder.repairCategory || '-';
       case 'visitStatus':
         return <StatusText status={serviceOrder.visitStatus} type="visit" />;
-      case 'visitBy':
-        return serviceOrder.visitBy || '-';
-      case 'visitWith':
-        return serviceOrder.visitWith || '-';
-      case 'visitWithOther':
-        return serviceOrder.visitWithOther || '-';
-      case 'visitRemarks':
-        return serviceOrder.visitRemarks || '-';
       case 'modifiedBy':
         return serviceOrder.modifiedBy || '-';
       case 'modifiedDate':
         return serviceOrder.modifiedDate;
-      case 'userEmail':
-        return serviceOrder.userEmail || '-';
-      case 'requestedBy':
-        return serviceOrder.requestedBy || '-';
-      case 'assignedEmail':
-        return serviceOrder.assignedEmail || '-';
-      case 'supportRemarks':
-        return serviceOrder.supportRemarks || '-';
-      case 'serviceCharge':
-        return serviceOrder.serviceCharge;
-      case 'repairCategory':
-        return serviceOrder.repairCategory || '-';
-      case 'supportStatus':
-        return <StatusText status={serviceOrder.supportStatus} type="support" />;
       default:
         return '-';
     }
@@ -916,7 +756,6 @@ const ServiceOrder: React.FC = () => {
             ))}
           </div>
           
-          {/* Resize Handle */}
           <div
             className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-10"
             onMouseDown={handleMouseDownSidebarResize}

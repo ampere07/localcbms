@@ -11,37 +11,90 @@ use Illuminate\Support\Facades\DB;
 
 class ServiceOrderController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         try {
-            // Directly use the service_order table
-            $tableName = 'service_orders';
+            Log::info('Fetching service orders with related data');
             
-            // Log that we're accessing the table
-            Log::info('Accessing ' . $tableName . ' table');
+            $query = "SELECT * FROM service_orders";
+            $params = [];
             
-            // Query the table
-            $serviceOrders = DB::table('service_orders')->get();
-
-            // Log the count of service orders found
-            $count = count($serviceOrders);
-            Log::info('Found ' . $count . ' service orders in database');
-            
-            // Check if we got any service orders
-            if ($count === 0) {
-                Log::info('No service orders found in database');
-            } else {
-                // Log the first service order for debugging
-                Log::info('First service order example:', json_decode(json_encode($serviceOrders[0]), true));
+            if ($request->has('assigned_email')) {
+                Log::info('Filtering by assigned_email: ' . $request->assigned_email);
+                $query .= " WHERE assigned_email = ?";
+                $params[] = $request->assigned_email;
             }
+            
+            $query .= " ORDER BY created_at DESC";
+            $serviceOrders = DB::select($query, $params);
+            
+            $enrichedOrders = [];
+            foreach ($serviceOrders as $order) {
+                $customer = DB::selectOne("SELECT * FROM customers WHERE account_no = ?", [$order->account_no]);
+                $billingAccount = DB::selectOne("SELECT * FROM billing_accounts WHERE account_no = ?", [$order->account_no]);
+                $technicalDetails = DB::selectOne("SELECT * FROM technical_details WHERE account_no = ?", [$order->account_no]);
+                $supportConcern = $order->concern_id ? DB::selectOne("SELECT * FROM support_concern WHERE id = ?", [$order->concern_id]) : null;
+                $repairCategory = $order->repair_category_id ? DB::selectOne("SELECT * FROM repair_category WHERE id = ?", [$order->repair_category_id]) : null;
+                $createdUser = $order->created_by_user_id ? DB::selectOne("SELECT * FROM users WHERE id = ?", [$order->created_by_user_id]) : null;
+                $updatedUser = $order->updated_by_user_id ? DB::selectOne("SELECT * FROM users WHERE id = ?", [$order->updated_by_user_id]) : null;
+                $visitUser = $order->visit_by_user_id ? DB::selectOne("SELECT * FROM users WHERE id = ?", [$order->visit_by_user_id]) : null;
+                
+                $enrichedOrders[] = [
+                    'id' => $order->id,
+                    'ticket_id' => $order->id,
+                    'timestamp' => $order->timestamp,
+                    'account_no' => $order->account_no,
+                    'account_id' => $billingAccount->id ?? null,
+                    'full_name' => $customer ? trim(($customer->first_name ?? '') . ' ' . ($customer->middle_initial ?? '') . ' ' . ($customer->last_name ?? '')) : null,
+                    'contact_number' => $customer->contact_number_primary ?? null,
+                    'full_address' => $customer ? trim(($customer->address ?? '') . ', ' . ($customer->barangay ?? '') . ', ' . ($customer->city ?? '') . ', ' . ($customer->region ?? '')) : null,
+                    'contact_address' => $customer->address ?? null,
+                    'date_installed' => $billingAccount->date_installed ?? null,
+                    'email_address' => $customer->email_address ?? null,
+                    'house_front_picture_url' => $customer->house_front_picture_url ?? null,
+                    'plan' => $customer->desired_plan ?? null,
+                    'group_name' => $customer->group_name ?? null,
+                    'username' => $technicalDetails->username ?? null,
+                    'connection_type' => $technicalDetails->connection_type ?? null,
+                    'router_modem_sn' => $technicalDetails->router_modem_sn ?? null,
+                    'lcp' => $technicalDetails->lcp ?? null,
+                    'nap' => $technicalDetails->nap ?? null,
+                    'port' => $technicalDetails->port ?? null,
+                    'vlan' => $technicalDetails->vlan ?? null,
+                    'lcpnap' => $technicalDetails->lcpnap ?? null,
+                    'concern' => $supportConcern->name ?? null,
+                    'concern_remarks' => $order->concern_remarks,
+                    'requested_by' => $order->requested_by,
+                    'support_status' => $order->support_status,
+                    'assigned_email' => $order->assigned_email,
+                    'repair_category' => $repairCategory->name ?? null,
+                    'visit_status' => $order->visit_status,
+                    'priority_level' => $order->priority_level,
+                    'visit_by_user' => $visitUser->name ?? null,
+                    'visit_with' => $order->visit_with,
+                    'visit_remarks' => $order->visit_remarks,
+                    'support_remarks' => $order->support_remarks,
+                    'service_charge' => $order->service_charge,
+                    'new_router_sn' => $order->new_router_sn,
+                    'new_lcpnap_id' => $order->new_lcpnap_id,
+                    'new_plan_id' => $order->new_plan_id,
+                    'client_signature_url' => $order->client_signature_url,
+                    'image1_url' => $order->image1_url,
+                    'image2_url' => $order->image2_url,
+                    'image3_url' => $order->image3_url,
+                    'created_at' => $order->created_at,
+                    'created_by_user' => $createdUser->name ?? null,
+                    'updated_at' => $order->updated_at,
+                    'updated_by_user' => $updatedUser->name ?? null,
+                ];
+            }
+
+            $count = count($enrichedOrders);
+            Log::info('Found ' . $count . ' service orders');
 
             return response()->json([
                 'success' => true,
-                'data' => $serviceOrders,
-                'table' => $tableName,
+                'data' => $enrichedOrders,
                 'count' => $count
             ]);
         } catch (\Exception $e) {
@@ -52,15 +105,11 @@ class ServiceOrderController extends Controller
                 'success' => false,
                 'message' => 'Failed to fetch service orders: ' . $e->getMessage(),
                 'error' => $e->getMessage(),
-                'file' => $e->getFile() . ':' . $e->getLine(),
-                'trace' => $e->getTraceAsString()
+                'file' => $e->getFile() . ':' . $e->getLine()
             ], 500);
         }
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request): JsonResponse
     {
         try {
@@ -98,19 +147,87 @@ class ServiceOrderController extends Controller
         }
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show($id): JsonResponse
     {
         try {
-            $serviceOrder = ServiceOrder::findOrFail($id);
+            Log::info("Fetching service order with ID: {$id}");
+            
+            $order = DB::selectOne("SELECT * FROM service_orders WHERE id = ?", [$id]);
+
+            if (!$order) {
+                Log::warning("Service order not found: {$id}");
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Service order not found',
+                ], 404);
+            }
+            
+            $customer = DB::selectOne("SELECT * FROM customers WHERE account_no = ?", [$order->account_no]);
+            $billingAccount = DB::selectOne("SELECT * FROM billing_accounts WHERE account_no = ?", [$order->account_no]);
+            $technicalDetails = DB::selectOne("SELECT * FROM technical_details WHERE account_no = ?", [$order->account_no]);
+            $supportConcern = $order->concern_id ? DB::selectOne("SELECT * FROM support_concern WHERE id = ?", [$order->concern_id]) : null;
+            $repairCategory = $order->repair_category_id ? DB::selectOne("SELECT * FROM repair_category WHERE id = ?", [$order->repair_category_id]) : null;
+            $createdUser = $order->created_by_user_id ? DB::selectOne("SELECT * FROM users WHERE id = ?", [$order->created_by_user_id]) : null;
+            $updatedUser = $order->updated_by_user_id ? DB::selectOne("SELECT * FROM users WHERE id = ?", [$order->updated_by_user_id]) : null;
+            $visitUser = $order->visit_by_user_id ? DB::selectOne("SELECT * FROM users WHERE id = ?", [$order->visit_by_user_id]) : null;
+            
+            $enrichedOrder = [
+                'id' => $order->id,
+                'ticket_id' => $order->id,
+                'timestamp' => $order->timestamp,
+                'account_no' => $order->account_no,
+                'account_id' => $billingAccount->id ?? null,
+                'full_name' => $customer ? trim(($customer->first_name ?? '') . ' ' . ($customer->middle_initial ?? '') . ' ' . ($customer->last_name ?? '')) : null,
+                'contact_number' => $customer->contact_number_primary ?? null,
+                'full_address' => $customer ? trim(($customer->address ?? '') . ', ' . ($customer->barangay ?? '') . ', ' . ($customer->city ?? '') . ', ' . ($customer->region ?? '')) : null,
+                'contact_address' => $customer->address ?? null,
+                'date_installed' => $billingAccount->date_installed ?? null,
+                'email_address' => $customer->email_address ?? null,
+                'house_front_picture_url' => $customer->house_front_picture_url ?? null,
+                'plan' => $customer->desired_plan ?? null,
+                'group_name' => $customer->group_name ?? null,
+                'username' => $technicalDetails->username ?? null,
+                'connection_type' => $technicalDetails->connection_type ?? null,
+                'router_modem_sn' => $technicalDetails->router_modem_sn ?? null,
+                'lcp' => $technicalDetails->lcp ?? null,
+                'nap' => $technicalDetails->nap ?? null,
+                'port' => $technicalDetails->port ?? null,
+                'vlan' => $technicalDetails->vlan ?? null,
+                'lcpnap' => $technicalDetails->lcpnap ?? null,
+                'concern' => $supportConcern->name ?? null,
+                'concern_remarks' => $order->concern_remarks,
+                'requested_by' => $order->requested_by,
+                'support_status' => $order->support_status,
+                'assigned_email' => $order->assigned_email,
+                'repair_category' => $repairCategory->name ?? null,
+                'visit_status' => $order->visit_status,
+                'priority_level' => $order->priority_level,
+                'visit_by_user' => $visitUser->name ?? null,
+                'visit_with' => $order->visit_with,
+                'visit_remarks' => $order->visit_remarks,
+                'support_remarks' => $order->support_remarks,
+                'service_charge' => $order->service_charge,
+                'new_router_sn' => $order->new_router_sn,
+                'new_lcpnap_id' => $order->new_lcpnap_id,
+                'new_plan_id' => $order->new_plan_id,
+                'client_signature_url' => $order->client_signature_url,
+                'image1_url' => $order->image1_url,
+                'image2_url' => $order->image2_url,
+                'image3_url' => $order->image3_url,
+                'created_at' => $order->created_at,
+                'created_by_user' => $createdUser->name ?? null,
+                'updated_at' => $order->updated_at,
+                'updated_by_user' => $updatedUser->name ?? null,
+            ];
 
             return response()->json([
                 'success' => true,
-                'data' => $serviceOrder,
+                'data' => $enrichedOrder,
             ]);
         } catch (\Exception $e) {
+            Log::error('Error fetching service order: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Service order not found',
@@ -119,9 +236,6 @@ class ServiceOrderController extends Controller
         }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, $id): JsonResponse
     {
         try {
@@ -159,9 +273,6 @@ class ServiceOrderController extends Controller
         }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy($id): JsonResponse
     {
         try {
