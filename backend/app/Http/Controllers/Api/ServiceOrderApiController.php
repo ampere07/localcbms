@@ -280,6 +280,11 @@ class ServiceOrderApiController extends Controller
     public function update(Request $request, $id): JsonResponse
     {
         try {
+            Log::info('Service order update request', [
+                'id' => $id,
+                'data' => $request->all()
+            ]);
+            
             $serviceOrder = DB::table('service_orders')->where('id', $id)->first();
             
             if (!$serviceOrder) {
@@ -289,8 +294,41 @@ class ServiceOrderApiController extends Controller
                 ], 404);
             }
             
-            $data = $request->all();
+            $allowedFields = [
+                'account_no',
+                'timestamp',
+                'support_status',
+                'concern',
+                'concern_remarks',
+                'priority_level',
+                'requested_by',
+                'assigned_email',
+                'visit_status',
+                'visit_by_user',
+                'visit_with',
+                'visit_remarks',
+                'repair_category',
+                'support_remarks',
+                'service_charge',
+                'new_router_sn',
+                'new_lcpnap',
+                'new_plan',
+                'client_signature_url',
+                'image1_url',
+                'image2_url',
+                'image3_url'
+            ];
+            
+            $data = [];
+            foreach ($allowedFields as $field) {
+                if ($request->has($field)) {
+                    $data[$field] = $request->input($field);
+                }
+            }
+            
             $data['updated_at'] = now();
+            
+            Log::info('Filtered data for update', ['data' => $data]);
             
             DB::table('service_orders')->where('id', $id)->update($data);
             
@@ -302,6 +340,12 @@ class ServiceOrderApiController extends Controller
                 'data' => $updatedServiceOrder
             ]);
         } catch (\Exception $e) {
+            Log::error('Failed to update service order', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update service order',

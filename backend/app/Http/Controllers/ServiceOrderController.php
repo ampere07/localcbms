@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ServiceOrder;
+use App\Models\ServiceOrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -39,6 +40,13 @@ class ServiceOrderController extends Controller
                 $updatedUser = $order->updated_by_user_id ? DB::selectOne("SELECT * FROM users WHERE id = ?", [$order->updated_by_user_id]) : null;
                 $visitUser = $order->visit_by_user_id ? DB::selectOne("SELECT * FROM users WHERE id = ?", [$order->visit_by_user_id]) : null;
                 
+                $firstItem = DB::selectOne("SELECT * FROM service_order_items WHERE service_order_id = ? ORDER BY id ASC LIMIT 1", [$order->id]);
+                $itemName1 = null;
+                if ($firstItem && $firstItem->item_id) {
+                    $item = DB::selectOne("SELECT * FROM inventory_items WHERE id = ?", [$firstItem->item_id]);
+                    $itemName1 = $item->item_name ?? null;
+                }
+                
                 $enrichedOrders[] = [
                     'id' => $order->id,
                     'ticket_id' => $order->id,
@@ -62,6 +70,7 @@ class ServiceOrderController extends Controller
                     'port' => $technicalDetails->port ?? null,
                     'vlan' => $technicalDetails->vlan ?? null,
                     'lcpnap' => $technicalDetails->lcpnap ?? null,
+                    'item_name_1' => $itemName1,
                     'concern' => $supportConcern->name ?? null,
                     'concern_remarks' => $order->concern_remarks,
                     'requested_by' => $order->requested_by,
@@ -69,9 +78,11 @@ class ServiceOrderController extends Controller
                     'assigned_email' => $order->assigned_email,
                     'repair_category' => $repairCategory->name ?? null,
                     'visit_status' => $order->visit_status,
+                    'visit_by' => $order->visit_by ?? null,
+                    'visit_with' => $order->visit_with ?? null,
+                    'visit_with_other' => $order->visit_with_other ?? null,
                     'priority_level' => $order->priority_level,
                     'visit_by_user' => $visitUser->name ?? null,
-                    'visit_with' => $order->visit_with,
                     'visit_remarks' => $order->visit_remarks,
                     'support_remarks' => $order->support_remarks,
                     'service_charge' => $order->service_charge,
@@ -82,6 +93,9 @@ class ServiceOrderController extends Controller
                     'image1_url' => $order->image1_url,
                     'image2_url' => $order->image2_url,
                     'image3_url' => $order->image3_url,
+                    'time_in_image_url' => $order->time_in_image_url ?? null,
+                    'modem_setup_image_url' => $order->modem_setup_image_url ?? null,
+                    'time_out_image_url' => $order->time_out_image_url ?? null,
                     'created_at' => $order->created_at,
                     'created_by_user' => $createdUser->name ?? null,
                     'updated_at' => $order->updated_at,
@@ -171,6 +185,13 @@ class ServiceOrderController extends Controller
             $updatedUser = $order->updated_by_user_id ? DB::selectOne("SELECT * FROM users WHERE id = ?", [$order->updated_by_user_id]) : null;
             $visitUser = $order->visit_by_user_id ? DB::selectOne("SELECT * FROM users WHERE id = ?", [$order->visit_by_user_id]) : null;
             
+            $firstItem = DB::selectOne("SELECT * FROM service_order_items WHERE service_order_id = ? ORDER BY id ASC LIMIT 1", [$order->id]);
+            $itemName1 = null;
+            if ($firstItem && $firstItem->item_id) {
+                $item = DB::selectOne("SELECT * FROM inventory_items WHERE id = ?", [$firstItem->item_id]);
+                $itemName1 = $item->item_name ?? null;
+            }
+            
             $enrichedOrder = [
                 'id' => $order->id,
                 'ticket_id' => $order->id,
@@ -194,6 +215,7 @@ class ServiceOrderController extends Controller
                 'port' => $technicalDetails->port ?? null,
                 'vlan' => $technicalDetails->vlan ?? null,
                 'lcpnap' => $technicalDetails->lcpnap ?? null,
+                'item_name_1' => $itemName1,
                 'concern' => $supportConcern->name ?? null,
                 'concern_remarks' => $order->concern_remarks,
                 'requested_by' => $order->requested_by,
@@ -201,9 +223,11 @@ class ServiceOrderController extends Controller
                 'assigned_email' => $order->assigned_email,
                 'repair_category' => $repairCategory->name ?? null,
                 'visit_status' => $order->visit_status,
+                'visit_by' => $order->visit_by ?? null,
+                'visit_with' => $order->visit_with ?? null,
+                'visit_with_other' => $order->visit_with_other ?? null,
                 'priority_level' => $order->priority_level,
                 'visit_by_user' => $visitUser->name ?? null,
-                'visit_with' => $order->visit_with,
                 'visit_remarks' => $order->visit_remarks,
                 'support_remarks' => $order->support_remarks,
                 'service_charge' => $order->service_charge,
@@ -214,6 +238,9 @@ class ServiceOrderController extends Controller
                 'image1_url' => $order->image1_url,
                 'image2_url' => $order->image2_url,
                 'image3_url' => $order->image3_url,
+                'time_in_image_url' => $order->time_in_image_url ?? null,
+                'modem_setup_image_url' => $order->modem_setup_image_url ?? null,
+                'time_out_image_url' => $order->time_out_image_url ?? null,
                 'created_at' => $order->created_at,
                 'created_by_user' => $createdUser->name ?? null,
                 'updated_at' => $order->updated_at,
@@ -239,32 +266,224 @@ class ServiceOrderController extends Controller
     public function update(Request $request, $id): JsonResponse
     {
         try {
-            $serviceOrder = ServiceOrder::findOrFail($id);
-
-            $validator = Validator::make($request->all(), [
-                'Ticket_ID' => 'string|max:255|unique:service_orders,Ticket_ID,' . $id . ',id',
-                'Full_Name' => 'string|max:255',
-                'Contact_Number' => 'string|max:255',
-                'Full_Address' => 'string',
-                'Concern' => 'string|max:255',
-            ]);
-
-            if ($validator->fails()) {
+            Log::info("Updating service order with ID: {$id}");
+            Log::info('Update data:', $request->all());
+            
+            $order = DB::selectOne("SELECT * FROM service_orders WHERE id = ?", [$id]);
+            
+            if (!$order) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors(),
-                ], 422);
+                    'message' => 'Service order not found',
+                ], 404);
             }
             
-            $serviceOrder->update($request->all());
+            $updateData = [];
+            $billingUpdateData = [];
+            $customerUpdateData = [];
+            $technicalUpdateData = [];
+            
+            if ($request->has('date_installed')) {
+                $billingUpdateData['date_installed'] = $request->date_installed;
+            }
+            
+            if ($request->has('full_name')) {
+                $nameParts = explode(' ', $request->full_name);
+                if (count($nameParts) >= 2) {
+                    $customerUpdateData['first_name'] = $nameParts[0];
+                    $customerUpdateData['last_name'] = end($nameParts);
+                    if (count($nameParts) === 3) {
+                        $customerUpdateData['middle_initial'] = $nameParts[1];
+                    }
+                }
+            }
+            
+            if ($request->has('contact_number')) {
+                $customerUpdateData['contact_number_primary'] = $request->contact_number;
+            }
+            
+            if ($request->has('email_address')) {
+                $customerUpdateData['email_address'] = $request->email_address;
+            }
+            
+            if ($request->has('plan')) {
+                $customerUpdateData['desired_plan'] = $request->plan;
+            }
+            
+            if ($request->has('username')) {
+                $technicalUpdateData['username'] = $request->username;
+            }
+            
+            if ($request->has('connection_type')) {
+                $technicalUpdateData['connection_type'] = $request->connection_type;
+            }
+            
+            if ($request->has('router_modem_sn')) {
+                $technicalUpdateData['router_modem_sn'] = $request->router_modem_sn;
+            }
+            
+            if ($request->has('lcp')) {
+                $technicalUpdateData['lcp'] = $request->lcp;
+            }
+            
+            if ($request->has('nap')) {
+                $technicalUpdateData['nap'] = $request->nap;
+            }
+            
+            if ($request->has('port')) {
+                $technicalUpdateData['port'] = $request->port;
+            }
+            
+            if ($request->has('vlan')) {
+                $technicalUpdateData['vlan'] = $request->vlan;
+            }
+            
+            if ($request->has('lcpnap')) {
+                $technicalUpdateData['lcpnap'] = $request->lcpnap;
+            }
+            
+            if ($request->has('concern_remarks')) {
+                $updateData['concern_remarks'] = $request->concern_remarks;
+            }
+            
+            if ($request->has('support_status')) {
+                $updateData['support_status'] = $request->support_status;
+            }
+            
+            if ($request->has('assigned_email')) {
+                $updateData['assigned_email'] = $request->assigned_email;
+            }
+            
+            if ($request->has('visit_by')) {
+                $updateData['visit_by'] = $request->visit_by;
+            }
+            
+            if ($request->has('visit_with')) {
+                $updateData['visit_with'] = $request->visit_with;
+            }
+            
+            if ($request->has('visit_with_other')) {
+                $updateData['visit_with_other'] = $request->visit_with_other;
+            }
+            
+            if ($request->has('visit_status')) {
+                $updateData['visit_status'] = $request->visit_status;
+            }
+            
+            if ($request->has('visit_remarks')) {
+                $updateData['visit_remarks'] = $request->visit_remarks;
+            }
+            
+            if ($request->has('support_remarks')) {
+                $updateData['support_remarks'] = $request->support_remarks;
+            }
+            
+            if ($request->has('service_charge')) {
+                $updateData['service_charge'] = $request->service_charge;
+            }
+            
+            if ($request->has('client_signature_url')) {
+                $updateData['client_signature_url'] = $request->client_signature_url;
+            }
+            
+            if ($request->has('time_in_image_url')) {
+                $updateData['time_in_image_url'] = $request->time_in_image_url;
+            }
+            
+            if ($request->has('modem_setup_image_url')) {
+                $updateData['modem_setup_image_url'] = $request->modem_setup_image_url;
+            }
+            
+            if ($request->has('time_out_image_url')) {
+                $updateData['time_out_image_url'] = $request->time_out_image_url;
+            }
+            
+            if ($request->has('updated_by')) {
+                $updateData['updated_by'] = $request->updated_by;
+            }
+            
+            $updateData['updated_at'] = now();
+            
+            if (!empty($updateData)) {
+                $sets = [];
+                $params = [];
+                foreach ($updateData as $key => $value) {
+                    $sets[] = "{$key} = ?";
+                    $params[] = $value;
+                }
+                $params[] = $id;
+                $query = "UPDATE service_orders SET " . implode(', ', $sets) . " WHERE id = ?";
+                DB::update($query, $params);
+                Log::info('Updated service_orders table');
+            }
+            
+            if (!empty($billingUpdateData)) {
+                $sets = [];
+                $params = [];
+                foreach ($billingUpdateData as $key => $value) {
+                    $sets[] = "{$key} = ?";
+                    $params[] = $value;
+                }
+                $params[] = $order->account_no;
+                $query = "UPDATE billing_accounts SET " . implode(', ', $sets) . " WHERE account_no = ?";
+                DB::update($query, $params);
+                Log::info('Updated billing_accounts table');
+            }
+            
+            if (!empty($customerUpdateData)) {
+                $sets = [];
+                $params = [];
+                foreach ($customerUpdateData as $key => $value) {
+                    $sets[] = "{$key} = ?";
+                    $params[] = $value;
+                }
+                $params[] = $order->account_no;
+                $query = "UPDATE customers SET " . implode(', ', $sets) . " WHERE account_no = ?";
+                DB::update($query, $params);
+                Log::info('Updated customers table');
+            }
+            
+            if (!empty($technicalUpdateData)) {
+                $sets = [];
+                $params = [];
+                foreach ($technicalUpdateData as $key => $value) {
+                    $sets[] = "{$key} = ?";
+                    $params[] = $value;
+                }
+                $params[] = $order->account_no;
+                $query = "UPDATE technical_details SET " . implode(', ', $sets) . " WHERE account_no = ?";
+                DB::update($query, $params);
+                Log::info('Updated technical_details table');
+            }
+            
+            if ($request->has('item_name_1') && !empty($request->item_name_1)) {
+                Log::info('Processing item_name_1: ' . $request->item_name_1);
+                
+                $inventoryItem = DB::selectOne("SELECT * FROM inventory_items WHERE item_name = ?", [$request->item_name_1]);
+                
+                if ($inventoryItem) {
+                    $existingItem = DB::selectOne("SELECT * FROM service_order_items WHERE service_order_id = ? ORDER BY id ASC LIMIT 1", [$id]);
+                    
+                    if ($existingItem) {
+                        DB::update("UPDATE service_order_items SET item_id = ?, quantity = 1 WHERE id = ?", [$inventoryItem->id, $existingItem->id]);
+                        Log::info('Updated existing service_order_item');
+                    } else {
+                        DB::insert("INSERT INTO service_order_items (service_order_id, item_id, quantity) VALUES (?, ?, 1)", [$id, $inventoryItem->id]);
+                        Log::info('Created new service_order_item');
+                    }
+                } else {
+                    Log::warning('Inventory item not found for: ' . $request->item_name_1);
+                }
+            }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Service order updated successfully',
-                'data' => $serviceOrder,
             ]);
         } catch (\Exception $e) {
+            Log::error('Error updating service order: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update service order',

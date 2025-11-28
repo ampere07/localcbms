@@ -2394,6 +2394,9 @@ Route::prefix('concerns')->group(function () {
     Route::delete('/{id}', [\App\Http\Controllers\ConcernController::class, 'destroy']);
 });
 
+// Google Drive Upload Route
+Route::post('/google-drive/upload', [\App\Http\Controllers\GoogleDriveController::class, 'upload']);
+
 // Debug route for concerns
 Route::get('/debug/concerns', function() {
     try {

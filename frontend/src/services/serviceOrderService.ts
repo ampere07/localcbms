@@ -46,7 +46,9 @@ export interface ServiceOrderData {
   service_charge?: number;
   new_router_sn?: string;
   new_lcpnap_id?: number;
+  new_lcpnap?: string;
   new_plan_id?: number;
+  new_plan?: string;
   client_signature_url?: string;
   image1_url?: string;
   image2_url?: string;

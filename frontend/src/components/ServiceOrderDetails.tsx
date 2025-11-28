@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, ArrowRight, Maximize2, X, ExternalLink, Mail, Edit, Info, FileCheck 
 } from 'lucide-react';
+import ServiceOrderEditModal from '../modals/ServiceOrderEditModal';
 
 interface ServiceOrderDetailsProps {
   serviceOrder: {
@@ -39,6 +40,16 @@ interface ServiceOrderDetailsProps {
     assignedEmail: string;
     supportRemarks: string;
     serviceCharge: string;
+    repairCategory?: string;
+    supportStatus?: string;
+    priorityLevel?: string;
+    newRouterSn?: string;
+    newLcpnap?: string;
+    newPlan?: string;
+    clientSignatureUrl?: string;
+    image1Url?: string;
+    image2Url?: string;
+    image3Url?: string;
   };
   onClose: () => void;
 }
@@ -46,6 +57,7 @@ interface ServiceOrderDetailsProps {
 const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder, onClose }) => {
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
 
@@ -81,6 +93,19 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
     startWidthRef.current = detailsWidth;
   };
 
+  const handleEditClick = () => {
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+  };
+
+  const handleSaveEdit = (formData: any) => {
+    console.log('Service order updated:', formData);
+    setIsEditModalOpen(false);
+  };
+
   return (
     <div className="h-full bg-gray-950 flex flex-col overflow-hidden border-l border-white border-opacity-30 relative" style={{ width: `${detailsWidth}px` }}>
       <div
@@ -96,7 +121,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
           <button className="hover:text-white text-gray-400">
             <FileCheck size={16} />
           </button>
-          <button className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded-sm flex items-center">
+          <button className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded-sm flex items-center" onClick={handleEditClick}>
             <Edit size={16} className="mr-1" />
             <span>Edit</span>
           </button>
@@ -355,6 +380,104 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
               <div className="text-white flex-1">{serviceOrder.supportRemarks}</div>
             </div>
             
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">Support Status</div>
+              <div className="text-white flex-1">{serviceOrder.supportStatus || '-'}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">Repair Category</div>
+              <div className="text-white flex-1">{serviceOrder.repairCategory || '-'}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">Priority Level</div>
+              <div className="text-white flex-1">{serviceOrder.priorityLevel || '-'}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">New Router SN</div>
+              <div className="text-white flex-1">{serviceOrder.newRouterSn || '-'}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">New LCP/NAP</div>
+              <div className="text-white flex-1">{serviceOrder.newLcpnap || '-'}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">New Plan</div>
+              <div className="text-white flex-1">{serviceOrder.newPlan || '-'}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">Time In Image</div>
+              <div className="text-white flex-1 flex items-center min-w-0">
+                <span className="truncate mr-2" title={serviceOrder.image1Url}>
+                  {serviceOrder.image1Url ? 'View Image' : '-'}
+                </span>
+                {serviceOrder.image1Url && (
+                  <button 
+                    className="text-white flex-shrink-0"
+                    onClick={() => window.open(serviceOrder.image1Url, '_blank')}
+                  >
+                    <ExternalLink size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">Modem Setup Image</div>
+              <div className="text-white flex-1 flex items-center min-w-0">
+                <span className="truncate mr-2" title={serviceOrder.image2Url}>
+                  {serviceOrder.image2Url ? 'View Image' : '-'}
+                </span>
+                {serviceOrder.image2Url && (
+                  <button 
+                    className="text-white flex-shrink-0"
+                    onClick={() => window.open(serviceOrder.image2Url, '_blank')}
+                  >
+                    <ExternalLink size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">Time Out Image</div>
+              <div className="text-white flex-1 flex items-center min-w-0">
+                <span className="truncate mr-2" title={serviceOrder.image3Url}>
+                  {serviceOrder.image3Url ? 'View Image' : '-'}
+                </span>
+                {serviceOrder.image3Url && (
+                  <button 
+                    className="text-white flex-shrink-0"
+                    onClick={() => window.open(serviceOrder.image3Url, '_blank')}
+                  >
+                    <ExternalLink size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm">Client Signature</div>
+              <div className="text-white flex-1 flex items-center min-w-0">
+                <span className="truncate mr-2" title={serviceOrder.clientSignatureUrl}>
+                  {serviceOrder.clientSignatureUrl ? 'View Signature' : '-'}
+                </span>
+                {serviceOrder.clientSignatureUrl && (
+                  <button 
+                    className="text-white flex-shrink-0"
+                    onClick={() => window.open(serviceOrder.clientSignatureUrl, '_blank')}
+                  >
+                    <ExternalLink size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+            
             <div className="flex py-2">
               <div className="w-40 text-gray-400 text-sm">Service Charge</div>
               <div className="text-white flex-1">{serviceOrder.serviceCharge}</div>
@@ -362,6 +485,15 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
           </div>
         </div>
       </div>
+
+      {isEditModalOpen && (
+        <ServiceOrderEditModal
+          isOpen={isEditModalOpen}
+          onClose={handleCloseEditModal}
+          onSave={handleSaveEdit}
+          serviceOrderData={serviceOrder}
+        />
+      )}
     </div>
   );
 };

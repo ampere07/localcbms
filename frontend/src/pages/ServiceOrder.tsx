@@ -18,6 +18,7 @@ interface ServiceOrder {
   emailAddress: string;
   plan: string;
   provider: string;
+  affiliate: string;
   username: string;
   connectionType: string;
   routerModemSN: string;
@@ -41,6 +42,14 @@ interface ServiceOrder {
   serviceCharge: string;
   repairCategory?: string;
   supportStatus?: string;
+  priorityLevel?: string;
+  newRouterSn?: string;
+  newLcpnap?: string;
+  newPlan?: string;
+  clientSignatureUrl?: string;
+  image1Url?: string;
+  image2Url?: string;
+  image3Url?: string;
 }
 
 interface LocationItem {
@@ -176,13 +185,14 @@ const ServiceOrder: React.FC = () => {
             accountNumber: order.account_no || '',
             fullName: order.full_name || '',
             contactAddress: order.contact_address || '',
-            dateInstalled: order.date_installed ? formatDate(order.date_installed) : '',
+            dateInstalled: order.date_installed || '',
             contactNumber: order.contact_number || '',
             fullAddress: order.full_address || '',
             houseFrontPicture: order.house_front_picture_url || '',
             emailAddress: order.email_address || '',
             plan: order.plan || '',
             provider: '',
+            affiliate: order.group_name || '',
             username: order.username || '',
             connectionType: order.connection_type || '',
             routerModemSN: order.router_modem_sn || '',
@@ -205,7 +215,15 @@ const ServiceOrder: React.FC = () => {
             supportRemarks: order.support_remarks || '',
             serviceCharge: order.service_charge ? `₱${order.service_charge}` : '₱0.00',
             repairCategory: order.repair_category || '',
-            supportStatus: order.support_status || ''
+            supportStatus: order.support_status || '',
+            priorityLevel: order.priority_level || '',
+            newRouterSn: order.new_router_sn || '',
+            newLcpnap: order.new_lcpnap || '',
+            newPlan: order.new_plan || '',
+            clientSignatureUrl: order.client_signature_url || '',
+            image1Url: order.image1_url || '',
+            image2Url: order.image2_url || '',
+            image3Url: order.image3_url || ''
           }));
           
           setServiceOrders(processedOrders);
@@ -460,13 +478,14 @@ const ServiceOrder: React.FC = () => {
           accountNumber: order.account_no || '',
           fullName: order.full_name || '',
           contactAddress: order.contact_address || '',
-          dateInstalled: order.date_installed ? formatDate(order.date_installed) : '',
+          dateInstalled: order.date_installed || '',
           contactNumber: order.contact_number || '',
           fullAddress: order.full_address || '',
           houseFrontPicture: order.house_front_picture_url || '',
           emailAddress: order.email_address || '',
           plan: order.plan || '',
           provider: '',
+          affiliate: order.group_name || '',
           username: order.username || '',
           connectionType: order.connection_type || '',
           routerModemSN: order.router_modem_sn || '',
