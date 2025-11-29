@@ -1,17 +1,7 @@
-import axios from 'axios';
+import apiClient from '../config/api';
 import { BillingRecord, BillingDetailRecord } from '../types/billing';
 
 export type { BillingRecord, BillingDetailRecord };
-
-const getApiBaseUrl = (): string => {
-  const baseUrl = process.env.REACT_APP_API_BASE_URL;
-  if (!baseUrl) {
-    throw new Error("REACT_APP_API_BASE_URL is not defined");
-  }
-  return baseUrl;
-};
-
-const API_BASE_URL = getApiBaseUrl();
 
 interface BillingApiResponse {
   data?: BillingRecord[];
@@ -25,25 +15,9 @@ interface BillingDetailApiResponse {
   status?: string;
 }
 
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  },
-});
-
-axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
 export const getBillingRecords = async (): Promise<BillingRecord[]> => {
   try {
-    const response = await axiosInstance.get<any>('/billing');
+    const response = await apiClient.get<any>('/billing');
     const responseData = response.data;
     
     if (responseData?.data && Array.isArray(responseData.data)) {
@@ -99,7 +73,7 @@ export const getBillingRecords = async (): Promise<BillingRecord[]> => {
 
 export const getBillingRecordDetails = async (id: string): Promise<BillingDetailRecord | null> => {
   try {
-    const response = await axiosInstance.get<any>(`/billing/${id}`);
+    const response = await apiClient.get<any>(`/billing/${id}`);
     const responseData = response.data;
     
     console.log('Raw API Response:', responseData);
@@ -234,7 +208,7 @@ export const updateBillingRecord = async (id: string, data: Partial<BillingDetai
       Referrers_Account_Number: data.referrersAccountNumber
     };
     
-    const response = await axiosInstance.put<any>(`/billing-details/${id}`, backendData);
+    await apiClient.put<any>(`/billing-details/${id}`, backendData);
     
     return getBillingRecordDetails(id);
   } catch (error) {
@@ -277,7 +251,7 @@ export const createBillingRecord = async (data: Partial<BillingDetailRecord>): P
       Modified_By: 'System'
     };
     
-    const response = await axiosInstance.post<any>('/billing-details', backendData);
+    const response = await apiClient.post<any>('/billing-details', backendData);
     
     if (response.data.status === 'success' && response.data.data) {
       return getBillingRecordDetails(response.data.data.Account_No);
@@ -292,7 +266,7 @@ export const createBillingRecord = async (data: Partial<BillingDetailRecord>): P
 
 export const deleteBillingRecord = async (id: string): Promise<boolean> => {
   try {
-    await axiosInstance.delete(`/billing-details/${id}`);
+    await apiClient.delete(`/billing-details/${id}`);
     return true;
   } catch (error) {
     console.error('Error deleting billing record:', error);

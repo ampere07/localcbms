@@ -289,11 +289,9 @@ class EnhancedBillingGenerationService
                 false
             );
             
-            $othersAndBasicCharges = $charges['staggered_install_fees'] + 
-                                     $charges['service_fees'] - 
-                                     $charges['total_deductions'];
+            $othersAndBasicCharges = 0;
 
-            $amountDue = $monthlyServiceFee + $vat + $othersAndBasicCharges;
+            $amountDue = $monthlyServiceFee + $vat + $charges['staggered_install_fees'] + $charges['service_fees'] - $charges['rebates'] - $charges['discounts'] - $charges['advanced_payments'];
             
             $previousBalance = $this->getPreviousBalance($account, $statementDate);
             $paymentReceived = $charges['payment_received_previous'];
@@ -308,6 +306,10 @@ class EnhancedBillingGenerationService
                 'remaining_balance_previous' => round($remainingBalance, 2),
                 'monthly_service_fee' => round($monthlyServiceFee, 2),
                 'others_and_basic_charges' => round($othersAndBasicCharges, 2),
+                'service_charge' => round($charges['service_fees'], 2),
+                'rebate' => round($charges['rebates'], 2),
+                'discounts' => round($charges['discounts'], 2),
+                'staggered' => round($charges['staggered_install_fees'], 2),
                 'vat' => round($vat, 2),
                 'due_date' => $dueDate,
                 'amount_due' => round($amountDue, 2),
@@ -368,11 +370,9 @@ class EnhancedBillingGenerationService
                 true
             );
             
-            $othersBasicCharges = $charges['staggered_install_fees'] + 
-                                  $charges['service_fees'] - 
-                                  $charges['total_deductions'];
+            $othersBasicCharges = 0;
 
-            $totalAmount = $prorateAmount + $othersBasicCharges;
+            $totalAmount = $prorateAmount + $charges['staggered_install_fees'] + $charges['service_fees'] - $charges['rebates'] - $charges['discounts'] - $charges['advanced_payments'];
             
             if ($account->account_balance < 0) {
                 $totalAmount += $account->account_balance;
@@ -383,6 +383,10 @@ class EnhancedBillingGenerationService
                 'invoice_date' => $invoiceDate,
                 'invoice_balance' => round($prorateAmount, 2),
                 'others_and_basic_charges' => round($othersBasicCharges, 2),
+                'service_charge' => round($charges['service_fees'], 2),
+                'rebate' => round($charges['rebates'], 2),
+                'discounts' => round($charges['discounts'], 2),
+                'staggered' => round($charges['staggered_install_fees'], 2),
                 'total_amount' => round($totalAmount, 2),
                 'received_payment' => 0.00,
                 'due_date' => $dueDate,

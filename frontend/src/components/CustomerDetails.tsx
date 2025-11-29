@@ -182,9 +182,9 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     {
       id: '1',
       status: 'Online',
-      accountNo: billingRecord.applicationId || '202308029',
-      username: billingRecord.username || 'vergaraj0917251011',
-      group: billingRecord.groupName || 'SwitchLite',
+      accountNo: billingRecord.applicationId || '',
+      username: billingRecord.username || '',
+      group: billingRecord.groupName || '',
       splynxId: '1'
     }
   ];

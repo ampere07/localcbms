@@ -9,6 +9,10 @@ export interface SOARecord {
   remaining_balance_previous: number;
   monthly_service_fee: number;
   others_and_basic_charges: number;
+  service_charge: number;
+  rebate: number;
+  discounts: number;
+  staggered: number;
   vat: number;
   due_date: string;
   amount_due: number;

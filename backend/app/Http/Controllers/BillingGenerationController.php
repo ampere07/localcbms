@@ -249,15 +249,7 @@ class BillingGenerationController extends Controller
             $invoices = $query->orderBy('invoice_date', 'desc')->get();
 
             Log::info('Fetched invoices with complete data', [
-                'count' => $invoices->count(),
-                'sample_invoice' => $invoices->first() ? [
-                    'id' => $invoices->first()->id,
-                    'account_no' => $invoices->first()->account_number,
-                    'has_customer' => $invoices->first()->billingAccount?->customer ? true : false,
-                    'has_technical_details' => $invoices->first()->billingAccount?->technicalDetails->count() > 0,
-                    'discounts_count' => $invoices->first()->discounts->count(),
-                    'staggered_installations_count' => $invoices->first()->staggeredInstallations->count()
-                ] : null
+                'count' => $invoices->count()
             ]);
 
             return response()->json([
@@ -306,15 +298,7 @@ class BillingGenerationController extends Controller
             $statements = $query->orderBy('statement_date', 'desc')->get();
 
             Log::info('Fetched statements with complete data', [
-                'count' => $statements->count(),
-                'sample_statement' => $statements->first() ? [
-                    'id' => $statements->first()->id,
-                    'account_no' => $statements->first()->account_number,
-                    'has_customer' => $statements->first()->billingAccount?->customer ? true : false,
-                    'has_technical_details' => $statements->first()->billingAccount?->technicalDetails->count() > 0,
-                    'discounts_count' => $statements->first()->discounts->count(),
-                    'staggered_installations_count' => $statements->first()->staggeredInstallations->count()
-                ] : null
+                'count' => $statements->count()
             ]);
 
             return response()->json([

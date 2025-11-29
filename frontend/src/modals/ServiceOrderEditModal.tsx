@@ -54,6 +54,7 @@ interface ServiceOrderEditFormData {
   userEmail: string;
   supportRemarks: string;
   serviceCharge: string;
+  status: string;
 }
 
 interface ImageFiles {
@@ -128,7 +129,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     }),
     userEmail: currentUserEmail,
     supportRemarks: '',
-    serviceCharge: '0.00'
+    serviceCharge: '0.00',
+    status: 'unused'
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -251,7 +253,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         concernRemarks: serviceOrderData.concernRemarks || serviceOrderData.concern_remarks || '',
         userEmail: serviceOrderData.userEmail || serviceOrderData.assignedEmail || serviceOrderData.assigned_email || currentUserEmail,
         supportRemarks: serviceOrderData.supportRemarks || serviceOrderData.support_remarks || '',
-        serviceCharge: serviceOrderData.serviceCharge ? serviceOrderData.serviceCharge.toString().replace('₱', '').trim() : (serviceOrderData.service_charge ? serviceOrderData.service_charge.toString().replace('₱', '').trim() : '0.00')
+        serviceCharge: serviceOrderData.serviceCharge ? serviceOrderData.serviceCharge.toString().replace('₱', '').trim() : (serviceOrderData.service_charge ? serviceOrderData.service_charge.toString().replace('₱', '').trim() : '0.00'),
+        status: serviceOrderData.status || 'unused'
       }));
     }
   }, [serviceOrderData, isOpen, currentUserEmail]);
@@ -465,7 +468,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         concern_remarks: updatedFormData.concernRemarks,
         updated_by: updatedFormData.modifiedBy,
         support_remarks: updatedFormData.supportRemarks,
-        service_charge: parseFloat(updatedFormData.serviceCharge)
+        service_charge: parseFloat(updatedFormData.serviceCharge),
+        status: updatedFormData.status
       };
 
       const response = await apiClient.put<{ success: boolean; message?: string; data?: any }>(

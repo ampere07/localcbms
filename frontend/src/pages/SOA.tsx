@@ -11,7 +11,10 @@ interface SOARecordUI {
   paymentReceivedPrevious: number;
   remainingBalancePrevious: number;
   monthlyServiceFee: number;
-  othersAndBasicCharges: number;
+  serviceCharge: number;
+  rebate: number;
+  discounts: number;
+  staggered: number;
   vat: number;
   dueDate: string;
   amountDue: number;
@@ -34,7 +37,6 @@ interface SOARecordUI {
   statementNo?: string;
   paymentReceived?: number;
   remainingBalance?: number;
-  otherCharges?: number;
   deliveryStatus?: string;
   deliveryDate?: string;
   deliveredBy?: string;
@@ -64,7 +66,10 @@ const SOA: React.FC = () => {
     { key: 'paymentReceivedPrevious', label: 'Payment Received Previous', width: 'min-w-48' },
     { key: 'remainingBalancePrevious', label: 'Remaining Balance Previous', width: 'min-w-48' },
     { key: 'monthlyServiceFee', label: 'Monthly Service Fee', width: 'min-w-40' },
-    { key: 'othersAndBasicCharges', label: 'Others and Basic Charges', width: 'min-w-48' },
+    { key: 'serviceCharge', label: 'Service Charge', width: 'min-w-36' },
+    { key: 'rebate', label: 'Rebate', width: 'min-w-28' },
+    { key: 'discounts', label: 'Discounts', width: 'min-w-28' },
+    { key: 'staggered', label: 'Staggered', width: 'min-w-28' },
     { key: 'vat', label: 'VAT', width: 'min-w-28' },
     { key: 'dueDate', label: 'Due Date', width: 'min-w-32' },
     { key: 'amountDue', label: 'Amount Due', width: 'min-w-32' },
@@ -104,7 +109,10 @@ const SOA: React.FC = () => {
         paymentReceivedPrevious: Number(record.payment_received_previous) || 0,
         remainingBalancePrevious: Number(record.remaining_balance_previous) || 0,
         monthlyServiceFee: Number(record.monthly_service_fee) || 0,
-        othersAndBasicCharges: Number(record.others_and_basic_charges) || 0,
+        serviceCharge: Number(record.service_charge) || 0,
+        rebate: Number(record.rebate) || 0,
+        discounts: Number(record.discounts) || 0,
+        staggered: Number(record.staggered) || 0,
         vat: Number(record.vat) || 0,
         dueDate: new Date(record.due_date).toLocaleDateString(),
         amountDue: Number(record.amount_due) || 0,
@@ -127,7 +135,6 @@ const SOA: React.FC = () => {
         statementNo: '2509180' + record.id.toString(),
         paymentReceived: Number(record.payment_received_previous) || 0,
         remainingBalance: Number(record.remaining_balance_previous) || 0,
-        otherCharges: Number(record.others_and_basic_charges) || 0,
         deliveryStatus: undefined,
         deliveryDate: undefined,
         deliveredBy: undefined,
@@ -219,8 +226,14 @@ const SOA: React.FC = () => {
         return `₱ ${record.remainingBalancePrevious.toFixed(2)}`;
       case 'monthlyServiceFee':
         return `₱ ${record.monthlyServiceFee.toFixed(2)}`;
-      case 'othersAndBasicCharges':
-        return `₱ ${record.othersAndBasicCharges.toFixed(2)}`;
+      case 'serviceCharge':
+        return `₱ ${record.serviceCharge.toFixed(2)}`;
+      case 'rebate':
+        return `₱ ${record.rebate.toFixed(2)}`;
+      case 'discounts':
+        return `₱ ${record.discounts.toFixed(2)}`;
+      case 'staggered':
+        return `₱ ${record.staggered.toFixed(2)}`;
       case 'vat':
         return `₱ ${record.vat.toFixed(2)}`;
       case 'dueDate':

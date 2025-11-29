@@ -382,20 +382,49 @@ class ServiceOrderController extends Controller
                 $updateData['service_charge'] = $request->service_charge;
             }
             
+            if ($request->has('image1_url')) {
+                $updateData['image1_url'] = $request->image1_url;
+            }
+            
+            if ($request->has('image2_url')) {
+                $updateData['image2_url'] = $request->image2_url;
+            }
+            
+            if ($request->has('image3_url')) {
+                $updateData['image3_url'] = $request->image3_url;
+            }
+            
             if ($request->has('client_signature_url')) {
                 $updateData['client_signature_url'] = $request->client_signature_url;
             }
             
-            if ($request->has('time_in_image_url')) {
-                $updateData['time_in_image_url'] = $request->time_in_image_url;
+            $shouldAddServiceCharge = false;
+            $statusChanged = false;
+            
+            if ($request->has('support_status') && $request->support_status === 'Resolved' && $order->support_status !== 'Resolved') {
+                $shouldAddServiceCharge = true;
+                $statusChanged = true;
+                Log::info('Support status changed to Resolved, will add service charge to account balance');
             }
             
-            if ($request->has('modem_setup_image_url')) {
-                $updateData['modem_setup_image_url'] = $request->modem_setup_image_url;
+            if ($request->has('visit_status') && $request->visit_status === 'Done' && $order->visit_status !== 'Done') {
+                $shouldAddServiceCharge = true;
+                $statusChanged = true;
+                Log::info('Visit status changed to Done, will add service charge to account balance');
             }
             
-            if ($request->has('time_out_image_url')) {
-                $updateData['time_out_image_url'] = $request->time_out_image_url;
+            if ($shouldAddServiceCharge && $statusChanged && $request->has('service_charge')) {
+                $serviceCharge = floatval($request->service_charge);
+                if ($serviceCharge > 0) {
+                    $billingAccount = DB::selectOne("SELECT account_balance FROM billing_accounts WHERE account_no = ?", [$order->account_no]);
+                    if ($billingAccount) {
+                        $currentBalance = floatval($billingAccount->account_balance);
+                        $newBalance = $currentBalance + $serviceCharge;
+                        DB::update("UPDATE billing_accounts SET account_balance = ?, balance_update_date = ? WHERE account_no = ?", 
+                            [$newBalance, now(), $order->account_no]);
+                        Log::info("Updated account balance from {$currentBalance} to {$newBalance} (added service charge: {$serviceCharge})");
+                    }
+                }
             }
             
             if ($request->has('updated_by')) {

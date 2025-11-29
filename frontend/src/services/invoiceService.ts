@@ -6,6 +6,10 @@ export interface InvoiceRecord {
   invoice_date: string;
   invoice_balance: number;
   others_and_basic_charges: number;
+  service_charge: number;
+  rebate: number;
+  discounts: number;
+  staggered: number;
   total_amount: number;
   received_payment: number;
   due_date: string;

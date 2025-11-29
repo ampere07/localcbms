@@ -59,6 +59,7 @@ class ServiceOrderApiController extends Controller
                     'so.image1_url',
                     'so.image2_url',
                     'so.image3_url',
+                    'so.status',
                     'so.created_at',
                     'so.created_by_user',
                     'so.updated_at',
@@ -122,6 +123,7 @@ class ServiceOrderApiController extends Controller
                 'new_router_sn' => 'nullable|string|max:255',
                 'new_lcpnap' => 'nullable|string|max:255',
                 'new_plan' => 'nullable|string|max:255',
+                'status' => 'nullable|string|max:50',
                 'created_by_user' => 'nullable|string|max:255',
                 'updated_by_user' => 'nullable|string|max:255'
             ]);
@@ -157,6 +159,7 @@ class ServiceOrderApiController extends Controller
                 'new_router_sn' => $validated['new_router_sn'] ?? null,
                 'new_lcpnap' => $validated['new_lcpnap'] ?? null,
                 'new_plan' => $validated['new_plan'] ?? null,
+                'status' => $validated['status'] ?? 'unused',
                 'created_by_user' => $validated['created_by_user'] ?? null,
                 'updated_by_user' => $validated['updated_by_user'] ?? null,
                 'created_at' => now(),
@@ -247,6 +250,7 @@ class ServiceOrderApiController extends Controller
                     'so.image1_url',
                     'so.image2_url',
                     'so.image3_url',
+                    'so.status',
                     'so.created_at',
                     'so.created_by_user',
                     'so.updated_at',
@@ -316,7 +320,8 @@ class ServiceOrderApiController extends Controller
                 'client_signature_url',
                 'image1_url',
                 'image2_url',
-                'image3_url'
+                'image3_url',
+                'status'
             ];
             
             $data = [];
@@ -329,6 +334,48 @@ class ServiceOrderApiController extends Controller
             $data['updated_at'] = now();
             
             Log::info('Filtered data for update', ['data' => $data]);
+            
+            $shouldAddServiceCharge = false;
+            $statusChanged = false;
+            
+            if ($request->has('support_status') && $request->input('support_status') === 'Resolved' && $serviceOrder->support_status !== 'Resolved') {
+                $shouldAddServiceCharge = true;
+                $statusChanged = true;
+                Log::info('Support status changed to Resolved, will add service charge to account balance');
+            }
+            
+            if ($request->has('visit_status') && $request->input('visit_status') === 'Done' && $serviceOrder->visit_status !== 'Done') {
+                $shouldAddServiceCharge = true;
+                $statusChanged = true;
+                Log::info('Visit status changed to Done, will add service charge to account balance');
+            }
+            
+            if ($shouldAddServiceCharge && $statusChanged && $request->has('service_charge')) {
+                $serviceCharge = floatval($request->input('service_charge'));
+                if ($serviceCharge > 0) {
+                    $billingAccount = DB::table('billing_accounts')
+                        ->where('account_no', $serviceOrder->account_no)
+                        ->first();
+                    
+                    if ($billingAccount) {
+                        $currentBalance = floatval($billingAccount->account_balance);
+                        $newBalance = $currentBalance + $serviceCharge;
+                        
+                        DB::table('billing_accounts')
+                            ->where('account_no', $serviceOrder->account_no)
+                            ->update([
+                                'account_balance' => $newBalance,
+                                'balance_update_date' => now()
+                            ]);
+                        
+                        $data['status'] = 'used';
+                        
+                        Log::info("Updated account balance from {$currentBalance} to {$newBalance} (added service charge: {$serviceCharge}). Status changed to 'used'.");
+                    } else {
+                        Log::warning('Billing account not found for account_no: ' . $serviceOrder->account_no);
+                    }
+                }
+            }
             
             DB::table('service_orders')->where('id', $id)->update($data);
             

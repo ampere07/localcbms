@@ -8,7 +8,10 @@ interface InvoiceRecordUI {
   accountNo: string;
   invoiceDate: string;
   invoiceBalance: number;
-  othersAndBasicCharges: number;
+  serviceCharge: number;
+  rebate: number;
+  discounts: number;
+  staggered: number;
   totalAmount: number;
   receivedPayment: number;
   dueDate: string;
@@ -30,7 +33,6 @@ interface InvoiceRecordUI {
   region?: string;
   provider?: string;
   invoiceNo?: string;
-  otherCharges?: number;
   totalAmountDue?: number;
   invoicePayment?: number;
   paymentMethod?: string;
@@ -64,7 +66,10 @@ const Invoice: React.FC = () => {
     { key: 'accountNo', label: 'Account Number', width: 'min-w-36' },
     { key: 'invoiceDate', label: 'Invoice Date', width: 'min-w-36' },
     { key: 'invoiceBalance', label: 'Invoice Balance', width: 'min-w-36' },
-    { key: 'othersAndBasicCharges', label: 'Others and Basic Charges', width: 'min-w-48' },
+    { key: 'serviceCharge', label: 'Service Charge', width: 'min-w-36' },
+    { key: 'rebate', label: 'Rebate', width: 'min-w-28' },
+    { key: 'discounts', label: 'Discounts', width: 'min-w-28' },
+    { key: 'staggered', label: 'Staggered', width: 'min-w-28' },
     { key: 'totalAmount', label: 'Total Amount', width: 'min-w-32' },
     { key: 'receivedPayment', label: 'Received Payment', width: 'min-w-36' },
     { key: 'dueDate', label: 'Due Date', width: 'min-w-32' },
@@ -102,7 +107,10 @@ const Invoice: React.FC = () => {
         accountNo: record.account_no || record.account?.account_no || '',
         invoiceDate: new Date(record.invoice_date).toLocaleDateString(),
         invoiceBalance: Number(record.invoice_balance) || 0,
-        othersAndBasicCharges: Number(record.others_and_basic_charges) || 0,
+        serviceCharge: Number(record.service_charge) || 0,
+        rebate: Number(record.rebate) || 0,
+        discounts: Number(record.discounts) || 0,
+        staggered: Number(record.staggered) || 0,
         totalAmount: Number(record.total_amount) || 0,
         receivedPayment: Number(record.received_payment) || 0,
         dueDate: new Date(record.due_date).toLocaleDateString(),
@@ -124,7 +132,6 @@ const Invoice: React.FC = () => {
         region: record.account?.customer?.region || '',
         provider: 'SWITCH',
         invoiceNo: '2508182' + record.id.toString(),
-        otherCharges: Number(record.others_and_basic_charges) || 0,
         totalAmountDue: Number(record.total_amount) || 0,
         invoicePayment: Number(record.received_payment) || 0,
         paymentMethod: record.received_payment > 0 ? 'Payment Received' : 'N/A',
@@ -219,8 +226,14 @@ const Invoice: React.FC = () => {
         return record.invoiceDate;
       case 'invoiceBalance':
         return `₱ ${record.invoiceBalance.toFixed(2)}`;
-      case 'othersAndBasicCharges':
-        return `₱ ${record.othersAndBasicCharges.toFixed(2)}`;
+      case 'serviceCharge':
+        return `₱ ${record.serviceCharge.toFixed(2)}`;
+      case 'rebate':
+        return `₱ ${record.rebate.toFixed(2)}`;
+      case 'discounts':
+        return `₱ ${record.discounts.toFixed(2)}`;
+      case 'staggered':
+        return `₱ ${record.staggered.toFixed(2)}`;
       case 'totalAmount':
         return `₱ ${record.totalAmount.toFixed(2)}`;
       case 'receivedPayment':

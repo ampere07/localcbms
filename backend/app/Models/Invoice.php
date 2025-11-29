@@ -15,6 +15,10 @@ class Invoice extends Model
         'invoice_date',
         'invoice_balance',
         'others_and_basic_charges',
+        'service_charge',
+        'rebate',
+        'discounts',
+        'staggered',
         'total_amount',
         'received_payment',
         'due_date',
@@ -30,6 +34,10 @@ class Invoice extends Model
         'due_date' => 'datetime',
         'invoice_balance' => 'decimal:2',
         'others_and_basic_charges' => 'decimal:2',
+        'service_charge' => 'decimal:2',
+        'rebate' => 'decimal:2',
+        'discounts' => 'decimal:2',
+        'staggered' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'received_payment' => 'decimal:2'
     ];

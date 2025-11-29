@@ -57,7 +57,8 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
     username: '',
     concern: '',
     concernRemarks: '',
-    accountEmail: ''
+    accountEmail: '',
+    status: 'unused'
   });
 
   const [concerns, setConcerns] = useState<concernService.Concern[]>([]);
@@ -79,7 +80,8 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
         username: customerData?.username || '',
         accountEmail: customerData?.emailAddress || '',
         concern: '',
-        concernRemarks: ''
+        concernRemarks: '',
+        status: 'unused'
       });
       loadData();
     }
@@ -159,7 +161,8 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
         priority_level: 'Medium',
         requested_by: formData.accountEmail || formData.accountNo,
         visit_status: 'Pending',
-        created_by_user: getUserEmail()
+        created_by_user: getUserEmail(),
+        status: formData.status
       };
 
       setLoadingPercentage(50);
@@ -190,7 +193,8 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
       username: '',
       accountEmail: '',
       concern: '',
-      concernRemarks: ''
+      concernRemarks: '',
+      status: 'unused'
     });
     setErrors({});
     onClose();
@@ -406,6 +410,23 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
                 className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-red-500 resize-none"
                 placeholder="Enter concern details..."
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Status<span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <select
+                  value={formData.status}
+                  onChange={(e) => handleInputChange('status', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-red-500 appearance-none"
+                >
+                  <option value="unused">Unused</option>
+                  <option value="multiple">Multiple</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+              </div>
             </div>
           </div>
         </div>

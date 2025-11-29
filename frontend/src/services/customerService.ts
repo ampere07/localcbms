@@ -1,14 +1,4 @@
-import axios from 'axios';
-
-const getApiBaseUrl = (): string => {
-  const baseUrl = process.env.REACT_APP_API_BASE_URL;
-  if (!baseUrl) {
-    throw new Error("REACT_APP_API_BASE_URL is not defined");
-  }
-  return baseUrl;
-};
-
-const API_BASE_URL = getApiBaseUrl();
+import apiClient from '../config/api';
 
 export interface CustomerRecord {
   id: number;
@@ -58,25 +48,9 @@ interface CustomerDetailApiResponse {
   message?: string;
 }
 
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  },
-});
-
-axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
 export const getCustomers = async (): Promise<CustomerRecord[]> => {
   try {
-    const response = await axiosInstance.get<CustomerApiResponse>('/customers');
+    const response = await apiClient.get<CustomerApiResponse>('/customers');
     
     if (response.data?.success && response.data?.data) {
       return response.data.data;
@@ -91,7 +65,7 @@ export const getCustomers = async (): Promise<CustomerRecord[]> => {
 
 export const getCustomer = async (id: number): Promise<CustomerRecord | null> => {
   try {
-    const response = await axiosInstance.get<CustomerDetailApiResponse>(`/customers/${id}`);
+    const response = await apiClient.get<CustomerDetailApiResponse>(`/customers/${id}`);
     
     if (response.data?.success && response.data?.data) {
       return response.data.data;
@@ -106,7 +80,7 @@ export const getCustomer = async (id: number): Promise<CustomerRecord | null> =>
 
 export const createCustomer = async (data: Partial<CustomerRecord>): Promise<CustomerRecord | null> => {
   try {
-    const response = await axiosInstance.post<CustomerDetailApiResponse>('/customers', data);
+    const response = await apiClient.post<CustomerDetailApiResponse>('/customers', data);
     
     if (response.data?.success && response.data?.data) {
       return response.data.data;
@@ -121,7 +95,7 @@ export const createCustomer = async (data: Partial<CustomerRecord>): Promise<Cus
 
 export const updateCustomer = async (id: number, data: Partial<CustomerRecord>): Promise<CustomerRecord | null> => {
   try {
-    const response = await axiosInstance.put<CustomerDetailApiResponse>(`/customers/${id}`, data);
+    const response = await apiClient.put<CustomerDetailApiResponse>(`/customers/${id}`, data);
     
     if (response.data?.success && response.data?.data) {
       return response.data.data;
@@ -136,7 +110,7 @@ export const updateCustomer = async (id: number, data: Partial<CustomerRecord>):
 
 export const deleteCustomer = async (id: number): Promise<boolean> => {
   try {
-    const response = await axiosInstance.delete<{ success: boolean }>(`/customers/${id}`);
+    const response = await apiClient.delete<{ success: boolean }>(`/customers/${id}`);
     return response.data?.success || false;
   } catch (error) {
     console.error('Error deleting customer:', error);
