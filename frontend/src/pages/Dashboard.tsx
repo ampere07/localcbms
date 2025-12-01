@@ -43,6 +43,7 @@ import LcpNapLocation from './LcpNapLocation';
 import BillingConfig from './BillingConfig';
 import RadiusConfig from './RadiusConfig';
 import SmsConfig from './SmsConfig';
+import EmailTemplates from './EmailTemplates';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -92,6 +93,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         return <RadiusConfig />;
       case 'sms-config':
         return <SmsConfig />;
+      case 'email-templates':
+        return <EmailTemplates />;
 
 
       case 'staggered-payment':

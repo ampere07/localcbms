@@ -20,6 +20,7 @@ use App\Http\Controllers\EmergencyLocationController;
 use App\Http\Controllers\RadiusController;
 use App\Http\Controllers\RadiusConfigController;
 use App\Http\Controllers\SmsConfigController;
+use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\TransactionController;
 use App\Models\User;
 use App\Models\MassRebate;
@@ -1883,6 +1884,14 @@ Route::get('/sms-config', [\App\Http\Controllers\SmsConfigController::class, 'in
 Route::post('/sms-config', [\App\Http\Controllers\SmsConfigController::class, 'store']);
 Route::put('/sms-config/{id}', [\App\Http\Controllers\SmsConfigController::class, 'update']);
 Route::delete('/sms-config/{id}', [\App\Http\Controllers\SmsConfigController::class, 'destroy']);
+
+// Email Template Management Routes
+Route::get('/email-templates', [\App\Http\Controllers\EmailTemplateController::class, 'index']);
+Route::post('/email-templates', [\App\Http\Controllers\EmailTemplateController::class, 'store']);
+Route::get('/email-templates/{templateCode}', [\App\Http\Controllers\EmailTemplateController::class, 'show']);
+Route::put('/email-templates/{templateCode}', [\App\Http\Controllers\EmailTemplateController::class, 'update']);
+Route::delete('/email-templates/{templateCode}', [\App\Http\Controllers\EmailTemplateController::class, 'destroy']);
+Route::post('/email-templates/{templateCode}/toggle-active', [\App\Http\Controllers\EmailTemplateController::class, 'toggleActive']);
 
 // Settings Image Size Management Routes
 Route::prefix('settings-image-size')->group(function () {
