@@ -103,7 +103,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       allowedRoles: ['administrator', 'technician'],
       children: [
         { id: 'lcp-nap-location', label: 'LCP/NAP Location', icon: MapPinned, allowedRoles: ['administrator', 'technician'] },
-        { id: 'radius-config', label: 'Radius Config', icon: MapPin, allowedRoles: ['administrator'] }
+        { id: 'radius-config', label: 'Radius Config', icon: MapPin, allowedRoles: ['administrator'] },
+        { id: 'sms-config', label: 'SMS Config', icon: MessageSquare, allowedRoles: ['administrator'] }
       ]
     },
     {

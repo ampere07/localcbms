@@ -19,6 +19,7 @@ use App\Http\Controllers\DebugController;
 use App\Http\Controllers\EmergencyLocationController;
 use App\Http\Controllers\RadiusController;
 use App\Http\Controllers\RadiusConfigController;
+use App\Http\Controllers\SmsConfigController;
 use App\Http\Controllers\TransactionController;
 use App\Models\User;
 use App\Models\MassRebate;
@@ -1876,6 +1877,12 @@ Route::get('/radius-config', [\App\Http\Controllers\RadiusConfigController::clas
 Route::post('/radius-config', [\App\Http\Controllers\RadiusConfigController::class, 'store']);
 Route::put('/radius-config/{id}', [\App\Http\Controllers\RadiusConfigController::class, 'update']);
 Route::delete('/radius-config/{id}', [\App\Http\Controllers\RadiusConfigController::class, 'destroy']);
+
+// SMS Configuration Management Routes
+Route::get('/sms-config', [\App\Http\Controllers\SmsConfigController::class, 'index']);
+Route::post('/sms-config', [\App\Http\Controllers\SmsConfigController::class, 'store']);
+Route::put('/sms-config/{id}', [\App\Http\Controllers\SmsConfigController::class, 'update']);
+Route::delete('/sms-config/{id}', [\App\Http\Controllers\SmsConfigController::class, 'destroy']);
 
 // Settings Image Size Management Routes
 Route::prefix('settings-image-size')->group(function () {
