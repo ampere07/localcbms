@@ -408,23 +408,24 @@ class GoogleDrivePdfGenerationService
         ];
 
         if ($soa) {
-            // Calculate DC Date based on billing_config and account billing_day
             $billingConfig = \App\Models\BillingConfig::first();
-            $disconnectionDay = $billingConfig ? $billingConfig->disconnection_day : 0;
-            
             $billingDay = $account->billing_day;
-            $dcDay = $billingDay + $disconnectionDay;
-            
-            // Get the current billing month and year from SOA statement_date
             $statementDate = \Carbon\Carbon::parse($soa->statement_date);
             $daysInMonth = $statementDate->daysInMonth;
             
-            // If DC day exceeds days in current month, move to next month
-            if ($dcDay > $daysInMonth) {
-                $dcDate = $statementDate->copy()->addMonth()->day($dcDay - $daysInMonth);
+            // Calculate Due Date based on billing_config.due_date_day
+            $dueDateDay = $billingConfig ? $billingConfig->due_date_day : 0;
+            $calculatedDueDay = $dueDateDay == 0 ? $billingDay : $billingDay + $dueDateDay;
+            
+            if ($calculatedDueDay > $daysInMonth) {
+                $dueDate = $statementDate->copy()->addMonth()->day($calculatedDueDay - $daysInMonth);
             } else {
-                $dcDate = $statementDate->copy()->day($dcDay);
+                $dueDate = $statementDate->copy()->day($calculatedDueDay);
             }
+            
+            // Calculate DC Date by adding disconnection_day to the calculated due date
+            $disconnectionDay = $billingConfig ? $billingConfig->disconnection_day : 0;
+            $dcDate = $dueDate->copy()->addDays($disconnectionDay);
             
             $data = array_merge($data, [
                 'SOA_No' => $soa->id,
@@ -435,9 +436,9 @@ class GoogleDrivePdfGenerationService
                 'VAT' => number_format($soa->vat, 2),
                 'Amount_Due' => number_format($soa->amount_due, 2),
                 'Total_Due' => number_format($soa->total_amount_due, 2),
-                'Due_Date' => $soa->due_date->format('F d, Y'),
+                'Due_Date' => $dueDate->format('F d, Y'),
                 'Period_Start' => $soa->statement_date->format('F d, Y'),
-                'Period_End' => $soa->due_date->format('F d, Y'),
+                'Period_End' => $dueDate->format('F d, Y'),
                 'DC_Date' => $dcDate->format('F d, Y'),
                 // Others and Basic Charges - Individual amounts (show only if > 0)
                 'Amount_Discounts' => $soa->discounts > 0 ? number_format($soa->discounts, 2) : '',
@@ -468,11 +469,25 @@ class GoogleDrivePdfGenerationService
         }
 
         if ($invoice) {
+            $billingConfig = \App\Models\BillingConfig::first();
+            $billingDay = $account->billing_day;
+            $statementDate = now();
+            $daysInMonth = $statementDate->daysInMonth;
+            
+            $dueDateDay = $billingConfig ? $billingConfig->due_date_day : 0;
+            $calculatedDueDay = $dueDateDay == 0 ? $billingDay : $billingDay + $dueDateDay;
+            
+            if ($calculatedDueDay > $daysInMonth) {
+                $dueDate = $statementDate->copy()->addMonth()->day($calculatedDueDay - $daysInMonth);
+            } else {
+                $dueDate = $statementDate->copy()->day($calculatedDueDay);
+            }
+            
             $data = array_merge($data, [
                 'Invoice_No' => $invoice->id,
                 'Invoice_Balance' => number_format($invoice->invoice_balance, 2),
                 'Total_Amount' => number_format($invoice->total_amount, 2),
-                'Due_Date' => $invoice->due_date->format('F d, Y')
+                'Due_Date' => $dueDate->format('F d, Y')
             ]);
         }
 
