@@ -408,6 +408,24 @@ class GoogleDrivePdfGenerationService
         ];
 
         if ($soa) {
+            // Calculate DC Date based on billing_config and account billing_day
+            $billingConfig = \App\Models\BillingConfig::first();
+            $disconnectionDay = $billingConfig ? $billingConfig->disconnection_day : 0;
+            
+            $billingDay = $account->billing_day;
+            $dcDay = $billingDay + $disconnectionDay;
+            
+            // Get the current billing month and year from SOA statement_date
+            $statementDate = \Carbon\Carbon::parse($soa->statement_date);
+            $daysInMonth = $statementDate->daysInMonth;
+            
+            // If DC day exceeds days in current month, move to next month
+            if ($dcDay > $daysInMonth) {
+                $dcDate = $statementDate->copy()->addMonth()->day($dcDay - $daysInMonth);
+            } else {
+                $dcDate = $statementDate->copy()->day($dcDay);
+            }
+            
             $data = array_merge($data, [
                 'SOA_No' => $soa->id,
                 'Prev_Balance' => number_format($soa->balance_from_previous_bill, 2),
@@ -420,6 +438,7 @@ class GoogleDrivePdfGenerationService
                 'Due_Date' => $soa->due_date->format('F d, Y'),
                 'Period_Start' => $soa->statement_date->format('F d, Y'),
                 'Period_End' => $soa->due_date->format('F d, Y'),
+                'DC_Date' => $dcDate->format('F d, Y'),
                 // Others and Basic Charges - Individual amounts (show only if > 0)
                 'Amount_Discounts' => $soa->discounts > 0 ? number_format($soa->discounts, 2) : '',
                 'Amount_Rebates' => $soa->rebate > 0 ? number_format($soa->rebate, 2) : '',
