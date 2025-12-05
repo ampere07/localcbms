@@ -22,6 +22,8 @@ class EmailTemplate extends Model
     protected $fillable = [
         'Template_Code',
         'Subject_Line',
+        'CC',        // ADD THIS LINE
+        'BCC',       // ADD THIS LINE
         'Body_HTML',
         'Description',
         'Is_Active'

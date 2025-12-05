@@ -33,6 +33,19 @@ class Kernel extends ConsoleKernel
         //          ->hourly()
         //          ->between('08:00', '18:00')
         //          ->withoutOverlapping();
+
+        $schedule->command('email:process-queue --batch=50')
+                 ->everyMinute()
+                 ->withoutOverlapping()
+                 ->runInBackground()
+                 ->onSuccess(function () {
+                     \Illuminate\Support\Facades\Log::info('Email queue processed successfully');
+                 });
+
+        $schedule->command('email:process-queue --retry --max-attempts=3')
+                 ->everyFiveMinutes()
+                 ->withoutOverlapping()
+                 ->runInBackground();
     }
 
     /**

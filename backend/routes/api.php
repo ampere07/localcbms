@@ -21,6 +21,7 @@ use App\Http\Controllers\RadiusController;
 use App\Http\Controllers\RadiusConfigController;
 use App\Http\Controllers\SmsConfigController;
 use App\Http\Controllers\EmailTemplateController;
+use App\Http\Controllers\EmailQueueController;
 use App\Http\Controllers\TransactionController;
 use App\Models\User;
 use App\Models\MassRebate;
@@ -1892,6 +1893,18 @@ Route::get('/email-templates/{templateCode}', [\App\Http\Controllers\EmailTempla
 Route::put('/email-templates/{templateCode}', [\App\Http\Controllers\EmailTemplateController::class, 'update']);
 Route::delete('/email-templates/{templateCode}', [\App\Http\Controllers\EmailTemplateController::class, 'destroy']);
 Route::post('/email-templates/{templateCode}/toggle-active', [\App\Http\Controllers\EmailTemplateController::class, 'toggleActive']);
+
+Route::prefix('email-queue')->group(function () {
+    Route::get('/', [EmailQueueController::class, 'index']);
+    Route::get('/stats', [EmailQueueController::class, 'stats']);
+    Route::get('/{id}', [EmailQueueController::class, 'show']);
+    Route::post('/queue', [EmailQueueController::class, 'queueEmail']);
+    Route::post('/queue-template', [EmailQueueController::class, 'queueFromTemplate']);
+    Route::post('/process', [EmailQueueController::class, 'processQueue']);
+    Route::post('/retry-failed', [EmailQueueController::class, 'retryFailed']);
+    Route::post('/{id}/retry', [EmailQueueController::class, 'retry']);
+    Route::delete('/{id}', [EmailQueueController::class, 'delete']);
+});
 
 // Settings Image Size Management Routes
 Route::prefix('settings-image-size')->group(function () {
