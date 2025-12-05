@@ -1,0 +1,34 @@
+// =======================================================================
+// COPY AND PASTE THIS ENTIRE SECTION TO THE END OF YOUR api.php FILE
+// (Before any final closing tags)
+// =======================================================================
+
+// FIRST: Add this to the top of api.php with other use statements (around line 24):
+// use App\Http\Controllers\BillingGenerationController;
+
+// SECOND: Add these routes at the END of api.php:
+
+Route::prefix('billing-generation')->group(function () {
+    Route::post('/generate-sample', [BillingGenerationController::class, 'generateSampleData']);
+    Route::post('/force-generate-all', [BillingGenerationController::class, 'forceGenerateAll']);
+    Route::post('/generate-for-day', [BillingGenerationController::class, 'generateBillingsForDay']);
+    Route::post('/generate-today', [BillingGenerationController::class, 'generateTodaysBillings']);
+    Route::post('/generate-statements', [BillingGenerationController::class, 'generateEnhancedStatements']);
+    Route::post('/generate-invoices', [BillingGenerationController::class, 'generateEnhancedInvoices']);
+    Route::get('/invoices', [BillingGenerationController::class, 'getInvoices']);
+    Route::get('/statements', [BillingGenerationController::class, 'getStatements']);
+});
+
+Route::get('/billing-generation/test', function() {
+    \Illuminate\Support\Facades\Log::info('Billing generation test route accessed');
+    return response()->json([
+        'success' => true,
+        'message' => 'Billing generation routes are working!',
+        'timestamp' => now()->toISOString()
+    ]);
+});
+
+// THIRD (OPTIONAL): Comment out these lines if they cause errors:
+// Route::post('/fixed/location/region', [\App\Http\Controllers\Api\LocationFixedEndpointsController::class, 'addRegion']);
+// Route::post('/fixed/location/city', [\App\Http\Controllers\Api\LocationFixedEndpointsController::class, 'addCity']);
+// Route::post('/fixed/location/barangay', [\App\Http\Controllers\Api\LocationFixedEndpointsController::class, 'addBarangay']);

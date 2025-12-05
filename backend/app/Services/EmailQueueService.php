@@ -99,6 +99,12 @@ class EmailQueueService
                 $job->markAsSent();
                 $stats['sent']++;
                 Log::info('Email sent', ['id' => $job->id]);
+                
+                // Delete temp attachment file after successful send
+                if ($job->attachment_path && file_exists($job->attachment_path)) {
+                    unlink($job->attachment_path);
+                    Log::info('Temp attachment deleted', ['path' => $job->attachment_path]);
+                }
             } else {
                 $job->markAsFailed($result['error']);
                 $stats['failed']++;
@@ -148,6 +154,12 @@ class EmailQueueService
                 $job->markAsSent();
                 $stats['sent']++;
                 Log::info('Email retry successful', ['id' => $job->id, 'attempts' => $job->attempts + 1]);
+                
+                // Delete temp attachment file after successful send
+                if ($job->attachment_path && file_exists($job->attachment_path)) {
+                    unlink($job->attachment_path);
+                    Log::info('Temp attachment deleted', ['path' => $job->attachment_path]);
+                }
             } else {
                 $job->markAsFailed($result['error']);
                 $stats['failed']++;

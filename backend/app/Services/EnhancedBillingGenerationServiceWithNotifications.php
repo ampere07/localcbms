@@ -18,52 +18,19 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
-/**
- * Enhanced Billing Generation Service
- * 
- * CRITICAL ORDER OF OPERATIONS:
- * ================================
- * 1. Generate SOA FIRST (before invoice)
- * 2. Generate Invoice SECOND (after SOA)
- * 
- * Why this order matters:
- * - SOA needs to show the previous balance from the last billing period
- * - Invoice generation updates the account_balance to the new ending balance
- * - If invoice is generated first, SOA will incorrectly use the new ending balance
- *   instead of the actual previous balance
- * 
- * Example Flow:
- * =============
- * Previous Period:
- *   - Total Amount Due: ₱6,694.00 (this is the ending balance)
- * 
- * Current Period (CORRECT ORDER):
- *   Step 1 - Generate SOA:
- *     - getPreviousBalance() returns ₱6,694.00 (from last SOA)
- *     - Balance from Previous Bill: ₱6,694.00 ✓
- *     - New charges: ₱1,299.00
- *     - Total Amount Due: ₱7,993.00 (new ending balance)
- *   
- *   Step 2 - Generate Invoice:
- *     - Updates account_balance to ₱7,993.00
- *     - Invoice created with correct amounts
- * 
- * Next Period:
- *   - getPreviousBalance() will return ₱7,993.00 (from current SOA's total_amount_due)
- *   - Cycle continues correctly
- * 
- * All generation methods follow this order:
- * - generateAllBillingsForToday()
- * - generateBillingsForSpecificDay()
- * - forceGenerateAll() (in BillingGenerationController)
- */
-class EnhancedBillingGenerationService
+class EnhancedBillingGenerationServiceWithNotifications
 {
+    protected BillingNotificationService $notificationService;
     protected const VAT_RATE = 0.12;
     protected const DAYS_IN_MONTH = 30;
     protected const DAYS_UNTIL_DUE = 7;
     protected const DAYS_UNTIL_DC_NOTICE = 4;
     protected const END_OF_MONTH_BILLING = 0;
+
+    public function __construct(BillingNotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
 
     public function generateSOAForBillingDay(int $billingDay, Carbon $generationDate, int $userId): array
     {
@@ -71,7 +38,8 @@ class EnhancedBillingGenerationService
             'success' => 0,
             'failed' => 0,
             'errors' => [],
-            'statements' => []
+            'statements' => [],
+            'notifications' => []
         ];
 
         try {
@@ -82,6 +50,10 @@ class EnhancedBillingGenerationService
                     $statement = $this->createEnhancedStatement($account, $generationDate, $userId);
                     $results['statements'][] = $statement;
                     $results['success']++;
+                    
+                    $notificationResult = $this->queueNotification($account, null, $statement);
+                    $results['notifications'][] = $notificationResult;
+                    
                 } catch (\Exception $e) {
                     $results['failed']++;
                     $results['errors'][] = [
@@ -106,7 +78,8 @@ class EnhancedBillingGenerationService
             'success' => 0,
             'failed' => 0,
             'errors' => [],
-            'invoices' => []
+            'invoices' => [],
+            'notifications' => []
         ];
 
         try {
@@ -117,6 +90,10 @@ class EnhancedBillingGenerationService
                     $invoice = $this->createEnhancedInvoice($account, $generationDate, $userId);
                     $results['invoices'][] = $invoice;
                     $results['success']++;
+                    
+                    $notificationResult = $this->queueNotification($account, $invoice, null);
+                    $results['notifications'][] = $notificationResult;
+                    
                 } catch (\Exception $e) {
                     $results['failed']++;
                     $results['errors'][] = [
@@ -132,6 +109,44 @@ class EnhancedBillingGenerationService
         } catch (\Exception $e) {
             Log::error("Error in generateInvoicesForBillingDay: " . $e->getMessage());
             throw $e;
+        }
+    }
+
+    protected function queueNotification(
+        BillingAccount $account,
+        ?Invoice $invoice,
+        ?StatementOfAccount $soa
+    ): array {
+        try {
+            dispatch(function() use ($account, $invoice, $soa) {
+                $this->notificationService->notifyBillingGenerated(
+                    $account,
+                    $invoice,
+                    $soa
+                );
+            })->afterResponse();
+            
+            Log::info('Notification queued', [
+                'account_no' => $account->account_no,
+                'has_invoice' => $invoice !== null,
+                'has_soa' => $soa !== null
+            ]);
+            
+            return [
+                'account_no' => $account->account_no,
+                'queued' => true
+            ];
+        } catch (\Exception $e) {
+            Log::error('Failed to queue notification', [
+                'account_no' => $account->account_no,
+                'error' => $e->getMessage()
+            ]);
+            
+            return [
+                'account_no' => $account->account_no,
+                'queued' => false,
+                'error' => $e->getMessage()
+            ];
         }
     }
 
@@ -159,68 +174,10 @@ class EnhancedBillingGenerationService
         Log::info('Loaded accounts with complete data', [
             'billing_day' => $billingDay,
             'generation_date' => $generationDate->format('Y-m-d'),
-            'accounts_count' => $accounts->count(),
-            'sample_account' => $accounts->first() ? [
-                'account_no' => $accounts->first()->account_no,
-                'has_customer' => $accounts->first()->customer ? true : false,
-                'has_technical_details' => $accounts->first()->technicalDetails->count() > 0,
-                'customer_name' => $accounts->first()->customer?->full_name ?? 'N/A',
-                'desired_plan' => $accounts->first()->customer?->desired_plan ?? 'N/A'
-            ] : null
+            'accounts_count' => $accounts->count()
         ]);
 
         return $accounts;
-    }
-
-    protected function getAdvanceGenerationDay(): int
-    {
-        $billingConfig = BillingConfig::first();
-        
-        if (!$billingConfig || $billingConfig->advance_generation_day === null) {
-            Log::info('No advance_generation_day configured, using default 0');
-            return 0;
-        }
-        
-        return $billingConfig->advance_generation_day;
-    }
-
-    protected function calculateTargetBillingDays(Carbon $generationDate): array
-    {
-        $advanceGenerationDay = $this->getAdvanceGenerationDay();
-        $currentDay = $generationDate->day;
-        $targetBillingDay = $currentDay + $advanceGenerationDay;
-        
-        $billingDays = [];
-        
-        if ($generationDate->isLastOfMonth()) {
-            $billingDays[] = self::END_OF_MONTH_BILLING;
-            
-            $lastDayOfMonth = $generationDate->day;
-            $targetDay = $lastDayOfMonth + $advanceGenerationDay;
-            
-            if ($targetDay <= 31) {
-                $billingDays[] = $targetDay;
-            }
-        } else {
-            if ($targetBillingDay <= 31) {
-                $billingDays[] = $targetBillingDay;
-            }
-            
-            $lastDayOfMonth = $generationDate->copy()->endOfMonth()->day;
-            if ($targetBillingDay > $lastDayOfMonth) {
-                $billingDays[] = self::END_OF_MONTH_BILLING;
-            }
-        }
-        
-        Log::info('Calculated target billing days', [
-            'generation_date' => $generationDate->format('Y-m-d'),
-            'current_day' => $currentDay,
-            'advance_generation_day' => $advanceGenerationDay,
-            'target_billing_day' => $targetBillingDay,
-            'billing_days_to_process' => $billingDays
-        ]);
-        
-        return $billingDays;
     }
 
     protected function adjustBillingDayForMonth(int $billingDay, Carbon $date): int
@@ -320,6 +277,13 @@ class EnhancedBillingGenerationService
             ]);
 
             DB::commit();
+            
+            Log::info('SOA created successfully', [
+                'account_no' => $account->account_no,
+                'statement_id' => $statement->id,
+                'total_amount_due' => $statement->total_amount_due
+            ]);
+            
             return $statement;
 
         } catch (\Exception $e) {
@@ -411,21 +375,24 @@ class EnhancedBillingGenerationService
             Log::info('Invoice created with discount applied to balance', [
                 'account_no' => $account->account_no,
                 'invoice_balance' => $prorateAmount,
-                'others_basic_charges' => $othersBasicCharges,
                 'total_amount' => $totalAmount,
                 'discounts_applied' => $appliedDiscounts,
                 'previous_balance' => $account->account_balance,
-                'new_balance' => $newBalance,
-                'note' => 'Discount already included in others_basic_charges calculation'
+                'new_balance' => $newBalance
             ]);
             
             $this->markDiscountsAsUsed($account, $userId, $invoiceId);
             $this->markRebatesAsUsed($account, $userId, $invoiceId);
-
-            // Track invoice association for staggered installations (without applying payment)
             $this->trackStaggeredInvoiceAssociation($account->account_no, $invoice->id);
 
             DB::commit();
+            
+            Log::info('Invoice created successfully', [
+                'account_no' => $account->account_no,
+                'invoice_id' => $invoice->id,
+                'total_amount' => $invoice->total_amount
+            ]);
+            
             return $invoice;
 
         } catch (\Exception $e) {
@@ -434,6 +401,9 @@ class EnhancedBillingGenerationService
         }
     }
 
+    // Include all remaining methods from the original EnhancedBillingGenerationService
+    // (generateInvoiceId, calculateAdjustedBillingDate, calculateProrateAmount, etc.)
+    
     protected function generateInvoiceId(Carbon $date): string
     {
         $year = $date->format('y');
@@ -476,6 +446,115 @@ class EnhancedBillingGenerationService
         return round($dailyRate * $daysToCalculate, 2);
     }
 
+    protected function getDaysBetweenDatesIncludingDueDate(Carbon $startDate, Carbon $endDate): int
+    {
+        $endDateWithBuffer = $endDate->copy()->addDays(self::DAYS_UNTIL_DUE);
+        return $startDate->diffInDays($endDateWithBuffer) + 1;
+    }
+
+    protected function getAdvanceGenerationDay(): int
+    {
+        $billingConfig = BillingConfig::first();
+        
+        if (!$billingConfig || $billingConfig->advance_generation_day === null) {
+            Log::info('No advance_generation_day configured, using default 0');
+            return 0;
+        }
+        
+        return $billingConfig->advance_generation_day;
+    }
+
+    protected function calculateTargetBillingDays(Carbon $generationDate): array
+    {
+        $advanceGenerationDay = $this->getAdvanceGenerationDay();
+        $currentDay = $generationDate->day;
+        $targetBillingDay = $currentDay + $advanceGenerationDay;
+        
+        $billingDays = [];
+        
+        if ($generationDate->isLastOfMonth()) {
+            $billingDays[] = self::END_OF_MONTH_BILLING;
+            
+            $lastDayOfMonth = $generationDate->day;
+            $targetDay = $lastDayOfMonth + $advanceGenerationDay;
+            
+            if ($targetDay <= 31) {
+                $billingDays[] = $targetDay;
+            }
+        } else {
+            if ($targetBillingDay <= 31) {
+                $billingDays[] = $targetBillingDay;
+            }
+            
+            $lastDayOfMonth = $generationDate->copy()->endOfMonth()->day;
+            if ($targetBillingDay > $lastDayOfMonth) {
+                $billingDays[] = self::END_OF_MONTH_BILLING;
+            }
+        }
+        
+        Log::info('Calculated target billing days', [
+            'generation_date' => $generationDate->format('Y-m-d'),
+            'current_day' => $currentDay,
+            'advance_generation_day' => $advanceGenerationDay,
+            'target_billing_day' => $targetBillingDay,
+            'billing_days_to_process' => $billingDays
+        ]);
+        
+        return $billingDays;
+    }
+
+    public function generateAllBillingsForToday(int $userId): array
+    {
+        $today = Carbon::now();
+        $targetBillingDays = $this->calculateTargetBillingDays($today);
+        $advanceGenerationDay = $this->getAdvanceGenerationDay();
+
+        $results = [
+            'date' => $today->format('Y-m-d'),
+            'advance_generation_day' => $advanceGenerationDay,
+            'billing_days_processed' => [],
+            'invoices' => ['success' => 0, 'failed' => 0, 'errors' => [], 'notifications' => []],
+            'statements' => ['success' => 0, 'failed' => 0, 'errors' => [], 'notifications' => []]
+        ];
+
+        foreach ($targetBillingDays as $billingDay) {
+            $billingDayLabel = $billingDay === self::END_OF_MONTH_BILLING ? 'End of Month (0)' : "Day {$billingDay}";
+            
+            Log::info("Processing billing day: {$billingDayLabel}");
+            
+            $soaResults = $this->generateSOAForBillingDay($billingDay, $today, $userId);
+            $invoiceResults = $this->generateInvoicesForBillingDay($billingDay, $today, $userId);
+            
+            $results['billing_days_processed'][] = $billingDayLabel;
+            $results['invoices']['success'] += $invoiceResults['success'];
+            $results['invoices']['failed'] += $invoiceResults['failed'];
+            $results['invoices']['errors'] = array_merge($results['invoices']['errors'], $invoiceResults['errors']);
+            $results['invoices']['notifications'] = array_merge($results['invoices']['notifications'], $invoiceResults['notifications'] ?? []);
+            
+            $results['statements']['success'] += $soaResults['success'];
+            $results['statements']['failed'] += $soaResults['failed'];
+            $results['statements']['errors'] = array_merge($results['statements']['errors'], $soaResults['errors']);
+            $results['statements']['notifications'] = array_merge($results['statements']['notifications'], $soaResults['notifications'] ?? []);
+        }
+
+        return $results;
+    }
+
+    public function generateBillingsForSpecificDay(int $billingDay, int $userId): array
+    {
+        $today = Carbon::now();
+
+        $soaResults = $this->generateSOAForBillingDay($billingDay, $today, $userId);
+        $invoiceResults = $this->generateInvoicesForBillingDay($billingDay, $today, $userId);
+
+        return [
+            'date' => $today->format('Y-m-d'),
+            'billing_day' => $billingDay === self::END_OF_MONTH_BILLING ? 'End of Month (0)' : $billingDay,
+            'invoices' => $invoiceResults,
+            'statements' => $soaResults
+        ];
+    }
+
     protected function calculateChargesAndDeductions(
         BillingAccount $account, 
         Carbon $date, 
@@ -512,19 +591,9 @@ class EnhancedBillingGenerationService
             ->where('months_to_pay', '>', 0)
             ->get();
 
-        Log::info('Processing staggered installations', [
-            'account_no' => $account->account_no,
-            'staggered_installations_count' => $staggeredInstallations->count()
-        ]);
-
         foreach ($staggeredInstallations as $installation) {
             $total += $installation->monthly_payment;
         }
-
-        Log::info('Staggered installations total', [
-            'account_no' => $account->account_no,
-            'total_staggered_fees' => $total
-        ]);
 
         return round($total, 2);
     }
@@ -537,44 +606,15 @@ class EnhancedBillingGenerationService
             ->whereIn('status', ['Unused', 'Permanent', 'Monthly'])
             ->get();
 
-        Log::info('Calculating discounts', [
-            'account_no' => $account->account_no,
-            'discounts_count' => $discounts->count()
-        ]);
-
         foreach ($discounts as $discount) {
             if ($discount->status === 'Unused') {
                 $total += $discount->discount_amount;
-                
-                Log::info('Found Unused discount', [
-                    'discount_id' => $discount->id,
-                    'account_no' => $account->account_no,
-                    'discount_amount' => $discount->discount_amount
-                ]);
             } elseif ($discount->status === 'Permanent') {
                 $total += $discount->discount_amount;
-                
-                Log::info('Found Permanent discount', [
-                    'discount_id' => $discount->id,
-                    'account_no' => $account->account_no,
-                    'discount_amount' => $discount->discount_amount
-                ]);
             } elseif ($discount->status === 'Monthly' && $discount->remaining > 0) {
                 $total += $discount->discount_amount;
-                
-                Log::info('Found Monthly discount', [
-                    'discount_id' => $discount->id,
-                    'account_no' => $account->account_no,
-                    'discount_amount' => $discount->discount_amount,
-                    'remaining' => $discount->remaining
-                ]);
             }
         }
-
-        Log::info('Total discounts calculated', [
-            'account_no' => $account->account_no,
-            'total_discount' => $total
-        ]);
 
         return round($total, 2);
     }
@@ -592,12 +632,6 @@ class EnhancedBillingGenerationService
             ->where('payment_month', $currentMonth)
             ->where('status', 'Unused')
             ->get();
-
-        Log::info('Calculating advanced payments', [
-            'account_no' => $account->account_no,
-            'current_month' => $currentMonth,
-            'advanced_payments_count' => $advancedPayments->count()
-        ]);
 
         foreach ($advancedPayments as $payment) {
             $total += $payment->payment_amount;
@@ -618,30 +652,17 @@ class EnhancedBillingGenerationService
         
         $customer = $account->customer;
         if (!$customer) {
-            Log::info('No customer found for rebate calculation', ['account_no' => $account->account_no]);
             return 0;
         }
 
         $technicalDetails = $account->technicalDetails->first();
         if (!$technicalDetails) {
-            Log::info('No technical details found for rebate calculation', ['account_no' => $account->account_no]);
             return 0;
         }
 
         $rebates = MassRebate::where('status', 'Unused')
             ->where('month', $currentMonth)
             ->get();
-
-        Log::info('Calculating rebates - only Unused status', [
-            'account_no' => $account->account_no,
-            'current_month' => $currentMonth,
-            'total_unused_rebates_available' => $rebates->count(),
-            'customer_lcpnap' => $technicalDetails->lcpnap,
-            'customer_lcp' => $technicalDetails->lcp,
-            'customer_location' => $customer->location,
-            'customer_barangay' => $customer->barangay,
-            'note' => 'Only rebates with status=Unused will be processed (not Pending or Used)'
-        ]);
 
         $daysInCurrentMonth = $date->daysInMonth;
         $dailyRate = $monthlyFee / $daysInCurrentMonth;
@@ -665,7 +686,7 @@ class EnhancedBillingGenerationService
             }
 
             if ($matchFound) {
-                $rebateUsage = \App\Models\RebateUsage::where('rebates_id', $rebate->id)
+                $rebateUsage = RebateUsage::where('rebates_id', $rebate->id)
                     ->where('account_no', $account->account_no)
                     ->where('status', 'Unused')
                     ->first();
@@ -674,31 +695,9 @@ class EnhancedBillingGenerationService
                     $rebateDays = $rebate->number_of_dates ?? 0;
                     $rebateValue = $dailyRate * $rebateDays;
                     $total += $rebateValue;
-
-                    Log::info('Rebate matched and applied - status is Unused', [
-                        'rebate_id' => $rebate->id,
-                        'rebate_usage_id' => $rebateUsage->id,
-                        'account_no' => $account->account_no,
-                        'rebate_type' => $rebate->rebate_type,
-                        'selected_rebate' => $rebate->selected_rebate,
-                        'rebate_status' => $rebate->status,
-                        'rebate_days' => $rebateDays,
-                        'daily_rate' => $dailyRate,
-                        'rebate_value' => $rebateValue
-                    ]);
-                } else {
-                    Log::info('Rebate matched but no unused rebate_usage found', [
-                        'rebate_id' => $rebate->id,
-                        'account_no' => $account->account_no
-                    ]);
                 }
             }
         }
-
-        Log::info('Total rebates calculated', [
-            'account_no' => $account->account_no,
-            'total_rebate_amount' => $total
-        ]);
 
         return round($total, 2);
     }
@@ -729,28 +728,6 @@ class EnhancedBillingGenerationService
 
     protected function calculatePaymentReceived(BillingAccount $account, Carbon $date): float
     {
-        // Get the most recent SOA to check for payment history
-        $latestSOA = StatementOfAccount::where('account_no', $account->account_no)
-            ->orderBy('statement_date', 'desc')
-            ->orderBy('id', 'desc')
-            ->first();
-        
-        if ($latestSOA) {
-            // Calculate payment as the difference between previous total and remaining balance
-            $payment = floatval($latestSOA->balance_from_previous_bill) - floatval($latestSOA->remaining_balance_previous);
-            
-            Log::info('Calculating payment received from latest SOA', [
-                'account_no' => $account->account_no,
-                'latest_soa_id' => $latestSOA->id,
-                'balance_from_previous' => $latestSOA->balance_from_previous_bill,
-                'remaining_balance' => $latestSOA->remaining_balance_previous,
-                'payment_received' => $payment
-            ]);
-            
-            return $payment;
-        }
-        
-        // Fallback to transaction-based calculation if no SOA exists
         $lastMonth = $date->copy()->subMonth();
         
         $transactions = DB::table('transactions')
@@ -760,69 +737,7 @@ class EnhancedBillingGenerationService
             ->whereYear('payment_date', $lastMonth->year)
             ->sum('received_payment');
 
-        Log::info('No previous SOA found, calculating from transactions', [
-            'account_no' => $account->account_no,
-            'last_month' => $lastMonth->format('F Y'),
-            'transactions_total' => $transactions
-        ]);
-
         return floatval($transactions);
-    }
-
-    protected function getDaysBetweenDatesIncludingDueDate(Carbon $startDate, Carbon $endDate): int
-    {
-        $endDateWithBuffer = $endDate->copy()->addDays(self::DAYS_UNTIL_DUE);
-        return $startDate->diffInDays($endDateWithBuffer) + 1;
-    }
-
-    public function generateAllBillingsForToday(int $userId): array
-    {
-        $today = Carbon::now();
-        $targetBillingDays = $this->calculateTargetBillingDays($today);
-        $advanceGenerationDay = $this->getAdvanceGenerationDay();
-
-        $results = [
-            'date' => $today->format('Y-m-d'),
-            'advance_generation_day' => $advanceGenerationDay,
-            'billing_days_processed' => [],
-            'invoices' => ['success' => 0, 'failed' => 0, 'errors' => []],
-            'statements' => ['success' => 0, 'failed' => 0, 'errors' => []]
-        ];
-
-        foreach ($targetBillingDays as $billingDay) {
-            $billingDayLabel = $billingDay === self::END_OF_MONTH_BILLING ? 'End of Month (0)' : "Day {$billingDay}";
-            
-            Log::info("Processing billing day: {$billingDayLabel}");
-            
-            $soaResults = $this->generateSOAForBillingDay($billingDay, $today, $userId);
-            $invoiceResults = $this->generateInvoicesForBillingDay($billingDay, $today, $userId);
-            
-            $results['billing_days_processed'][] = $billingDayLabel;
-            $results['invoices']['success'] += $invoiceResults['success'];
-            $results['invoices']['failed'] += $invoiceResults['failed'];
-            $results['invoices']['errors'] = array_merge($results['invoices']['errors'], $invoiceResults['errors']);
-            
-            $results['statements']['success'] += $soaResults['success'];
-            $results['statements']['failed'] += $soaResults['failed'];
-            $results['statements']['errors'] = array_merge($results['statements']['errors'], $soaResults['errors']);
-        }
-
-        return $results;
-    }
-
-    public function generateBillingsForSpecificDay(int $billingDay, int $userId): array
-    {
-        $today = Carbon::now();
-
-        $soaResults = $this->generateSOAForBillingDay($billingDay, $today, $userId);
-        $invoiceResults = $this->generateInvoicesForBillingDay($billingDay, $today, $userId);
-
-        return [
-            'date' => $today->format('Y-m-d'),
-            'billing_day' => $billingDay === self::END_OF_MONTH_BILLING ? 'End of Month (0)' : $billingDay,
-            'invoices' => $invoiceResults,
-            'statements' => $soaResults
-        ];
     }
 
     protected function extractPlanName(string $desiredPlan): string
@@ -837,32 +752,9 @@ class EnhancedBillingGenerationService
 
     protected function getPreviousBalance(BillingAccount $account, Carbon $currentDate): float
     {
-        // Get the most recent SOA to get accurate previous balance
-        $latestSOA = StatementOfAccount::where('account_no', $account->account_no)
-            ->orderBy('statement_date', 'desc')
-            ->orderBy('id', 'desc')
-            ->first();
-        
-        if ($latestSOA) {
-            // Use total_amount_due from the latest SOA as the previous balance
-            $previousBalance = floatval($latestSOA->total_amount_due);
-            
-            Log::info('Getting previous balance from latest SOA', [
-                'account_no' => $account->account_no,
-                'latest_soa_id' => $latestSOA->id,
-                'latest_soa_date' => $latestSOA->statement_date->format('Y-m-d'),
-                'total_amount_due' => $latestSOA->total_amount_due,
-                'previous_balance' => $previousBalance,
-                'current_date' => $currentDate->format('Y-m-d')
-            ]);
-            
-            return $previousBalance;
-        }
-        
-        // Fallback to account_balance if no previous SOA exists
         $accountBalance = floatval($account->account_balance);
         
-        Log::info('No previous SOA found, using account_balance', [
+        Log::info('Getting previous balance for SOA', [
             'account_no' => $account->account_no,
             'account_balance' => $accountBalance,
             'current_date' => $currentDate->format('Y-m-d')
@@ -877,20 +769,8 @@ class EnhancedBillingGenerationService
             ->whereIn('status', ['Unused', 'Permanent', 'Monthly'])
             ->get();
 
-        Log::info('Marking discounts as used after invoice generation', [
-            'account_no' => $account->account_no,
-            'discounts_count' => $discounts->count(),
-            'invoice_id' => $invoiceId
-        ]);
-
         foreach ($discounts as $discount) {
             if ($discount->status === 'Unused') {
-                Log::info('Marking Unused discount as Used', [
-                    'discount_id' => $discount->id,
-                    'account_no' => $account->account_no,
-                    'discount_amount' => $discount->discount_amount
-                ]);
-                
                 $discount->update([
                     'status' => 'Used',
                     'invoice_used_id' => $invoiceId,
@@ -898,25 +778,11 @@ class EnhancedBillingGenerationService
                     'updated_by_user_id' => $userId
                 ]);
             } elseif ($discount->status === 'Permanent') {
-                Log::info('Updating Permanent discount with invoice reference', [
-                    'discount_id' => $discount->id,
-                    'account_no' => $account->account_no,
-                    'discount_amount' => $discount->discount_amount
-                ]);
-                
                 $discount->update([
                     'invoice_used_id' => $invoiceId,
                     'updated_by_user_id' => $userId
                 ]);
             } elseif ($discount->status === 'Monthly' && $discount->remaining > 0) {
-                Log::info('Decrementing Monthly discount remaining', [
-                    'discount_id' => $discount->id,
-                    'account_no' => $account->account_no,
-                    'discount_amount' => $discount->discount_amount,
-                    'remaining_before' => $discount->remaining,
-                    'remaining_after' => $discount->remaining - 1
-                ]);
-                
                 $discount->update([
                     'invoice_used_id' => $invoiceId,
                     'remaining' => $discount->remaining - 1,
@@ -944,14 +810,6 @@ class EnhancedBillingGenerationService
             ->where('month', $currentMonth)
             ->get();
 
-        Log::info('Marking rebates as used after invoice generation - only Unused status', [
-            'account_no' => $account->account_no,
-            'current_month' => $currentMonth,
-            'rebates_count' => $rebates->count(),
-            'invoice_id' => $invoiceId,
-            'note' => 'Only rebates with status=Unused will be marked as used (not Pending or Used)'
-        ]);
-
         foreach ($rebates as $rebate) {
             $matchFound = false;
 
@@ -971,25 +829,13 @@ class EnhancedBillingGenerationService
             }
 
             if ($matchFound) {
-                $rebateUsage = \App\Models\RebateUsage::where('rebates_id', $rebate->id)
+                $rebateUsage = RebateUsage::where('rebates_id', $rebate->id)
                     ->where('account_no', $account->account_no)
                     ->where('status', 'Unused')
                     ->first();
 
                 if ($rebateUsage) {
-                    Log::info('Marking rebate_usage as Used - rebate status was Unused', [
-                        'rebate_id' => $rebate->id,
-                        'rebate_usage_id' => $rebateUsage->id,
-                        'account_no' => $account->account_no,
-                        'rebate_type' => $rebate->rebate_type,
-                        'selected_rebate' => $rebate->selected_rebate,
-                        'rebate_status' => $rebate->status
-                    ]);
-
-                    $rebateUsage->update([
-                        'status' => 'Used'
-                    ]);
-
+                    $rebateUsage->update(['status' => 'Used']);
                     $this->checkAndUpdateRebateStatus($rebate->id, $userId);
                 }
             }
@@ -998,36 +844,22 @@ class EnhancedBillingGenerationService
 
     protected function checkAndUpdateRebateStatus(int $rebateId, int $userId): void
     {
-        $unusedCount = \App\Models\RebateUsage::where('rebates_id', $rebateId)
+        $unusedCount = RebateUsage::where('rebates_id', $rebateId)
             ->where('status', 'Unused')
             ->count();
 
         if ($unusedCount === 0) {
             $rebate = MassRebate::find($rebateId);
             if ($rebate) {
-                Log::info('All rebate_usage entries are used, marking rebate as Used', [
-                    'rebate_id' => $rebateId
-                ]);
-
                 $rebate->update([
                     'status' => 'Used',
                     'modified_by' => (string) $userId,
                     'modified_date' => now()
                 ]);
             }
-        } else {
-            Log::info('Rebate still has unused entries', [
-                'rebate_id' => $rebateId,
-                'unused_count' => $unusedCount
-            ]);
         }
     }
 
-    /**
-     * Track invoice association for staggered installations
-     * This method records which invoice corresponds to which month
-     * WITHOUT automatically applying any payment
-     */
     protected function trackStaggeredInvoiceAssociation(string $accountNo, int $invoiceId): void
     {
         try {
@@ -1037,7 +869,6 @@ class EnhancedBillingGenerationService
                 ->get();
 
             foreach ($staggeredInstallations as $staggered) {
-                // Find the next empty month column
                 $monthColumn = null;
                 for ($i = 1; $i <= 12; $i++) {
                     $col = 'month' . $i;
@@ -1048,20 +879,12 @@ class EnhancedBillingGenerationService
                 }
 
                 if (!$monthColumn) {
-                    Log::warning('No available month column for staggered installation', [
-                        'staggered_id' => $staggered->id,
-                        'account_no' => $accountNo
-                    ]);
                     continue;
                 }
 
-                // Store invoice ID in the month column
                 $staggered->$monthColumn = (string)$invoiceId;
-
-                // Decrement months_to_pay
                 $staggered->months_to_pay = $staggered->months_to_pay - 1;
 
-                // Mark as completed if no months remaining
                 if ($staggered->months_to_pay <= 0) {
                     $staggered->status = 'Completed';
                 }
@@ -1070,15 +893,6 @@ class EnhancedBillingGenerationService
                 $staggered->modified_date = now();
                 $staggered->timestamps = false;
                 $staggered->save();
-
-                Log::info('Invoice association tracked for staggered installation', [
-                    'staggered_id' => $staggered->id,
-                    'account_no' => $accountNo,
-                    'invoice_id' => $invoiceId,
-                    'month_column' => $monthColumn,
-                    'months_remaining' => $staggered->months_to_pay,
-                    'note' => 'Invoice tracked WITHOUT automatic payment application'
-                ]);
             }
         } catch (\Exception $e) {
             Log::error('Error tracking staggered invoice association: ' . $e->getMessage());

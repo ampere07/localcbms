@@ -327,14 +327,55 @@ const EmailTemplates: React.FC = () => {
 
           <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase">Smart Rows</h3>
           {['Row_Discounts', 'Row_Rebates', 'Row_Service', 'Row_Staggered', 'Row_Install'].map(tag => (
-            <button
-              key={tag}
-              onClick={() => insertTag(`{{${tag}}}`)}
-              className="w-full text-left px-2 py-1 mb-1 text-xs font-mono text-green-400 bg-gray-700 hover:bg-gray-600 rounded border-l-2 border-green-500"
-            >
-              {`{{${tag}}}`}
-            </button>
+          <button
+          key={tag}
+          onClick={() => insertTag(`{{${tag}}}`)} 
+          className="w-full text-left px-2 py-1 mb-1 text-xs font-mono text-green-400 bg-gray-700 hover:bg-gray-600 rounded border-l-2 border-green-500"
+          >
+          {`{{${tag}}}`}
+          </button>
           ))}
+
+          <h3 className="text-xs font-semibold text-gray-400 mb-2 mt-3 uppercase">Others & Basic Charges</h3>
+          <div className="mb-2">
+            <p className="text-xs text-gray-500 mb-1">Labels (always show):</p>
+            <button
+              onClick={() => insertTag('{{Label_Discounts}}')}
+              className="w-full text-left px-2 py-1 mb-1 text-xs font-mono text-purple-400 bg-gray-700 hover:bg-gray-600 rounded border-l-2 border-purple-500"
+            >
+              {'{{Label_Discounts}}'}
+            </button>
+            <button
+              onClick={() => insertTag('{{Label_Rebates}}')}
+              className="w-full text-left px-2 py-1 mb-1 text-xs font-mono text-purple-400 bg-gray-700 hover:bg-gray-600 rounded border-l-2 border-purple-500"
+            >
+              {'{{Label_Rebates}}'}
+            </button>
+            <button
+              onClick={() => insertTag('{{Label_Service}}')}
+              className="w-full text-left px-2 py-1 mb-1 text-xs font-mono text-purple-400 bg-gray-700 hover:bg-gray-600 rounded border-l-2 border-purple-500"
+            >
+              {'{{Label_Service}}'}
+            </button>
+            <button
+              onClick={() => insertTag('{{Label_Staggered}}')}
+              className="w-full text-left px-2 py-1 mb-1 text-xs font-mono text-purple-400 bg-gray-700 hover:bg-gray-600 rounded border-l-2 border-purple-500"
+            >
+              {'{{Label_Staggered}}'}
+            </button>
+          </div>
+          <div className="mb-3">
+            <p className="text-xs text-gray-500 mb-1">Amounts (always show):</p>
+            {['Amount_Discounts', 'Amount_Rebates', 'Amount_Service', 'Amount_Install'].map(tag => (
+              <button
+                key={tag}
+                onClick={() => insertTag(`{{${tag}}}`)} 
+                className="w-full text-left px-2 py-1 mb-1 text-xs font-mono text-yellow-400 bg-gray-700 hover:bg-gray-600 rounded border-l-2 border-yellow-500"
+              >
+                {`{{${tag}}}`}
+              </button>
+            ))}
+          </div>
 
           <h3 className="text-xs font-semibold text-gray-400 mb-2 mt-3 uppercase">Customer</h3>
           {['Full_Name', 'Address', 'Account_No', 'Contact_No', 'Email', 'Plan'].map(tag => (

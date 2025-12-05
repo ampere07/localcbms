@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\BillingGenerationService;
 use App\Services\EnhancedBillingGenerationService;
+use App\Services\BillingNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
@@ -13,13 +14,16 @@ class BillingGenerationController extends Controller
 {
     protected $billingService;
     protected $enhancedBillingService;
+    protected $notificationService;
 
     public function __construct(
         BillingGenerationService $billingService,
-        EnhancedBillingGenerationService $enhancedBillingService
+        EnhancedBillingGenerationService $enhancedBillingService,
+        BillingNotificationService $notificationService
     ) {
         $this->billingService = $billingService;
         $this->enhancedBillingService = $enhancedBillingService;
+        $this->notificationService = $notificationService;
     }
 
     public function generateInvoices(Request $request): JsonResponse
@@ -215,6 +219,154 @@ class BillingGenerationController extends Controller
         }
     }
 
+    public function generateSampleData(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'account_no' => 'required|string|exists:billing_accounts,account_no',
+                'send_notifications' => 'boolean'
+            ]);
+
+            $sendNotifications = $validated['send_notifications'] ?? true;
+            $userId = $request->user()->id ?? 1;
+            $generationDate = Carbon::now();
+
+            $account = \App\Models\BillingAccount::where('account_no', $validated['account_no'])
+                ->with(['customer', 'technicalDetails', 'plan'])
+                ->first();
+
+            if (!$account) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Account not found'
+                ], 404);
+            }
+
+            if (!$account->customer) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No customer linked to this account'
+                ], 400);
+            }
+
+            $results = [
+                'account_no' => $account->account_no,
+                'customer_name' => $account->customer->full_name,
+                'soa' => null,
+                'invoice' => null,
+                'notifications' => [
+                    'email_queued' => false,
+                    'sms_sent' => false,
+                    'pdf_generated' => false,
+                    'errors' => []
+                ]
+            ];
+
+            Log::info('Generating sample data', [
+                'account_no' => $account->account_no,
+                'customer_name' => $account->customer->full_name,
+                'send_notifications' => $sendNotifications
+            ]);
+
+            try {
+                $statement = $this->enhancedBillingService->createEnhancedStatement(
+                    $account, 
+                    $generationDate, 
+                    $userId
+                );
+
+                $results['soa'] = [
+                    'id' => $statement->id,
+                    'total_amount_due' => $statement->total_amount_due,
+                    'due_date' => $statement->due_date->format('Y-m-d'),
+                    'statement_date' => $statement->statement_date->format('Y-m-d')
+                ];
+
+                Log::info('SOA generated successfully', [
+                    'account_no' => $account->account_no,
+                    'soa_id' => $statement->id
+                ]);
+
+                if ($sendNotifications) {
+                    $notificationResult = $this->notificationService->notifyBillingGenerated(
+                        $account, 
+                        null, 
+                        $statement
+                    );
+
+                    $results['notifications'] = [
+                        'email_queued' => $notificationResult['email_queued'],
+                        'sms_sent' => $notificationResult['sms_sent'],
+                        'pdf_generated' => $notificationResult['pdf_generated'],
+                        'pdf_url' => $notificationResult['pdf_url'] ?? null,
+                        'errors' => $notificationResult['errors']
+                    ];
+
+                    Log::info('SOA notification sent', [
+                        'account_no' => $account->account_no,
+                        'email_queued' => $notificationResult['email_queued'],
+                        'sms_sent' => $notificationResult['sms_sent'],
+                        'pdf_generated' => $notificationResult['pdf_generated']
+                    ]);
+                }
+
+            } catch (\Exception $e) {
+                Log::error('SOA generation failed', [
+                    'account_no' => $account->account_no,
+                    'error' => $e->getMessage()
+                ]);
+                $results['soa'] = ['error' => $e->getMessage()];
+            }
+
+            try {
+                $account->refresh();
+                
+                $invoice = $this->enhancedBillingService->createEnhancedInvoice(
+                    $account, 
+                    $generationDate, 
+                    $userId
+                );
+
+                $results['invoice'] = [
+                    'id' => $invoice->id,
+                    'total_amount' => $invoice->total_amount,
+                    'due_date' => $invoice->due_date->format('Y-m-d'),
+                    'invoice_date' => $invoice->invoice_date->format('Y-m-d')
+                ];
+
+                Log::info('Invoice generated successfully', [
+                    'account_no' => $account->account_no,
+                    'invoice_id' => $invoice->id
+                ]);
+
+                // No notification sent for invoice - only SOA gets notifications
+
+            } catch (\Exception $e) {
+                Log::error('Invoice generation failed', [
+                    'account_no' => $account->account_no,
+                    'error' => $e->getMessage()
+                ]);
+                $results['invoice'] = ['error' => $e->getMessage()];
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Sample data generated successfully for account {$account->account_no}",
+                'data' => $results
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error generating sample data: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate sample data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function getInvoices(Request $request): JsonResponse
     {
         try {
@@ -319,11 +471,15 @@ class BillingGenerationController extends Controller
 
     public function forceGenerateAll(Request $request): JsonResponse
     {
+        $startTime = microtime(true);
+        
         try {
             $validated = $request->validate([
-                'generation_date' => 'nullable|date'
+                'generation_date' => 'nullable|date',
+                'send_notifications' => 'boolean'
             ]);
 
+            $sendNotifications = $validated['send_notifications'] ?? false;
             $userId = $request->user()->id ?? 1;
             $generationDate = isset($validated['generation_date']) 
                 ? Carbon::parse($validated['generation_date']) 
@@ -337,6 +493,7 @@ class BillingGenerationController extends Controller
             Log::info('Force generate started - ALL ACCOUNTS', [
                 'total_accounts' => $accounts->count(),
                 'generation_date' => $generationDate->format('Y-m-d'),
+                'send_notifications' => $sendNotifications,
                 'note' => 'Generating for ALL accounts regardless of billing_status_id or billing_day'
             ]);
 
@@ -355,17 +512,21 @@ class BillingGenerationController extends Controller
                 'success' => 0,
                 'failed' => 0,
                 'errors' => [],
-                'details' => []
+                'details' => [],
+                'notifications' => []
             ];
 
             $soaResults = [
                 'success' => 0,
                 'failed' => 0,
                 'errors' => [],
-                'details' => []
+                'details' => [],
+                'notifications' => []
             ];
 
             foreach ($accounts as $account) {
+                $accountStartTime = microtime(true);
+                
                 if (!$account->account_no || trim($account->account_no) === '') {
                     $error = [
                         'account_id' => $account->id,
@@ -419,6 +580,9 @@ class BillingGenerationController extends Controller
                         'statement_id' => $statement->id,
                         'total_amount_due' => $statement->total_amount_due
                     ];
+                    
+                    // Don't send notification yet - wait until invoice is created and balance is updated
+                    
                     Log::info('SOA created successfully', [
                         'account_no' => $account->account_no,
                         'customer_name' => $customerName,
@@ -450,6 +614,26 @@ class BillingGenerationController extends Controller
                         'invoice_id' => $invoice->id,
                         'total_amount' => $invoice->total_amount
                     ];
+                    
+                    // Now send notification AFTER invoice is created and balance is updated
+                    if ($sendNotifications && isset($statement)) {
+                        try {
+                            $account->refresh(); // Refresh to get updated account_balance
+                            $notificationResult = $this->notificationService->notifyBillingGenerated($account, null, $statement);
+                            $soaResults['notifications'][] = [
+                                'account_no' => $account->account_no,
+                                'email_queued' => $notificationResult['email_queued'],
+                                'sms_sent' => $notificationResult['sms_sent'],
+                                'pdf_generated' => $notificationResult['pdf_generated']
+                            ];
+                        } catch (\Exception $notifErr) {
+                            Log::warning('SOA notification failed', [
+                                'account_no' => $account->account_no,
+                                'error' => $notifErr->getMessage()
+                            ]);
+                        }
+                    }
+                    
                     Log::info('Invoice created successfully', [
                         'account_no' => $account->account_no,
                         'customer_name' => $customerName,
@@ -470,19 +654,47 @@ class BillingGenerationController extends Controller
                         'error' => $e->getMessage()
                     ]);
                 }
+                
+                $accountEndTime = microtime(true);
+                $accountDuration = round($accountEndTime - $accountStartTime, 2);
+                
+                Log::info('Account processing completed', [
+                    'account_no' => $account->account_no,
+                    'duration_seconds' => $accountDuration,
+                    'soa_success' => isset($statement),
+                    'invoice_success' => isset($invoice)
+                ]);
             }
 
             $totalGenerated = $invoiceResults['success'] + $soaResults['success'];
+            
+            $endTime = microtime(true);
+            $totalDuration = round($endTime - $startTime, 2);
+            $averageDuration = $accounts->count() > 0 ? round($totalDuration / $accounts->count(), 2) : 0;
+            
+            Log::info('Force generate completed - PERFORMANCE SUMMARY', [
+                'total_duration_seconds' => $totalDuration,
+                'total_accounts' => $accounts->count(),
+                'average_per_account' => $averageDuration,
+                'invoices_generated' => $invoiceResults['success'],
+                'statements_generated' => $soaResults['success'],
+                'emails_queued' => count($soaResults['notifications']),
+                'notifications_enabled' => $sendNotifications
+            ]);
 
             return response()->json([
                 'success' => true,
-                'message' => "Force generated {$totalGenerated} billing records for {$accounts->count()} accounts (regardless of billing day or status)",
+                'message' => "Force generated {$totalGenerated} billing records for {$accounts->count()} accounts",
                 'data' => [
                     'invoices' => $invoiceResults,
                     'statements' => $soaResults,
                     'total_accounts' => $accounts->count(),
                     'generation_date' => $generationDate->format('Y-m-d'),
-                    'note' => 'Generated for ALL accounts with date_installed and account_no, ignoring billing_day and billing_status_id'
+                    'notifications_enabled' => $sendNotifications,
+                    'performance' => [
+                        'total_duration_seconds' => $totalDuration,
+                        'average_per_account_seconds' => $averageDuration
+                    ]
                 ]
             ]);
         } catch (\Exception $e) {

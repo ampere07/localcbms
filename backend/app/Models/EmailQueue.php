@@ -9,8 +9,6 @@ class EmailQueue extends Model
 {
     protected $table = 'email_queue';
 
-    public $timestamps = false;
-
     protected $fillable = [
         'account_no',
         'recipient_email',

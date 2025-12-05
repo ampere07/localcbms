@@ -23,6 +23,7 @@ use App\Http\Controllers\SmsConfigController;
 use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\EmailQueueController;
 use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\BillingGenerationController;
 use App\Models\User;
 use App\Models\MassRebate;
 
@@ -91,9 +92,9 @@ Route::get('/debug/transaction-relationships', function() {
 });
 
 // Fixed, reliable location endpoints that won't change
-Route::post('/fixed/location/region', [\App\Http\Controllers\Api\LocationFixedEndpointsController::class, 'addRegion']);
-Route::post('/fixed/location/city', [\App\Http\Controllers\Api\LocationFixedEndpointsController::class, 'addCity']);
-Route::post('/fixed/location/barangay', [\App\Http\Controllers\Api\LocationFixedEndpointsController::class, 'addBarangay']);
+// Route::post('/fixed/location/region', [\App\Http\Controllers\Api\LocationFixedEndpointsController::class, 'addRegion']);
+// Route::post('/fixed/location/city', [\App\Http\Controllers\Api\LocationFixedEndpointsController::class, 'addCity']);
+// Route::post('/fixed/location/barangay', [\App\Http\Controllers\Api\LocationFixedEndpointsController::class, 'addBarangay']);
 
 // Emergency region endpoints directly accessible in API routes
 Route::post('/emergency/regions', [EmergencyLocationController::class, 'addRegion']);
@@ -2426,6 +2427,33 @@ Route::prefix('concerns')->group(function () {
 // Google Drive Upload Route
 Route::post('/google-drive/upload', [\App\Http\Controllers\GoogleDriveController::class, 'upload']);
 
+// Billing Notification Routes
+Route::prefix('billing-notifications')->group(function () {
+    Route::post('/generate-with-notifications', [\App\Http\Controllers\BillingNotificationController::class, 'generateWithNotifications']);
+    Route::post('/send-overdue', [\App\Http\Controllers\BillingNotificationController::class, 'sendOverdueNotices']);
+    Route::post('/send-dc-notices', [\App\Http\Controllers\BillingNotificationController::class, 'sendDcNotices']);
+    Route::post('/test', [\App\Http\Controllers\BillingNotificationController::class, 'testNotification']);
+    Route::post('/retry-failed', [\App\Http\Controllers\BillingNotificationController::class, 'retryFailedNotifications']);
+});
+
+// SMS Sending Routes
+Route::prefix('sms')->group(function () {
+    Route::post('/send', [\App\Http\Controllers\SmsController::class, 'sendSms']);
+    Route::post('/blast', [\App\Http\Controllers\SmsController::class, 'sendBlast']);
+    
+    // GET test route for browser testing
+    Route::get('/test', function() {
+        $smsService = app(\App\Services\ItexmoSmsService::class);
+        
+        $result = $smsService->send([
+            'contact_no' => '09924313554',
+            'message' => 'Test SMS from CBMS at ' . now()->format('Y-m-d H:i:s')
+        ]);
+        
+        return response()->json($result);
+    });
+});
+
 // Debug route for concerns
 Route::get('/debug/concerns', function() {
     try {
@@ -2455,4 +2483,20 @@ Route::get('/debug/concerns', function() {
             'error' => $e->getMessage()
         ], 500);
     }
+});
+
+Route::prefix('billing-generation')->group(function () {
+    Route::post('/generate-sample', [BillingGenerationController::class, 'generateSampleData']);
+    Route::post('/force-generate-all', [BillingGenerationController::class, 'forceGenerateAll']);
+    Route::post('/generate-for-day', [BillingGenerationController::class, 'generateBillingsForDay']);
+    Route::post('/generate-today', [BillingGenerationController::class, 'generateTodaysBillings']);
+    Route::post('/generate-statements', [BillingGenerationController::class, 'generateEnhancedStatements']);
+    Route::post('/generate-invoices', [BillingGenerationController::class, 'generateEnhancedInvoices']);
+    Route::get('/invoices', [BillingGenerationController::class, 'getInvoices']);
+    Route::get('/statements', [BillingGenerationController::class, 'getStatements']);
+});
+
+Route::get('/billing-generation/test', function() {
+    \Illuminate\Support\Facades\Log::info('Billing generation test route accessed');
+    return response()->json(['success' => true, 'message' => 'Routes working!']);
 });

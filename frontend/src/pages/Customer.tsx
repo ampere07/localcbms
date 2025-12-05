@@ -575,15 +575,15 @@ const Customer: React.FC = () => {
   };
 
   const handleGenerateSampleData = async () => {
-    if (!window.confirm('Generate sample SOA and invoices for ALL accounts in database (regardless of billing day, status, or any restrictions)?\n\nThis will process EVERY account that has a date_installed value.\n\nContinue?')) {
+    if (!window.confirm('Generate sample SOA and invoices for ALL accounts in database (regardless of billing day, status, or any restrictions)?\n\nThis will process EVERY account that has a date_installed value.\n\n✨ NEW: Includes PDF generation + Email queue + SMS notifications!\n\nContinue?')) {
       return;
     }
     
     setIsLoading(true);
     
     const API_BASE_URL = window.location.hostname === 'localhost' 
-      ? 'http://localhost:8000/api'
-      : 'http://localhost:8000/api';
+      ? 'http://192.168.100.10:8000/api'
+      : 'http://192.168.100.10:8000/api';
 
     const generationDate = new Date().toISOString().split('T')[0];
     
@@ -596,7 +596,8 @@ const Customer: React.FC = () => {
         },
         credentials: 'include',
         body: JSON.stringify({
-          generation_date: generationDate
+          generation_date: generationDate,
+          send_notifications: true
         })
       });
       
@@ -629,15 +630,19 @@ const Customer: React.FC = () => {
       const invoiceErrors = result.data?.invoices?.failed || 0;
       const soaErrors = result.data?.statements?.failed || 0;
       
+      // Count notifications
+      const invoiceNotifications = result.data?.invoices?.notifications?.length || 0;
+      const soaNotifications = result.data?.statements?.notifications?.length || 0;
+      
       if (invoiceErrors > 0 || soaErrors > 0) {
         const errors = [
           ...(result.data?.invoices?.errors || []),
           ...(result.data?.statements?.errors || [])
         ];
         console.error('Generation errors:', errors);
-        alert(`Generated ${invoiceCount} invoices and ${soaCount} statements for ${accountCount} accounts.\n\nFailed: ${invoiceErrors} invoices, ${soaErrors} statements.\n\nCheck console for errors.`);
+        alert(`Generated ${invoiceCount} invoices and ${soaCount} statements for ${accountCount} accounts.\n\nFailed: ${invoiceErrors} invoices, ${soaErrors} statements.\n\nNotifications queued: ${invoiceNotifications + soaNotifications}\n\nCheck console for errors.`);
       } else {
-        alert(`Successfully generated ${invoiceCount} invoices and ${soaCount} statements for ${accountCount} accounts (all accounts with date_installed, regardless of billing day or status)`);
+        alert(`✅ Success!\n\nGenerated:\n- ${invoiceCount} invoices\n- ${soaCount} statements\n- ${accountCount} accounts processed\n\n📧 Notifications:\n- ${invoiceNotifications + soaNotifications} emails queued\n- ${invoiceNotifications + soaNotifications} SMS sent\n- ${invoiceNotifications + soaNotifications} PDFs created\n\n(All accounts with date_installed, regardless of billing day or status)`);
       }
     } catch (err) {
       console.error('Generation failed:', err);
