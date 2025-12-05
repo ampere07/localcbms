@@ -49,7 +49,7 @@ class ServiceOrderController extends Controller
                 
                 $enrichedOrders[] = [
                     'id' => $order->id,
-                    'ticket_id' => $order->id,
+                    'ticket_id' => $order->ticket_id ?? $order->id,
                     'timestamp' => $order->timestamp,
                     'account_no' => $order->account_no,
                     'account_id' => $billingAccount->id ?? null,
@@ -96,6 +96,7 @@ class ServiceOrderController extends Controller
                     'time_in_image_url' => $order->time_in_image_url ?? null,
                     'modem_setup_image_url' => $order->modem_setup_image_url ?? null,
                     'time_out_image_url' => $order->time_out_image_url ?? null,
+                    'status' => $order->status ?? 'unused',
                     'created_at' => $order->created_at,
                     'created_by_user' => $createdUser->name ?? null,
                     'updated_at' => $order->updated_at,
@@ -127,31 +128,55 @@ class ServiceOrderController extends Controller
     public function store(Request $request): JsonResponse
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'Ticket_ID' => 'required|string|max:255|unique:service_orders,Ticket_ID',
-                'Full_Name' => 'required|string|max:255',
-                'Contact_Number' => 'required|string|max:255',
-                'Full_Address' => 'required|string',
-                'Concern' => 'required|string|max:255',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors(),
-                ], 422);
+            Log::info('Creating service order', $request->all());
+            
+            $insertData = [
+                'ticket_id' => $request->ticket_id,
+                'account_no' => $request->account_no,
+                'timestamp' => $request->timestamp,
+                'support_status' => $request->support_status,
+                'concern_id' => null,
+                'concern_remarks' => $request->concern_remarks,
+                'priority_level' => $request->priority_level,
+                'requested_by' => $request->requested_by,
+                'visit_status' => $request->visit_status,
+                'status' => $request->status ?? 'unused',
+                'created_by_user_id' => null,
+                'created_at' => now(),
+                'updated_at' => now()
+            ];
+            
+            if ($request->has('concern') && !empty($request->concern)) {
+                $supportConcern = DB::selectOne("SELECT id FROM support_concern WHERE name = ?", [$request->concern]);
+                if ($supportConcern) {
+                    $insertData['concern_id'] = $supportConcern->id;
+                }
             }
             
-            $serviceOrder = ServiceOrder::create($request->all());
+            if ($request->has('created_by_user') && !empty($request->created_by_user)) {
+                $user = DB::selectOne("SELECT id FROM users WHERE email = ?", [$request->created_by_user]);
+                if ($user) {
+                    $insertData['created_by_user_id'] = $user->id;
+                }
+            }
+            
+            $columns = implode(', ', array_keys($insertData));
+            $placeholders = implode(', ', array_fill(0, count($insertData), '?'));
+            $query = "INSERT INTO service_orders ({$columns}) VALUES ({$placeholders})";
+            
+            DB::insert($query, array_values($insertData));
+            $serviceOrderId = DB::getPdo()->lastInsertId();
+            
+            Log::info('Service order created successfully', ['id' => $serviceOrderId]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Service order created successfully',
-                'data' => $serviceOrder,
+                'data' => ['id' => $serviceOrderId],
             ], 201);
         } catch (\Exception $e) {
             Log::error('Error creating service order: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             
             return response()->json([
                 'success' => false,
@@ -194,7 +219,7 @@ class ServiceOrderController extends Controller
             
             $enrichedOrder = [
                 'id' => $order->id,
-                'ticket_id' => $order->id,
+                'ticket_id' => $order->ticket_id ?? $order->id,
                 'timestamp' => $order->timestamp,
                 'account_no' => $order->account_no,
                 'account_id' => $billingAccount->id ?? null,
@@ -241,6 +266,7 @@ class ServiceOrderController extends Controller
                 'time_in_image_url' => $order->time_in_image_url ?? null,
                 'modem_setup_image_url' => $order->modem_setup_image_url ?? null,
                 'time_out_image_url' => $order->time_out_image_url ?? null,
+                'status' => $order->status ?? 'unused',
                 'created_at' => $order->created_at,
                 'created_by_user' => $createdUser->name ?? null,
                 'updated_at' => $order->updated_at,

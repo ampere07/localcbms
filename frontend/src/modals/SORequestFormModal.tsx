@@ -41,9 +41,8 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
   };
 
   const generateTicketId = () => {
-    const year = new Date().getFullYear();
     const randomDigits = Math.floor(1000000 + Math.random() * 9000000);
-    return `${year}${randomDigits}`;
+    return randomDigits.toString();
   };
 
   const [formData, setFormData] = useState({
@@ -153,6 +152,7 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
       setLoadingPercentage(20);
 
       const payload: any = {
+        ticket_id: formData.ticketId,
         account_no: formData.accountNo,
         timestamp: new Date().toISOString(),
         support_status: 'Open',
@@ -162,7 +162,7 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
         requested_by: formData.accountEmail || formData.accountNo,
         visit_status: 'Pending',
         created_by_user: getUserEmail(),
-        status: formData.status
+        status: 'unused'
       };
 
       setLoadingPercentage(50);
@@ -410,23 +410,6 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
                 className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-red-500 resize-none"
                 placeholder="Enter concern details..."
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Status<span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <select
-                  value={formData.status}
-                  onChange={(e) => handleInputChange('status', e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-red-500 appearance-none"
-                >
-                  <option value="unused">Unused</option>
-                  <option value="multiple">Multiple</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
-              </div>
             </div>
           </div>
         </div>

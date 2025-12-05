@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('service_orders', function (Blueprint $table) {
             $table->id();
+            $table->string('ticket_id', 50)->nullable();
             $table->unsignedBigInteger('account_id')->nullable();
             $table->dateTime('timestamp')->nullable();
             $table->string('support_status', 100)->nullable();

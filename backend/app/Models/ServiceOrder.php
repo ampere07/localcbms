@@ -14,6 +14,7 @@ class ServiceOrder extends Model
     protected $table = 'service_orders';
     
     protected $fillable = [
+        'ticket_id',
         'Ticket_ID',
         'Timestamp',
         'Account_Number',
@@ -49,6 +50,7 @@ class ServiceOrder extends Model
         'Service_Charge',
         'Repair_Category',
         'Support_Status',
+        'status',
     ];
     
     protected $dates = [

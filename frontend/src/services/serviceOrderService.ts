@@ -53,6 +53,7 @@ export interface ServiceOrderData {
   image1_url?: string;
   image2_url?: string;
   image3_url?: string;
+  status?: string;
   created_at?: string;
   created_by_user?: string;
   updated_at?: string;
