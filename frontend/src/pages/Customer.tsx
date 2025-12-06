@@ -582,8 +582,8 @@ const Customer: React.FC = () => {
     setIsLoading(true);
     
     const API_BASE_URL = window.location.hostname === 'localhost' 
-      ? 'http://192.168.100.10:8000/api'
-      : 'http://192.168.100.10:8000/api';
+      ? 'https://backend.atssfiber.ph/api'
+      : 'https://backend.atssfiber.ph/api';
 
     const generationDate = new Date().toISOString().split('T')[0];
     
