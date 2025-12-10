@@ -120,6 +120,7 @@ export interface JobOrderDetailsProps {
   jobOrder: JobOrder;
   onClose: () => void;
   onRefresh?: () => void;
+  isMobile?: boolean;
 }
 
 // Create status type definitions

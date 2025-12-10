@@ -52,9 +52,10 @@ interface ServiceOrderDetailsProps {
     image3Url?: string;
   };
   onClose: () => void;
+  isMobile?: boolean;
 }
 
-const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder, onClose }) => {
+const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder, onClose, isMobile = false }) => {
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
@@ -107,14 +108,16 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
   };
 
   return (
-    <div className="h-full bg-gray-950 flex flex-col overflow-hidden border-l border-white border-opacity-30 relative" style={{ width: `${detailsWidth}px` }}>
-      <div
-        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
-        onMouseDown={handleMouseDownResize}
-      />
+    <div className={`h-full bg-gray-950 flex flex-col overflow-hidden ${!isMobile ? 'border-l border-white border-opacity-30' : ''} relative`} style={!isMobile ? { width: `${detailsWidth}px` } : undefined}>
+      {!isMobile && (
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
+          onMouseDown={handleMouseDownResize}
+        />
+      )}
       <div className="bg-gray-800 p-3 flex items-center justify-between border-b border-gray-700">
         <div className="flex items-center">
-          <h2 className="text-white font-medium truncate max-w-md">{serviceOrder.accountNumber} | {serviceOrder.fullName} | {serviceOrder.contactAddress}</h2>
+          <h2 className={`text-white font-medium truncate ${isMobile ? 'max-w-[200px] text-sm' : 'max-w-md'}`}>{serviceOrder.accountNumber} | {serviceOrder.fullName} | {serviceOrder.contactAddress}</h2>
         </div>
         
         <div className="flex items-center space-x-3">
@@ -125,9 +128,6 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
             <Edit size={16} className="mr-1" />
             <span>Edit</span>
           </button>
-          <button className="hover:text-white text-gray-400"><ArrowLeft size={16} /></button>
-          <button className="hover:text-white text-gray-400"><ArrowRight size={16} /></button>
-          <button className="hover:text-white text-gray-400"><Maximize2 size={16} /></button>
           <button 
             onClick={onClose}
             className="hover:text-white text-gray-400"

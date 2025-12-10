@@ -38,6 +38,42 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   const [showStatusConfirmation, setShowStatusConfirmation] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string>('');
   const [showVisitExistsConfirmation, setShowVisitExistsConfirmation] = useState(false);
+  const [detailsWidth, setDetailsWidth] = useState<number>(600);
+  const [isResizing, setIsResizing] = useState<boolean>(false);
+  const startXRef = useRef<number>(0);
+  const startWidthRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      
+      const diff = startXRef.current - e.clientX;
+      const newWidth = Math.max(600, Math.min(1200, startWidthRef.current + diff));
+      
+      setDetailsWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const handleMouseDownResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = detailsWidth;
+  };
 
   const handleMoveToJO = () => {
     setShowMoveConfirmation(true);
@@ -85,22 +121,18 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
     try {
       setLoading(true);
       
-      // Call API to update application status
       await updateApplication(application.id, { status: pendingStatus });
       
-      // Refetch the application details from database to ensure we have the latest status
       const updatedApplication = await getApplication(application.id);
       setDetailedApplication(updatedApplication);
       
       setShowStatusConfirmation(false);
       setPendingStatus('');
       
-      // Call the callback to refresh the application list
       if (onApplicationUpdate) {
         onApplicationUpdate();
       }
       
-      // Show success message
       alert(`Status updated to ${pendingStatus}`);
     } catch (err: any) {
       setError(`Failed to update status: ${err.message}`);
@@ -127,15 +159,12 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
     }
   };
 
-
-
   useEffect(() => {
     const fetchApplicationDetails = async () => {
       try {
         setLoading(true);
         setError(null);
         
-        // Getting application from the 'applications' table
         const result = await getApplication(application.id);
         setDetailedApplication(result);
       } catch (err: any) {
@@ -149,83 +178,82 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
     fetchApplicationDetails();
   }, [application.id]);
 
-  const applicationDetails = {
-    ...application,
-    id: detailedApplication?.id || application.id || '',
-    create_date: detailedApplication?.create_date || '',
-    create_time: detailedApplication?.create_time || '',
-    email_address: detailedApplication?.email_address || application.email_address || '',
-    first_name: detailedApplication?.first_name || '',
-    middle_initial: detailedApplication?.middle_initial || '',
-    last_name: detailedApplication?.last_name || '',
-    mobile_number: detailedApplication?.mobile_number || application.mobile_number || '',
-    secondary_mobile_number: detailedApplication?.secondary_mobile_number || '',
-    status: detailedApplication?.status || 'pending',
-    installation_address: detailedApplication?.installation_address || application.address || '',
-    landmark: detailedApplication?.landmark || '',
-    region: detailedApplication?.region || application.region || '',
-    city: detailedApplication?.city || application.city || '',
-    barangay: detailedApplication?.barangay || application.barangay || '',
-    village: detailedApplication?.village || '',
-    desired_plan: detailedApplication?.desired_plan || '',
-    promo: detailedApplication?.promo || '',
-    referred_by: detailedApplication?.referred_by || '',
-    proof_of_billing_url: detailedApplication?.proof_of_billing_url || '',
-    government_valid_id_url: detailedApplication?.government_valid_id_url || '',
-    secondary_government_valid_id_url: detailedApplication?.secondary_government_valid_id_url || '',
-    house_front_picture_url: detailedApplication?.house_front_picture_url || '',
-    promo_url: detailedApplication?.promo_url || '',
-    nearest_landmark1_url: detailedApplication?.nearest_landmark1_url || '',
-    nearest_landmark2_url: detailedApplication?.nearest_landmark2_url || '',
-    document_attachment_url: detailedApplication?.document_attachment_url || '',
-    other_isp_bill_url: detailedApplication?.other_isp_bill_url || '',
-    terms_agreed: detailedApplication?.terms_agreed || false,
-    
-    fullName: [
-      detailedApplication?.first_name,
-      detailedApplication?.middle_initial,
-      detailedApplication?.last_name
-    ].filter(Boolean).join(' ') || application.customerName || '',
-    
-    fullAddress: [
+  const getClientFullName = (): string => {
+    return [
+      detailedApplication?.first_name || '',
+      detailedApplication?.middle_initial ? detailedApplication.middle_initial + '.' : '',
+      detailedApplication?.last_name || ''
+    ].filter(Boolean).join(' ').trim() || application.customerName || 'Unknown Client';
+  };
+
+  const getClientFullAddress = (): string => {
+    const addressParts = [
       detailedApplication?.installation_address || application.address,
       detailedApplication?.location || application.location,
       detailedApplication?.barangay || application.barangay,
       detailedApplication?.city || application.city,
       detailedApplication?.region || application.region
-    ].filter(Boolean).join(', '),
+    ].filter(Boolean);
     
-    timestamp: detailedApplication?.create_date && detailedApplication?.create_time 
-      ? `${detailedApplication.create_date} ${detailedApplication.create_time}` 
-      : application.timestamp || '',
+    return addressParts.length > 0 ? addressParts.join(', ') : 'No address provided';
   };
 
+  const formatDate = (dateStr?: string | null): string => {
+    if (!dateStr) return 'Not provided';
+    try {
+      return new Date(dateStr).toLocaleString();
+    } catch (e) {
+      return dateStr;
+    }
+  };
 
+  const getStatusColor = (status?: string | null): string => {
+    if (!status) return 'text-gray-400';
+    
+    switch (status.toLowerCase()) {
+      case 'approved':
+      case 'in progress':
+        return 'text-green-500';
+      case 'pending':
+        return 'text-yellow-500';
+      case 'cancelled':
+      case 'no facility':
+        return 'text-red-500';
+      case 'no slot':
+        return 'text-blue-500';
+      default:
+        return 'text-gray-400';
+    }
+  };
   
   return (
-    <div className="h-full bg-gray-950 flex flex-col overflow-hidden">
-      <div className="bg-gray-900 p-3 flex items-center justify-between border-b border-gray-800">
+    <div className="h-full bg-gray-950 flex flex-col overflow-hidden border-l border-white border-opacity-30 relative" style={{ width: `${detailsWidth}px` }}>
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
+        onMouseDown={handleMouseDownResize}
+      />
+      
+      <div className="bg-gray-800 p-3 flex items-center justify-between border-b border-gray-700">
         <div className="flex items-center">
-          <h2 className="text-white font-semibold text-lg">
-            {detailedApplication?.first_name || application.customerName.split(' ')[0] || 'None'}
-          </h2>
+          <h2 className="text-white font-medium">{getClientFullName()}</h2>
+          {loading && <div className="ml-3 animate-pulse text-orange-500 text-sm">Loading...</div>}
         </div>
         
-        <div className="flex items-center space-x-2">
-          <button className="bg-transparent text-gray-400 hover:text-white p-1 rounded">
-            <Newspaper size={20} />
+        <div className="flex items-center space-x-3">
+          <button className="bg-gray-800 hover:bg-gray-700 text-white p-1 rounded-sm border border-gray-700 flex items-center justify-center">
+            <Newspaper size={16} />
           </button>
           <button 
-            className="bg-transparent text-gray-400 hover:text-white p-1 rounded"
+            className="bg-gray-800 hover:bg-gray-700 text-white p-1 rounded-sm border border-gray-700 flex items-center justify-center"
             onClick={handleMoveToJO}
           >
-            <ArrowRightFromLine size={20} />
+            <ArrowRightFromLine size={16} />
           </button>
           <button 
-            className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded flex items-center"
+            className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded-sm flex items-center"
             onClick={handleScheduleVisit}
+            disabled={loading}
           >
-            <Calendar size={16} className="mr-1" />
             <span>Schedule</span>
           </button>
           <button className="hover:text-white text-gray-400"><ArrowLeft size={16} /></button>
@@ -241,288 +269,364 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         </div>
       </div>
       
-      {/* Action Buttons */}
-      <div className="bg-gray-900 py-4 border-b border-gray-800">
-        <div className="flex items-center space-x-4 px-4 overflow-x-auto hide-scrollbar">
-          <button 
-            className="flex flex-col items-center text-center hover:bg-gray-800 rounded-lg p-2 transition-colors flex-shrink-0"
-            onClick={() => handleStatusChange('No Facility')}
-            disabled={loading}
-          >
-            <div className="bg-orange-600 p-3 rounded-full">
-              <Ban className="text-white" size={24} />
+      <div className="bg-gray-900 py-3 border-b border-gray-700 flex items-center justify-center px-4">
+        <button 
+          className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
+          onClick={() => handleStatusChange('No Facility')}
+          disabled={loading}
+        >
+          <div className="bg-orange-600 p-2 rounded-full">
+            <div className="text-white">
+              <Ban size={18} />
             </div>
-            <span className="text-xs mt-1 text-gray-300 whitespace-nowrap">No Facility</span>
-          </button>
-          
-          <button 
-            className="flex flex-col items-center text-center hover:bg-gray-800 rounded-lg p-2 transition-colors flex-shrink-0"
-            onClick={() => handleStatusChange('Cancelled')}
-            disabled={loading}
-          >
-            <div className="bg-orange-600 p-3 rounded-full">
-              <XCircle className="text-white" size={24} />
+          </div>
+          <span className="text-xs mt-1 text-gray-300">No Facility</span>
+        </button>
+        
+        <button 
+          className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
+          onClick={() => handleStatusChange('Cancelled')}
+          disabled={loading}
+        >
+          <div className="bg-orange-600 p-2 rounded-full">
+            <div className="text-white">
+              <XCircle size={18} />
             </div>
-            <span className="text-xs mt-1 text-gray-300 whitespace-nowrap">Cancelled</span>
-          </button>
-          
-          <button 
-            className="flex flex-col items-center text-center hover:bg-gray-800 rounded-lg p-2 transition-colors flex-shrink-0"
-            onClick={() => handleStatusChange('No Slot')}
-            disabled={loading}
-          >
-            <div className="bg-orange-600 p-3 rounded-full">
-              <RotateCw className="text-white" size={24} />
+          </div>
+          <span className="text-xs mt-1 text-gray-300">Cancelled</span>
+        </button>
+        
+        <button 
+          className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
+          onClick={() => handleStatusChange('No Slot')}
+          disabled={loading}
+        >
+          <div className="bg-orange-600 p-2 rounded-full">
+            <div className="text-white">
+              <RotateCw size={18} />
             </div>
-            <span className="text-xs mt-1 text-gray-300 whitespace-nowrap">No Slot</span>
-          </button>
-          
-          <button 
-            className="flex flex-col items-center text-center hover:bg-gray-800 rounded-lg p-2 transition-colors flex-shrink-0"
-            onClick={() => handleStatusChange('Duplicate')}
-            disabled={loading}
-          >
-            <div className="bg-orange-600 p-3 rounded-full">
-              <Square className="text-white" size={24} />
+          </div>
+          <span className="text-xs mt-1 text-gray-300">No Slot</span>
+        </button>
+        
+        <button 
+          className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
+          onClick={() => handleStatusChange('Duplicate')}
+          disabled={loading}
+        >
+          <div className="bg-orange-600 p-2 rounded-full">
+            <div className="text-white">
+              <Square size={18} />
             </div>
-            <span className="text-xs mt-1 text-gray-300 whitespace-nowrap">Duplicate</span>
-          </button>
-          
-          <button 
-            className="flex flex-col items-center text-center hover:bg-gray-800 rounded-lg p-2 transition-colors flex-shrink-0"
-            onClick={() => handleStatusChange('In Progress')}
-            disabled={loading}
-          >
-            <div className="bg-orange-600 p-3 rounded-full">
-              <CheckCircle className="text-white" size={24} />
+          </div>
+          <span className="text-xs mt-1 text-gray-300">Duplicate</span>
+        </button>
+        
+        <button 
+          className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
+          onClick={() => handleStatusChange('In Progress')}
+          disabled={loading}
+        >
+          <div className="bg-orange-600 p-2 rounded-full">
+            <div className="text-white">
+              <CheckCircle size={18} />
             </div>
-            <span className="text-xs mt-1 text-gray-300 whitespace-nowrap">Clear Status</span>
-          </button>
+          </div>
+          <span className="text-xs mt-1 text-gray-300">Clear Status</span>
+        </button>
+      </div>
+      
+      {error && (
+        <div className="bg-red-900 bg-opacity-20 border border-red-700 text-red-400 p-3 m-3 rounded">
+          {error}
+        </div>
+      )}
+      
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-2xl mx-auto py-6 px-4 bg-gray-950">
+          <div className="space-y-4">
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Timestamp:</div>
+              <div className="text-white flex-1">
+                {detailedApplication?.create_date && detailedApplication?.create_time 
+                  ? `${detailedApplication.create_date} ${detailedApplication.create_time}` 
+                  : formatDate(application.timestamp)}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Status:</div>
+              <div className={`${getStatusColor(detailedApplication?.status)} flex-1 capitalize`}>
+                {detailedApplication?.status || 'Pending'}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Referred By:</div>
+              <div className="text-white flex-1">{detailedApplication?.referred_by || 'None'}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Full Name of Client:</div>
+              <div className="text-white flex-1">{getClientFullName()}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Full Address of Client:</div>
+              <div className="text-white flex-1">{getClientFullAddress()}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Landmark:</div>
+              <div className="text-white flex-1">{detailedApplication?.landmark || 'Not provided'}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Contact Number:</div>
+              <div className="text-white flex-1 flex items-center">
+                {detailedApplication?.mobile_number || application.mobile_number || 'Not provided'}
+                {(detailedApplication?.mobile_number || application.mobile_number) && (
+                  <>
+                    <button className="text-gray-400 hover:text-white ml-2">
+                      <Phone size={16} />
+                    </button>
+                    <button className="text-gray-400 hover:text-white ml-2">
+                      <MessageSquare size={16} />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Second Contact Number:</div>
+              <div className="text-white flex-1 flex items-center">
+                {detailedApplication?.secondary_mobile_number || 'Not provided'}
+                {detailedApplication?.secondary_mobile_number && (
+                  <>
+                    <button className="text-gray-400 hover:text-white ml-2">
+                      <Phone size={16} />
+                    </button>
+                    <button className="text-gray-400 hover:text-white ml-2">
+                      <MessageSquare size={16} />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Email Address:</div>
+              <div className="text-white flex-1 flex items-center">
+                {detailedApplication?.email_address || application.email_address || 'Not provided'}
+                {(detailedApplication?.email_address || application.email_address) && (
+                  <button className="text-gray-400 hover:text-white ml-2">
+                    <Mail size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Village:</div>
+              <div className="text-white flex-1">{detailedApplication?.village || 'Not specified'}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Barangay:</div>
+              <div className="text-white flex-1">{detailedApplication?.barangay || application.barangay || 'Not specified'}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">City:</div>
+              <div className="text-white flex-1">{detailedApplication?.city || application.city || 'Not specified'}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Region:</div>
+              <div className="text-white flex-1">{detailedApplication?.region || application.region || 'Not specified'}</div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Desired Plan:</div>
+              <div className="text-white flex-1 flex items-center">
+                {detailedApplication?.desired_plan || 'Not specified'}
+                {detailedApplication?.desired_plan && (
+                  <button className="text-gray-400 hover:text-white ml-2">
+                    <Info size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Promo:</div>
+              <div className="text-white flex-1">{detailedApplication?.promo || 'None'}</div>
+            </div>
+            
+            {detailedApplication?.terms_agreed && (
+              <div className="flex border-b border-gray-800 pb-4">
+                <div className="w-40 text-gray-400 text-sm">Terms and Conditions:</div>
+                <div className="text-white flex-1">Agreed</div>
+              </div>
+            )}
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Proof of Billing</div>
+              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+                <span className="truncate mr-2">
+                  {detailedApplication?.proof_of_billing_url || 'No document available'}
+                </span>
+                {detailedApplication?.proof_of_billing_url && (
+                  <button 
+                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    onClick={() => window.open(detailedApplication.proof_of_billing_url)}
+                  >
+                    <ExternalLink size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Government Valid ID</div>
+              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+                <span className="truncate mr-2">
+                  {detailedApplication?.government_valid_id_url || 'No document available'}
+                </span>
+                {detailedApplication?.government_valid_id_url && (
+                  <button 
+                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    onClick={() => window.open(detailedApplication.government_valid_id_url)}
+                  >
+                    <ExternalLink size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Secondary Government Valid ID</div>
+              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+                <span className="truncate mr-2">
+                  {detailedApplication?.secondary_government_valid_id_url || 'No document available'}
+                </span>
+                {detailedApplication?.secondary_government_valid_id_url && (
+                  <button 
+                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    onClick={() => window.open(detailedApplication.secondary_government_valid_id_url)}
+                  >
+                    <ExternalLink size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">House Front Picture</div>
+              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+                <span className="truncate mr-2">
+                  {detailedApplication?.house_front_picture_url || 'No image available'}
+                </span>
+                {detailedApplication?.house_front_picture_url && (
+                  <button 
+                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    onClick={() => window.open(detailedApplication.house_front_picture_url)}
+                  >
+                    <ExternalLink size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Promo Image</div>
+              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+                <span className="truncate mr-2">
+                  {detailedApplication?.promo_url || 'No image available'}
+                </span>
+                {detailedApplication?.promo_url && (
+                  <button 
+                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    onClick={() => window.open(detailedApplication.promo_url)}
+                  >
+                    <ExternalLink size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Nearest Landmark 1</div>
+              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+                <span className="truncate mr-2">
+                  {detailedApplication?.nearest_landmark1_url || 'No image available'}
+                </span>
+                {detailedApplication?.nearest_landmark1_url && (
+                  <button 
+                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    onClick={() => window.open(detailedApplication.nearest_landmark1_url)}
+                  >
+                    <ExternalLink size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Nearest Landmark 2</div>
+              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+                <span className="truncate mr-2">
+                  {detailedApplication?.nearest_landmark2_url || 'No image available'}
+                </span>
+                {detailedApplication?.nearest_landmark2_url && (
+                  <button 
+                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    onClick={() => window.open(detailedApplication.nearest_landmark2_url)}
+                  >
+                    <ExternalLink size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Document Attachment</div>
+              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+                <span className="truncate mr-2">
+                  {detailedApplication?.document_attachment_url || 'No document available'}
+                </span>
+                {detailedApplication?.document_attachment_url && (
+                  <button 
+                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    onClick={() => window.open(detailedApplication.document_attachment_url)}
+                  >
+                    <ExternalLink size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 py-2">
+              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Other ISP Bill</div>
+              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+                <span className="truncate mr-2">
+                  {detailedApplication?.other_isp_bill_url || 'No document available'}
+                </span>
+                {detailedApplication?.other_isp_bill_url && (
+                  <button 
+                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    onClick={() => window.open(detailedApplication.other_isp_bill_url)}
+                  >
+                    <ExternalLink size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       
-      {/* Application Details */}
-      <div className="flex-1 overflow-y-auto bg-gray-900">
-        {loading ? (
-          <div className="flex justify-center items-center h-full">
-            <Loader className="animate-spin text-orange-500" size={32} />
-            <span className="ml-3 text-gray-400">Loading application details...</span>
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center h-full">
-            <div className="text-red-500 mb-4">{error}</div>
-            <button 
-              onClick={() => {
-                setError(null);
-                window.location.reload();
-              }} 
-              className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded">
-              Retry
-            </button>
-          </div>
-        ) : (
-          <div className="p-4">
-            <div className="space-y-0">
-              <div className="flex py-3 border-b border-gray-800">
-                <div className="w-40 text-gray-400 text-sm">Referred by:</div>
-                <div className="text-white flex-1">{detailedApplication?.referred_by || 'None'}</div>
-              </div>
-              
-              <div className="flex py-3 border-b border-gray-800">
-                <div className="w-40 text-gray-400 text-sm">Status</div>
-                <div className="text-green-500 flex-1">{detailedApplication?.status || 'None'}</div>
-              </div>
-              
-              <div className="flex py-3 border-b border-gray-800">
-                <div className="w-40 text-gray-400 text-sm">Timestamp</div>
-                <div className="text-white flex-1">{detailedApplication?.timestamp || 'None'}</div>
-              </div>
-              
-              <div className="flex py-3 border-b border-gray-800">
-                <div className="w-40 text-gray-400 text-sm">Full Name</div>
-                <div className="text-white flex-1">
-                  {detailedApplication?.customer_name || 
-                   [detailedApplication?.first_name, detailedApplication?.middle_initial, detailedApplication?.last_name].filter(Boolean).join(' ') || 
-                   application.customerName || 'None'}
-                </div>
-              </div>
-              
-              <div className="flex py-3 border-b border-gray-800">
-                <div className="w-40 text-gray-400 text-sm">Full Address</div>
-                <div className="text-white flex-1">
-                  {[
-                    detailedApplication?.installation_address || application.address,
-                    detailedApplication?.location || application.location,
-                    detailedApplication?.barangay || application.barangay,
-                    detailedApplication?.city || application.city,
-                    detailedApplication?.region || application.region
-                  ].filter(Boolean).join(', ') || 'No address'}
-                </div>
-              </div>
-              
-              <div className="flex py-3 border-b border-gray-800">
-                <div className="w-40 text-gray-400 text-sm">Landmark</div>
-                <div className="text-white flex-1">{detailedApplication?.landmark || 'None'}</div>
-              </div>
-              
-              <div className="flex py-3 border-b border-gray-800">
-                <div className="w-40 text-gray-400 text-sm">Email Address</div>
-                <div className="text-white flex-1">{detailedApplication?.email_address || application.email_address || 'None'}</div>
-              </div>
-              
-              <div className="flex py-3 border-b border-gray-800">
-                <div className="w-40 text-gray-400 text-sm">Mobile Number</div>
-                <div className="text-white flex-1 flex justify-between items-center">
-                  <span>{detailedApplication?.mobile_number || application.mobile_number || 'None'}</span>
-                  {(detailedApplication?.mobile_number || application.mobile_number) && (
-                    <div>
-                      <button className="text-gray-400 hover:text-white ml-2">
-                        <Phone size={16} />
-                      </button>
-                      <button className="text-gray-400 hover:text-white ml-2">
-                        <MessageSquare size={16} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex py-3 border-b border-gray-800">
-                <div className="w-40 text-gray-400 text-sm">Second Mobile Number</div>
-                <div className="text-white flex-1 flex justify-between items-center">
-                  <span>{detailedApplication?.secondary_mobile_number || 'None'}</span>
-                  {detailedApplication?.secondary_mobile_number && (
-                    <div>
-                      <button className="text-gray-400 hover:text-white ml-2">
-                        <Phone size={16} />
-                      </button>
-                      <button className="text-gray-400 hover:text-white ml-2">
-                        <MessageSquare size={16} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex py-3 border-b border-gray-800">
-                <div className="w-40 text-gray-400 text-sm">Desired Plan</div>
-                <div className="text-white flex-1 flex justify-between items-center">
-                  <span>{detailedApplication?.desired_plan || 'None'}</span>
-                  {detailedApplication?.desired_plan && (
-                    <button className="text-gray-400 hover:text-white">
-                      <Info size={16} />
-                    </button>
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex py-3 border-b border-gray-800">
-                <div className="w-40 text-gray-400 text-sm">Promo</div>
-                <div className="text-white flex-1">{detailedApplication?.promo || 'None'}</div>
-              </div>
-              
-              {detailedApplication?.terms_agreed && (
-                <div className="flex py-3 border-b border-gray-800">
-                  <div className="w-40 text-gray-400 text-sm">Terms and Conditions</div>
-                  <div className="text-white flex-1">Agreed</div>
-                </div>
-              )}
-              
-              {detailedApplication?.government_valid_id_url && (
-                <div className="flex py-3 border-b border-gray-800">
-                  <div className="w-40 text-gray-400 text-sm">Government Valid ID</div>
-                  <div className="text-white flex-1 flex justify-between items-center truncate">
-                    <span className="truncate">{detailedApplication.government_valid_id_url}</span>
-                    <button 
-                      className="text-gray-400 hover:text-white"
-                      onClick={() => window.open(detailedApplication.government_valid_id_url)}
-                    >
-                      <ExternalLink size={16} />
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              {detailedApplication?.secondary_government_valid_id_url && (
-                <div className="flex py-3 border-b border-gray-800">
-                  <div className="w-40 text-gray-400 text-sm">Secondary Government Valid ID</div>
-                  <div className="text-white flex-1 flex justify-between items-center truncate">
-                    <span className="truncate">{detailedApplication.secondary_government_valid_id_url}</span>
-                    <button 
-                      className="text-gray-400 hover:text-white"
-                      onClick={() => window.open(detailedApplication.secondary_government_valid_id_url)}
-                    >
-                      <ExternalLink size={16} />
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              {detailedApplication?.promo_url && (
-                <div className="flex py-3 border-b border-gray-800">
-                  <div className="w-40 text-gray-400 text-sm">Promo URL</div>
-                  <div className="text-white flex-1 flex justify-between items-center truncate">
-                    <span className="truncate">{detailedApplication.promo_url}</span>
-                    <button 
-                      className="text-gray-400 hover:text-white"
-                      onClick={() => window.open(detailedApplication.promo_url)}
-                    >
-                      <ExternalLink size={16} />
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              {detailedApplication?.nearest_landmark1_url && (
-                <div className="flex py-3 border-b border-gray-800">
-                  <div className="w-40 text-gray-400 text-sm">Nearest Landmark 1</div>
-                  <div className="text-white flex-1 flex justify-between items-center truncate">
-                    <span className="truncate">{detailedApplication.nearest_landmark1_url}</span>
-                    <button 
-                      className="text-gray-400 hover:text-white"
-                      onClick={() => window.open(detailedApplication.nearest_landmark1_url)}
-                    >
-                      <ExternalLink size={16} />
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              {detailedApplication?.nearest_landmark2_url && (
-                <div className="flex py-3 border-b border-gray-800">
-                  <div className="w-40 text-gray-400 text-sm">Nearest Landmark 2</div>
-                  <div className="text-white flex-1 flex justify-between items-center truncate">
-                    <span className="truncate">{detailedApplication.nearest_landmark2_url}</span>
-                    <button 
-                      className="text-gray-400 hover:text-white"
-                      onClick={() => window.open(detailedApplication.nearest_landmark2_url)}
-                    >
-                      <ExternalLink size={16} />
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              {detailedApplication?.house_front_picture_url && (
-                <div className="flex py-3">
-                  <div className="w-40 text-gray-400 text-sm">House Front Picture</div>
-                  <div className="text-white flex-1 flex justify-between items-center truncate">
-                    <span className="truncate">{detailedApplication.house_front_picture_url}</span>
-                    <button 
-                      className="text-gray-400 hover:text-white"
-                      onClick={() => window.open(detailedApplication.house_front_picture_url)}
-                    >
-                      <ExternalLink size={16} />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Use the ConfirmationModal component */}
       <ConfirmationModal
         isOpen={showMoveConfirmation}
         title="Confirm"
@@ -533,7 +637,6 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         onCancel={() => setShowMoveConfirmation(false)}
       />
 
-      {/* Status Change Confirmation Modal */}
       <ConfirmationModal
         isOpen={showStatusConfirmation}
         title="Confirm Status Change"
@@ -544,7 +647,6 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         onCancel={handleCancelStatusChange}
       />
 
-      {/* Use the JOAssignFormModal component */}
       <JOAssignFormModal
         isOpen={showJOAssignForm}
         onClose={() => setShowJOAssignForm(false)}
@@ -555,7 +657,6 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         }}
       />
 
-      {/* Visit Exists Confirmation Modal */}
       <ConfirmationModal
         isOpen={showVisitExistsConfirmation}
         title="Visit Already Exists"
@@ -566,7 +667,6 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         onCancel={handleCancelCreateNewVisit}
       />
 
-      {/* Use the ApplicationVisitFormModal component */}
       <ApplicationVisitFormModal
         isOpen={showVisitForm}
         onClose={() => setShowVisitForm(false)}
@@ -577,16 +677,6 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           secondaryNumber: detailedApplication?.mobile_alt || ''
         }}
       />
-
-      <style>{`
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .hide-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
     </div>
   );
 };

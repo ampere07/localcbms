@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, ArrowRight, Maximize2, X, Phone, MessageSquare, Info, 
-  ExternalLink, Mail, Edit, Trash2, ArrowRightToLine, Eraser, XOctagon, RotateCw
+  ExternalLink, Mail, Edit, Trash2, ArrowRightToLine, Eraser, XOctagon, RotateCw, Menu
 } from 'lucide-react';
 import { getApplication } from '../services/applicationService';
 import { updateApplicationVisit } from '../services/applicationVisitService';
@@ -40,9 +40,10 @@ interface ApplicationVisitDetailsProps {
   };
   onClose: () => void;
   onUpdate?: () => void;
+  isMobile?: boolean;
 }
 
-const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ applicationVisit, onClose, onUpdate }) => {
+const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ applicationVisit, onClose, onUpdate, isMobile = false }) => {
   const [applicationDetails, setApplicationDetails] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -202,15 +203,20 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
   };
 
   return (
-    <div className="h-full bg-gray-950 flex flex-col overflow-hidden border-l border-white border-opacity-30 relative" style={{ width: `${detailsWidth}px` }}>
-      <div
-        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
-        onMouseDown={handleMouseDownResize}
-      />
+    <div 
+      className={`h-full bg-gray-950 flex flex-col overflow-hidden ${!isMobile ? 'md:border-l border-white border-opacity-30' : ''} relative w-full md:w-auto`}
+      style={!isMobile && window.innerWidth >= 768 ? { width: `${detailsWidth}px` } : undefined}
+    >
+      {!isMobile && (
+        <div
+          className="hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
+          onMouseDown={handleMouseDownResize}
+        />
+      )}
       <div className="bg-gray-800 p-3 flex items-center justify-between border-b border-gray-700">
-        <div className="flex items-center">
-          <h2 className="text-white font-medium">{getFullName()}</h2>
-          {loading && <div className="ml-3 animate-pulse text-orange-500 text-sm">Loading...</div>}
+        <div className="flex items-center flex-1 min-w-0">
+          <h2 className={`text-white font-medium truncate ${isMobile ? 'max-w-[200px] text-sm' : ''}`}>{getFullName()}</h2>
+          {loading && <div className="ml-3 animate-pulse text-orange-500 text-sm flex-shrink-0">Loading...</div>}
         </div>
         
         <div className="flex items-center space-x-3">
@@ -234,7 +240,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             title="Edit Visit Details"
           >
             <Edit size={16} className="mr-1" />
-            <span>Visit Status</span>
+            <span className="hidden md:inline">Visit Status</span>
           </button>
           <button className="hover:text-white text-gray-400"><ArrowLeft size={16} /></button>
           <button className="hover:text-white text-gray-400"><ArrowRight size={16} /></button>
@@ -250,42 +256,44 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
       </div>
       
       {userRole !== 'technician' && userRole === 'administrator' && (
-        <div className="bg-gray-900 py-4 border-b border-gray-700 flex items-center justify-center space-x-8">
-          <button 
-            className="flex flex-col items-center text-center hover:opacity-80 transition-opacity"
-            onClick={() => handleStatusUpdate(null)}
-            disabled={loading}
-            title="Clear status and reset to default"
-          >
-            <div className={`p-3 rounded-full ${loading ? 'bg-gray-600' : 'bg-orange-600 hover:bg-orange-700'}`}>
-              <Eraser className="text-white" size={24} />
-            </div>
-            <span className="text-xs mt-1 text-gray-300">Clear Status</span>
-          </button>
-          
-          <button 
-            className="flex flex-col items-center text-center hover:opacity-80 transition-opacity"
-            onClick={() => handleStatusUpdate('Failed')}
-            disabled={loading}
-            title="Mark visit as failed"
-          >
-            <div className={`p-3 rounded-full ${loading ? 'bg-gray-600' : 'bg-orange-600 hover:bg-orange-700'}`}>
-              <XOctagon className="text-white" size={24} />
-            </div>
-            <span className="text-xs mt-1 text-gray-300">Failed</span>
-          </button>
-          
-          <button 
-            className="flex flex-col items-center text-center hover:opacity-80 transition-opacity"
-            onClick={() => handleStatusUpdate('In Progress')}
-            disabled={loading}
-            title="Mark visit as in progress"
-          >
-            <div className={`p-3 rounded-full ${loading ? 'bg-gray-600' : 'bg-orange-600 hover:bg-orange-700'}`}>
-              <RotateCw className="text-white" size={24} />
-            </div>
-            <span className="text-xs mt-1 text-gray-300">Visit In Progress</span>
-          </button>
+        <div className="bg-gray-900 py-3 border-b border-gray-700">
+          <div className="flex items-center justify-center px-4 space-x-4 md:space-x-8">
+            <button 
+              className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
+              onClick={() => handleStatusUpdate(null)}
+              disabled={loading}
+              title="Clear status and reset to default"
+            >
+              <div className={`p-2 rounded-full ${loading ? 'bg-gray-600' : 'bg-orange-600 hover:bg-orange-700'}`}>
+                <Eraser className="text-white" size={18} />
+              </div>
+              <span className="text-xs mt-1 text-gray-300">Clear Status</span>
+            </button>
+            
+            <button 
+              className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
+              onClick={() => handleStatusUpdate('Failed')}
+              disabled={loading}
+              title="Mark visit as failed"
+            >
+              <div className={`p-2 rounded-full ${loading ? 'bg-gray-600' : 'bg-orange-600 hover:bg-orange-700'}`}>
+                <XOctagon className="text-white" size={18} />
+              </div>
+              <span className="text-xs mt-1 text-gray-300">Failed</span>
+            </button>
+            
+            <button 
+              className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
+              onClick={() => handleStatusUpdate('In Progress')}
+              disabled={loading}
+              title="Mark visit as in progress"
+            >
+              <div className={`p-2 rounded-full ${loading ? 'bg-gray-600' : 'bg-orange-600 hover:bg-orange-700'}`}>
+                <RotateCw className="text-white" size={18} />
+              </div>
+              <span className="text-xs mt-1 text-gray-300">Visit In Progress</span>
+            </button>
+          </div>
         </div>
       )}
       
@@ -296,112 +304,118 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
       )}
       
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto py-1 px-4 bg-gray-950">
-          <div className="space-y-1">
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Timestamp</div>
+        <div className="max-w-2xl mx-auto py-6 px-4 bg-gray-950">
+          <div className="space-y-4">
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Timestamp:</div>
               <div className="text-white flex-1">{formatDate(currentVisitData.created_at) || 'Not available'}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Referred By</div>
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Referred By:</div>
               <div className="text-white flex-1">{currentVisitData.referred_by || 'Not specified'}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Full Name</div>
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Full Name:</div>
               <div className="text-white flex-1">{getFullName()}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Contact Number</div>
-              <div className="text-white flex-1 flex items-center justify-between">
-                <span>{applicationDetails?.mobile_number || 'Not provided'}</span>
-                <div className="flex items-center space-x-2">
-                  <button className="text-gray-400 hover:text-white">
-                    <Phone size={16} />
-                  </button>
-                  <button className="text-gray-400 hover:text-white">
-                    <MessageSquare size={16} />
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Second Contact Number</div>
-              <div className="text-white flex-1 flex items-center justify-between">
-                <span>{applicationDetails?.secondary_mobile_number || 'Not provided'}</span>
-                {applicationDetails?.secondary_mobile_number && (
-                  <div className="flex items-center space-x-2">
-                    <button className="text-gray-400 hover:text-white">
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Contact Number:</div>
+              <div className="text-white flex-1 flex items-center">
+                {applicationDetails?.mobile_number || 'Not provided'}
+                {applicationDetails?.mobile_number && (
+                  <>
+                    <button className="text-gray-400 hover:text-white ml-2">
                       <Phone size={16} />
                     </button>
-                    <button className="text-gray-400 hover:text-white">
+                    <button className="text-gray-400 hover:text-white ml-2">
                       <MessageSquare size={16} />
                     </button>
-                  </div>
+                  </>
                 )}
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Email Address</div>
-              <div className="text-white flex-1 flex items-center justify-between">
-                <span>{applicationDetails?.email_address || 'Not provided'}</span>
-                <button className="text-gray-400 hover:text-white">
-                  <Mail size={16} />
-                </button>
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Second Contact Number:</div>
+              <div className="text-white flex-1 flex items-center">
+                {applicationDetails?.secondary_mobile_number || 'Not provided'}
+                {applicationDetails?.secondary_mobile_number && (
+                  <>
+                    <button className="text-gray-400 hover:text-white ml-2">
+                      <Phone size={16} />
+                    </button>
+                    <button className="text-gray-400 hover:text-white ml-2">
+                      <MessageSquare size={16} />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Address</div>
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Email Address:</div>
+              <div className="text-white flex-1 flex items-center">
+                {applicationDetails?.email_address || 'Not provided'}
+                {applicationDetails?.email_address && (
+                  <button className="text-gray-400 hover:text-white ml-2">
+                    <Mail size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Address:</div>
               <div className="text-white flex-1">{currentVisitData.full_address || 'Not provided'}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Chosen Plan</div>
-              <div className="text-white flex-1 flex items-center justify-between">
-                <span>{applicationDetails?.desired_plan || 'Not specified'}</span>
-                <button className="text-gray-400 hover:text-white">
-                  <Info size={16} />
-                </button>
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Chosen Plan:</div>
+              <div className="text-white flex-1 flex items-center">
+                {applicationDetails?.desired_plan || 'Not specified'}
+                {applicationDetails?.desired_plan && (
+                  <button className="text-gray-400 hover:text-white ml-2">
+                    <Info size={16} />
+                  </button>
+                )}
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Landmark</div>
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Landmark:</div>
               <div className="text-white flex-1">{applicationDetails?.landmark || 'Not provided'}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Visit By</div>
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Visit By:</div>
               <div className="text-white flex-1">{currentVisitData.visit_by || 'Not assigned'}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Visit With</div>
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Visit With:</div>
               <div className="text-white flex-1">
                 {currentVisitData.visit_with || 'None'}
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Visit With (Other)</div>
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Visit With (Other):</div>
               <div className="text-white flex-1">
                 {currentVisitData.visit_with_other || 'None'}
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Visit Type</div>
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Visit Type:</div>
               <div className="text-white flex-1">Initial Visit</div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Visit Status</div>
-              <div className={`flex-1 ${
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Visit Status:</div>
+              <div className={`flex-1 capitalize ${
                 currentVisitData.visit_status?.toLowerCase() === 'completed' ? 'text-green-500' :
                 currentVisitData.visit_status?.toLowerCase() === 'failed' ? 'text-red-500' :
                 currentVisitData.visit_status?.toLowerCase() === 'in progress' ? 'text-blue-500' :
@@ -411,37 +425,39 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Visit Notes</div>
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Visit Notes:</div>
               <div className="text-white flex-1">{currentVisitData.visit_remarks || 'No notes'}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Assigned Email</div>
-              <div className="text-white flex-1 flex items-center justify-between">
-                <span>{currentVisitData.assigned_email || 'Not assigned'}</span>
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Assigned Email:</div>
+              <div className="text-white flex-1 flex items-center">
+                {currentVisitData.assigned_email || 'Not assigned'}
                 {currentVisitData.assigned_email && (
-                  <button className="text-gray-400 hover:text-white">
+                  <button className="text-gray-400 hover:text-white ml-2">
                     <Mail size={16} />
                   </button>
                 )}
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Application Status</div>
-              <div className={`text-${currentVisitData.application_status?.toLowerCase() === 'approved' ? 'green' : 'yellow'}-500 flex-1`}>
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Application Status:</div>
+              <div className={`flex-1 capitalize ${
+                currentVisitData.application_status?.toLowerCase() === 'approved' ? 'text-green-500' : 'text-yellow-500'
+              }`}>
                 {currentVisitData.application_status || applicationDetails?.status || 'Pending'}
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Modified By</div>
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Modified By:</div>
               <div className="text-white flex-1">{currentVisitData.updated_by_user_email || 'System'}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Modified Date</div>
+            <div className="flex border-b border-gray-800 pb-4">
+              <div className="w-40 text-gray-400 text-sm">Modified Date:</div>
               <div className="text-white flex-1">
                 {formatDate(currentVisitData.updated_at) || 'Not modified'}
               </div>

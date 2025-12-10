@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FileText, Search, ChevronDown, RefreshCw, ListFilter, ArrowUp, ArrowDown, Menu, X } from 'lucide-react';
+import { FileText, Search, ChevronDown, RefreshCw, ListFilter, ArrowUp, ArrowDown, Menu, X, ArrowLeft } from 'lucide-react';
 import ApplicationVisitDetails from '../components/ApplicationVisitDetails';
 import { getAllApplicationVisits } from '../services/applicationVisitService';
 import { getApplication } from '../services/applicationService';
@@ -102,6 +102,7 @@ const ApplicationVisit: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState<number>(256);
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [mobileView, setMobileView] = useState<'locations' | 'visits' | 'details'>('locations');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -715,6 +716,21 @@ const ApplicationVisit: React.FC = () => {
   const handleLocationSelect = (locationId: string) => {
     setSelectedLocation(locationId);
     setMobileMenuOpen(false);
+    setMobileView('visits');
+  };
+
+  const handleMobileBack = () => {
+    if (mobileView === 'details') {
+      setSelectedVisit(null);
+      setMobileView('visits');
+    } else if (mobileView === 'visits') {
+      setMobileView('locations');
+    }
+  };
+
+  const handleMobileRowClick = async (visit: ApplicationVisit) => {
+    await handleRowClick(visit);
+    setMobileView('details');
   };
 
   if (loading) {
@@ -767,7 +783,7 @@ const ApplicationVisit: React.FC = () => {
     <div className="bg-gray-950 h-full flex flex-col md:flex-row overflow-hidden">
       {/* Desktop Sidebar - Hidden on mobile */}
       {userRole.toLowerCase() !== 'technician' && (
-      <div className="hidden md:flex bg-gray-900 border-r border-gray-700 flex-shrink-0 flex-col relative" style={{ width: `${sidebarWidth}px` }}>
+      <div className="hidden md:flex bg-gray-900 border-r border-gray-700 flex-shrink-0 flex-col relative z-40" style={{ width: `${sidebarWidth}px` }}>
         <div className="p-4 border-b border-gray-700 flex-shrink-0">
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-lg font-semibold text-white">Application Visits</h2>
@@ -811,8 +827,36 @@ const ApplicationVisit: React.FC = () => {
       </div>
       )}
 
+      {/* Mobile Location View */}
+      {mobileView === 'locations' && (
+        <div className="md:hidden flex-1 flex flex-col overflow-hidden bg-gray-950">
+          <div className="bg-gray-900 p-4 border-b border-gray-700">
+            <h2 className="text-lg font-semibold text-white">Application Visits</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {locationItems.map((location) => (
+              <button
+                key={location.id}
+                onClick={() => handleLocationSelect(location.id)}
+                className="w-full flex items-center justify-between px-4 py-4 text-sm transition-colors hover:bg-gray-800 border-b border-gray-800 text-gray-300"
+              >
+                <div className="flex items-center">
+                  <FileText className="h-5 w-5 mr-3" />
+                  <span className="capitalize text-base">{location.name}</span>
+                </div>
+                {location.count > 0 && (
+                  <span className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300">
+                    {location.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Mobile Overlay Menu */}
-      {mobileMenuOpen && userRole.toLowerCase() !== 'technician' && (
+      {mobileMenuOpen && userRole.toLowerCase() !== 'technician' && mobileView === 'visits' && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
           <div className="absolute inset-y-0 left-0 w-64 bg-gray-900 shadow-xl flex flex-col">
@@ -854,11 +898,11 @@ const ApplicationVisit: React.FC = () => {
       )}
 
       {/* Main Content */}
-      <div className={`bg-gray-900 overflow-hidden flex-1 flex flex-col pb-16 md:pb-0`}>
+      <div className={`bg-gray-900 overflow-hidden flex-1 flex flex-col md:pb-0 relative z-30 ${mobileView === 'locations' || mobileView === 'details' ? 'hidden md:flex' : ''}`}>
         <div className="flex flex-col h-full">
-          <div className="bg-gray-900 p-4 border-b border-gray-700 flex-shrink-0">
+          <div className="bg-gray-900 p-4 border-b border-gray-700 flex-shrink-0 relative z-50">
             <div className="flex items-center space-x-3">
-              {userRole.toLowerCase() !== 'technician' && (
+              {userRole.toLowerCase() !== 'technician' && mobileView === 'visits' && (
                 <button
                   onClick={() => setMobileMenuOpen(true)}
                   className="md:hidden bg-gray-700 hover:bg-gray-600 text-white p-2 rounded text-sm transition-colors flex items-center justify-center"
@@ -877,7 +921,7 @@ const ApplicationVisit: React.FC = () => {
                 />
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
               </div>
-              <div className="hidden md:flex space-x-2">
+              <div className="flex space-x-2">
                 <button
                   onClick={handleRefresh}
                   disabled={isRefreshing}
@@ -895,46 +939,92 @@ const ApplicationVisit: React.FC = () => {
                       <ListFilter className="h-5 w-5" />
                     </button>
                     {filterDropdownOpen && (
-                      <div className="absolute top-full right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded shadow-lg z-50 max-h-96 flex flex-col">
-                        <div className="p-3 border-b border-gray-700 flex items-center justify-between">
-                          <span className="text-white text-sm font-medium">Column Visibility</span>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={handleSelectAllColumns}
-                              className="text-xs text-orange-500 hover:text-orange-400"
-                            >
-                              Select All
-                            </button>
-                            <span className="text-gray-600">|</span>
-                            <button
-                              onClick={handleDeselectAllColumns}
-                              className="text-xs text-orange-500 hover:text-orange-400"
-                            >
-                              Deselect All
-                            </button>
+                      <>
+                        {/* Mobile Overlay */}
+                        <div className="md:hidden fixed inset-0 z-50">
+                          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setFilterDropdownOpen(false)} />
+                          <div className="absolute inset-x-4 top-20 bottom-4 bg-gray-800 border border-gray-700 rounded shadow-lg flex flex-col">
+                            <div className="p-3 border-b border-gray-700 flex items-center justify-between">
+                              <span className="text-white text-sm font-medium">Column Visibility</span>
+                              <button onClick={() => setFilterDropdownOpen(false)} className="text-gray-400 hover:text-white">
+                                <X className="h-5 w-5" />
+                              </button>
+                            </div>
+                            <div className="p-3 border-b border-gray-700 flex items-center justify-between">
+                              <button
+                                onClick={handleSelectAllColumns}
+                                className="text-sm text-orange-500 hover:text-orange-400 px-3 py-1 bg-gray-700 rounded"
+                              >
+                                Select All
+                              </button>
+                              <button
+                                onClick={handleDeselectAllColumns}
+                                className="text-sm text-orange-500 hover:text-orange-400 px-3 py-1 bg-gray-700 rounded"
+                              >
+                                Deselect All
+                              </button>
+                            </div>
+                            <div className="overflow-y-auto flex-1">
+                              {allColumns.map((column) => (
+                                <label
+                                  key={column.key}
+                                  className="flex items-center px-4 py-3 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={visibleColumns.includes(column.key)}
+                                    onChange={() => handleToggleColumn(column.key)}
+                                    className="mr-3 h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-600 focus:ring-orange-500 focus:ring-offset-gray-800"
+                                  />
+                                  <span>{column.label}</span>
+                                </label>
+                              ))}
+                            </div>
                           </div>
                         </div>
-                        <div className="overflow-y-auto flex-1">
-                          {allColumns.map((column) => (
-                            <label
-                              key={column.key}
-                              className="flex items-center px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={visibleColumns.includes(column.key)}
-                                onChange={() => handleToggleColumn(column.key)}
-                                className="mr-3 h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-600 focus:ring-orange-500 focus:ring-offset-gray-800"
-                              />
-                              <span>{column.label}</span>
-                            </label>
-                          ))}
+
+                        {/* Desktop Dropdown */}
+                        <div className="hidden md:flex absolute top-full right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded shadow-lg z-50 max-h-96 flex-col">
+                          <div className="p-3 border-b border-gray-700 flex items-center justify-between">
+                            <span className="text-white text-sm font-medium">Column Visibility</span>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={handleSelectAllColumns}
+                                className="text-xs text-orange-500 hover:text-orange-400"
+                              >
+                                Select All
+                              </button>
+                              <span className="text-gray-600">|</span>
+                              <button
+                                onClick={handleDeselectAllColumns}
+                                className="text-xs text-orange-500 hover:text-orange-400"
+                              >
+                                Deselect All
+                              </button>
+                            </div>
+                          </div>
+                          <div className="overflow-y-auto flex-1">
+                            {allColumns.map((column) => (
+                              <label
+                                key={column.key}
+                                className="flex items-center px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={visibleColumns.includes(column.key)}
+                                  onChange={() => handleToggleColumn(column.key)}
+                                  className="mr-3 h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-600 focus:ring-orange-500 focus:ring-offset-gray-800"
+                                />
+                                <span>{column.label}</span>
+                              </label>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      </>
                     )}
                   </div>
                 )}
-                <div className="relative z-50" ref={dropdownRef}>
+                <div className="relative z-[100]" ref={dropdownRef}>
                   <button
                     className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors flex items-center"
                     onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -943,7 +1033,7 @@ const ApplicationVisit: React.FC = () => {
                     <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
                   {dropdownOpen && (
-                    <div className="absolute top-full right-0 mt-1 w-36 bg-gray-800 border border-gray-700 rounded shadow-lg">
+                    <div className="absolute top-full right-0 mt-1 w-36 bg-gray-800 border border-gray-700 rounded shadow-lg z-50">
                       <button
                         onClick={() => {
                           setDisplayMode('card');
@@ -977,7 +1067,7 @@ const ApplicationVisit: React.FC = () => {
                     {sortedVisits.map((visit) => (
                       <div
                         key={visit.id}
-                        onClick={() => handleRowClick(visit)}
+                        onClick={() => window.innerWidth < 768 ? handleMobileRowClick(visit) : handleRowClick(visit)}
                         className={`px-4 py-3 cursor-pointer transition-colors hover:bg-gray-800 border-b border-gray-800 ${selectedVisit?.id === visit.id ? 'bg-gray-800' : ''}`}
                       >
                         <div className="flex items-start justify-between">
@@ -1057,7 +1147,7 @@ const ApplicationVisit: React.FC = () => {
                           <tr 
                             key={visit.id} 
                             className={`border-b border-gray-800 hover:bg-gray-900 cursor-pointer transition-colors ${selectedVisit?.id === visit.id ? 'bg-gray-800' : ''}`}
-                            onClick={() => handleRowClick(visit)}
+                            onClick={() => window.innerWidth < 768 ? handleMobileRowClick(visit) : handleRowClick(visit)}
                           >
                             {filteredColumns.map((column, index) => (
                               <td 
@@ -1093,49 +1183,29 @@ const ApplicationVisit: React.FC = () => {
         </div>
       </div>
 
-      {selectedVisit && (
-        <div className="fixed md:relative inset-0 md:flex-shrink-0 z-50 md:z-auto overflow-hidden">
-          <div className="md:hidden absolute inset-0 bg-black bg-opacity-50" onClick={() => setSelectedVisit(null)} />
-          <div className="absolute md:relative right-0 top-0 bottom-0 w-full md:w-auto h-full">
-            <ApplicationVisitDetails 
-              applicationVisit={selectedVisit}
-              onClose={() => setSelectedVisit(null)}
-              onUpdate={handleVisitUpdate}
-            />
-          </div>
+      {selectedVisit && mobileView === 'details' && (
+        <div className="md:hidden flex-1 flex flex-col overflow-hidden bg-gray-950">
+          <ApplicationVisitDetails 
+            applicationVisit={selectedVisit}
+            onClose={handleMobileBack}
+            onUpdate={handleVisitUpdate}
+            isMobile={true}
+          />
         </div>
       )}
 
-      {/* Mobile Bottom Bar */}
-      {userRole.toLowerCase() !== 'technician' && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 z-40">
-          <div className="flex overflow-x-auto hide-scrollbar">
-            {locationItems.map((location) => (
-              <button
-                key={location.id}
-                onClick={() => setSelectedLocation(location.id)}
-                className={`flex-shrink-0 flex flex-col items-center justify-center px-4 py-2 text-xs transition-colors ${
-                  selectedLocation === location.id
-                    ? 'bg-orange-500 bg-opacity-20 text-orange-400'
-                    : 'text-gray-300'
-                }`}
-              >
-                <FileText className="h-5 w-5 mb-1" />
-                <span className="capitalize whitespace-nowrap">{location.name}</span>
-                {location.count > 0 && (
-                  <span className={`mt-1 px-2 py-0.5 rounded-full text-xs ${
-                    selectedLocation === location.id
-                      ? 'bg-orange-600 text-white'
-                      : 'bg-gray-700 text-gray-300'
-                  }`}>
-                    {location.count}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+      {selectedVisit && mobileView !== 'details' && (
+        <div className="hidden md:block flex-shrink-0 overflow-hidden">
+          <ApplicationVisitDetails 
+            applicationVisit={selectedVisit}
+            onClose={() => setSelectedVisit(null)}
+            onUpdate={handleVisitUpdate}
+            isMobile={false}
+          />
         </div>
       )}
+
+
 
       <style>{`
         .hide-scrollbar::-webkit-scrollbar {

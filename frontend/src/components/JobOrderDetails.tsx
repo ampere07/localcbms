@@ -11,7 +11,7 @@ import JobOrderDoneFormTechModal from '../modals/JobOrderDoneFormTechModal';
 import JobOrderEditFormModal from '../modals/JobOrderEditFormModal';
 import ApprovalConfirmationModal from '../modals/ApprovalConfirmationModal';
 
-const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, onRefresh }) => {
+const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, onRefresh, isMobile = false }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDoneModalOpen, setIsDoneModalOpen] = useState(false);
@@ -343,15 +343,20 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   };
   
   return (
-    <div className="h-full bg-gray-950 flex flex-col overflow-hidden border-l border-white border-opacity-30 relative" style={{ width: `${detailsWidth}px` }}>
-      <div
-        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
-        onMouseDown={handleMouseDownResize}
-      />
+    <div 
+      className={`h-full bg-gray-950 flex flex-col overflow-hidden ${!isMobile ? 'border-l border-white border-opacity-30' : ''} relative`} 
+      style={!isMobile ? { width: `${detailsWidth}px` } : undefined}
+    >
+      {!isMobile && (
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
+          onMouseDown={handleMouseDownResize}
+        />
+      )}
       <div className="bg-gray-800 p-3 flex items-center justify-between border-b border-gray-700">
-        <div className="flex items-center">
-          <h2 className="text-white font-medium">{getClientFullName()}</h2>
-          {loading && <div className="ml-3 animate-pulse text-orange-500 text-sm">Loading...</div>}
+        <div className="flex items-center flex-1 min-w-0">
+          <h2 className={`text-white font-medium truncate ${isMobile ? 'max-w-[200px] text-sm' : 'max-w-md'}`}>{getClientFullName()}</h2>
+          {loading && <div className="ml-3 animate-pulse text-orange-500 text-sm flex-shrink-0">Loading...</div>}
         </div>
         
         <div className="flex items-center space-x-3">
@@ -395,19 +400,21 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       </div>
       
       {userRole !== 'technician' && (
-        <div className="bg-gray-900 py-3 border-b border-gray-700 flex items-center justify-center px-4">
-          <button 
-            onClick={handleEditClick}
-            disabled={loading}
-            className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
-          >
-            <div className="bg-orange-600 p-2 rounded-full">
-              <div className="text-white">
-                <Edit size={18} />
+        <div className="bg-gray-900 py-3 border-b border-gray-700">
+          <div className="flex items-center justify-center px-4">
+            <button 
+              onClick={handleEditClick}
+              disabled={loading}
+              className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
+            >
+              <div className="bg-orange-600 p-2 rounded-full">
+                <div className="text-white">
+                  <Edit size={18} />
+                </div>
               </div>
-            </div>
-            <span className="text-xs mt-1 text-gray-300">Edit</span>
-          </button>
+              <span className="text-xs mt-1 text-gray-300">Edit</span>
+            </button>
+          </div>
         </div>
       )}
       

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, Search, ChevronDown, ListFilter, ArrowUp, ArrowDown } from 'lucide-react';
+import { FileText, Search, ChevronDown, ListFilter, ArrowUp, ArrowDown, Menu, X, ArrowLeft, RefreshCw } from 'lucide-react';
 import JobOrderDetails from '../components/JobOrderDetails';
 import { getJobOrders } from '../services/jobOrderService';
 import { getCities, City } from '../services/cityService';
@@ -100,6 +100,8 @@ const JobOrderPage: React.FC = () => {
   const [columnOrder, setColumnOrder] = useState<string[]>(allColumns.map(col => col.key));
   const [sidebarWidth, setSidebarWidth] = useState<number>(256);
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [mobileView, setMobileView] = useState<'locations' | 'orders' | 'details'>('locations');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -378,6 +380,26 @@ const JobOrderPage: React.FC = () => {
         {status === 'inprogress' ? 'In Progress' : status}
       </span>
     );
+  };
+
+  const handleLocationSelect = (locationId: string) => {
+    setSelectedLocation(locationId);
+    setMobileMenuOpen(false);
+    setMobileView('orders');
+  };
+
+  const handleMobileBack = () => {
+    if (mobileView === 'details') {
+      setSelectedJobOrder(null);
+      setMobileView('orders');
+    } else if (mobileView === 'orders') {
+      setMobileView('locations');
+    }
+  };
+
+  const handleMobileRowClick = (jobOrder: JobOrder) => {
+    setSelectedJobOrder(jobOrder);
+    setMobileView('details');
   };
 
   const handleRowClick = (jobOrder: JobOrder) => {
@@ -742,9 +764,80 @@ const JobOrderPage: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-950 h-full flex overflow-hidden">
+    <div className="bg-gray-950 h-full flex flex-col md:flex-row overflow-hidden">
+      {/* Mobile Location View */}
+      {mobileView === 'locations' && (
+        <div className="md:hidden flex-1 flex flex-col overflow-hidden bg-gray-950">
+          <div className="bg-gray-900 p-4 border-b border-gray-700">
+            <h2 className="text-lg font-semibold text-white">Job Orders</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {locationItems.map((location) => (
+              <button
+                key={location.id}
+                onClick={() => handleLocationSelect(location.id)}
+                className="w-full flex items-center justify-between px-4 py-4 text-sm transition-colors hover:bg-gray-800 border-b border-gray-800 text-gray-300"
+              >
+                <div className="flex items-center">
+                  <FileText className="h-5 w-5 mr-3" />
+                  <span className="capitalize text-base">{location.name}</span>
+                </div>
+                {location.count > 0 && (
+                  <span className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300">
+                    {location.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Overlay Menu */}
+      {mobileMenuOpen && userRole.toLowerCase() !== 'technician' && mobileView === 'orders' && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
+          <div className="absolute inset-y-0 left-0 w-64 bg-gray-900 shadow-xl flex flex-col">
+            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">Filters</h2>
+              <button onClick={() => setMobileMenuOpen(false)} className="text-gray-400 hover:text-white">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {locationItems.map((location) => (
+                <button
+                  key={location.id}
+                  onClick={() => handleLocationSelect(location.id)}
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
+                    selectedLocation === location.id
+                      ? 'bg-orange-500 bg-opacity-20 text-orange-400'
+                      : 'text-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <FileText className="h-4 w-4 mr-2" />
+                    <span className="capitalize">{location.name}</span>
+                  </div>
+                  {location.count > 0 && (
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      selectedLocation === location.id
+                        ? 'bg-orange-600 text-white'
+                        : 'bg-gray-700 text-gray-300'
+                    }`}>
+                      {location.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Sidebar - Hidden on mobile */}
       {userRole.toLowerCase() !== 'technician' && (
-      <div className="bg-gray-900 border-r border-gray-700 flex-shrink-0 flex flex-col relative" style={{ width: `${sidebarWidth}px` }}>
+      <div className="hidden md:flex bg-gray-900 border-r border-gray-700 flex-shrink-0 flex-col relative" style={{ width: `${sidebarWidth}px` }}>
         <div className="p-4 border-b border-gray-700 flex-shrink-0">
           <div className="flex items-center mb-1">
             <h2 className="text-lg font-semibold text-white">Job Orders</h2>
@@ -788,10 +881,19 @@ const JobOrderPage: React.FC = () => {
       </div>
       )}
 
-      <div className={`bg-gray-900 overflow-hidden flex-1`}>
+      <div className={`bg-gray-900 overflow-hidden flex-1 flex flex-col md:pb-0 ${mobileView === 'locations' || mobileView === 'details' ? 'hidden md:flex' : ''}`}>
         <div className="flex flex-col h-full">
           <div className="bg-gray-900 p-4 border-b border-gray-700 flex-shrink-0">
             <div className="flex items-center space-x-3">
+              {userRole.toLowerCase() !== 'technician' && mobileView === 'orders' && (
+                <button
+                  onClick={() => setMobileMenuOpen(true)}
+                  className="md:hidden bg-gray-700 hover:bg-gray-600 text-white p-2 rounded text-sm transition-colors flex items-center justify-center"
+                  aria-label="Open filter menu"
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+              )}
               <div className="relative flex-1">
                 <input
                   type="text"
@@ -812,46 +914,92 @@ const JobOrderPage: React.FC = () => {
                       <ListFilter className="h-5 w-5" />
                     </button>
                     {filterDropdownOpen && (
-                      <div className="absolute top-full right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded shadow-lg z-50 max-h-96 flex flex-col">
-                        <div className="p-3 border-b border-gray-700 flex items-center justify-between">
-                          <span className="text-white text-sm font-medium">Column Visibility</span>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={handleSelectAllColumns}
-                              className="text-xs text-orange-500 hover:text-orange-400"
-                            >
-                              Select All
-                            </button>
-                            <span className="text-gray-600">|</span>
-                            <button
-                              onClick={handleDeselectAllColumns}
-                              className="text-xs text-orange-500 hover:text-orange-400"
-                            >
-                              Deselect All
-                            </button>
+                      <>
+                        {/* Mobile Overlay */}
+                        <div className="md:hidden fixed inset-0 z-50">
+                          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setFilterDropdownOpen(false)} />
+                          <div className="absolute inset-x-4 top-20 bottom-4 bg-gray-800 border border-gray-700 rounded shadow-lg flex flex-col">
+                            <div className="p-3 border-b border-gray-700 flex items-center justify-between">
+                              <span className="text-white text-sm font-medium">Column Visibility</span>
+                              <button onClick={() => setFilterDropdownOpen(false)} className="text-gray-400 hover:text-white">
+                                <X className="h-5 w-5" />
+                              </button>
+                            </div>
+                            <div className="p-3 border-b border-gray-700 flex items-center justify-between">
+                              <button
+                                onClick={handleSelectAllColumns}
+                                className="text-sm text-orange-500 hover:text-orange-400 px-3 py-1 bg-gray-700 rounded"
+                              >
+                                Select All
+                              </button>
+                              <button
+                                onClick={handleDeselectAllColumns}
+                                className="text-sm text-orange-500 hover:text-orange-400 px-3 py-1 bg-gray-700 rounded"
+                              >
+                                Deselect All
+                              </button>
+                            </div>
+                            <div className="overflow-y-auto flex-1">
+                              {allColumns.map((column) => (
+                                <label
+                                  key={column.key}
+                                  className="flex items-center px-4 py-3 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={visibleColumns.includes(column.key)}
+                                    onChange={() => handleToggleColumn(column.key)}
+                                    className="mr-3 h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-600 focus:ring-orange-500 focus:ring-offset-gray-800"
+                                  />
+                                  <span>{column.label}</span>
+                                </label>
+                              ))}
+                            </div>
                           </div>
                         </div>
-                        <div className="overflow-y-auto flex-1">
-                          {allColumns.map((column) => (
-                            <label
-                              key={column.key}
-                              className="flex items-center px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={visibleColumns.includes(column.key)}
-                                onChange={() => handleToggleColumn(column.key)}
-                                className="mr-3 h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-600 focus:ring-orange-500 focus:ring-offset-gray-800"
-                              />
-                              <span>{column.label}</span>
-                            </label>
-                          ))}
+
+                        {/* Desktop Dropdown */}
+                        <div className="hidden md:flex absolute top-full right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded shadow-lg z-50 max-h-96 flex-col">
+                          <div className="p-3 border-b border-gray-700 flex items-center justify-between">
+                            <span className="text-white text-sm font-medium">Column Visibility</span>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={handleSelectAllColumns}
+                                className="text-xs text-orange-500 hover:text-orange-400"
+                              >
+                                Select All
+                              </button>
+                              <span className="text-gray-600">|</span>
+                              <button
+                                onClick={handleDeselectAllColumns}
+                                className="text-xs text-orange-500 hover:text-orange-400"
+                              >
+                                Deselect All
+                              </button>
+                            </div>
+                          </div>
+                          <div className="overflow-y-auto flex-1">
+                            {allColumns.map((column) => (
+                              <label
+                                key={column.key}
+                                className="flex items-center px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={visibleColumns.includes(column.key)}
+                                  onChange={() => handleToggleColumn(column.key)}
+                                  className="mr-3 h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-600 focus:ring-orange-500 focus:ring-offset-gray-800"
+                                />
+                                <span>{column.label}</span>
+                              </label>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      </>
                     )}
                   </div>
                 )}
-                <div className="relative z-50" ref={dropdownRef}>
+                <div className="relative" ref={dropdownRef}>
                   <button
                     className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors flex items-center"
                     onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -860,7 +1008,7 @@ const JobOrderPage: React.FC = () => {
                     <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
                   {dropdownOpen && (
-                    <div className="absolute top-full right-0 mt-1 w-36 bg-gray-800 border border-gray-700 rounded shadow-lg">
+                    <div className="absolute top-full right-0 mt-1 w-36 bg-gray-800 border border-gray-700 rounded shadow-lg z-50">
                       <button
                         onClick={() => {
                           setDisplayMode('card');
@@ -884,9 +1032,10 @@ const JobOrderPage: React.FC = () => {
                 </div>
                 <button
                   onClick={() => window.location.reload()}
-                  className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded text-sm transition-colors"
+                  className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded text-sm transition-colors"
+                  aria-label="Refresh"
                 >
-                  Refresh
+                  <RefreshCw className="h-5 w-5" />
                 </button>
               </div>
             </div>
@@ -900,7 +1049,7 @@ const JobOrderPage: React.FC = () => {
                     {sortedJobOrders.map((jobOrder) => (
                       <div
                         key={jobOrder.id}
-                        onClick={() => handleRowClick(jobOrder)}
+                        onClick={() => window.innerWidth < 768 ? handleMobileRowClick(jobOrder) : handleRowClick(jobOrder)}
                         className={`px-4 py-3 cursor-pointer transition-colors hover:bg-gray-800 border-b border-gray-800 ${selectedJobOrder?.id === jobOrder.id ? 'bg-gray-800' : ''}`}
                       >
                         <div className="flex items-start justify-between">
@@ -978,7 +1127,7 @@ const JobOrderPage: React.FC = () => {
                           <tr 
                             key={jobOrder.id} 
                             className={`border-b border-gray-800 hover:bg-gray-900 cursor-pointer transition-colors ${selectedJobOrder?.id === jobOrder.id ? 'bg-gray-800' : ''}`}
-                            onClick={() => handleRowClick(jobOrder)}
+                            onClick={() => window.innerWidth < 768 ? handleMobileRowClick(jobOrder) : handleRowClick(jobOrder)}
                           >
                             {filteredColumns.map((column, index) => (
                               <td 
@@ -1014,12 +1163,24 @@ const JobOrderPage: React.FC = () => {
         </div>
       </div>
 
-      {selectedJobOrder && (
-        <div className="flex-shrink-0 overflow-hidden">
+      {selectedJobOrder && mobileView === 'details' && (
+        <div className="md:hidden flex-1 flex flex-col overflow-hidden bg-gray-950">
           <JobOrderDetails 
-            jobOrder={selectedJobOrder} 
+            jobOrder={selectedJobOrder}
+            onClose={handleMobileBack}
+            onRefresh={fetchData}
+            isMobile={true}
+          />
+        </div>
+      )}
+
+      {selectedJobOrder && mobileView !== 'details' && (
+        <div className="hidden md:block flex-shrink-0 overflow-hidden">
+          <JobOrderDetails 
+            jobOrder={selectedJobOrder}
             onClose={() => setSelectedJobOrder(null)}
             onRefresh={fetchData}
+            isMobile={false}
           />
         </div>
       )}

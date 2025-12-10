@@ -608,7 +608,7 @@ const ApplicationManagement: React.FC = () => {
   return (
     <div className="bg-gray-950 h-full flex flex-col md:flex-row overflow-hidden">
       {/* Desktop Sidebar - Hidden on mobile */}
-      <div className="hidden md:flex bg-gray-900 border-r border-gray-700 flex-shrink-0 flex-col relative" style={{ width: `${sidebarWidth}px` }}>
+      <div className="hidden md:flex bg-gray-900 border-r border-gray-700 flex-shrink-0 flex-col relative z-40" style={{ width: `${sidebarWidth}px` }}>
         <div className="p-4 border-b border-gray-700 flex-shrink-0">
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-lg font-semibold text-white">Applications</h2>
@@ -769,7 +769,7 @@ const ApplicationManagement: React.FC = () => {
                     )}
                   </div>
                 )}
-                <div className="relative z-50" ref={dropdownRef}>
+                <div className="relative" ref={dropdownRef}>
                   <button
                     className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors flex items-center"
                     onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -1002,20 +1002,13 @@ const ApplicationManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Application Detail View - Modal Sidebar */}
       {selectedApplication && (
-        <div className="fixed inset-0 z-50 flex items-center justify-end" onClick={() => setSelectedApplication(null)}>
-          <div className="absolute inset-0 bg-black bg-opacity-50" />
-          <div 
-            className="relative h-full w-full md:w-3/4 lg:w-2/3 xl:w-1/2 bg-gray-900 shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <ApplicationDetails 
-              application={selectedApplication} 
-              onClose={() => setSelectedApplication(null)}
-              onApplicationUpdate={handleApplicationUpdate}
-            />
-          </div>
+        <div className="flex-shrink-0 overflow-hidden">
+          <ApplicationDetails 
+            application={selectedApplication} 
+            onClose={() => setSelectedApplication(null)}
+            onApplicationUpdate={handleApplicationUpdate}
+          />
         </div>
       )}
 

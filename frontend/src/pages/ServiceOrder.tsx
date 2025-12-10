@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { FileText, Search, Circle, X, ListFilter, ArrowUp, ArrowDown } from 'lucide-react';
+import { FileText, Search, Circle, X, ListFilter, ArrowUp, ArrowDown, Menu } from 'lucide-react';
 import ServiceOrderDetails from '../components/ServiceOrderDetails';
 import { getServiceOrders, ServiceOrderData } from '../services/serviceOrderService';
 import { getCities, City } from '../services/cityService';
@@ -59,6 +59,7 @@ interface LocationItem {
 }
 
 type DisplayMode = 'card' | 'table';
+type MobileView = 'locations' | 'orders' | 'details';
 
 const allColumns = [
   { key: 'timestamp', label: 'Timestamp', width: 'min-w-40' },
@@ -100,6 +101,8 @@ const ServiceOrder: React.FC = () => {
   const [columnOrder, setColumnOrder] = useState<string[]>(allColumns.map(col => col.key));
   const [sidebarWidth, setSidebarWidth] = useState<number>(256);
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [mobileView, setMobileView] = useState<MobileView>('locations');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -449,6 +452,29 @@ const ServiceOrder: React.FC = () => {
 
   const handleRowClick = (serviceOrder: ServiceOrder) => {
     setSelectedServiceOrder(serviceOrder);
+    if (window.innerWidth < 768) {
+      setMobileView('details');
+    }
+  };
+
+  const handleLocationSelect = (locationId: string) => {
+    setSelectedLocation(locationId);
+    setMobileMenuOpen(false);
+    setMobileView('orders');
+  };
+
+  const handleMobileBack = () => {
+    if (mobileView === 'details') {
+      setSelectedServiceOrder(null);
+      setMobileView('orders');
+    } else if (mobileView === 'orders') {
+      setMobileView('locations');
+    }
+  };
+
+  const handleMobileRowClick = (serviceOrder: ServiceOrder) => {
+    setSelectedServiceOrder(serviceOrder);
+    setMobileView('details');
   };
 
   const handleRefresh = async () => {
@@ -739,9 +765,10 @@ const ServiceOrder: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-950 h-full flex overflow-hidden">
+    <div className="bg-gray-950 h-full flex flex-col md:flex-row overflow-hidden">
+      {/* Desktop Sidebar - Hidden on mobile */}
       {userRole.toLowerCase() !== 'technician' && (
-        <div className="bg-gray-900 border-r border-gray-700 flex-shrink-0 flex flex-col relative" style={{ width: `${sidebarWidth}px` }}>
+        <div className="hidden md:flex bg-gray-900 border-r border-gray-700 flex-shrink-0 flex-col relative" style={{ width: `${sidebarWidth}px` }}>
           <div className="p-4 border-b border-gray-700 flex-shrink-0">
             <div className="flex items-center mb-1">
               <h2 className="text-lg font-semibold text-white">Service Orders</h2>
@@ -782,10 +809,90 @@ const ServiceOrder: React.FC = () => {
         </div>
       )}
 
-      <div className="flex-1 bg-gray-900 overflow-hidden">
+      {/* Mobile Location View */}
+      {mobileView === 'locations' && (
+        <div className="md:hidden flex-1 flex flex-col overflow-hidden bg-gray-950">
+          <div className="bg-gray-900 p-4 border-b border-gray-700">
+            <h2 className="text-lg font-semibold text-white">Service Orders</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {locationItems.map((location) => (
+              <button
+                key={location.id}
+                onClick={() => handleLocationSelect(location.id)}
+                className="w-full flex items-center justify-between px-4 py-4 text-sm transition-colors hover:bg-gray-800 border-b border-gray-800 text-gray-300"
+              >
+                <div className="flex items-center">
+                  <FileText className="h-5 w-5 mr-3" />
+                  <span className="capitalize text-base">{location.name}</span>
+                </div>
+                {location.count > 0 && (
+                  <span className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300">
+                    {location.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Overlay Menu */}
+      {mobileMenuOpen && userRole.toLowerCase() !== 'technician' && mobileView === 'orders' && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
+          <div className="absolute inset-y-0 left-0 w-64 bg-gray-900 shadow-xl flex flex-col">
+            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">Filters</h2>
+              <button onClick={() => setMobileMenuOpen(false)} className="text-gray-400 hover:text-white">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {locationItems.map((location) => (
+                <button
+                  key={location.id}
+                  onClick={() => handleLocationSelect(location.id)}
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
+                    selectedLocation === location.id
+                      ? 'bg-orange-500 bg-opacity-20 text-orange-400'
+                      : 'text-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <FileText className="h-4 w-4 mr-2" />
+                    <span className="capitalize">{location.name}</span>
+                  </div>
+                  {location.count > 0 && (
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      selectedLocation === location.id
+                        ? 'bg-orange-600 text-white'
+                        : 'bg-gray-700 text-gray-300'
+                    }`}>
+                      {location.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className={`bg-gray-900 overflow-hidden flex-1 flex flex-col ${mobileView === 'locations' || mobileView === 'details' ? 'hidden md:flex' : ''}`}>
         <div className="flex flex-col h-full">
           <div className="bg-gray-900 p-4 border-b border-gray-700 flex-shrink-0">
             <div className="flex items-center space-x-3">
+              {userRole.toLowerCase() !== 'technician' && mobileView === 'orders' && (
+                <button
+                  onClick={() => setMobileMenuOpen(true)}
+                  className="md:hidden bg-gray-700 hover:bg-gray-600 text-white p-2 rounded text-sm transition-colors flex items-center justify-center"
+                  aria-label="Open filter menu"
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+              )}
               <div className="relative flex-1">
                 <input
                   type="text"
@@ -796,7 +903,7 @@ const ServiceOrder: React.FC = () => {
                 />
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
               </div>
-              <div className="flex space-x-2">
+              <div className="hidden md:flex space-x-2">
                 {displayMode === 'table' && (
                   <div className="relative" ref={filterDropdownRef}>
                     <button
@@ -914,17 +1021,20 @@ const ServiceOrder: React.FC = () => {
                     {filteredServiceOrders.map((serviceOrder) => (
                       <div
                         key={serviceOrder.id}
-                        onClick={() => handleRowClick(serviceOrder)}
+                        onClick={() => window.innerWidth < 768 ? handleMobileRowClick(serviceOrder) : handleRowClick(serviceOrder)}
                         className={`px-4 py-3 cursor-pointer transition-colors hover:bg-gray-800 border-b border-gray-800 ${selectedServiceOrder?.id === serviceOrder.id ? 'bg-gray-800' : ''}`}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className="text-red-400 font-medium text-sm mb-1">
-                              {serviceOrder.ticketId} | {serviceOrder.fullName} | {serviceOrder.fullAddress}
+                            <div className="text-white font-medium text-sm mb-1">
+                              {serviceOrder.fullName}
                             </div>
-                            <div className="text-white text-sm">
-                              {serviceOrder.concern} | <StatusText status={serviceOrder.supportStatus} type="support" />
+                            <div className="text-gray-400 text-xs">
+                              {serviceOrder.timestamp} | {serviceOrder.fullAddress}
                             </div>
+                          </div>
+                          <div className="flex flex-col items-end space-y-1 ml-4 flex-shrink-0">
+                            <StatusText status={serviceOrder.supportStatus} type="support" />
                           </div>
                         </div>
                       </div>
@@ -989,7 +1099,7 @@ const ServiceOrder: React.FC = () => {
                           <tr 
                             key={serviceOrder.id} 
                             className={`border-b border-gray-800 hover:bg-gray-900 cursor-pointer transition-colors ${selectedServiceOrder?.id === serviceOrder.id ? 'bg-gray-800' : ''}`}
-                            onClick={() => handleRowClick(serviceOrder)}
+                            onClick={() => window.innerWidth < 768 ? handleMobileRowClick(serviceOrder) : handleRowClick(serviceOrder)}
                           >
                             {filteredColumns.map((column, index) => (
                               <td 
@@ -1023,11 +1133,22 @@ const ServiceOrder: React.FC = () => {
         </div>
       </div>
 
-      {selectedServiceOrder && (
-        <div className="flex-shrink-0 overflow-hidden">
+      {selectedServiceOrder && mobileView === 'details' && (
+        <div className="md:hidden flex-1 flex flex-col overflow-hidden bg-gray-950">
+          <ServiceOrderDetails 
+            serviceOrder={selectedServiceOrder} 
+            onClose={handleMobileBack}
+            isMobile={true}
+          />
+        </div>
+      )}
+
+      {selectedServiceOrder && mobileView !== 'details' && (
+        <div className="hidden md:block flex-shrink-0 overflow-hidden">
           <ServiceOrderDetails 
             serviceOrder={selectedServiceOrder} 
             onClose={() => setSelectedServiceOrder(null)}
+            isMobile={false}
           />
         </div>
       )}
