@@ -55,6 +55,7 @@ interface StaggeredListDetailsProps {
 }
 
 const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, onClose }) => {
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +66,14 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(localStorage.getItem('theme') === 'dark');
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const authData = localStorage.getItem('authData');
@@ -202,14 +211,26 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
         percentage={loadingPercentage} 
       />
       
-      <div className="bg-gray-950 flex flex-col overflow-hidden border-l border-white border-opacity-30 relative" style={{ width: `${detailsWidth}px`, height: '100%' }}>
+      <div className={`flex flex-col overflow-hidden border-l relative ${
+        isDarkMode
+          ? 'bg-gray-950 border-white border-opacity-30'
+          : 'bg-white border-gray-300'
+      }`} style={{ width: `${detailsWidth}px`, height: '100%' }}>
         <div
-          className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
+          className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${
+            isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
+          }`}
           onMouseDown={handleMouseDownResize}
         />
-        <div className="bg-gray-800 p-3 flex items-center justify-between border-b border-gray-700">
+        <div className={`p-3 flex items-center justify-between border-b ${
+          isDarkMode
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-gray-100 border-gray-200'
+        }`}>
           <div className="flex items-center min-w-0 flex-1">
-            <h2 className="text-white font-medium truncate pr-4">{getAccountDisplayText()}</h2>
+            <h2 className={`font-medium truncate pr-4 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{getAccountDisplayText()}</h2>
             {loading && <div className="ml-3 animate-pulse text-orange-500 text-sm flex-shrink-0">Loading...</div>}
           </div>
           
@@ -226,12 +247,12 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
                 <span>{loading ? 'Approving...' : 'Approve'}</span>
               </button>
             )}
-            <button className="hover:text-white text-gray-400"><ArrowLeft size={16} /></button>
-            <button className="hover:text-white text-gray-400"><ArrowRight size={16} /></button>
-            <button className="hover:text-white text-gray-400"><Maximize2 size={16} /></button>
+            <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowLeft size={16} /></button>
+            <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowRight size={16} /></button>
+            <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><Maximize2 size={16} /></button>
             <button 
               onClick={onClose}
-              className="hover:text-white text-gray-400"
+              className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
               aria-label="Close"
             >
               <X size={18} />
@@ -240,88 +261,168 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
         </div>
         
         {error && (
-          <div className="bg-red-900 bg-opacity-20 border border-red-700 text-red-400 p-3 m-3 rounded">
+          <div className={`border p-3 m-3 rounded ${
+            isDarkMode
+              ? 'bg-red-900 bg-opacity-20 border-red-700 text-red-400'
+              : 'bg-red-100 border-red-300 text-red-900'
+          }`}>
             {error}
           </div>
         )}
         
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto py-1 px-4 bg-gray-950">
+          <div className={`mx-auto py-1 px-4 ${
+            isDarkMode ? 'bg-gray-950' : 'bg-white'
+          }`}>
             <div className="space-y-1">
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Staggered ID</div>
-                <div className="text-white flex-1">{staggered.id}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Staggered ID</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{staggered.id}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Install No.</div>
-                <div className="text-white flex-1">{staggered.staggered_install_no}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Install No.</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{staggered.staggered_install_no}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Account No.</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Account No.</div>
                 <div className="text-red-400 flex-1 font-medium flex items-center">
                   {staggered.billing_account?.account_no || staggered.account_no || '-'}
-                  <button className="ml-2 text-gray-400 hover:text-white">
+                  <button className={isDarkMode ? 'ml-2 text-gray-400 hover:text-white' : 'ml-2 text-gray-600 hover:text-gray-900'}>
                     <Info size={16} />
                   </button>
                 </div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Full Name</div>
-                <div className="text-white flex-1">{staggered.billing_account?.customer?.full_name || '-'}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Full Name</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{staggered.billing_account?.customer?.full_name || '-'}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Contact No.</div>
-                <div className="text-white flex-1">{staggered.billing_account?.customer?.contact_number_primary || '-'}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Contact No.</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{staggered.billing_account?.customer?.contact_number_primary || '-'}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Staggered Balance</div>
-                <div className="text-white flex-1 font-bold text-lg">{formatCurrency(staggered.staggered_balance)}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Staggered Balance</div>
+                <div className={`flex-1 font-bold text-lg ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{formatCurrency(staggered.staggered_balance)}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Monthly Payment</div>
-                <div className="text-white flex-1 font-bold text-lg">{formatCurrency(staggered.monthly_payment)}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Monthly Payment</div>
+                <div className={`flex-1 font-bold text-lg ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{formatCurrency(staggered.monthly_payment)}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Months to Pay</div>
-                <div className="text-white flex-1">
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Months to Pay</div>
+                <div className={isDarkMode ? 'text-white flex-1' : 'text-gray-900 flex-1'}>
                   <span className={`font-bold ${staggered.months_to_pay === 0 ? 'text-green-500' : 'text-orange-400'}`}>
                     {staggered.months_to_pay}
                   </span>
-                  <span className="text-gray-400 ml-2">
+                  <span className={`ml-2 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                     {staggered.months_to_pay === 0 ? 'Completed' : `${staggered.months_to_pay} month${staggered.months_to_pay !== 1 ? 's' : ''} remaining`}
                   </span>
                 </div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Staggered Date</div>
-                <div className="text-white flex-1">{formatDate(staggered.staggered_date)}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Staggered Date</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{formatDate(staggered.staggered_date)}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Modified By</div>
-                <div className="text-white flex-1">{staggered.modified_by || '-'}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Modified By</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{staggered.modified_by || '-'}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">User Email</div>
-                <div className="text-white flex-1">{staggered.user_email || '-'}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>User Email</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{staggered.user_email || '-'}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Remarks</div>
-                <div className="text-white flex-1">{staggered.remarks || 'No remarks'}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Remarks</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{staggered.remarks || 'No remarks'}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Status</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Status</div>
                 <div className="flex-1">
                   <div className={`capitalize ${
                     staggered.status.toLowerCase() === 'active' ? 'text-green-500' :
@@ -334,59 +435,113 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
                 </div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Barangay</div>
-                <div className="text-white flex-1">{staggered.billing_account?.customer?.barangay || '-'}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Barangay</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{staggered.billing_account?.customer?.barangay || '-'}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">City</div>
-                <div className="text-white flex-1">{staggered.billing_account?.customer?.city || '-'}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>City</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{staggered.billing_account?.customer?.city || '-'}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Region</div>
-                <div className="text-white flex-1">{staggered.billing_account?.customer?.region || '-'}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Region</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{staggered.billing_account?.customer?.region || '-'}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Plan</div>
-                <div className="text-white flex-1">{staggered.billing_account?.customer?.desired_plan || '-'}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Plan</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{staggered.billing_account?.customer?.desired_plan || '-'}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Account Balance</div>
-                <div className="text-white flex-1">{formatCurrency(staggered.billing_account?.account_balance || 0)}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Account Balance</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{formatCurrency(staggered.billing_account?.account_balance || 0)}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Created At</div>
-                <div className="text-white flex-1">{formatDate(staggered.created_at)}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Created At</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{formatDate(staggered.created_at)}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Updated At</div>
-                <div className="text-white flex-1">{formatDate(staggered.updated_at)}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Updated At</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{formatDate(staggered.updated_at)}</div>
               </div>
             </div>
           </div>
           
-          <div className="mx-auto px-4 bg-gray-950 mt-4">
-            <div className="border-t border-gray-800 pt-4">
+          <div className={`mx-auto px-4 mt-4 ${
+            isDarkMode ? 'bg-gray-950' : 'bg-white'
+          }`}>
+            <div className={`pt-4 ${
+              isDarkMode ? 'border-t border-gray-800' : 'border-t border-gray-300'
+            }`}>
               <div className="flex items-center mb-4">
-                <h3 className="text-white font-medium">Monthly Payment History</h3>
-                <span className="ml-2 bg-gray-600 text-white text-xs px-2 py-1 rounded">
+                <h3 className={`font-medium ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Monthly Payment History</h3>
+                <span className={`ml-2 text-xs px-2 py-1 rounded ${
+                  isDarkMode ? 'bg-gray-600 text-white' : 'bg-gray-300 text-gray-900'
+                }`}>
                   {getMonthPayments().length}
                 </span>
               </div>
               {getMonthPayments().length > 0 ? (
                 <div className="space-y-2">
                   {getMonthPayments().map((payment) => (
-                    <div key={payment.month} className="flex items-center justify-between bg-gray-800 p-3 rounded">
-                      <div className="text-gray-300">
+                    <div key={payment.month} className={`flex items-center justify-between p-3 rounded ${
+                      isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                    }`}>
+                      <div className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
                         <span className="font-medium">Month {payment.month}</span>
                       </div>
-                      <div className="text-gray-400 flex items-center space-x-2">
+                      <div className={`flex items-center space-x-2 ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
                         <span>Invoice ID: {payment.invoiceId}</span>
                         <ExternalLink size={14} className="text-orange-500 cursor-pointer hover:text-orange-400" />
                       </div>
@@ -394,7 +549,9 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-400">
+                <div className={`text-center py-8 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
                   No payment history yet
                 </div>
               )}
@@ -406,9 +563,17 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
       {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-700">
-            <h3 className="text-xl font-semibold text-white mb-4">Success</h3>
-            <p className="text-gray-300 mb-6">{successMessage}</p>
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border ${
+            isDarkMode
+              ? 'bg-gray-800 border-gray-700'
+              : 'bg-white border-gray-300'
+          }`}>
+            <h3 className={`text-xl font-semibold mb-4 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Success</h3>
+            <p className={`mb-6 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>{successMessage}</p>
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => {

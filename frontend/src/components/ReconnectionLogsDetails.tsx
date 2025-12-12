@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Maximize2, X, Info } from 'lucide-react';
 
 interface ReconnectionRecord {
@@ -34,26 +34,59 @@ interface ReconnectionLogsDetailsProps {
 }
 
 const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ reconnectionRecord }) => {
-  // Format the title as shown in screenshot
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(localStorage.getItem('theme') === 'dark');
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   const title = `${reconnectionRecord.accountNo} | ${reconnectionRecord.customerName} | ${reconnectionRecord.address}`;
   
   return (
-    <div className="bg-gray-900 text-white h-full flex flex-col">
-      <div className="bg-gray-800 px-4 py-3 flex items-center justify-between border-b border-gray-700">
-        <h1 className="text-lg font-semibold text-white truncate pr-4 min-w-0 flex-1">
+    <div className={`h-full flex flex-col ${
+      isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
+    }`}>
+      <div className={`px-4 py-3 flex items-center justify-between border-b ${
+        isDarkMode
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-200'
+      }`}>
+        <h1 className={`text-lg font-semibold truncate pr-4 min-w-0 flex-1 ${
+          isDarkMode ? 'text-white' : 'text-gray-900'
+        }`}>
           {title}
         </h1>
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <ChevronLeft size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <ChevronRight size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <Maximize2 size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <X size={18} />
           </button>
         </div>
@@ -62,110 +95,130 @@ const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ recon
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-4">
-          {/* Account No */}
           <div>
-            <h3 className="text-sm uppercase text-gray-500 mb-2">Account No.</h3>
+            <h3 className={`text-sm uppercase mb-2 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>Account No.</h3>
             <p className="text-red-500">
               {reconnectionRecord.accountNo} | {reconnectionRecord.customerName} | {reconnectionRecord.address}
             </p>
           </div>
           
-          {/* ID */}
           <div>
-            <h3 className="text-sm uppercase text-gray-500 mb-2">id</h3>
-            <p className="text-white">
+            <h3 className={`text-sm uppercase mb-2 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>id</h3>
+            <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
               {reconnectionRecord.splynxId || '202509181617722'}
             </p>
           </div>
           
-          {/* Mikrotik ID */}
           <div>
-            <h3 className="text-sm uppercase text-gray-500 mb-2">Mikrotik ID</h3>
-            <p className="text-white">
+            <h3 className={`text-sm uppercase mb-2 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>Mikrotik ID</h3>
+            <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
               {reconnectionRecord.mikrotikId || '*1C7E'}
             </p>
           </div>
           
-          {/* Provider */}
           <div>
-            <h3 className="text-sm uppercase text-gray-500 mb-2">Provider</h3>
+            <h3 className={`text-sm uppercase mb-2 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>Provider</h3>
             <div className="flex items-center">
-              <p className="text-white">
+              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
                 {reconnectionRecord.provider || 'SWITCH'}
               </p>
-              <Info size={16} className="ml-2 text-gray-500" />
+              <Info size={16} className={`ml-2 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`} />
             </div>
           </div>
           
-          {/* Username */}
           <div>
-            <h3 className="text-sm uppercase text-gray-500 mb-2">Username</h3>
-            <p className="text-white">
+            <h3 className={`text-sm uppercase mb-2 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>Username</h3>
+            <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
               {reconnectionRecord.username || 'santosg0701251450'}
             </p>
           </div>
           
-          {/* Date */}
           <div>
-            <h3 className="text-sm uppercase text-gray-500 mb-2">Date</h3>
-            <p className="text-white">
+            <h3 className={`text-sm uppercase mb-2 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>Date</h3>
+            <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
               {reconnectionRecord.date || '9/18/2025 4:17:22 PM'}
             </p>
           </div>
           
-          {/* Plan */}
           <div>
-            <h3 className="text-sm uppercase text-gray-500 mb-2">Plan</h3>
+            <h3 className={`text-sm uppercase mb-2 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>Plan</h3>
             <div className="flex items-center">
-              <p className="text-white">
+              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
                 {reconnectionRecord.plan || 'SwitchLite - P699'}
               </p>
-              <Info size={16} className="ml-2 text-gray-500" />
+              <Info size={16} className={`ml-2 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`} />
             </div>
           </div>
           
-          {/* Reconnection Fee */}
           <div>
-            <h3 className="text-sm uppercase text-gray-500 mb-2">Reconnection Fee</h3>
-            <p className="text-white">
+            <h3 className={`text-sm uppercase mb-2 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>Reconnection Fee</h3>
+            <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
               ₱{reconnectionRecord.reconnectionFee !== undefined ? reconnectionRecord.reconnectionFee.toFixed(2) : '0.00'}
             </p>
           </div>
           
-          {/* Remarks */}
           <div>
-            <h3 className="text-sm uppercase text-gray-500 mb-2">Remarks</h3>
-            <p className="text-white">
+            <h3 className={`text-sm uppercase mb-2 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>Remarks</h3>
+            <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
               {reconnectionRecord.remarks || 'Transaction'}
             </p>
           </div>
           
-          {/* Barangay */}
           <div>
-            <h3 className="text-sm uppercase text-gray-500 mb-2">Barangay</h3>
+            <h3 className={`text-sm uppercase mb-2 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>Barangay</h3>
             <div className="flex items-center">
-              <p className="text-white">
+              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
                 {reconnectionRecord.barangay || 'Tatala'}
               </p>
-              <Info size={16} className="ml-2 text-gray-500" />
+              <Info size={16} className={`ml-2 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`} />
             </div>
           </div>
           
-          {/* City */}
           <div>
-            <h3 className="text-sm uppercase text-gray-500 mb-2">City</h3>
+            <h3 className={`text-sm uppercase mb-2 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>City</h3>
             <div className="flex items-center">
-              <p className="text-white">
+              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
                 {reconnectionRecord.city || 'Binangonan'}
               </p>
-              <Info size={16} className="ml-2 text-gray-500" />
+              <Info size={16} className={`ml-2 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`} />
             </div>
           </div>
           
-          {/* Date Format */}
           <div>
-            <h3 className="text-sm uppercase text-gray-500 mb-2">Date Format</h3>
-            <p className="text-white">
+            <h3 className={`text-sm uppercase mb-2 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>Date Format</h3>
+            <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
               {reconnectionRecord.dateFormat || '9/18/2025'}
             </p>
           </div>

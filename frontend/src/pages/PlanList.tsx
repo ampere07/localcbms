@@ -16,6 +16,7 @@ interface Plan {
 }
 
 const PlanList: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [plans, setPlans] = useState<Plan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -23,6 +24,26 @@ const PlanList: React.FC = () => {
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   
   const [deletingItems, setDeletingItems] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     loadPlans();
@@ -150,11 +171,15 @@ const PlanList: React.FC = () => {
     const isActive = plan.is_active !== undefined ? plan.is_active : true;
     
     return (
-      <div key={plan.id} className="bg-gray-900 border-b border-gray-800">
+      <div key={plan.id} className={`border-b ${
+        isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+      }`}>
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <h3 className="text-white font-medium text-lg">{plan.name}</h3>
+              <h3 className={`font-medium text-lg ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{plan.name}</h3>
               <span className="text-green-400 font-semibold">
                 {formatPrice(plan.price)}
               </span>
@@ -165,9 +190,13 @@ const PlanList: React.FC = () => {
               )}
             </div>
             {plan.description && (
-              <p className="text-gray-400 text-sm mt-1">{plan.description}</p>
+              <p className={`text-sm mt-1 ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>{plan.description}</p>
             )}
-            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+            <div className={`flex items-center gap-4 mt-2 text-xs ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>
               <span>Modified: {formatDate(plan.modified_date)}</span>
               <span>By: {plan.modified_by || 'System'}</span>
             </div>
@@ -175,7 +204,11 @@ const PlanList: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleEdit(plan)}
-              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded"
+              className={`p-2 rounded transition-colors ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
               title="Edit"
             >
               <Edit2 className="h-4 w-4" />
@@ -183,7 +216,11 @@ const PlanList: React.FC = () => {
             <button
               onClick={() => handleDelete(plan)}
               disabled={deletingItems.has(plan.id)}
-              className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
+                  : 'text-gray-600 hover:text-red-600 hover:bg-gray-100'
+              }`}
               title={deletingItems.has(plan.id) ? 'Permanently Deleting...' : 'Permanently Delete'}
             >
               {deletingItems.has(plan.id) ? (
@@ -201,23 +238,37 @@ const PlanList: React.FC = () => {
   const filteredPlans = getFilteredPlans();
 
   return (
-    <div className="min-h-screen bg-gray-950">
-      <div className="bg-gray-900 border-b border-gray-800">
+    <div className={`min-h-screen ${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    }`}>
+      <div className={`border-b ${
+        isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+      }`}>
         <div className="px-6 py-4">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-semibold text-white">Plan List</h1>
+            <h1 className={`text-xl font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Plan List</h1>
             <div className="flex items-center gap-3">
               <button
                 onClick={handleAddNew}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2"
+                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center gap-2 transition-colors"
               >
                 <Plus className="h-4 w-4" />
                 Add
               </button>
-              <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
+              <button className={`p-2 rounded transition-colors ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}>
                 <Filter className="h-5 w-5" />
               </button>
-              <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
+              <button className={`p-2 rounded transition-colors ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}>
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
@@ -226,13 +277,19 @@ const PlanList: React.FC = () => {
           </div>
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500" />
+            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-400'
+            }`} />
             <input
               type="text"
               placeholder="Search Plan List"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-gray-600 focus:outline-none"
+              className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-orange-500 ${
+                isDarkMode
+                  ? 'bg-gray-800 text-white border-gray-700 focus:border-orange-500'
+                  : 'bg-white text-gray-900 border-gray-300 focus:border-orange-500'
+              }`}
             />
           </div>
         </div>
@@ -241,14 +298,18 @@ const PlanList: React.FC = () => {
       <div className="flex-1 overflow-auto">
         {isLoading ? (
           <div className="flex justify-center items-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-white" />
+            <Loader2 className={`h-8 w-8 animate-spin ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`} />
           </div>
         ) : filteredPlans.length > 0 ? (
           <div>
             {filteredPlans.map(renderListItem)}
           </div>
         ) : (
-          <div className="text-center py-20 text-gray-500">
+          <div className={`text-center py-20 ${
+            isDarkMode ? 'text-gray-500' : 'text-gray-600'
+          }`}>
             No plans found
           </div>
         )}

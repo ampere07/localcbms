@@ -2500,3 +2500,33 @@ Route::get('/billing-generation/test', function() {
     \Illuminate\Support\Facades\Log::info('Billing generation test route accessed');
     return response()->json(['success' => true, 'message' => 'Routes working!']);
 });
+
+// User Settings Routes
+Route::prefix('user-settings')->group(function () {
+    Route::post('/darkmode', [\App\Http\Controllers\UserSettingsController::class, 'updateDarkMode']);
+    Route::get('/{userId}/darkmode', [\App\Http\Controllers\UserSettingsController::class, 'getDarkMode']);
+});
+
+// Debug route to check users table structure
+Route::get('/debug/users-table', function() {
+    try {
+        $columns = \Illuminate\Support\Facades\Schema::getColumnListing('users');
+        $user = \App\Models\User::first();
+        
+        return response()->json([
+            'success' => true,
+            'columns' => $columns,
+            'has_darkmode' => in_array('darkmode', $columns),
+            'sample_user' => $user ? [
+                'id' => $user->id,
+                'username' => $user->username,
+                'darkmode' => $user->darkmode ?? 'column not found'
+            ] : null
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});

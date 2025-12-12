@@ -15,6 +15,7 @@ interface NapFormData {
 }
 
 const NapList: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [napItems, setNapItems] = useState<NapItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -23,6 +24,23 @@ const NapList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const [deletingItems, setDeletingItems] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme !== 'light');
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    const theme = localStorage.getItem('theme');
+    setIsDarkMode(theme !== 'light');
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     loadNapItems();
@@ -151,11 +169,17 @@ const NapList: React.FC = () => {
   });
 
   return (
-    <div className="bg-gray-950 h-full flex overflow-hidden">
-      <div className="bg-gray-900 overflow-hidden flex-1">
+    <div className={`${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    } h-full flex overflow-hidden`}>
+      <div className={`${
+        isDarkMode ? 'bg-gray-900' : 'bg-white'
+      } overflow-hidden flex-1`}>
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="bg-gray-900 p-4 border-b border-gray-700 flex-shrink-0">
+          <div className={`p-4 border-b flex-shrink-0 ${
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex items-center space-x-3">
               <div className="relative flex-1">
                 <input
@@ -163,9 +187,15 @@ const NapList: React.FC = () => {
                   placeholder="Search NAP"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-800 text-white border border-gray-700 rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500"
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500 ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700' 
+                      : 'bg-gray-100 text-gray-900 border-gray-300'
+                  } border`}
                 />
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} />
               </div>
               <button
                 onClick={handleAddNew}
@@ -181,19 +211,29 @@ const NapList: React.FC = () => {
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto">
               {isLoading ? (
-                <div className="px-4 py-12 text-center text-gray-400">
+                <div className={`px-4 py-12 text-center ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
                   <div className="animate-pulse flex flex-col items-center">
-                    <div className="h-4 w-1/3 bg-gray-700 rounded mb-4"></div>
-                    <div className="h-4 w-1/2 bg-gray-700 rounded"></div>
+                    <div className={`h-4 w-1/3 rounded mb-4 ${
+                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${
+                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}></div>
                   </div>
                   <p className="mt-4">Loading NAP items...</p>
                 </div>
               ) : error ? (
-                <div className="px-4 py-12 text-center text-red-400">
+                <div className={`px-4 py-12 text-center text-red-400`}>
                   <p>{error}</p>
                   <button 
                     onClick={() => loadNapItems()}
-                    className="mt-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                    className={`mt-4 px-4 py-2 rounded ${
+                      isDarkMode 
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                    }`}>
                     Retry
                   </button>
                 </div>
@@ -202,18 +242,28 @@ const NapList: React.FC = () => {
                   {filteredNapItems.map((item) => (
                     <div
                       key={item.id}
-                      className="px-4 py-3 cursor-pointer transition-colors hover:bg-gray-800 border-b border-gray-800"
+                      className={`px-4 py-3 cursor-pointer transition-colors border-b ${
+                        isDarkMode 
+                          ? 'hover:bg-gray-800 border-gray-800' 
+                          : 'hover:bg-gray-100 border-gray-200'
+                      }`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
-                          <div className="text-white font-medium text-sm mb-1 uppercase">
+                          <div className={`font-medium text-sm mb-1 uppercase ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                             {item.nap_name}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
                           <button
                             onClick={(e) => handleEdit(item, e)}
-                            className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded transition-colors"
+                            className={`p-1.5 rounded transition-colors ${
+                              isDarkMode 
+                                ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700' 
+                                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-200'
+                            }`}
                             title="Edit NAP"
                           >
                             <Edit2 size={16} />
@@ -221,7 +271,11 @@ const NapList: React.FC = () => {
                           <button
                             onClick={(e) => handleDelete(item, e)}
                             disabled={deletingItems.has(item.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className={`p-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                              isDarkMode 
+                                ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700' 
+                                : 'text-gray-600 hover:text-red-600 hover:bg-gray-200'
+                            }`}
                             title={deletingItems.has(item.id) ? 'Deleting...' : 'Delete NAP'}
                           >
                             {deletingItems.has(item.id) ? (
@@ -236,7 +290,9 @@ const NapList: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 text-gray-400">
+                <div className={`text-center py-12 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
                   No NAP items found
                 </div>
               )}

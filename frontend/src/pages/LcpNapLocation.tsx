@@ -39,6 +39,7 @@ interface LcpNapItem {
 
 
 const LcpNapLocation: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [markers, setMarkers] = useState<LocationMarker[]>([]);
   const [lcpNapGroups, setLcpNapGroups] = useState<LcpNapGroup[]>([]);
   const [selectedLcpNapId, setSelectedLcpNapId] = useState<number | string>('all');
@@ -55,6 +56,23 @@ const LcpNapLocation: React.FC = () => {
   const sidebarStartWidthRef = useRef<number>(0);
 
   const API_BASE_URL = 'http://192.168.100.10:8000/api';
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme !== 'light');
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    const theme = localStorage.getItem('theme');
+    setIsDarkMode(theme !== 'light');
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     loadGoogleMapsScript();
@@ -436,11 +454,19 @@ const LcpNapLocation: React.FC = () => {
   const selectedGroup = getSelectedGroup();
 
   return (
-    <div className="bg-gray-950 h-full flex overflow-hidden">
-      <div className="bg-gray-900 border-r border-gray-700 flex-shrink-0 flex flex-col relative" style={{ width: `${sidebarWidth}px` }}>
-        <div className="p-4 border-b border-gray-700 flex-shrink-0">
+    <div className={`${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    } h-full flex overflow-hidden`}>
+      <div className={`border-r flex-shrink-0 flex flex-col relative ${
+        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+      }`} style={{ width: `${sidebarWidth}px` }}>
+        <div className={`p-4 border-b flex-shrink-0 ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-lg font-semibold text-white">LCP/NAP Locations</h2>
+            <h2 className={`text-lg font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>LCP/NAP Locations</h2>
           </div>
         </div>
         
@@ -449,10 +475,12 @@ const LcpNapLocation: React.FC = () => {
             <button
               key={item.id === 0 ? 'all' : item.id}
               onClick={() => handleLcpNapSelect(item.id === 0 ? 'all' : item.id)}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
+                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${
                 (item.id === 0 && selectedLcpNapId === 'all') || (item.id !== 0 && selectedLcpNapId === item.id)
-                  ? 'bg-orange-500 bg-opacity-20 text-orange-400'
-                  : 'text-gray-300'
+                  ? 'bg-orange-500 bg-opacity-20 text-orange-400 font-medium'
+                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}
             >
               <div className="flex items-center">
@@ -463,7 +491,7 @@ const LcpNapLocation: React.FC = () => {
                 <span className={`px-2 py-1 rounded-full text-xs ${
                   (item.id === 0 && selectedLcpNapId === 'all') || (item.id !== 0 && selectedLcpNapId === item.id)
                     ? 'bg-orange-600 text-white'
-                    : 'bg-gray-700 text-gray-300'
+                    : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                 }`}>
                   {item.count}
                 </span>
@@ -478,11 +506,17 @@ const LcpNapLocation: React.FC = () => {
         />
       </div>
 
-      <div className="bg-gray-900 overflow-hidden flex-1">
+      <div className={`overflow-hidden flex-1 ${
+        isDarkMode ? 'bg-gray-900' : 'bg-white'
+      }`}>
         <div className="flex flex-col h-full">
-          <div className="bg-gray-900 p-4 border-b border-gray-700 flex-shrink-0">
+          <div className={`p-4 border-b flex-shrink-0 ${
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex items-center justify-between">
-              <h3 className="text-white text-lg font-semibold">Map View</h3>
+              <h3 className={`text-lg font-semibold ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Map View</h3>
               <button
                 onClick={() => setShowAddModal(true)}
                 className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded flex items-center gap-2 text-sm"
@@ -500,10 +534,14 @@ const LcpNapLocation: React.FC = () => {
             />
             
             {isLoading && (
-              <div className="absolute inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[1000]">
+              <div className={`absolute inset-0 bg-opacity-75 flex items-center justify-center z-[1000] ${
+                isDarkMode ? 'bg-gray-900' : 'bg-gray-100'
+              }`}>
                 <div className="flex flex-col items-center gap-3">
                   <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-                  <p className="text-white text-sm">Loading map...</p>
+                  <p className={`text-sm ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Loading map...</p>
                 </div>
               </div>
             )}

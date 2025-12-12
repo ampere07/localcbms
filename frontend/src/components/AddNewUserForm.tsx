@@ -36,6 +36,24 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark');
+    };
+    
+    checkDarkMode();
+    
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     loadOrganizations();
@@ -204,24 +222,34 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
   };
 
   return (
-    <div className="p-6">
+    <div className={isDarkMode ? 'p-6' : 'p-6 bg-gray-50'}>
       <Breadcrumb items={[
         { label: 'Users', onClick: onCancel },
         { label: 'Add User' }
       ]} />
-      <div className="bg-gray-800 rounded-lg border border-gray-600 overflow-hidden text-white">
+      <div className={`rounded-lg border overflow-hidden ${
+        isDarkMode ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-200 text-gray-900'
+      }`}>
         <div className="p-6">
           <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-white mb-2">
+            <h2 className={`text-2xl font-semibold mb-2 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
               Add New User
             </h2>
-            <p className="text-gray-400 text-sm">
+            <p className={`text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
               Create a new user account in the system
             </p>
           </div>
 
           {errors.general && (
-            <div className="mb-6 p-4 bg-red-900 border border-red-600 rounded text-red-200">
+            <div className={`mb-6 p-4 rounded ${
+              isDarkMode 
+                ? 'bg-red-900 border border-red-600 text-red-200'
+                : 'bg-red-100 border border-red-300 text-red-700'
+            }`}>
               {errors.general}
             </div>
           )}
@@ -229,14 +257,20 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
           <div className="max-w-2xl">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Salutation
                 </label>
                 <select
                   name="salutation"
                   value={formData.salutation}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded text-white focus:outline-none focus:border-gray-400"
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${
+                    isDarkMode 
+                      ? 'bg-gray-900 border border-gray-600 text-white focus:border-gray-400'
+                      : 'bg-white border border-gray-300 text-gray-900 focus:border-gray-500'
+                  }`}
                 >
                   {salutationOptions.map(option => (
                     <option key={option.value} value={option.value}>
@@ -255,14 +289,22 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   name="first_name"
                   value={formData.first_name}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.first_name ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${
+                    isDarkMode 
+                      ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
+                      : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                  } ${
+                    errors.first_name 
+                      ? 'border-red-600' 
+                      : isDarkMode ? 'border-gray-600' : 'border-gray-300'
                   }`}
                   placeholder="Enter first name"
                   required
                 />
                 {errors.first_name && (
-                  <p className="text-red-400 text-sm mt-1">{errors.first_name}</p>
+                  <p className={`text-sm mt-1 ${
+                    isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>{errors.first_name}</p>
                 )}
               </div>
 
@@ -276,7 +318,11 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   value={formData.middle_initial}
                   onChange={handleInputChange}
                   maxLength={1}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400"
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${
+                    isDarkMode 
+                      ? 'bg-gray-900 border border-gray-600 text-white placeholder-gray-500 focus:border-gray-400'
+                      : 'bg-white border border-gray-300 text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                  }`}
                   placeholder="M"
                 />
               </div>
@@ -290,14 +336,22 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   name="last_name"
                   value={formData.last_name}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.last_name ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${
+                    isDarkMode 
+                      ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
+                      : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                  } ${
+                    errors.last_name 
+                      ? 'border-red-600' 
+                      : isDarkMode ? 'border-gray-600' : 'border-gray-300'
                   }`}
                   placeholder="Enter last name"
                   required
                 />
                 {errors.last_name && (
-                  <p className="text-red-400 text-sm mt-1">{errors.last_name}</p>
+                  <p className={`text-sm mt-1 ${
+                    isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>{errors.last_name}</p>
                 )}
               </div>
 
@@ -310,14 +364,22 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   name="username"
                   value={formData.username}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.username ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${
+                    isDarkMode 
+                      ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
+                      : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                  } ${
+                    errors.username 
+                      ? 'border-red-600' 
+                      : isDarkMode ? 'border-gray-600' : 'border-gray-300'
                   }`}
                   placeholder="Enter username"
                   required
                 />
                 {errors.username && (
-                  <p className="text-red-400 text-sm mt-1">{errors.username}</p>
+                  <p className={`text-sm mt-1 ${
+                    isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>{errors.username}</p>
                 )}
               </div>
 
@@ -330,14 +392,22 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   name="email_address"
                   value={formData.email_address}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.email_address ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${
+                    isDarkMode 
+                      ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
+                      : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                  } ${
+                    errors.email_address 
+                      ? 'border-red-600' 
+                      : isDarkMode ? 'border-gray-600' : 'border-gray-300'
                   }`}
                   placeholder="Enter email address"
                   required
                 />
                 {errors.email_address && (
-                  <p className="text-red-400 text-sm mt-1">{errors.email_address}</p>
+                  <p className={`text-sm mt-1 ${
+                    isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>{errors.email_address}</p>
                 )}
               </div>
 
@@ -350,13 +420,21 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   name="contact_number"
                   value={formData.contact_number}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.contact_number ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${
+                    isDarkMode 
+                      ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
+                      : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                  } ${
+                    errors.contact_number 
+                      ? 'border-red-600' 
+                      : isDarkMode ? 'border-gray-600' : 'border-gray-300'
                   }`}
                   placeholder="Enter contact number"
                 />
                 {errors.contact_number && (
-                  <p className="text-red-400 text-sm mt-1">{errors.contact_number}</p>
+                  <p className={`text-sm mt-1 ${
+                    isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>{errors.contact_number}</p>
                 )}
               </div>
 
@@ -368,8 +446,14 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   name="organization_id"
                   value={formData.organization_id || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white focus:outline-none focus:border-gray-400 ${
-                    errors.organization_id ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${
+                    isDarkMode 
+                      ? 'bg-gray-900 text-white focus:border-gray-400'
+                      : 'bg-white text-gray-900 focus:border-gray-500'
+                  } ${
+                    errors.organization_id 
+                      ? 'border-red-600' 
+                      : isDarkMode ? 'border-gray-600' : 'border-gray-300'
                   }`}
                 >
                   <option value="">No Organization (Optional)</option>
@@ -380,7 +464,9 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   ))}
                 </select>
                 {errors.organization_id && (
-                  <p className="text-red-400 text-sm mt-1">{errors.organization_id}</p>
+                  <p className={`text-sm mt-1 ${
+                    isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>{errors.organization_id}</p>
                 )}
               </div>
 
@@ -392,8 +478,14 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   name="role_id"
                   value={formData.role_id || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white focus:outline-none focus:border-gray-400 ${
-                    errors.role_id ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${
+                    isDarkMode 
+                      ? 'bg-gray-900 text-white focus:border-gray-400'
+                      : 'bg-white text-gray-900 focus:border-gray-500'
+                  } ${
+                    errors.role_id 
+                      ? 'border-red-600' 
+                      : isDarkMode ? 'border-gray-600' : 'border-gray-300'
                   }`}
                 >
                   <option value="">Select Role (Optional)</option>
@@ -404,7 +496,9 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   ))}
                 </select>
                 {errors.role_id && (
-                  <p className="text-red-400 text-sm mt-1">{errors.role_id}</p>
+                  <p className={`text-sm mt-1 ${
+                    isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>{errors.role_id}</p>
                 )}
               </div>
 
@@ -417,14 +511,22 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.password ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${
+                    isDarkMode 
+                      ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
+                      : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                  } ${
+                    errors.password 
+                      ? 'border-red-600' 
+                      : isDarkMode ? 'border-gray-600' : 'border-gray-300'
                   }`}
                   placeholder="Enter password"
                   required
                 />
                 {errors.password && (
-                  <p className="text-red-400 text-sm mt-1">{errors.password}</p>
+                  <p className={`text-sm mt-1 ${
+                    isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>{errors.password}</p>
                 )}
               </div>
 
@@ -437,14 +539,22 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   name="confirmPassword"
                   value={confirmPassword}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.confirmPassword ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${
+                    isDarkMode 
+                      ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
+                      : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                  } ${
+                    errors.confirmPassword 
+                      ? 'border-red-600' 
+                      : isDarkMode ? 'border-gray-600' : 'border-gray-300'
                   }`}
                   placeholder="Confirm password"
                   required
                 />
                 {errors.confirmPassword && (
-                  <p className="text-red-400 text-sm mt-1">{errors.confirmPassword}</p>
+                  <p className={`text-sm mt-1 ${
+                    isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>{errors.confirmPassword}</p>
                 )}
               </div>
             </div>
@@ -453,14 +563,22 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
               <button
                 onClick={onCancel}
                 disabled={loading}
-                className="px-6 py-3 border border-gray-600 text-white rounded hover:bg-gray-800 transition-colors text-sm font-medium disabled:opacity-50"
+                className={`px-6 py-3 border rounded transition-colors text-sm font-medium disabled:opacity-50 ${
+                  isDarkMode 
+                    ? 'border-gray-600 text-white hover:bg-gray-800'
+                    : 'border-gray-300 text-gray-900 hover:bg-gray-100'
+                }`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateUser}
                 disabled={loading}
-                className="px-6 py-3 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors text-sm font-medium disabled:opacity-50"
+                className={`px-6 py-3 rounded transition-colors text-sm font-medium disabled:opacity-50 ${
+                  isDarkMode 
+                    ? 'bg-gray-600 text-white hover:bg-gray-700'
+                    : 'bg-gray-500 text-white hover:bg-gray-600'
+                }`}
               >
                 {loading ? 'Creating...' : 'Create User'}
               </button>

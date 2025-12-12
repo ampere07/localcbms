@@ -33,6 +33,15 @@ const EditLcpModal: React.FC<EditLcpModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [modifiedDate, setModifiedDate] = useState<string>('');
   const [modifiedBy, setModifiedBy] = useState<string>('');
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(localStorage.getItem('theme') === 'dark');
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     // Get current user email from localStorage
@@ -137,17 +146,29 @@ const EditLcpModal: React.FC<EditLcpModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50" onClick={handleClose}>
       <div 
-        className="h-full w-3/4 md:w-full md:max-w-2xl bg-gray-900 shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col"
+        className={`h-full w-3/4 md:w-full md:max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${
+          isDarkMode ? 'bg-gray-900' : 'bg-white'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-gray-800 px-6 py-4 flex items-center justify-between border-b border-gray-700">
-          <h2 className="text-xl font-semibold text-white">
+        <div className={`px-6 py-4 flex items-center justify-between border-b ${
+          isDarkMode
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-gray-100 border-gray-300'
+        }`}>
+          <h2 className={`text-xl font-semibold ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>
             {lcpItem ? 'Edit LCP' : 'Add LCP'}
           </h2>
           <div className="flex items-center space-x-3">
             <button
               onClick={handleClose}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
+              className={`px-4 py-2 rounded text-sm ${
+                isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+              }`}
             >
               Cancel
             </button>
@@ -167,7 +188,7 @@ const EditLcpModal: React.FC<EditLcpModalProps> = ({
             </button>
             <button
               onClick={handleClose}
-              className="text-gray-400 hover:text-white transition-colors"
+              className={isDarkMode ? 'text-gray-400 hover:text-white transition-colors' : 'text-gray-600 hover:text-gray-900 transition-colors'}
             >
               <X size={24} />
             </button>
@@ -176,7 +197,9 @@ const EditLcpModal: React.FC<EditLcpModalProps> = ({
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               LCP Name<span className="text-red-500">*</span>
             </label>
             <input
@@ -184,16 +207,20 @@ const EditLcpModal: React.FC<EditLcpModalProps> = ({
               value={formData.name}
               onChange={(e) => handleInputChange(e.target.value)}
               placeholder="Enter LCP name"
-              className={`w-full px-3 py-2 bg-gray-800 border ${
-                errors.name ? 'border-red-500' : 'border-gray-700'
-              } rounded text-white focus:outline-none focus:border-orange-500`}
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                errors.name ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+              } ${
+                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+              }`}
               autoFocus
             />
             {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Modified Date
             </label>
             <div className="relative">
@@ -201,21 +228,33 @@ const EditLcpModal: React.FC<EditLcpModalProps> = ({
                 type="text"
                 value={modifiedDate}
                 readOnly
-                className="w-full px-3 py-2 pr-10 bg-gray-800 border border-gray-700 rounded text-gray-400 cursor-not-allowed"
+                className={`w-full px-3 py-2 pr-10 border rounded cursor-not-allowed ${
+                  isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-gray-400'
+                    : 'bg-gray-100 border-gray-300 text-gray-500'
+                }`}
               />
-              <Calendar className="absolute right-3 top-2.5 text-gray-500" size={20} />
+              <Calendar className={`absolute right-3 top-2.5 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-400'
+              }`} size={20} />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Modified By
             </label>
             <input
               type="text"
               value={modifiedBy}
               readOnly
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-400 cursor-not-allowed"
+              className={`w-full px-3 py-2 border rounded cursor-not-allowed ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700 text-gray-400'
+                  : 'bg-gray-100 border-gray-300 text-gray-500'
+              }`}
             />
           </div>
         </div>

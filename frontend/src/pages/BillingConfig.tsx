@@ -27,6 +27,7 @@ interface ModalConfig {
 }
 
 const BillingConfig: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [customAccountNumber, setCustomAccountNumber] = useState<CustomAccountNumber | null>(null);
   const [isEditingAccountNumber, setIsEditingAccountNumber] = useState<boolean>(false);
   const [accountNumberInput, setAccountNumberInput] = useState<string>('');
@@ -84,6 +85,26 @@ const BillingConfig: React.FC = () => {
       setLoadingBillingConfig(false);
     }
   };
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     fetchCustomAccountNumber();
@@ -382,11 +403,17 @@ const BillingConfig: React.FC = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-950 min-h-full">
-      <div className="mb-6 pb-6 border-b border-gray-700">
+    <div className={`p-6 min-h-full ${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    }`}>
+      <div className={`mb-6 pb-6 border-b ${
+        isDarkMode ? 'border-gray-700' : 'border-gray-200'
+      }`}>
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-white mb-2 flex items-center gap-3">
+            <h2 className={`text-2xl font-semibold mb-2 flex items-center gap-3 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
               Billing Configurations
             </h2>
           </div>
@@ -394,15 +421,21 @@ const BillingConfig: React.FC = () => {
       </div>
 
       <div className="space-y-6">
-        <div className="space-y-4 pb-6 border-b border-gray-700">
+        <div className={`space-y-4 pb-6 border-b ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
           <div className="flex items-center gap-3">
-            <h3 className="text-lg font-semibold text-white">
+            <h3 className={`text-lg font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
               Starting Account Number
             </h3>
           </div>
           
           <div className="space-y-4">
-            <p className="text-gray-400 text-sm">
+            <p className={`text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
               Set a custom starting number for new billing accounts. This can only be created once. You can edit or delete it after creation.
             </p>
 
@@ -417,8 +450,12 @@ const BillingConfig: React.FC = () => {
                     <Hash className="h-5 w-5 text-orange-400" />
                   </div>
                   <div>
-                    <p className="text-white font-medium text-lg">{customAccountNumber.starting_number}</p>
-                    <p className="text-gray-400 text-xs">Current starting number</p>
+                    <p className={`font-medium text-lg ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{customAccountNumber.starting_number}</p>
+                    <p className={`text-xs ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Current starting number</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -441,7 +478,9 @@ const BillingConfig: React.FC = () => {
             ) : (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                     Starting Number
                   </label>
                   <input
@@ -450,10 +489,16 @@ const BillingConfig: React.FC = () => {
                     onChange={(e) => setAccountNumberInput(e.target.value)}
                     placeholder="e.g., ABC1234 (optional, max 7 characters)"
                     maxLength={7}
-                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500 uppercase"
+                    className={`w-full px-4 py-2 border rounded focus:outline-none focus:border-orange-500 uppercase ${
+                      isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
                     disabled={loadingAccountNumber}
                   />
-                  <p className="text-gray-500 text-xs mt-2">
+                  <p className={`text-xs mt-2 ${
+                    isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                  }`}>
                     Enter any combination of letters and numbers (max 7 characters). Leave blank to generate without prefix.
                   </p>
                 </div>
@@ -470,7 +515,11 @@ const BillingConfig: React.FC = () => {
                     <button
                       onClick={handleCancelEdit}
                       disabled={loadingAccountNumber}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white rounded transition-colors"
+                      className={`flex items-center gap-2 px-4 py-2 disabled:opacity-50 text-white rounded transition-colors ${
+                        isDarkMode
+                          ? 'bg-gray-700 hover:bg-gray-600'
+                          : 'bg-gray-400 hover:bg-gray-500'
+                      }`}
                     >
                       <X size={18} />
                       <span>Cancel</span>
@@ -482,15 +531,21 @@ const BillingConfig: React.FC = () => {
           </div>
         </div>
 
-        <div className="space-y-4 pb-6 border-b border-gray-700">
+        <div className={`space-y-4 pb-6 border-b ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
           <div className="flex items-center gap-3">
-            <h3 className="text-lg font-semibold text-white">
+            <h3 className={`text-lg font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
               Billing Day Configuration
             </h3>
           </div>
           
           <div className="space-y-4">
-            <p className="text-gray-400 text-sm">
+            <p className={`text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
               Configure the day intervals for billing operations. This can only be created once. You can edit or delete it after creation.
             </p>
 
@@ -501,25 +556,55 @@ const BillingConfig: React.FC = () => {
             ) : billingConfig && !isEditingBillingConfig ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-800 p-4 rounded">
-                    <p className="text-gray-400 text-xs mb-1">Advance Generation Day</p>
-                    <p className="text-white font-medium text-lg">{billingConfig.advance_generation_day}</p>
+                  <div className={`p-4 rounded ${
+                    isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                  }`}>
+                    <p className={`text-xs mb-1 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Advance Generation Day</p>
+                    <p className={`font-medium text-lg ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{billingConfig.advance_generation_day}</p>
                   </div>
-                  <div className="bg-gray-800 p-4 rounded">
-                    <p className="text-gray-400 text-xs mb-1">Due Date Day</p>
-                    <p className="text-white font-medium text-lg">{billingConfig.due_date_day}</p>
+                  <div className={`p-4 rounded ${
+                    isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                  }`}>
+                    <p className={`text-xs mb-1 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Due Date Day</p>
+                    <p className={`font-medium text-lg ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{billingConfig.due_date_day}</p>
                   </div>
-                  <div className="bg-gray-800 p-4 rounded">
-                    <p className="text-gray-400 text-xs mb-1">Disconnection Day</p>
-                    <p className="text-white font-medium text-lg">{billingConfig.disconnection_day}</p>
+                  <div className={`p-4 rounded ${
+                    isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                  }`}>
+                    <p className={`text-xs mb-1 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Disconnection Day</p>
+                    <p className={`font-medium text-lg ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{billingConfig.disconnection_day}</p>
                   </div>
-                  <div className="bg-gray-800 p-4 rounded">
-                    <p className="text-gray-400 text-xs mb-1">Overdue Day</p>
-                    <p className="text-white font-medium text-lg">{billingConfig.overdue_day}</p>
+                  <div className={`p-4 rounded ${
+                    isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                  }`}>
+                    <p className={`text-xs mb-1 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Overdue Day</p>
+                    <p className={`font-medium text-lg ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{billingConfig.overdue_day}</p>
                   </div>
-                  <div className="bg-gray-800 p-4 rounded">
-                    <p className="text-gray-400 text-xs mb-1">Disconnection Notice</p>
-                    <p className="text-white font-medium text-lg">{billingConfig.disconnection_notice}</p>
+                  <div className={`p-4 rounded ${
+                    isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                  }`}>
+                    <p className={`text-xs mb-1 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Disconnection Notice</p>
+                    <p className={`font-medium text-lg ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{billingConfig.disconnection_notice}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 pt-2">
@@ -551,18 +636,26 @@ const BillingConfig: React.FC = () => {
                       value={billingConfigInput.advance_generation_day}
                       onChange={(e) => handleBillingConfigInputChange('advance_generation_day', e.target.value)}
                       onFocus={(e) => e.target.select()}
-                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+                      className={`w-full px-4 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                        isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      }`}
                       min="0"
                       max="31"
                       disabled={loadingBillingConfig}
                     />
-                    <p className="text-gray-500 text-xs mt-2">
+                    <p className={`text-xs mt-2 ${
+                      isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                    }`}>
                       Days before billing day to generate bills (0-31, 0 = disabled)
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className={`block text-sm font-medium mb-2 ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                       Due Date Day
                     </label>
                     <input
@@ -570,18 +663,26 @@ const BillingConfig: React.FC = () => {
                       value={billingConfigInput.due_date_day}
                       onChange={(e) => handleBillingConfigInputChange('due_date_day', e.target.value)}
                       onFocus={(e) => e.target.select()}
-                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+                      className={`w-full px-4 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                        isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      }`}
                       min="1"
                       max="31"
                       disabled={loadingBillingConfig}
                     />
-                    <p className="text-gray-500 text-xs mt-2">
+                    <p className={`text-xs mt-2 ${
+                      isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                    }`}>
                       Days after billing day for payment due date (0-31, 0 = same day)
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className={`block text-sm font-medium mb-2 ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                       Disconnection Day
                     </label>
                     <input
@@ -589,18 +690,26 @@ const BillingConfig: React.FC = () => {
                       value={billingConfigInput.disconnection_day}
                       onChange={(e) => handleBillingConfigInputChange('disconnection_day', e.target.value)}
                       onFocus={(e) => e.target.select()}
-                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+                      className={`w-full px-4 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                        isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      }`}
                       min="1"
                       max="31"
                       disabled={loadingBillingConfig}
                     />
-                    <p className="text-gray-500 text-xs mt-2">
+                    <p className={`text-xs mt-2 ${
+                      isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                    }`}>
                       Days after due date to disconnect service (0-31, 0 = disabled)
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className={`block text-sm font-medium mb-2 ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                       Overdue Day
                     </label>
                     <input
@@ -608,18 +717,26 @@ const BillingConfig: React.FC = () => {
                       value={billingConfigInput.overdue_day}
                       onChange={(e) => handleBillingConfigInputChange('overdue_day', e.target.value)}
                       onFocus={(e) => e.target.select()}
-                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+                      className={`w-full px-4 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                        isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      }`}
                       min="1"
                       max="31"
                       disabled={loadingBillingConfig}
                     />
-                    <p className="text-gray-500 text-xs mt-2">
+                    <p className={`text-xs mt-2 ${
+                      isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                    }`}>
                       Days after due date to mark as overdue (0-31, 0 = same day)
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className={`block text-sm font-medium mb-2 ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                       Disconnection Notice
                     </label>
                     <input
@@ -627,12 +744,18 @@ const BillingConfig: React.FC = () => {
                       value={billingConfigInput.disconnection_notice}
                       onChange={(e) => handleBillingConfigInputChange('disconnection_notice', e.target.value)}
                       onFocus={(e) => e.target.select()}
-                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+                      className={`w-full px-4 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                        isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      }`}
                       min="1"
                       max="31"
                       disabled={loadingBillingConfig}
                     />
-                    <p className="text-gray-500 text-xs mt-2">
+                    <p className={`text-xs mt-2 ${
+                      isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                    }`}>
                       Days before disconnection to send notice (0-31, 0 = disabled)
                     </p>
                   </div>
@@ -650,7 +773,11 @@ const BillingConfig: React.FC = () => {
                     <button
                       onClick={handleCancelBillingConfigEdit}
                       disabled={loadingBillingConfig}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white rounded transition-colors"
+                      className={`flex items-center gap-2 px-4 py-2 disabled:opacity-50 text-white rounded transition-colors ${
+                        isDarkMode
+                          ? 'bg-gray-700 hover:bg-gray-600'
+                          : 'bg-gray-400 hover:bg-gray-500'
+                      }`}
                     >
                       <X size={18} />
                       <span>Cancel</span>
@@ -662,15 +789,21 @@ const BillingConfig: React.FC = () => {
           </div>
         </div>
 
-        <div className="space-y-4 pb-6 border-b border-gray-700">
+        <div className={`space-y-4 pb-6 border-b ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
           <div className="flex items-center gap-3">
-            <h3 className="text-lg font-semibold text-white">
+            <h3 className={`text-lg font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
               Test Billing Generation
             </h3>
           </div>
           
           <div className="space-y-4">
-            <p className="text-gray-400 text-sm">
+            <p className={`text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
               Test the billing generation system by generating SOA and invoices for all active accounts. This will create new billing records for testing purposes.
             </p>
 
@@ -693,15 +826,27 @@ const BillingConfig: React.FC = () => {
 
       {modal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-white mb-4">{modal.title}</h3>
-            <p className="text-gray-300 mb-6">{modal.message}</p>
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 ${
+            isDarkMode
+              ? 'bg-gray-900 border border-gray-700'
+              : 'bg-white border border-gray-200'
+          }`}>
+            <h3 className={`text-lg font-semibold mb-4 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{modal.title}</h3>
+            <p className={`mb-6 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>{modal.message}</p>
             <div className="flex items-center justify-end gap-3">
               {modal.type === 'confirm' ? (
                 <>
                   <button
                     onClick={modal.onCancel}
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+                    className={`px-4 py-2 text-white rounded transition-colors ${
+                      isDarkMode
+                        ? 'bg-gray-700 hover:bg-gray-600'
+                        : 'bg-gray-400 hover:bg-gray-500'
+                    }`}
                   >
                     Cancel
                   </button>

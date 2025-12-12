@@ -35,6 +35,7 @@ interface DiscountDetailsProps {
 }
 
 const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClose, onApproveSuccess }) => {
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   const [showApproveButton, setShowApproveButton] = useState<boolean>(false);
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
@@ -43,6 +44,23 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark');
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const authData = localStorage.getItem('authData');
@@ -133,36 +151,66 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
   };
 
   return (
-    <div className="bg-gray-900 text-white h-full flex flex-col border-l border-white border-opacity-30 relative" style={{ width: `${detailsWidth}px` }}>
+    <div className={`h-full flex flex-col border-l relative ${
+      isDarkMode
+        ? 'bg-gray-900 text-white border-white border-opacity-30'
+        : 'bg-white text-gray-900 border-gray-300'
+    }`} style={{ width: `${detailsWidth}px` }}>
       <div
         className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
         onMouseDown={handleMouseDownResize}
       />
-      <div className="bg-gray-800 px-4 py-3 flex items-center justify-between border-b border-gray-700">
-        <h1 className="text-lg font-semibold text-white truncate pr-4 min-w-0 flex-1">
+      <div className={`px-4 py-3 flex items-center justify-between border-b ${
+        isDarkMode
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-200'
+      }`}>
+        <h1 className={`text-lg font-semibold truncate pr-4 min-w-0 flex-1 ${
+          isDarkMode ? 'text-white' : 'text-gray-900'
+        }`}>
           {discountRecord.fullName}
         </h1>
         <div className="flex items-center space-x-2 flex-shrink-0">
           {showApproveButton && (
             <button 
               onClick={handleApprove}
-              className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors flex items-center space-x-1"
+              className={`px-3 py-1 rounded text-sm transition-colors flex items-center space-x-1 ${
+                isDarkMode
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-green-500 hover:bg-green-600 text-white'
+              }`}
             >
               <Check size={16} />
               <span>Approve</span>
             </button>
           )}
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <ChevronLeft size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <ChevronRight size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <Maximize2 size={18} />
           </button>
           {onClose && (
-            <button onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+            <button onClick={onClose} className={`p-2 rounded transition-colors ${
+              isDarkMode
+                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+            }`}>
               <X size={18} />
             </button>
           )}
@@ -171,131 +219,147 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="divide-y divide-gray-800">
+        <div className={`divide-y ${
+          isDarkMode ? 'divide-gray-800' : 'divide-gray-200'
+        }`}>
           <div className="px-5 py-4">
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Full Name</span>
-              <span className="text-white">{discountRecord.fullName}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Full Name</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.fullName}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Account No.</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Account No.</span>
               <div className="flex items-center">
                 <span className="text-red-500">
                   {discountRecord.accountNo} | {discountRecord.fullName} | {discountRecord.completeAddress || discountRecord.address}
                 </span>
-                <Info size={16} className="ml-2 text-gray-500" />
+                <Info size={16} className={`ml-2 ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                }`} />
               </div>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Contact Number</span>
-              <span className="text-white">{discountRecord.contactNumber}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Contact Number</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.contactNumber}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Email Address</span>
-              <span className="text-white">{discountRecord.emailAddress}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Email Address</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.emailAddress}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Address</span>
-              <span className="text-white">{discountRecord.address}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Address</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.address}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Plan</span>
-              <span className="text-white">{discountRecord.plan}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Plan</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.plan}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Provider</span>
-              <span className="text-white">{discountRecord.provider}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Provider</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.provider}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Discount ID</span>
-              <span className="text-white">{discountRecord.discountId}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Discount ID</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.discountId}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Discount Amount</span>
-              <span className="text-white">₱{discountRecord.discountAmount.toFixed(2)}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Discount Amount</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>₱{discountRecord.discountAmount.toFixed(2)}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Discount Status</span>
-              <span className="text-white">{discountRecord.discountStatus}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Discount Status</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.discountStatus}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Date Created</span>
-              <span className="text-white">{discountRecord.dateCreated}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Date Created</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.dateCreated}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Processed By</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Processed By</span>
               <div className="flex items-center">
-                <span className="text-white">{discountRecord.processedBy}</span>
-                <Info size={16} className="ml-2 text-gray-500" />
+                <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.processedBy}</span>
+                <Info size={16} className={`ml-2 ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                }`} />
               </div>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Processed Date</span>
-              <span className="text-white">{discountRecord.processedDate}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Processed Date</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.processedDate}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Approved By</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Approved By</span>
               <div className="flex items-center">
-                <span className="text-white">{discountRecord.approvedBy}</span>
-                <Info size={16} className="ml-2 text-gray-500" />
+                <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.approvedBy}</span>
+                <Info size={16} className={`ml-2 ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                }`} />
               </div>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Modified By</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Modified By</span>
               <div className="flex items-center">
-                <span className="text-white">{discountRecord.modifiedBy}</span>
-                <Info size={16} className="ml-2 text-gray-500" />
+                <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.modifiedBy}</span>
+                <Info size={16} className={`ml-2 ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                }`} />
               </div>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Modified Date</span>
-              <span className="text-white">{discountRecord.modifiedDate}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Modified Date</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.modifiedDate}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">User Email</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>User Email</span>
               <div className="flex items-center">
-                <span className="text-white">{discountRecord.userEmail}</span>
-                <Mail size={16} className="ml-2 text-gray-500" />
+                <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.userEmail}</span>
+                <Mail size={16} className={`ml-2 ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                }`} />
               </div>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Remarks</span>
-              <span className="text-white">{discountRecord.remarks}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Remarks</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.remarks}</span>
             </div>
 
             {discountRecord.barangay && (
               <div className="flex justify-between items-center py-2">
-                <span className="text-gray-400">Barangay</span>
+                <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Barangay</span>
                 <div className="flex items-center">
-                  <span className="text-white">{discountRecord.barangay}</span>
-                  <Info size={16} className="ml-2 text-gray-500" />
+                  <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.barangay}</span>
+                  <Info size={16} className={`ml-2 ${
+                    isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                  }`} />
                 </div>
               </div>
             )}
 
             {discountRecord.city && (
               <div className="flex justify-between items-center py-2">
-                <span className="text-gray-400">City</span>
+                <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>City</span>
                 <div className="flex items-center">
-                  <span className="text-white">{discountRecord.city}</span>
-                  <Info size={16} className="ml-2 text-gray-500" />
+                  <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.city}</span>
+                  <Info size={16} className={`ml-2 ${
+                    isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                  }`} />
                 </div>
               </div>
             )}
@@ -305,41 +369,57 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
 
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-700">
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border ${
+            isDarkMode
+              ? 'bg-gray-800 border-gray-700'
+              : 'bg-white border-gray-200'
+          }`}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-white">Confirm Approval</h2>
+              <h2 className={`text-xl font-semibold ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Confirm Approval</h2>
               <button
                 onClick={handleCancelApprove}
                 disabled={isApproving}
-                className="text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+                className={`transition-colors disabled:opacity-50 ${
+                  isDarkMode
+                    ? 'text-gray-400 hover:text-white'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
               >
                 <X size={20} />
               </button>
             </div>
             
             <div className="mb-6">
-              <p className="text-gray-300 mb-4">
+              <p className={`mb-4 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Are you sure you want to approve this discount?
               </p>
-              <div className="bg-gray-900 p-4 rounded border border-gray-700 space-y-2">
+              <div className={`p-4 rounded border space-y-2 ${
+                isDarkMode
+                  ? 'bg-gray-900 border-gray-700'
+                  : 'bg-gray-100 border-gray-200'
+              }`}>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Account No:</span>
-                  <span className="text-white">{discountRecord.accountNo}</span>
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Account No:</span>
+                  <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.accountNo}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Customer:</span>
-                  <span className="text-white">{discountRecord.fullName}</span>
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Customer:</span>
+                  <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.fullName}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Amount:</span>
-                  <span className="text-white">₱{discountRecord.discountAmount.toFixed(2)}</span>
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
+                  <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>₱{discountRecord.discountAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Current Status:</span>
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Current Status:</span>
                   <span className="text-yellow-400">{discountRecord.discountStatus}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">New Status:</span>
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>New Status:</span>
                   <span className="text-green-400">Unused</span>
                 </div>
               </div>
@@ -349,14 +429,22 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
               <button
                 onClick={handleCancelApprove}
                 disabled={isApproving}
-                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`flex-1 px-4 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isDarkMode
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                    : 'bg-gray-300 hover:bg-gray-400 text-gray-900'
+                }`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmApprove}
                 disabled={isApproving}
-                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className={`flex-1 px-4 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center ${
+                  isDarkMode
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-green-500 hover:bg-green-600 text-white'
+                }`}
               >
                 {isApproving ? (
                   <>

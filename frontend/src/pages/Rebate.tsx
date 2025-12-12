@@ -17,6 +17,7 @@ interface RebateRecord {
 }
 
 const Rebate: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [rebateRecords, setRebateRecords] = useState<RebateRecord[]>([]);
@@ -32,6 +33,26 @@ const Rebate: React.FC = () => {
   const dateItems = [
     { date: 'All', id: '' },
   ];
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     fetchRebateData();
@@ -99,11 +120,19 @@ const Rebate: React.FC = () => {
   };
 
   return (
-    <div className="bg-gray-950 h-full flex overflow-hidden">
-      <div className="bg-gray-900 border-r border-gray-700 flex-shrink-0 flex flex-col relative" style={{ width: `${sidebarWidth}px` }}>
-        <div className="p-4 border-b border-gray-700 flex-shrink-0">
+    <div className={`h-full flex overflow-hidden ${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    }`}>
+      <div className={`border-r flex-shrink-0 flex flex-col relative ${
+        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+      }`} style={{ width: `${sidebarWidth}px` }}>
+        <div className={`p-4 border-b flex-shrink-0 ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-lg font-semibold text-white">Rebates</h2>
+            <h2 className={`text-lg font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Rebates</h2>
             <div>
               <button 
                 className="flex items-center space-x-1 bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-sm"
@@ -120,10 +149,12 @@ const Rebate: React.FC = () => {
             <button
               key={index}
               onClick={() => setSelectedDate(item.date)}
-              className={`w-full flex items-center px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
+              className={`w-full flex items-center px-4 py-3 text-sm transition-colors ${
+                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${
                 selectedDate === item.date
                   ? 'bg-orange-500 bg-opacity-20 text-orange-400'
-                  : 'text-gray-300'
+                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}
             >
               <span className="text-sm font-medium flex items-center">
@@ -144,9 +175,13 @@ const Rebate: React.FC = () => {
         />
       </div>
 
-      <div className={`bg-gray-900 overflow-hidden ${selectedRebate ? 'flex-1' : 'flex-1'}`}>
+      <div className={`overflow-hidden ${selectedRebate ? 'flex-1' : 'flex-1'} ${
+        isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+      }`}>
         <div className="flex flex-col h-full">
-          <div className="bg-gray-900 p-4 border-b border-gray-700 flex-shrink-0">
+          <div className={`p-4 border-b flex-shrink-0 ${
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex flex-col space-y-3">
               <div className="flex items-center space-x-3">
                 <div className="relative flex-1">
@@ -155,9 +190,15 @@ const Rebate: React.FC = () => {
                     placeholder="Search Rebate records..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-gray-800 text-white border border-gray-700 rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                    className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 ${
+                      isDarkMode
+                        ? 'bg-gray-800 text-white border border-gray-700'
+                        : 'bg-white text-gray-900 border border-gray-300'
+                    }`}
                   />
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                  <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
                 </div>
                 <button
                   onClick={handleRefresh}
@@ -173,57 +214,111 @@ const Rebate: React.FC = () => {
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-x-auto overflow-y-auto pb-4">
               {isLoading ? (
-                <div className="px-4 py-12 text-center text-gray-400">
+                <div className={`px-4 py-12 text-center ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
                   <div className="animate-pulse flex flex-col items-center">
-                    <div className="h-4 w-1/3 bg-gray-700 rounded mb-4"></div>
-                    <div className="h-4 w-1/2 bg-gray-700 rounded"></div>
+                    <div className={`h-4 w-1/3 rounded mb-4 ${
+                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${
+                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}></div>
                   </div>
                   <p className="mt-4">Loading Rebate records...</p>
                 </div>
               ) : error ? (
-                <div className="px-4 py-12 text-center text-red-400">
+                <div className={`px-4 py-12 text-center ${
+                  isDarkMode ? 'text-red-400' : 'text-red-600'
+                }`}>
                   <p>{error}</p>
                   <button 
                     onClick={handleRefresh}
-                    className="mt-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                    className={`mt-4 px-4 py-2 rounded ${
+                      isDarkMode
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                    }`}>
                     Retry
                   </button>
                 </div>
               ) : filteredRecords.length > 0 ? (
-                <table className="min-w-full divide-y divide-gray-700 text-sm">
-                  <thead className="bg-gray-800 sticky top-0">
+                <table className={`min-w-full divide-y text-sm ${
+                  isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
+                }`}>
+                  <thead className={`sticky top-0 ${
+                    isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                  }`}>
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">ID</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Rebate Type</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Selected Rebate</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Month</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Number of Dates</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Approved By</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Modified Date</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>ID</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Rebate Type</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Selected Rebate</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Month</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Number of Dates</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Status</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Approved By</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Modified Date</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-gray-900 divide-y divide-gray-800">
+                  <tbody className={`divide-y ${
+                    isDarkMode ? 'bg-gray-900 divide-gray-800' : 'bg-white divide-gray-200'
+                  }`}>
                     {filteredRecords.map((record) => (
                       <tr 
                         key={record.id}
                         onClick={() => setSelectedRebate(record)}
-                        className="hover:bg-gray-800 cursor-pointer"
+                        className={`cursor-pointer ${
+                          isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
+                        }`}
                       >
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.id}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300 capitalize">{record.rebate_type}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.selected_rebate}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.month}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.number_of_dates}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.status}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.modified_by || '-'}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.modified_date || '-'}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                        }`}>{record.id}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap capitalize ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                        }`}>{record.rebate_type}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                        }`}>{record.selected_rebate}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                        }`}>{record.month}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                        }`}>{record.number_of_dates}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                        }`}>{record.status}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                        }`}>{record.modified_by || '-'}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                        }`}>{record.modified_date || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                <div className={`h-full flex flex-col items-center justify-center ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                }`}>
                   <h1 className="text-orange-500 text-2xl mb-4">Rebate Component</h1>
                   <p className="text-lg">No Rebate records found</p>
                 </div>

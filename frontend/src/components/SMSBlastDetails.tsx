@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trash2, Edit, ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react';
 
 interface SMSBlastRecord {
@@ -31,30 +31,72 @@ interface SMSBlastDetailsProps {
 }
 
 const SMSBlastDetails: React.FC<SMSBlastDetailsProps> = ({ smsBlastRecord }) => {
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(localStorage.getItem('theme') === 'dark');
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="bg-gray-900 text-white h-full flex flex-col">
-      <div className="bg-gray-800 px-4 py-3 flex items-center justify-between border-b border-gray-700">
-        <h1 className="text-lg font-semibold text-white truncate pr-4 min-w-0 flex-1">
+    <div className={`h-full flex flex-col ${
+      isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
+    }`}>
+      <div className={`px-4 py-3 flex items-center justify-between border-b ${
+        isDarkMode
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-200'
+      }`}>
+        <h1 className={`text-lg font-semibold truncate pr-4 min-w-0 flex-1 ${
+          isDarkMode ? 'text-white' : 'text-gray-900'
+        }`}>
           {smsBlastRecord.title || "NOTICE TO THE PUBLIC"}
         </h1>
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <Trash2 size={18} />
           </button>
-          <button className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm transition-colors flex items-center space-x-1">
+          <button className={`px-3 py-1 text-white rounded text-sm transition-colors flex items-center space-x-1 ${
+            isDarkMode
+              ? 'bg-orange-600 hover:bg-orange-700'
+              : 'bg-orange-600 hover:bg-orange-700'
+          }`}>
             <Edit size={16} />
             <span>Edit</span>
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <ChevronLeft size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <ChevronRight size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <Maximize2 size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <X size={18} />
           </button>
         </div>
@@ -63,10 +105,13 @@ const SMSBlastDetails: React.FC<SMSBlastDetailsProps> = ({ smsBlastRecord }) => 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-4">
-          {/* Message section */}
           <div className="mb-6">
-            <h3 className="text-sm uppercase text-gray-500 mb-2">message</h3>
-            <div className="text-white whitespace-pre-wrap break-words">
+            <h3 className={`text-sm uppercase mb-2 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>message</h3>
+            <div className={`whitespace-pre-wrap break-words ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
               <p className="font-medium mb-3">{smsBlastRecord.title || "NOTICE TO THE PUBLIC"}</p>
               <p className="mb-4">
                 {smsBlastRecord.message || 
@@ -75,90 +120,111 @@ const SMSBlastDetails: React.FC<SMSBlastDetailsProps> = ({ smsBlastRecord }) => 
             </div>
           </div>
           
-          {/* Modified Date */}
           <div>
-            <h3 className="text-sm uppercase text-gray-500 mb-2">modified date</h3>
-            <p className="text-white">
+            <h3 className={`text-sm uppercase mb-2 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>modified date</h3>
+            <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
               {smsBlastRecord.modifiedDate || "6/28/2024 9:38:30 AM"}
             </p>
           </div>
           
-          {/* Modified Email */}
           <div>
-            <h3 className="text-sm uppercase text-gray-500 mb-2">modified email</h3>
-            <p className="text-white">
+            <h3 className={`text-sm uppercase mb-2 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>modified email</h3>
+            <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
               {smsBlastRecord.modifiedEmail || "heatherlynn.hernandez@switchfiber.ph"}
             </p>
           </div>
           
-          {/* Additional information that might be shown when expanded */}
           {smsBlastRecord.recipients && (
             <div>
-              <h3 className="text-sm uppercase text-gray-500 mb-2">recipients</h3>
-              <p className="text-white">{smsBlastRecord.recipients}</p>
+              <h3 className={`text-sm uppercase mb-2 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`}>recipients</h3>
+              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.recipients}</p>
             </div>
           )}
           
           {smsBlastRecord.status && (
             <div>
-              <h3 className="text-sm uppercase text-gray-500 mb-2">status</h3>
-              <p className="text-white">{smsBlastRecord.status}</p>
+              <h3 className={`text-sm uppercase mb-2 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`}>status</h3>
+              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.status}</p>
             </div>
           )}
           
           {smsBlastRecord.barangay && (
             <div>
-              <h3 className="text-sm uppercase text-gray-500 mb-2">barangay</h3>
-              <p className="text-white">{smsBlastRecord.barangay}</p>
+              <h3 className={`text-sm uppercase mb-2 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`}>barangay</h3>
+              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.barangay}</p>
             </div>
           )}
           
           {smsBlastRecord.city && (
             <div>
-              <h3 className="text-sm uppercase text-gray-500 mb-2">city</h3>
-              <p className="text-white">{smsBlastRecord.city}</p>
+              <h3 className={`text-sm uppercase mb-2 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`}>city</h3>
+              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.city}</p>
             </div>
           )}
           
           {smsBlastRecord.messageType && (
             <div>
-              <h3 className="text-sm uppercase text-gray-500 mb-2">message type</h3>
-              <p className="text-white">{smsBlastRecord.messageType}</p>
+              <h3 className={`text-sm uppercase mb-2 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`}>message type</h3>
+              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.messageType}</p>
             </div>
           )}
           
           {smsBlastRecord.targetGroup && (
             <div>
-              <h3 className="text-sm uppercase text-gray-500 mb-2">target group</h3>
-              <p className="text-white">{smsBlastRecord.targetGroup}</p>
+              <h3 className={`text-sm uppercase mb-2 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`}>target group</h3>
+              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.targetGroup}</p>
             </div>
           )}
           
           {smsBlastRecord.deliveryStatus && (
             <div>
-              <h3 className="text-sm uppercase text-gray-500 mb-2">delivery status</h3>
-              <p className="text-white">{smsBlastRecord.deliveryStatus}</p>
+              <h3 className={`text-sm uppercase mb-2 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`}>delivery status</h3>
+              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.deliveryStatus}</p>
             </div>
           )}
           
           {smsBlastRecord.deliveryRate !== undefined && (
             <div>
-              <h3 className="text-sm uppercase text-gray-500 mb-2">delivery rate</h3>
-              <p className="text-white">{smsBlastRecord.deliveryRate}%</p>
+              <h3 className={`text-sm uppercase mb-2 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`}>delivery rate</h3>
+              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.deliveryRate}%</p>
             </div>
           )}
           
           {smsBlastRecord.failedCount !== undefined && (
             <div>
-              <h3 className="text-sm uppercase text-gray-500 mb-2">failed count</h3>
-              <p className="text-white">{smsBlastRecord.failedCount}</p>
+              <h3 className={`text-sm uppercase mb-2 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`}>failed count</h3>
+              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.failedCount}</p>
             </div>
           )}
           
           {smsBlastRecord.remarks && (
             <div>
-              <h3 className="text-sm uppercase text-gray-500 mb-2">remarks</h3>
-              <p className="text-white">{smsBlastRecord.remarks}</p>
+              <h3 className={`text-sm uppercase mb-2 ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`}>remarks</h3>
+              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.remarks}</p>
             </div>
           )}
         </div>

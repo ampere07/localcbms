@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Users, FileText, LogOut, ChevronRight, User, Building2, Shield, FileCheck, Wrench, Map, MapPinned , MapPin, Package, CreditCard, List, Router, DollarSign, Receipt, FileBarChart, Clock, Calendar, UserCheck, AlertTriangle, Tag, MessageSquare, Settings, Network, Activity } from 'lucide-react';
 
 interface SidebarProps {
@@ -19,6 +19,27 @@ interface MenuItem {
 
 const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLogout, isCollapsed, userRole }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   const menuItems: MenuItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['administrator'] },
@@ -191,17 +212,25 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
             level > 0 ? 'pl-8' : 'pl-4'
           } ${
             isCurrentItemActive
-              ? 'bg-orange-500 bg-opacity-20 text-orange-400 border-r-2 border-orange-500'
-              : 'text-gray-300 hover:text-white hover:bg-gray-700'
+              ? isDarkMode
+                ? 'bg-orange-500 bg-opacity-20 text-orange-400 border-r-2 border-orange-500'
+                : 'bg-orange-100 text-orange-600 border-r-2 border-orange-500'
+              : isDarkMode
+              ? 'text-gray-300 hover:text-white hover:bg-gray-700'
+              : 'text-gray-700 hover:text-black hover:bg-gray-100'
           }`}
         >
           <div className="flex items-center">
-            <IconComponent className={`h-5 w-5 text-gray-400 ${!isCollapsed ? 'mr-3' : ''}`} />
+            <IconComponent className={`h-5 w-5 ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            } ${!isCollapsed ? 'mr-3' : ''}`} />
             {!isCollapsed && <span>{item.label}</span>}
           </div>
           {hasChildren && !isCollapsed && (
             <ChevronRight
-              className={`h-4 w-4 text-gray-400 transition-transform ${
+              className={`h-4 w-4 ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              } transition-transform ${
                 isExpanded ? 'transform rotate-90' : ''
               } ${isCollapsed ? 'hidden' : ''}`}
             />
@@ -218,15 +247,25 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   };
 
   return (
-    <div className={`${isCollapsed ? 'w-16' : 'w-64'} h-full bg-gray-800 border-r border-gray-600 flex flex-col transition-all duration-300 ease-in-out overflow-hidden`}>
+    <div className={`${
+      isCollapsed ? 'w-16' : 'w-64'
+    } h-full ${
+      isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
+    } border-r flex flex-col transition-all duration-300 ease-in-out overflow-hidden`}>
       <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden scrollbar-none" style={{ maxHeight: 'calc(100% - 80px)' }}>
         {filteredMenuItems.map(item => renderMenuItem(item))}
       </nav>
       
-      <div className="p-4 border-t border-gray-600 flex-shrink-0">
+      <div className={`p-4 ${
+        isDarkMode ? 'border-gray-600' : 'border-gray-300'
+      } border-t flex-shrink-0`}>
         <button
           onClick={onLogout}
-          className="w-full px-4 py-3 text-gray-300 hover:text-white border border-gray-500 rounded hover:bg-gray-700 transition-colors text-sm flex items-center justify-center"
+          className={`w-full px-4 py-3 ${
+            isDarkMode 
+              ? 'text-gray-300 hover:text-white border-gray-500 hover:bg-gray-700' 
+              : 'text-gray-700 hover:text-black border-gray-400 hover:bg-gray-100'
+          } border rounded transition-colors text-sm flex items-center justify-center`}
         >
           <LogOut className={`h-4 w-4 ${!isCollapsed ? 'mr-2' : ''}`} />
           {!isCollapsed && <span>Logout</span>}

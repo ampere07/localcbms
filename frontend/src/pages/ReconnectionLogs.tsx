@@ -45,6 +45,24 @@ const ReconnectionLogs: React.FC = () => {
   const [logRecords, setLogRecords] = useState<ReconnectionLogRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark');
+    };
+    
+    checkDarkMode();
+    
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    
+    return () => observer.disconnect();
+  }, []);
 
   // Essential table columns - only show the most important ones initially
   const [visibleColumns, setVisibleColumns] = useState([
@@ -366,11 +384,19 @@ const ReconnectionLogs: React.FC = () => {
   const displayedColumns = allColumns.filter(col => visibleColumns.includes(col.key));
 
   return (
-    <div className="bg-gray-950 h-full flex overflow-hidden">
-      <div className="w-64 bg-gray-900 border-r border-gray-700 flex-shrink-0 flex flex-col">
-        <div className="p-4 border-b border-gray-700 flex-shrink-0">
+    <div className={`h-full flex overflow-hidden ${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    }`}>
+      <div className={`w-64 border-r flex-shrink-0 flex flex-col ${
+        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
+        <div className={`p-4 border-b flex-shrink-0 ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-lg font-semibold text-white">Reconnection Logs</h2>
+            <h2 className={`text-lg font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Reconnection Logs</h2>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -378,10 +404,10 @@ const ReconnectionLogs: React.FC = () => {
             <button
               key={location.id}
               onClick={() => setSelectedLocation(location.id)}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
                 selectedLocation === location.id
                   ? 'bg-orange-500 bg-opacity-20 text-orange-400'
-                  : 'text-gray-300'
+                  : isDarkMode ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100'
               }`}
             >
               <div className="flex items-center">
@@ -392,7 +418,7 @@ const ReconnectionLogs: React.FC = () => {
                 <span className={`px-2 py-1 rounded-full text-xs ${
                   selectedLocation === location.id
                     ? 'bg-orange-600 text-white'
-                    : 'bg-gray-700 text-gray-300'
+                    : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                 }`}>
                   {location.count}
                 </span>
@@ -402,9 +428,13 @@ const ReconnectionLogs: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 bg-gray-900 overflow-hidden">
+      <div className={`flex-1 overflow-hidden ${
+        isDarkMode ? 'bg-gray-900' : 'bg-white'
+      }`}>
         <div className="flex flex-col h-full">
-          <div className="bg-gray-900 p-4 border-b border-gray-700 flex-shrink-0">
+          <div className={`p-4 border-b flex-shrink-0 ${
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex items-center space-x-3">
               <div className="relative flex-1">
                 <input
@@ -412,14 +442,24 @@ const ReconnectionLogs: React.FC = () => {
                   placeholder="Search reconnection logs..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-800 text-white border border-gray-700 rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700' 
+                      : 'bg-white text-gray-900 border-gray-300'
+                  }`}
                 />
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} />
               </div>
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors"
+                className={`text-white px-4 py-2 rounded text-sm transition-colors ${
+                  isDarkMode 
+                    ? 'bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600'
+                    : 'bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400'
+                }`}
               >
                 {isLoading ? 'Loading...' : 'Refresh'}
               </button>
@@ -429,19 +469,29 @@ const ReconnectionLogs: React.FC = () => {
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto">
               {isLoading ? (
-                <div className="px-4 py-12 text-center text-gray-400">
+                <div className={`px-4 py-12 text-center ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
                   <div className="animate-pulse flex flex-col items-center">
-                    <div className="h-4 w-1/3 bg-gray-700 rounded mb-4"></div>
-                    <div className="h-4 w-1/2 bg-gray-700 rounded"></div>
+                    <div className={`h-4 w-1/3 rounded mb-4 ${
+                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${
+                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}></div>
                   </div>
                   <p className="mt-4">Loading reconnection logs...</p>
                 </div>
               ) : error ? (
-                <div className="px-4 py-12 text-center text-red-400">
+                <div className={`px-4 py-12 text-center ${
+                  isDarkMode ? 'text-red-400' : 'text-red-600'
+                }`}>
                   <p>{error}</p>
                   <button 
                     onClick={handleRefresh}
-                    className="mt-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                    className={`mt-4 text-white px-4 py-2 rounded ${
+                      isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-500 hover:bg-gray-600'
+                    }`}>
                     Retry
                   </button>
                 </div>
@@ -449,12 +499,18 @@ const ReconnectionLogs: React.FC = () => {
                 <div className="overflow-x-auto overflow-y-hidden">
                   <table className="w-max min-w-full text-sm border-separate border-spacing-0">
                     <thead>
-                      <tr className="border-b border-gray-700 bg-gray-800 sticky top-0 z-10">
+                      <tr className={`border-b sticky top-0 z-10 ${
+                        isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+                      }`}>
                         {displayedColumns.map((column, index) => (
                           <th
                             key={column.key}
-                            className={`text-left py-3 px-3 text-gray-400 font-normal bg-gray-800 ${column.width} whitespace-nowrap ${
-                              index < displayedColumns.length - 1 ? 'border-r border-gray-700' : ''
+                            className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap ${
+                              isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-50'
+                            } ${
+                              index < displayedColumns.length - 1 
+                                ? isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200'
+                                : ''
                             }`}
                           >
                             {column.label}
@@ -467,16 +523,26 @@ const ReconnectionLogs: React.FC = () => {
                         filteredLogRecords.map((record) => (
                           <tr 
                             key={record.id} 
-                            className={`border-b border-gray-800 hover:bg-gray-900 cursor-pointer transition-colors ${
-                              selectedLog?.id === record.id ? 'bg-gray-800' : ''
+                            className={`border-b cursor-pointer transition-colors ${
+                              isDarkMode 
+                                ? 'border-gray-800 hover:bg-gray-900' 
+                                : 'border-gray-200 hover:bg-gray-50'
+                            } ${
+                              selectedLog?.id === record.id 
+                                ? isDarkMode ? 'bg-gray-800' : 'bg-gray-100' 
+                                : ''
                             }`}
                             onClick={() => handleRowClick(record)}
                           >
                             {displayedColumns.map((column, index) => (
                               <td
                                 key={column.key}
-                                className={`py-4 px-3 text-white whitespace-nowrap ${
-                                  index < displayedColumns.length - 1 ? 'border-r border-gray-800' : ''
+                                className={`py-4 px-3 whitespace-nowrap ${
+                                  isDarkMode ? 'text-white' : 'text-gray-900'
+                                } ${
+                                  index < displayedColumns.length - 1 
+                                    ? isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200'
+                                    : ''
                                 }`}
                               >
                                 {renderCellValue(record, column.key)}
@@ -486,7 +552,9 @@ const ReconnectionLogs: React.FC = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={displayedColumns.length} className="px-4 py-12 text-center text-gray-400">
+                          <td colSpan={displayedColumns.length} className={`px-4 py-12 text-center ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
                             No reconnection logs found matching your filters
                           </td>
                         </tr>
@@ -501,11 +569,17 @@ const ReconnectionLogs: React.FC = () => {
       </div>
 
       {selectedLog && (
-        <div className="w-full max-w-3xl bg-gray-900 border-l border-gray-700 flex-shrink-0 relative">
+        <div className={`w-full max-w-3xl border-l flex-shrink-0 relative ${
+          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
           <div className="absolute top-4 right-4 z-10">
             <button
               onClick={handleCloseDetails}
-              className="text-gray-400 hover:text-white transition-colors bg-gray-800 rounded p-1"
+              className={`transition-colors rounded p-1 ${
+                isDarkMode 
+                  ? 'text-gray-400 hover:text-white bg-gray-800' 
+                  : 'text-gray-600 hover:text-gray-900 bg-gray-100'
+              }`}
             >
               <X size={20} />
             </button>

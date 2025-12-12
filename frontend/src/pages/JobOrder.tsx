@@ -77,6 +77,7 @@ const allColumns = [
 ];
 
 const JobOrderPage: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedJobOrder, setSelectedJobOrder] = useState<JobOrder | null>(null);
@@ -166,6 +167,23 @@ const JobOrderPage: React.FC = () => {
   };
 
   const [userEmail, setUserEmail] = useState<string>('');
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme !== 'light');
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    const theme = localStorage.getItem('theme');
+    setIsDarkMode(theme !== 'light');
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const authData = localStorage.getItem('authData');
@@ -737,10 +755,14 @@ const JobOrderPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-950">
+      <div className={`flex items-center justify-center h-full ${
+        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      }`}>
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-orange-500 mb-3"></div>
-          <p className="text-gray-300">Loading job orders...</p>
+          <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+            Loading job orders...
+          </p>
         </div>
       </div>
     );
@@ -748,10 +770,16 @@ const JobOrderPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-950">
-        <div className="bg-gray-800 border border-gray-700 rounded-md p-6 max-w-lg">
+      <div className={`flex items-center justify-center h-full ${
+        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      }`}>
+        <div className={`${
+          isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+        } border rounded-md p-6 max-w-lg`}>
           <h3 className="text-red-500 text-lg font-medium mb-2">Error</h3>
-          <p className="text-gray-300 mb-4">{error}</p>
+          <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-4`}>
+            {error}
+          </p>
           <button 
             onClick={() => window.location.reload()}
             className="bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded"
@@ -764,26 +792,40 @@ const JobOrderPage: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-950 h-full flex flex-col md:flex-row overflow-hidden">
+    <div className={`${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    } h-full flex flex-col md:flex-row overflow-hidden`}>
       {/* Mobile Location View */}
       {mobileView === 'locations' && (
-        <div className="md:hidden flex-1 flex flex-col overflow-hidden bg-gray-950">
-          <div className="bg-gray-900 p-4 border-b border-gray-700">
-            <h2 className="text-lg font-semibold text-white">Job Orders</h2>
+        <div className={`md:hidden flex-1 flex flex-col overflow-hidden ${
+          isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+        }`}>
+          <div className={`${
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          } p-4 border-b`}>
+            <h2 className={`text-lg font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              Job Orders
+            </h2>
           </div>
           <div className="flex-1 overflow-y-auto">
             {locationItems.map((location) => (
               <button
                 key={location.id}
                 onClick={() => handleLocationSelect(location.id)}
-                className="w-full flex items-center justify-between px-4 py-4 text-sm transition-colors hover:bg-gray-800 border-b border-gray-800 text-gray-300"
+                className={`w-full flex items-center justify-between px-4 py-4 text-sm transition-colors ${
+                  isDarkMode ? 'hover:bg-gray-800 border-gray-800 text-gray-300' : 'hover:bg-gray-100 border-gray-200 text-gray-700'
+                } border-b`}
               >
                 <div className="flex items-center">
                   <FileText className="h-5 w-5 mr-3" />
                   <span className="capitalize text-base">{location.name}</span>
                 </div>
                 {location.count > 0 && (
-                  <span className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300">
+                  <span className={`px-3 py-1 rounded-full text-sm ${
+                    isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                  }`}>
                     {location.count}
                   </span>
                 )}
@@ -797,10 +839,21 @@ const JobOrderPage: React.FC = () => {
       {mobileMenuOpen && userRole.toLowerCase() !== 'technician' && mobileView === 'orders' && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
-          <div className="absolute inset-y-0 left-0 w-64 bg-gray-900 shadow-xl flex flex-col">
-            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">Filters</h2>
-              <button onClick={() => setMobileMenuOpen(false)} className="text-gray-400 hover:text-white">
+          <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${
+            isDarkMode ? 'bg-gray-900' : 'bg-white'
+          }`}>
+            <div className={`p-4 border-b flex items-center justify-between ${
+              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+            }`}>
+              <h2 className={`text-lg font-semibold ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
+                Filters
+              </h2>
+              <button 
+                onClick={() => setMobileMenuOpen(false)} 
+                className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
+              >
                 <X className="h-6 w-6" />
               </button>
             </div>
@@ -809,10 +862,12 @@ const JobOrderPage: React.FC = () => {
                 <button
                   key={location.id}
                   onClick={() => handleLocationSelect(location.id)}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
+                    isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                  } ${
                     selectedLocation === location.id
-                      ? 'bg-orange-500 bg-opacity-20 text-orange-400'
-                      : 'text-gray-300'
+                      ? 'bg-orange-500 bg-opacity-20 text-orange-400 font-medium'
+                      : isDarkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}
                 >
                   <div className="flex items-center">
@@ -823,7 +878,7 @@ const JobOrderPage: React.FC = () => {
                     <span className={`px-2 py-1 rounded-full text-xs ${
                       selectedLocation === location.id
                         ? 'bg-orange-600 text-white'
-                        : 'bg-gray-700 text-gray-300'
+                        : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                     }`}>
                       {location.count}
                     </span>
@@ -837,10 +892,18 @@ const JobOrderPage: React.FC = () => {
 
       {/* Desktop Sidebar - Hidden on mobile */}
       {userRole.toLowerCase() !== 'technician' && (
-      <div className="hidden md:flex bg-gray-900 border-r border-gray-700 flex-shrink-0 flex-col relative" style={{ width: `${sidebarWidth}px` }}>
-        <div className="p-4 border-b border-gray-700 flex-shrink-0">
+      <div className={`hidden md:flex border-r flex-shrink-0 flex-col relative ${
+        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+      }`} style={{ width: `${sidebarWidth}px` }}>
+        <div className={`p-4 border-b flex-shrink-0 ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
           <div className="flex items-center mb-1">
-            <h2 className="text-lg font-semibold text-white">Job Orders</h2>
+            <h2 className={`text-lg font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              Job Orders
+            </h2>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -850,10 +913,12 @@ const JobOrderPage: React.FC = () => {
               onClick={() => {
                 setSelectedLocation(location.id);
               }}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
+                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${
                 selectedLocation === location.id
-                  ? 'bg-orange-500 bg-opacity-20 text-orange-400'
-                  : 'text-gray-300'
+                  ? 'bg-orange-500 bg-opacity-20 text-orange-400 font-medium'
+                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}
             >
               <div className="flex items-center">
@@ -881,9 +946,13 @@ const JobOrderPage: React.FC = () => {
       </div>
       )}
 
-      <div className={`bg-gray-900 overflow-hidden flex-1 flex flex-col md:pb-0 ${mobileView === 'locations' || mobileView === 'details' ? 'hidden md:flex' : ''}`}>
+      <div className={`${
+        isDarkMode ? 'bg-gray-900' : 'bg-white'
+      } overflow-hidden flex-1 flex flex-col md:pb-0 ${mobileView === 'locations' || mobileView === 'details' ? 'hidden md:flex' : ''}`}>
         <div className="flex flex-col h-full">
-          <div className="bg-gray-900 p-4 border-b border-gray-700 flex-shrink-0">
+          <div className={`p-4 border-b flex-shrink-0 ${
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex items-center space-x-3">
               {userRole.toLowerCase() !== 'technician' && mobileView === 'orders' && (
                 <button
@@ -900,9 +969,15 @@ const JobOrderPage: React.FC = () => {
                   placeholder="Search job orders..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-800 text-white border border-gray-700 rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700' 
+                      : 'bg-gray-100 text-gray-900 border-gray-300'
+                  } border`}
                 />
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} />
               </div>
               <div className="flex space-x-2">
                 {displayMode === 'table' && (
@@ -918,17 +993,32 @@ const JobOrderPage: React.FC = () => {
                         {/* Mobile Overlay */}
                         <div className="md:hidden fixed inset-0 z-50">
                           <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setFilterDropdownOpen(false)} />
-                          <div className="absolute inset-x-4 top-20 bottom-4 bg-gray-800 border border-gray-700 rounded shadow-lg flex flex-col">
-                            <div className="p-3 border-b border-gray-700 flex items-center justify-between">
-                              <span className="text-white text-sm font-medium">Column Visibility</span>
-                              <button onClick={() => setFilterDropdownOpen(false)} className="text-gray-400 hover:text-white">
+                          <div className={`absolute inset-x-4 top-20 bottom-4 border rounded shadow-lg flex flex-col ${
+                            isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                          }`}>
+                            <div className={`p-3 border-b flex items-center justify-between ${
+                              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                            }`}>
+                              <span className={`text-sm font-medium ${
+                                isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
+                                Column Visibility
+                              </span>
+                              <button 
+                                onClick={() => setFilterDropdownOpen(false)} 
+                                className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
+                              >
                                 <X className="h-5 w-5" />
                               </button>
                             </div>
-                            <div className="p-3 border-b border-gray-700 flex items-center justify-between">
+                            <div className={`p-3 border-b flex items-center justify-between ${
+                              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                            }`}>
                               <button
                                 onClick={handleSelectAllColumns}
-                                className="text-sm text-orange-500 hover:text-orange-400 px-3 py-1 bg-gray-700 rounded"
+                                className={`text-sm text-orange-500 hover:text-orange-400 px-3 py-1 rounded ${
+                                  isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                                }`}
                               >
                                 Select All
                               </button>
@@ -943,13 +1033,21 @@ const JobOrderPage: React.FC = () => {
                               {allColumns.map((column) => (
                                 <label
                                   key={column.key}
-                                  className="flex items-center px-4 py-3 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700"
+                                  className={`flex items-center px-4 py-3 cursor-pointer text-sm border-b ${
+                                    isDarkMode 
+                                      ? 'hover:bg-gray-700 text-white border-gray-700' 
+                                      : 'hover:bg-gray-100 text-gray-900 border-gray-200'
+                                  }`}
                                 >
                                   <input
                                     type="checkbox"
                                     checked={visibleColumns.includes(column.key)}
                                     onChange={() => handleToggleColumn(column.key)}
-                                    className="mr-3 h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-600 focus:ring-orange-500 focus:ring-offset-gray-800"
+                                    className={`mr-3 h-4 w-4 rounded text-orange-600 focus:ring-orange-500 ${
+                                      isDarkMode 
+                                        ? 'border-gray-600 bg-gray-700 focus:ring-offset-gray-800' 
+                                        : 'border-gray-300 bg-white focus:ring-offset-white'
+                                    }`}
                                   />
                                   <span>{column.label}</span>
                                 </label>
@@ -959,9 +1057,17 @@ const JobOrderPage: React.FC = () => {
                         </div>
 
                         {/* Desktop Dropdown */}
-                        <div className="hidden md:flex absolute top-full right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded shadow-lg z-50 max-h-96 flex-col">
-                          <div className="p-3 border-b border-gray-700 flex items-center justify-between">
-                            <span className="text-white text-sm font-medium">Column Visibility</span>
+                        <div className={`hidden md:flex absolute top-full right-0 mt-2 w-80 border rounded shadow-lg z-50 max-h-96 flex-col ${
+                          isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                        }`}>
+                          <div className={`p-3 border-b flex items-center justify-between ${
+                            isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                          }`}>
+                            <span className={`text-sm font-medium ${
+                              isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
+                              Column Visibility
+                            </span>
                             <div className="flex space-x-2">
                               <button
                                 onClick={handleSelectAllColumns}
@@ -982,7 +1088,11 @@ const JobOrderPage: React.FC = () => {
                             {allColumns.map((column) => (
                               <label
                                 key={column.key}
-                                className="flex items-center px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white"
+                                className={`flex items-center px-4 py-2 cursor-pointer text-sm ${
+                                  isDarkMode 
+                                    ? 'hover:bg-gray-700 text-white' 
+                                    : 'hover:bg-gray-100 text-gray-900'
+                                }`}
                               >
                                 <input
                                   type="checkbox"
@@ -1001,20 +1111,28 @@ const JobOrderPage: React.FC = () => {
                 )}
                 <div className="relative" ref={dropdownRef}>
                   <button
-                    className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors flex items-center"
+                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
+                      isDarkMode 
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                    }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
                     <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
                     <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
                   {dropdownOpen && (
-                    <div className="absolute top-full right-0 mt-1 w-36 bg-gray-800 border border-gray-700 rounded shadow-lg z-50">
+                    <div className={`absolute top-full right-0 mt-1 w-36 border rounded shadow-lg z-50 ${
+                      isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                    }`}>
                       <button
                         onClick={() => {
                           setDisplayMode('card');
                           setDropdownOpen(false);
                         }}
-                        className={`block w-full text-left px-4 py-2 text-sm transition-colors hover:bg-gray-700 ${displayMode === 'card' ? 'text-orange-500' : 'text-white'}`}
+                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
+                          isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                        } ${displayMode === 'card' ? 'text-orange-500' : isDarkMode ? 'text-white' : 'text-gray-900'}`}
                       >
                         Card View
                       </button>
@@ -1023,7 +1141,9 @@ const JobOrderPage: React.FC = () => {
                           setDisplayMode('table');
                           setDropdownOpen(false);
                         }}
-                        className={`block w-full text-left px-4 py-2 text-sm transition-colors hover:bg-gray-700 ${displayMode === 'table' ? 'text-orange-500' : 'text-white'}`}
+                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
+                          isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                        } ${displayMode === 'table' ? 'text-orange-500' : isDarkMode ? 'text-white' : 'text-gray-900'}`}
                       >
                         Table View
                       </button>
@@ -1032,7 +1152,11 @@ const JobOrderPage: React.FC = () => {
                 </div>
                 <button
                   onClick={() => window.location.reload()}
-                  className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded text-sm transition-colors"
+                  className={`p-2 rounded text-sm transition-colors ${
+                    isDarkMode 
+                      ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  }`}
                   aria-label="Refresh"
                 >
                   <RefreshCw className="h-5 w-5" />
@@ -1050,14 +1174,22 @@ const JobOrderPage: React.FC = () => {
                       <div
                         key={jobOrder.id}
                         onClick={() => window.innerWidth < 768 ? handleMobileRowClick(jobOrder) : handleRowClick(jobOrder)}
-                        className={`px-4 py-3 cursor-pointer transition-colors hover:bg-gray-800 border-b border-gray-800 ${selectedJobOrder?.id === jobOrder.id ? 'bg-gray-800' : ''}`}
+                        className={`px-4 py-3 cursor-pointer transition-colors border-b ${
+                          isDarkMode 
+                            ? `hover:bg-gray-800 border-gray-800 ${selectedJobOrder?.id === jobOrder.id ? 'bg-gray-800' : ''}` 
+                            : `hover:bg-gray-100 border-gray-200 ${selectedJobOrder?.id === jobOrder.id ? 'bg-gray-100' : ''}`
+                        }`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className="text-white font-medium text-sm mb-1">
+                            <div className={`font-medium text-sm mb-1 ${
+                              isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
                               {getClientFullName(jobOrder)}
                             </div>
-                            <div className="text-gray-400 text-xs">
+                            <div className={`text-xs ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
                               {formatDate(jobOrder.Timestamp || jobOrder.timestamp)} | {getClientFullAddress(jobOrder)}
                             </div>
                           </div>
@@ -1069,7 +1201,9 @@ const JobOrderPage: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-12 text-gray-400">
+                  <div className={`text-center py-12 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                     No job orders found matching your filters
                   </div>
                 )
@@ -1077,7 +1211,9 @@ const JobOrderPage: React.FC = () => {
                 <div className="overflow-x-auto overflow-y-hidden">
                   <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
                     <thead>
-                      <tr className="border-b border-gray-700 bg-gray-800 sticky top-0 z-10">
+                      <tr className={`border-b sticky top-0 z-10 ${
+                        isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
+                      }`}>
                         {filteredColumns.map((column, index) => (
                           <th
                             key={column.key}
@@ -1087,7 +1223,11 @@ const JobOrderPage: React.FC = () => {
                             onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, column.key)}
                             onDragEnd={handleDragEnd}
-                            className={`text-left py-3 px-3 text-gray-400 font-normal bg-gray-800 ${column.width} whitespace-nowrap ${index < filteredColumns.length - 1 ? 'border-r border-gray-700' : ''} relative group cursor-move ${
+                            className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${
+                              isDarkMode 
+                                ? `text-gray-400 bg-gray-800 ${index < filteredColumns.length - 1 ? 'border-r border-gray-700' : ''}` 
+                                : `text-gray-600 bg-gray-100 ${index < filteredColumns.length - 1 ? 'border-r border-gray-200' : ''}`
+                            } ${
                               draggedColumn === column.key ? 'opacity-50' : ''
                             } ${
                               dragOverColumn === column.key ? 'bg-orange-500 bg-opacity-20' : ''
@@ -1126,13 +1266,21 @@ const JobOrderPage: React.FC = () => {
                         sortedJobOrders.map((jobOrder) => (
                           <tr 
                             key={jobOrder.id} 
-                            className={`border-b border-gray-800 hover:bg-gray-900 cursor-pointer transition-colors ${selectedJobOrder?.id === jobOrder.id ? 'bg-gray-800' : ''}`}
+                            className={`border-b cursor-pointer transition-colors ${
+                              isDarkMode 
+                                ? `border-gray-800 hover:bg-gray-900 ${selectedJobOrder?.id === jobOrder.id ? 'bg-gray-800' : ''}` 
+                                : `border-gray-200 hover:bg-gray-100 ${selectedJobOrder?.id === jobOrder.id ? 'bg-gray-100' : ''}`
+                            }`}
                             onClick={() => window.innerWidth < 768 ? handleMobileRowClick(jobOrder) : handleRowClick(jobOrder)}
                           >
                             {filteredColumns.map((column, index) => (
                               <td 
                                 key={column.key}
-                                className={`py-4 px-3 text-white ${index < filteredColumns.length - 1 ? 'border-r border-gray-800' : ''}`}
+                                className={`py-4 px-3 ${
+                                  isDarkMode 
+                                    ? `text-white ${index < filteredColumns.length - 1 ? 'border-r border-gray-800' : ''}` 
+                                    : `text-gray-900 ${index < filteredColumns.length - 1 ? 'border-r border-gray-200' : ''}`
+                                }`}
                                 style={{ 
                                   width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
                                   maxWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
@@ -1147,7 +1295,9 @@ const JobOrderPage: React.FC = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={filteredColumns.length} className="px-4 py-12 text-center text-gray-400 border-b border-gray-800">
+                          <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${
+                            isDarkMode ? 'text-gray-400 border-gray-800' : 'text-gray-600 border-gray-200'
+                          }`}>
                             {jobOrders.length > 0
                               ? 'No job orders found matching your filters'
                               : 'No job orders found. Create your first job order.'}
@@ -1164,7 +1314,9 @@ const JobOrderPage: React.FC = () => {
       </div>
 
       {selectedJobOrder && mobileView === 'details' && (
-        <div className="md:hidden flex-1 flex flex-col overflow-hidden bg-gray-950">
+        <div className={`md:hidden flex-1 flex flex-col overflow-hidden ${
+          isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+        }`}>
           <JobOrderDetails 
             jobOrder={selectedJobOrder}
             onClose={handleMobileBack}

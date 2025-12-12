@@ -12,6 +12,7 @@ interface StatusRemark {
 }
 
 const StatusRemarksList: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const [statusRemarks, setStatusRemarks] = useState<StatusRemark[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -24,6 +25,26 @@ const StatusRemarksList: React.FC = () => {
   const [formData, setFormData] = useState({
     status_remarks: ''
   });
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     fetchStatusRemarks();
@@ -162,10 +183,14 @@ const StatusRemarksList: React.FC = () => {
 
   if (loading && statusRemarks.length === 0) {
     return (
-      <div className="bg-gray-950 h-full flex items-center justify-center">
+      <div className={`h-full flex items-center justify-center ${
+        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      }`}>
         <div className="text-center">
           <Loader2 className="animate-spin h-12 w-12 text-orange-500 mb-4 mx-auto" />
-          <div className="text-white text-lg">Loading status remarks...</div>
+          <div className={`text-lg ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>Loading status remarks...</div>
         </div>
       </div>
     );
@@ -173,10 +198,16 @@ const StatusRemarksList: React.FC = () => {
 
   if (error && statusRemarks.length === 0) {
     return (
-      <div className="bg-gray-950 h-full flex items-center justify-center">
+      <div className={`h-full flex items-center justify-center ${
+        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      }`}>
         <div className="text-center">
-          <div className="text-white text-lg mb-2">Error Loading Status Remarks</div>
-          <div className="text-gray-400 mb-4">{error}</div>
+          <div className={`text-lg mb-2 ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>Error Loading Status Remarks</div>
+          <div className={`mb-4 ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>{error}</div>
           <button 
             onClick={fetchStatusRemarks}
             className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
@@ -189,14 +220,22 @@ const StatusRemarksList: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-950 h-full flex flex-col">
-      <div className="bg-gray-900 px-6 py-4 border-b border-gray-700 flex-shrink-0">
+    <div className={`h-full flex flex-col ${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    }`}>
+      <div className={`px-6 py-4 border-b flex-shrink-0 ${
+        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-white">Status Remarks List</h1>
+          <h1 className={`text-2xl font-bold ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>Status Remarks List</h1>
         </div>
       </div>
 
-      <div className="bg-gray-900 px-6 py-4 border-b border-gray-700 flex-shrink-0">
+      <div className={`px-6 py-4 border-b flex-shrink-0 ${
+        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
         <div className="flex items-center justify-between">
           <div className="relative flex-1 max-w-md">
             <input
@@ -204,9 +243,15 @@ const StatusRemarksList: React.FC = () => {
               placeholder="Search Status Remarks"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-800 text-white border border-gray-600 rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+              className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 ${
+                isDarkMode
+                  ? 'bg-gray-800 text-white border border-gray-600'
+                  : 'bg-white text-gray-900 border border-gray-300'
+              }`}
             />
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+            <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+            }`} />
           </div>
           <button 
             onClick={handleAddClick}
@@ -222,29 +267,59 @@ const StatusRemarksList: React.FC = () => {
         {filteredRemarks.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-800 border-b border-gray-700 sticky top-0">
+              <thead className={`border-b sticky top-0 ${
+                isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
+              }`}>
                 <tr>
-                  <th className="px-6 py-4 text-left text-white font-medium">Status Remarks</th>
-                  <th className="px-6 py-4 text-left text-white font-medium">Created By User ID</th>
-                  <th className="px-6 py-4 text-left text-white font-medium">Created At</th>
-                  <th className="px-6 py-4 text-left text-white font-medium">Updated By User ID</th>
-                  <th className="px-6 py-4 text-left text-white font-medium">Updated At</th>
-                  <th className="px-6 py-4 text-left text-white font-medium">Actions</th>
+                  <th className={`px-6 py-4 text-left font-medium ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Status Remarks</th>
+                  <th className={`px-6 py-4 text-left font-medium ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Created By User ID</th>
+                  <th className={`px-6 py-4 text-left font-medium ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Created At</th>
+                  <th className={`px-6 py-4 text-left font-medium ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Updated By User ID</th>
+                  <th className={`px-6 py-4 text-left font-medium ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Updated At</th>
+                  <th className={`px-6 py-4 text-left font-medium ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRemarks.map((remark) => (
-                  <tr key={remark.id} className="bg-gray-900 border-b border-gray-800 hover:bg-gray-800 transition-colors">
-                    <td className="px-6 py-4 text-white font-medium">{remark.status_remarks}</td>
-                    <td className="px-6 py-4 text-gray-300">{remark.created_by_user_id || 'N/A'}</td>
-                    <td className="px-6 py-4 text-gray-400 text-sm">{formatDateTime(remark.created_at)}</td>
-                    <td className="px-6 py-4 text-gray-300">{remark.updated_by_user_id || 'N/A'}</td>
-                    <td className="px-6 py-4 text-gray-400 text-sm">{formatDateTime(remark.updated_at)}</td>
+                  <tr key={remark.id} className={`border-b transition-colors ${
+                    isDarkMode ? 'bg-gray-900 border-gray-800 hover:bg-gray-800' : 'bg-white border-gray-200 hover:bg-gray-50'
+                  }`}>
+                    <td className={`px-6 py-4 font-medium ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{remark.status_remarks}</td>
+                    <td className={`px-6 py-4 ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>{remark.created_by_user_id || 'N/A'}</td>
+                    <td className={`px-6 py-4 text-sm ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>{formatDateTime(remark.created_at)}</td>
+                    <td className={`px-6 py-4 ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>{remark.updated_by_user_id || 'N/A'}</td>
+                    <td className={`px-6 py-4 text-sm ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>{formatDateTime(remark.updated_at)}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleEditClick(remark)}
-                          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                          className={`p-2 rounded transition-colors ${
+                            isDarkMode
+                              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                          }`}
                           title="Edit"
                         >
                           <Edit2 className="h-4 w-4" />
@@ -252,7 +327,11 @@ const StatusRemarksList: React.FC = () => {
                         <button
                           onClick={() => handleDelete(remark.id)}
                           disabled={deletingId === remark.id}
-                          className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          className={`p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                            isDarkMode
+                              ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
+                              : 'text-gray-600 hover:text-red-600 hover:bg-gray-100'
+                          }`}
                           title="Delete"
                         >
                           {deletingId === remark.id ? (
@@ -269,7 +348,9 @@ const StatusRemarksList: React.FC = () => {
             </table>
           </div>
         ) : (
-          <div className="p-12 text-center text-gray-400">
+          <div className={`p-12 text-center ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>
             <div className="text-lg mb-2">No status remarks found</div>
             <div className="text-sm">
               {searchQuery 
@@ -290,7 +371,9 @@ const StatusRemarksList: React.FC = () => {
           
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
             <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-md">
-              <div className="px-6 py-4 border-b border-gray-700">
+              <div className={`px-6 py-4 border-b ${
+                isDarkMode ? 'border-gray-700' : 'border-gray-600'
+              }`}>
                 <h2 className="text-xl font-semibold text-white">
                   {editingRemark ? 'Edit Status Remark' : 'Add Status Remark'}
                 </h2>
@@ -314,7 +397,11 @@ const StatusRemarksList: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowAddModal(false)}
-                    className="flex-1 px-4 py-2 text-gray-300 border border-gray-600 rounded hover:bg-gray-700 transition-colors"
+                    className={`flex-1 px-4 py-2 border rounded transition-colors ${
+                      isDarkMode
+                        ? 'text-gray-300 border-gray-600 hover:bg-gray-700'
+                        : 'text-gray-700 border-gray-400 hover:bg-gray-100'
+                    }`}
                   >
                     Cancel
                   </button>

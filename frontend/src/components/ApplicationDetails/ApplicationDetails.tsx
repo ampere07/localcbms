@@ -42,6 +42,24 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark');
+    };
+    
+    checkDarkMode();
+    
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!isResizing) return;
@@ -227,41 +245,55 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   };
   
   return (
-    <div className="h-full bg-gray-950 flex flex-col overflow-hidden border-l border-white border-opacity-30 relative" style={{ width: `${detailsWidth}px` }}>
+    <div className={`h-full flex flex-col overflow-hidden border-l relative ${
+      isDarkMode ? 'bg-gray-950 border-white border-opacity-30' : 'bg-gray-50 border-gray-300'
+    }`} style={{ width: `${detailsWidth}px` }}>
       <div
-        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
+        className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${
+          isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
+        }`}
         onMouseDown={handleMouseDownResize}
       />
       
-      <div className="bg-gray-800 p-3 flex items-center justify-between border-b border-gray-700">
+      <div className={`p-3 flex items-center justify-between border-b ${
+        isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
         <div className="flex items-center">
-          <h2 className="text-white font-medium">{getClientFullName()}</h2>
-          {loading && <div className="ml-3 animate-pulse text-orange-500 text-sm">Loading...</div>}
+          <h2 className={isDarkMode ? 'text-white font-medium' : 'text-gray-900 font-medium'}>{getClientFullName()}</h2>
+          {loading && <div className={`ml-3 animate-pulse text-sm ${
+            isDarkMode ? 'text-orange-500' : 'text-orange-600'
+          }`}>Loading...</div>}
         </div>
         
         <div className="flex items-center space-x-3">
-          <button className="bg-gray-800 hover:bg-gray-700 text-white p-1 rounded-sm border border-gray-700 flex items-center justify-center">
+          <button className={`p-1 rounded-sm border flex items-center justify-center ${
+            isDarkMode ? 'bg-gray-800 hover:bg-gray-700 text-white border-gray-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300'
+          }`}>
             <Newspaper size={16} />
           </button>
           <button 
-            className="bg-gray-800 hover:bg-gray-700 text-white p-1 rounded-sm border border-gray-700 flex items-center justify-center"
+            className={`p-1 rounded-sm border flex items-center justify-center ${
+              isDarkMode ? 'bg-gray-800 hover:bg-gray-700 text-white border-gray-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300'
+            }`}
             onClick={handleMoveToJO}
           >
             <ArrowRightFromLine size={16} />
           </button>
           <button 
-            className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded-sm flex items-center"
+            className={`px-3 py-1 rounded-sm flex items-center ${
+              isDarkMode ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'
+            }`}
             onClick={handleScheduleVisit}
             disabled={loading}
           >
             <span>Schedule</span>
           </button>
-          <button className="hover:text-white text-gray-400"><ArrowLeft size={16} /></button>
-          <button className="hover:text-white text-gray-400"><ArrowRight size={16} /></button>
-          <button className="hover:text-white text-gray-400"><Maximize2 size={16} /></button>
+          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowLeft size={16} /></button>
+          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowRight size={16} /></button>
+          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><Maximize2 size={16} /></button>
           <button 
             onClick={onClose}
-            className="hover:text-white text-gray-400"
+            className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
             aria-label="Close"
           >
             <X size={18} />
@@ -269,48 +301,64 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         </div>
       </div>
       
-      <div className="bg-gray-900 py-3 border-b border-gray-700 flex items-center justify-center px-4">
+      <div className={`py-3 border-b flex items-center justify-center px-4 ${
+        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-200'
+      }`}>
         <button 
-          className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
+          className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${
+            isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
+          }`}
           onClick={() => handleStatusChange('No Facility')}
           disabled={loading}
         >
-          <div className="bg-orange-600 p-2 rounded-full">
+          <div className={isDarkMode ? 'bg-orange-600 p-2 rounded-full' : 'bg-orange-500 p-2 rounded-full'}>
             <div className="text-white">
               <Ban size={18} />
             </div>
           </div>
-          <span className="text-xs mt-1 text-gray-300">No Facility</span>
+          <span className={`text-xs mt-1 ${
+            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>No Facility</span>
         </button>
         
         <button 
-          className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
+          className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${
+            isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
+          }`}
           onClick={() => handleStatusChange('Cancelled')}
           disabled={loading}
         >
-          <div className="bg-orange-600 p-2 rounded-full">
+          <div className={isDarkMode ? 'bg-orange-600 p-2 rounded-full' : 'bg-orange-500 p-2 rounded-full'}>
             <div className="text-white">
               <XCircle size={18} />
             </div>
           </div>
-          <span className="text-xs mt-1 text-gray-300">Cancelled</span>
+          <span className={`text-xs mt-1 ${
+            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>Cancelled</span>
         </button>
         
         <button 
-          className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
+          className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${
+            isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
+          }`}
           onClick={() => handleStatusChange('No Slot')}
           disabled={loading}
         >
-          <div className="bg-orange-600 p-2 rounded-full">
+          <div className={isDarkMode ? 'bg-orange-600 p-2 rounded-full' : 'bg-orange-500 p-2 rounded-full'}>
             <div className="text-white">
               <RotateCw size={18} />
             </div>
           </div>
-          <span className="text-xs mt-1 text-gray-300">No Slot</span>
+          <span className={`text-xs mt-1 ${
+            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>No Slot</span>
         </button>
         
         <button 
-          className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
+          className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${
+            isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
+          }`}
           onClick={() => handleStatusChange('Duplicate')}
           disabled={loading}
         >
@@ -319,7 +367,9 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               <Square size={18} />
             </div>
           </div>
-          <span className="text-xs mt-1 text-gray-300">Duplicate</span>
+          <span className={`text-xs mt-1 ${
+            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>Duplicate</span>
         </button>
         
         <button 
@@ -332,65 +382,113 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               <CheckCircle size={18} />
             </div>
           </div>
-          <span className="text-xs mt-1 text-gray-300">Clear Status</span>
+          <span className={`text-xs mt-1 ${
+            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>Clear Status</span>
         </button>
       </div>
       
       {error && (
-        <div className="bg-red-900 bg-opacity-20 border border-red-700 text-red-400 p-3 m-3 rounded">
+        <div className={`p-3 m-3 rounded ${
+          isDarkMode 
+            ? 'bg-red-900 bg-opacity-20 border border-red-700 text-red-400'
+            : 'bg-red-100 border border-red-300 text-red-700'
+        }`}>
           {error}
         </div>
       )}
       
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto py-6 px-4 bg-gray-950">
+        <div className={`max-w-2xl mx-auto py-6 px-4 ${
+          isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+        }`}>
           <div className="space-y-4">
-            <div className="flex border-b border-gray-800 pb-4">
-              <div className="w-40 text-gray-400 text-sm">Timestamp:</div>
-              <div className="text-white flex-1">
+            <div className={`flex border-b pb-4 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Timestamp:</div>
+              <div className={`flex-1 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 {detailedApplication?.create_date && detailedApplication?.create_time 
                   ? `${detailedApplication.create_date} ${detailedApplication.create_time}` 
                   : formatDate(application.timestamp)}
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 pb-4">
-              <div className="w-40 text-gray-400 text-sm">Status:</div>
+            <div className={`flex border-b pb-4 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Status:</div>
               <div className={`${getStatusColor(detailedApplication?.status)} flex-1 capitalize`}>
                 {detailedApplication?.status || 'Pending'}
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 pb-4">
-              <div className="w-40 text-gray-400 text-sm">Referred By:</div>
-              <div className="text-white flex-1">{detailedApplication?.referred_by || 'None'}</div>
+            <div className={`flex border-b pb-4 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Referred By:</div>
+              <div className={`flex-1 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{detailedApplication?.referred_by || 'None'}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 pb-4">
-              <div className="w-40 text-gray-400 text-sm">Full Name of Client:</div>
-              <div className="text-white flex-1">{getClientFullName()}</div>
+            <div className={`flex border-b pb-4 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Full Name of Client:</div>
+              <div className={`flex-1 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{getClientFullName()}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 pb-4">
-              <div className="w-40 text-gray-400 text-sm">Full Address of Client:</div>
-              <div className="text-white flex-1">{getClientFullAddress()}</div>
+            <div className={`flex border-b pb-4 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Full Address of Client:</div>
+              <div className={`flex-1 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{getClientFullAddress()}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 pb-4">
-              <div className="w-40 text-gray-400 text-sm">Landmark:</div>
-              <div className="text-white flex-1">{detailedApplication?.landmark || 'Not provided'}</div>
+            <div className={`flex border-b pb-4 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Landmark:</div>
+              <div className={`flex-1 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{detailedApplication?.landmark || 'Not provided'}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 pb-4">
-              <div className="w-40 text-gray-400 text-sm">Contact Number:</div>
-              <div className="text-white flex-1 flex items-center">
+            <div className={`flex border-b pb-4 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Contact Number:</div>
+              <div className={`flex-1 flex items-center ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 {detailedApplication?.mobile_number || application.mobile_number || 'Not provided'}
                 {(detailedApplication?.mobile_number || application.mobile_number) && (
                   <>
-                    <button className="text-gray-400 hover:text-white ml-2">
+                    <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
                       <Phone size={16} />
                     </button>
-                    <button className="text-gray-400 hover:text-white ml-2">
+                    <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
                       <MessageSquare size={16} />
                     </button>
                   </>
@@ -398,16 +496,22 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 pb-4">
-              <div className="w-40 text-gray-400 text-sm">Second Contact Number:</div>
-              <div className="text-white flex-1 flex items-center">
+            <div className={`flex border-b pb-4 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Second Contact Number:</div>
+              <div className={`flex-1 flex items-center ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 {detailedApplication?.secondary_mobile_number || 'Not provided'}
                 {detailedApplication?.secondary_mobile_number && (
                   <>
-                    <button className="text-gray-400 hover:text-white ml-2">
+                    <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
                       <Phone size={16} />
                     </button>
-                    <button className="text-gray-400 hover:text-white ml-2">
+                    <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
                       <MessageSquare size={16} />
                     </button>
                   </>
@@ -415,71 +519,127 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 pb-4">
-              <div className="w-40 text-gray-400 text-sm">Email Address:</div>
-              <div className="text-white flex-1 flex items-center">
+            <div className={`flex border-b pb-4 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Email Address:</div>
+              <div className={`flex-1 flex items-center ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 {detailedApplication?.email_address || application.email_address || 'Not provided'}
                 {(detailedApplication?.email_address || application.email_address) && (
-                  <button className="text-gray-400 hover:text-white ml-2">
+                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
                     <Mail size={16} />
                   </button>
                 )}
               </div>
             </div>
 
-            <div className="flex border-b border-gray-800 pb-4">
-              <div className="w-40 text-gray-400 text-sm">Village:</div>
-              <div className="text-white flex-1">{detailedApplication?.village || 'Not specified'}</div>
+            <div className={`flex border-b pb-4 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Village:</div>
+              <div className={`flex-1 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{detailedApplication?.village || 'Not specified'}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 pb-4">
-              <div className="w-40 text-gray-400 text-sm">Barangay:</div>
-              <div className="text-white flex-1">{detailedApplication?.barangay || application.barangay || 'Not specified'}</div>
+            <div className={`flex border-b pb-4 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Barangay:</div>
+              <div className={`flex-1 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{detailedApplication?.barangay || application.barangay || 'Not specified'}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 pb-4">
-              <div className="w-40 text-gray-400 text-sm">City:</div>
-              <div className="text-white flex-1">{detailedApplication?.city || application.city || 'Not specified'}</div>
+            <div className={`flex border-b pb-4 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>City:</div>
+              <div className={`flex-1 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{detailedApplication?.city || application.city || 'Not specified'}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 pb-4">
-              <div className="w-40 text-gray-400 text-sm">Region:</div>
-              <div className="text-white flex-1">{detailedApplication?.region || application.region || 'Not specified'}</div>
+            <div className={`flex border-b pb-4 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Region:</div>
+              <div className={`flex-1 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{detailedApplication?.region || application.region || 'Not specified'}</div>
             </div>
             
-            <div className="flex border-b border-gray-800 pb-4">
-              <div className="w-40 text-gray-400 text-sm">Desired Plan:</div>
-              <div className="text-white flex-1 flex items-center">
+            <div className={`flex border-b pb-4 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Desired Plan:</div>
+              <div className={`flex-1 flex items-center ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 {detailedApplication?.desired_plan || 'Not specified'}
                 {detailedApplication?.desired_plan && (
-                  <button className="text-gray-400 hover:text-white ml-2">
+                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
                     <Info size={16} />
                   </button>
                 )}
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 pb-4">
-              <div className="w-40 text-gray-400 text-sm">Promo:</div>
-              <div className="text-white flex-1">{detailedApplication?.promo || 'None'}</div>
+            <div className={`flex border-b pb-4 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Promo:</div>
+              <div className={`flex-1 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{detailedApplication?.promo || 'None'}</div>
             </div>
             
             {detailedApplication?.terms_agreed && (
-              <div className="flex border-b border-gray-800 pb-4">
-                <div className="w-40 text-gray-400 text-sm">Terms and Conditions:</div>
-                <div className="text-white flex-1">Agreed</div>
+              <div className={`flex border-b pb-4 ${
+                isDarkMode ? 'border-gray-800' : 'border-gray-200'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Terms and Conditions:</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Agreed</div>
               </div>
             )}
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Proof of Billing</div>
-              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+            <div className={`flex border-b py-2 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm whitespace-nowrap ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Proof of Billing</div>
+              <div className={`flex-1 flex items-center justify-between min-w-0 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 <span className="truncate mr-2">
                   {detailedApplication?.proof_of_billing_url || 'No document available'}
                 </span>
                 {detailedApplication?.proof_of_billing_url && (
                   <button 
-                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    className={`flex-shrink-0 ${
+                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                     onClick={() => window.open(detailedApplication.proof_of_billing_url)}
                   >
                     <ExternalLink size={16} />
@@ -488,15 +648,23 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Government Valid ID</div>
-              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+            <div className={`flex border-b py-2 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm whitespace-nowrap ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Government Valid ID</div>
+              <div className={`flex-1 flex items-center justify-between min-w-0 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 <span className="truncate mr-2">
                   {detailedApplication?.government_valid_id_url || 'No document available'}
                 </span>
                 {detailedApplication?.government_valid_id_url && (
                   <button 
-                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    className={`flex-shrink-0 ${
+                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                     onClick={() => window.open(detailedApplication.government_valid_id_url)}
                   >
                     <ExternalLink size={16} />
@@ -505,15 +673,23 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Secondary Government Valid ID</div>
-              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+            <div className={`flex border-b py-2 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm whitespace-nowrap ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Secondary Government Valid ID</div>
+              <div className={`flex-1 flex items-center justify-between min-w-0 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 <span className="truncate mr-2">
                   {detailedApplication?.secondary_government_valid_id_url || 'No document available'}
                 </span>
                 {detailedApplication?.secondary_government_valid_id_url && (
                   <button 
-                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    className={`flex-shrink-0 ${
+                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                     onClick={() => window.open(detailedApplication.secondary_government_valid_id_url)}
                   >
                     <ExternalLink size={16} />
@@ -522,15 +698,23 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">House Front Picture</div>
-              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+            <div className={`flex border-b py-2 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm whitespace-nowrap ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>House Front Picture</div>
+              <div className={`flex-1 flex items-center justify-between min-w-0 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 <span className="truncate mr-2">
                   {detailedApplication?.house_front_picture_url || 'No image available'}
                 </span>
                 {detailedApplication?.house_front_picture_url && (
                   <button 
-                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    className={`flex-shrink-0 ${
+                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                     onClick={() => window.open(detailedApplication.house_front_picture_url)}
                   >
                     <ExternalLink size={16} />
@@ -539,15 +723,23 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Promo Image</div>
-              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+            <div className={`flex border-b py-2 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm whitespace-nowrap ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Promo Image</div>
+              <div className={`flex-1 flex items-center justify-between min-w-0 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 <span className="truncate mr-2">
                   {detailedApplication?.promo_url || 'No image available'}
                 </span>
                 {detailedApplication?.promo_url && (
                   <button 
-                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    className={`flex-shrink-0 ${
+                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                     onClick={() => window.open(detailedApplication.promo_url)}
                   >
                     <ExternalLink size={16} />
@@ -556,15 +748,23 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Nearest Landmark 1</div>
-              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+            <div className={`flex border-b py-2 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm whitespace-nowrap ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Nearest Landmark 1</div>
+              <div className={`flex-1 flex items-center justify-between min-w-0 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 <span className="truncate mr-2">
                   {detailedApplication?.nearest_landmark1_url || 'No image available'}
                 </span>
                 {detailedApplication?.nearest_landmark1_url && (
                   <button 
-                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    className={`flex-shrink-0 ${
+                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                     onClick={() => window.open(detailedApplication.nearest_landmark1_url)}
                   >
                     <ExternalLink size={16} />
@@ -573,15 +773,23 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Nearest Landmark 2</div>
-              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+            <div className={`flex border-b py-2 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm whitespace-nowrap ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Nearest Landmark 2</div>
+              <div className={`flex-1 flex items-center justify-between min-w-0 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 <span className="truncate mr-2">
                   {detailedApplication?.nearest_landmark2_url || 'No image available'}
                 </span>
                 {detailedApplication?.nearest_landmark2_url && (
                   <button 
-                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    className={`flex-shrink-0 ${
+                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                     onClick={() => window.open(detailedApplication.nearest_landmark2_url)}
                   >
                     <ExternalLink size={16} />
@@ -590,15 +798,23 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Document Attachment</div>
-              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+            <div className={`flex border-b py-2 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm whitespace-nowrap ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Document Attachment</div>
+              <div className={`flex-1 flex items-center justify-between min-w-0 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 <span className="truncate mr-2">
                   {detailedApplication?.document_attachment_url || 'No document available'}
                 </span>
                 {detailedApplication?.document_attachment_url && (
                   <button 
-                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    className={`flex-shrink-0 ${
+                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                     onClick={() => window.open(detailedApplication.document_attachment_url)}
                   >
                     <ExternalLink size={16} />
@@ -607,15 +823,23 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm whitespace-nowrap">Other ISP Bill</div>
-              <div className="text-white flex-1 flex items-center justify-between min-w-0">
+            <div className={`flex border-b py-2 ${
+              isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+              <div className={`w-40 text-sm whitespace-nowrap ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Other ISP Bill</div>
+              <div className={`flex-1 flex items-center justify-between min-w-0 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 <span className="truncate mr-2">
                   {detailedApplication?.other_isp_bill_url || 'No document available'}
                 </span>
                 {detailedApplication?.other_isp_bill_url && (
                   <button 
-                    className="text-gray-400 hover:text-white flex-shrink-0"
+                    className={`flex-shrink-0 ${
+                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                     onClick={() => window.open(detailedApplication.other_isp_bill_url)}
                   >
                     <ExternalLink size={16} />

@@ -14,12 +14,33 @@ interface Promo {
 }
 
 const PromoList: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [promos, setPromos] = useState<Promo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [editingPromo, setEditingPromo] = useState<Promo | null>(null);
   const [deletingItems, setDeletingItems] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     loadPromos();
@@ -133,11 +154,15 @@ const PromoList: React.FC = () => {
 
   const renderListItem = (promo: Promo) => {
     return (
-      <div key={promo.id} className="bg-gray-900 border-b border-gray-800">
+      <div key={promo.id} className={`border-b ${
+        isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+      }`}>
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <h3 className="text-white font-medium text-lg">{promo.name}</h3>
+              <h3 className={`font-medium text-lg ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{promo.name}</h3>
               {promo.status && (
                 <span className={`text-xs px-2 py-1 rounded ${
                   promo.status === 'Active' 
@@ -150,7 +175,9 @@ const PromoList: React.FC = () => {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+            <div className={`flex items-center gap-4 mt-2 text-xs ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>
               <span>Created: {formatDate(promo.created_at)}</span>
               <span>Updated: {formatDate(promo.updated_at)}</span>
             </div>
@@ -158,7 +185,11 @@ const PromoList: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleEdit(promo)}
-              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded"
+              className={`p-2 rounded transition-colors ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
               title="Edit"
             >
               <Edit2 className="h-4 w-4" />
@@ -166,7 +197,11 @@ const PromoList: React.FC = () => {
             <button
               onClick={() => handleDelete(promo)}
               disabled={deletingItems.has(promo.id)}
-              className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
+                  : 'text-gray-600 hover:text-red-600 hover:bg-gray-100'
+              }`}
               title={deletingItems.has(promo.id) ? 'Permanently Deleting...' : 'Permanently Delete'}
             >
               {deletingItems.has(promo.id) ? (
@@ -184,26 +219,40 @@ const PromoList: React.FC = () => {
   const filteredPromos = getFilteredPromos();
 
   return (
-    <div className="min-h-screen bg-gray-950 relative">
-      <div className="bg-gray-900 border-b border-gray-800">
+    <div className={`min-h-screen relative ${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    }`}>
+      <div className={`border-b ${
+        isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+      }`}>
         <div className="px-6 py-4">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-semibold text-white">Promo List</h1>
+            <h1 className={`text-xl font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Promo List</h1>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => {
                   setEditingPromo(null);
                   setShowAddPanel(true);
                 }}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2"
+                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center gap-2 transition-colors"
               >
                 <Plus className="h-4 w-4" />
                 Add
               </button>
-              <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
+              <button className={`p-2 rounded transition-colors ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}>
                 <Filter className="h-5 w-5" />
               </button>
-              <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
+              <button className={`p-2 rounded transition-colors ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}>
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
@@ -212,13 +261,19 @@ const PromoList: React.FC = () => {
           </div>
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500" />
+            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-400'
+            }`} />
             <input
               type="text"
               placeholder="Search Promo List"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-gray-600 focus:outline-none"
+              className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-orange-500 ${
+                isDarkMode
+                  ? 'bg-gray-800 text-white border-gray-700 focus:border-orange-500'
+                  : 'bg-white text-gray-900 border-gray-300 focus:border-orange-500'
+              }`}
             />
           </div>
         </div>
@@ -227,14 +282,18 @@ const PromoList: React.FC = () => {
       <div className="flex-1 overflow-auto">
         {isLoading ? (
           <div className="flex justify-center items-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-white" />
+            <Loader2 className={`h-8 w-8 animate-spin ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`} />
           </div>
         ) : filteredPromos.length > 0 ? (
           <div>
             {filteredPromos.map(renderListItem)}
           </div>
         ) : (
-          <div className="text-center py-20 text-gray-500">
+          <div className={`text-center py-20 ${
+            isDarkMode ? 'text-gray-500' : 'text-gray-600'
+          }`}>
             No promos found
           </div>
         )}

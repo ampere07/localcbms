@@ -13,6 +13,7 @@ interface SMSBlastRecord {
 }
 
 const SMSBlast: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [smsBlastRecords, setSmsBlastRecords] = useState<SMSBlastRecord[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<SMSBlastRecord[]>([]);
   const [selectedBarangay, setSelectedBarangay] = useState<string>('All');
@@ -24,6 +25,23 @@ const SMSBlast: React.FC = () => {
 
   const barangayFilters = ['All', 'Pila Pila', 'Lunsad', 'Libid'];
   const cityFilters = ['All', 'Binangonan'];
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme !== 'light');
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    const theme = localStorage.getItem('theme');
+    setIsDarkMode(theme !== 'light');
+
+    return () => observer.disconnect();
+  }, []);
 
   // Fetch SMS blast data
   useEffect(() => {
@@ -194,11 +212,19 @@ const SMSBlast: React.FC = () => {
   };
 
   return (
-    <div className="bg-gray-950 h-full flex overflow-hidden">
+    <div className={`${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    } h-full flex overflow-hidden`}>
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="bg-gray-900 p-4 border-b border-gray-700 flex justify-between items-center">
-          <h1 className="text-xl font-semibold text-white">SMS Blast</h1>
+        <div className={`p-4 border-b flex justify-between items-center ${
+          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
+          <h1 className={`text-xl font-semibold ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>
+            SMS Blast
+          </h1>
           <div className="flex items-center space-x-2">
             <button 
               onClick={handleAddNew}
@@ -207,8 +233,10 @@ const SMSBlast: React.FC = () => {
               <Plus size={18} />
               <span>Add</span>
             </button>
-            <button className="p-2 bg-gray-800 rounded hover:bg-gray-700">
-              <Filter size={18} className="text-white" />
+            <button className={`p-2 rounded ${
+              isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300'
+            }`}>
+              <Filter size={18} className={isDarkMode ? 'text-white' : 'text-gray-900'} />
             </button>
           </div>
         </div>
@@ -217,7 +245,9 @@ const SMSBlast: React.FC = () => {
         <div className="flex-1 overflow-hidden">
           {isLoading ? (
             <div className="h-full flex items-center justify-center">
-              <div className="text-gray-400">Loading SMS Blast records...</div>
+              <div className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+                Loading SMS Blast records...
+              </div>
             </div>
           ) : error ? (
             <div className="h-full flex items-center justify-center">
@@ -225,10 +255,14 @@ const SMSBlast: React.FC = () => {
             </div>
           ) : (
             <div className="h-full overflow-auto">
-              <table className="min-w-full divide-y divide-gray-700">
-                <thead className="bg-gray-800">
+              <table className={`min-w-full divide-y ${
+                isDarkMode ? 'divide-gray-700' : 'divide-gray-300'
+              }`}>
+                <thead className={isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}>
                   <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    <th scope="col" className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       barangay
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
@@ -251,16 +285,24 @@ const SMSBlast: React.FC = () => {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-gray-900 divide-y divide-gray-800">
+                <tbody className={`divide-y ${
+                  isDarkMode ? 'bg-gray-900 divide-gray-800' : 'bg-white divide-gray-200'
+                }`}>
                   {filteredRecords.map((record) => (
-                    <tr key={record.id} className="hover:bg-gray-800 cursor-pointer" onClick={() => handleRecordClick(record)}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                    <tr key={record.id} className={`cursor-pointer ${
+                      isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                    }`} onClick={() => handleRecordClick(record)}>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>
                         {record.barangay}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                         {record.city}
                       </td>
-                      <td className="px-6 py-4 text-sm text-white max-w-md truncate">
+                      <td className={`px-6 py-4 text-sm max-w-md truncate ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>
                         {record.message}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
@@ -273,7 +315,9 @@ const SMSBlast: React.FC = () => {
                         {record.userEmail}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <ChevronRight className="h-5 w-5 text-gray-400" />
+                        <ChevronRight className={`h-5 w-5 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`} />
                       </td>
                     </tr>
                   ))}
@@ -282,7 +326,9 @@ const SMSBlast: React.FC = () => {
               
               {filteredRecords.length === 0 && (
                 <div className="flex justify-center items-center h-64">
-                  <p className="text-gray-400">No SMS Blast records found matching your criteria.</p>
+                  <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+                    No SMS Blast records found matching your criteria.
+                  </p>
                 </div>
               )}
             </div>
@@ -292,11 +338,17 @@ const SMSBlast: React.FC = () => {
       
       {/* Details panel that slides in from the right */}
       {selectedSMSBlast && (
-        <div className="w-full max-w-3xl bg-gray-900 border-l border-gray-700 flex-shrink-0 relative">
+        <div className={`w-full max-w-3xl border-l flex-shrink-0 relative ${
+          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
           <div className="absolute top-4 right-4 z-10">
             <button
               onClick={handleCloseDetails}
-              className="text-gray-400 hover:text-white transition-colors bg-gray-800 rounded p-1"
+              className={`transition-colors rounded p-1 ${
+                isDarkMode 
+                  ? 'text-gray-400 hover:text-white bg-gray-800' 
+                  : 'text-gray-600 hover:text-gray-900 bg-gray-200'
+              }`}
             >
               <X size={20} />
             </button>

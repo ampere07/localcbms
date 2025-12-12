@@ -55,6 +55,28 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [userData, setUserData] = useState<any>(null);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+
+  // Track dark mode changes
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   // Load user data from localStorage
   useEffect(() => {
@@ -199,7 +221,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   };
 
   return (
-    <div className="h-screen bg-gray-950 flex flex-col overflow-hidden">
+    <div className={`h-screen flex flex-col overflow-hidden ${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    }`}>
       {/* Fixed Header */}
       <div className="flex-shrink-0">
         <Header onSearch={handleSearch} onToggleSidebar={toggleSidebar} />
@@ -231,7 +255,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         </div>
         
         {/* Scrollable Content Area Only */}
-        <div className="flex-1 bg-gray-950 overflow-hidden">
+        <div className={`flex-1 overflow-hidden ${
+          isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+        }`}>
           <div className="h-full overflow-y-auto">
             {renderContent()}
           </div>

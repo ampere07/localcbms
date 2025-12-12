@@ -105,6 +105,7 @@ const getRegions = async () => {
 };
 
 const Discounts: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedDiscount, setSelectedDiscount] = useState<DiscountRecord | null>(null);
@@ -117,6 +118,26 @@ const Discounts: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const fetchLocationData = async () => {
@@ -254,11 +275,19 @@ const Discounts: React.FC = () => {
   };
 
   return (
-    <div className="bg-gray-950 h-full flex flex-col md:flex-row overflow-hidden">
-      <div className="md:border-r border-t md:border-t-0 border-gray-700 flex-shrink-0 flex flex-col order-2 md:order-1 bg-gray-900 relative" style={{ width: `${sidebarWidth}px` }}>
-        <div className="p-4 border-b border-gray-700 flex-shrink-0 hidden md:block">
+    <div className={`h-full flex flex-col md:flex-row overflow-hidden ${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    }`}>
+      <div className={`md:border-r border-t md:border-t-0 flex-shrink-0 flex flex-col order-2 md:order-1 relative ${
+        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+      }`} style={{ width: `${sidebarWidth}px` }}>
+        <div className={`p-4 border-b flex-shrink-0 hidden md:block ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-lg font-semibold text-white">Discounts</h2>
+            <h2 className={`text-lg font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Discounts</h2>
             <div>
               <button 
                 className="flex items-center space-x-1 bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-sm"
@@ -276,12 +305,14 @@ const Discounts: React.FC = () => {
               <button
                 key={location.id}
                 onClick={() => setSelectedLocation(location.id)}
-                className={`md:w-full flex-shrink-0 flex flex-col md:flex-row items-center md:justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 rounded-md md:rounded-none ${
+                className={`md:w-full flex-shrink-0 flex flex-col md:flex-row items-center md:justify-between px-4 py-3 text-sm transition-colors rounded-md md:rounded-none ${
+                  isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                } ${
                   selectedLocation === location.id
                     ? location.id === 'all' 
                       ? 'bg-orange-500 bg-opacity-20 text-orange-400' 
                       : 'bg-orange-500 bg-opacity-20 text-orange-400'
-                    : 'text-gray-300'
+                    : isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}
               >
                 {location.id === 'all' ? (
@@ -325,24 +356,38 @@ const Discounts: React.FC = () => {
         />
       </div>
 
-      <div className="flex-1 bg-gray-950 overflow-hidden order-1 md:order-2">
+      <div className={`flex-1 overflow-hidden order-1 md:order-2 ${
+        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      }`}>
         <div className="flex flex-col h-full">
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto">
               {isLoading ? (
-                <div className="px-4 py-12 text-center text-gray-400">
+                <div className={`px-4 py-12 text-center ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
                   <div className="animate-pulse flex flex-col items-center">
-                    <div className="h-4 w-1/3 bg-gray-700 rounded mb-4"></div>
-                    <div className="h-4 w-1/2 bg-gray-700 rounded"></div>
+                    <div className={`h-4 w-1/3 rounded mb-4 ${
+                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${
+                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}></div>
                   </div>
                   <p className="mt-4">Loading discount records...</p>
                 </div>
               ) : error ? (
-                <div className="px-4 py-12 text-center text-red-400">
+                <div className={`px-4 py-12 text-center ${
+                  isDarkMode ? 'text-red-400' : 'text-red-600'
+                }`}>
                   <p>{error}</p>
                   <button 
                     onClick={handleRefresh}
-                    className="mt-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                    className={`mt-4 px-4 py-2 rounded ${
+                      isDarkMode
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                    }`}>
                     Retry
                   </button>
                 </div>
@@ -353,11 +398,15 @@ const Discounts: React.FC = () => {
                       <div
                         key={record.id}
                         onClick={() => handleRecordClick(record)}
-                        className={`px-4 py-3 cursor-pointer transition-colors hover:bg-gray-800 border-b border-gray-800 ${selectedDiscount?.id === record.id ? 'bg-gray-800' : ''}`}
+                        className={`px-4 py-3 cursor-pointer transition-colors border-b ${
+                          isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
+                        } ${selectedDiscount?.id === record.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className="text-white font-medium">
+                            <div className={`font-medium ${
+                              isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
                               {record.fullName}
                             </div>
                             <div className="text-red-400 text-sm">
@@ -365,7 +414,7 @@ const Discounts: React.FC = () => {
                             </div>
                           </div>
                           <div className="flex items-center ml-4 flex-shrink-0">
-                            <span className="text-white">
+                            <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
                               ₱{record.discountAmount.toFixed(2)}
                             </span>
                           </div>
@@ -373,7 +422,9 @@ const Discounts: React.FC = () => {
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-12 text-gray-400">
+                    <div className={`text-center py-12 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       No discount records found matching your filters
                     </div>
                   )}

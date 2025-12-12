@@ -31,6 +31,7 @@ interface RebateDetailsProps {
 }
 
 const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose }) => {
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +45,14 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose }) => {
   const startWidthRef = useRef<number>(0);
 
   const canApprove = rebate.status.toLowerCase() === 'pending';
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(localStorage.getItem('theme') === 'dark');
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     fetchRebateUsages();
@@ -179,14 +188,26 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose }) => {
         percentage={loadingPercentage} 
       />
       
-      <div className="bg-gray-950 flex flex-col overflow-hidden border-l border-white border-opacity-30 relative" style={{ width: `${detailsWidth}px`, height: '100%' }}>
+      <div className={`flex flex-col overflow-hidden border-l relative ${
+        isDarkMode
+          ? 'bg-gray-950 border-white border-opacity-30'
+          : 'bg-white border-gray-300'
+      }`} style={{ width: `${detailsWidth}px`, height: '100%' }}>
         <div
-          className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
+          className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${
+            isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
+          }`}
           onMouseDown={handleMouseDownResize}
         />
-        <div className="bg-gray-800 p-3 flex items-center justify-between border-b border-gray-700">
+        <div className={`p-3 flex items-center justify-between border-b ${
+          isDarkMode
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-gray-100 border-gray-200'
+        }`}>
           <div className="flex items-center min-w-0 flex-1">
-            <h2 className="text-white font-medium truncate pr-4">{getDisplayText()}</h2>
+            <h2 className={`font-medium truncate pr-4 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{getDisplayText()}</h2>
             {loading && <div className="ml-3 animate-pulse text-orange-500 text-sm flex-shrink-0">Loading...</div>}
           </div>
           
@@ -201,12 +222,12 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose }) => {
                 <span>{loading ? 'Processing...' : 'Approve'}</span>
               </button>
             )}
-            <button className="hover:text-white text-gray-400"><ArrowLeft size={16} /></button>
-            <button className="hover:text-white text-gray-400"><ArrowRight size={16} /></button>
-            <button className="hover:text-white text-gray-400"><Maximize2 size={16} /></button>
+            <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowLeft size={16} /></button>
+            <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowRight size={16} /></button>
+            <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><Maximize2 size={16} /></button>
             <button 
               onClick={onClose}
-              className="hover:text-white text-gray-400"
+              className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
               aria-label="Close"
             >
               <X size={18} />
@@ -215,46 +236,86 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose }) => {
         </div>
         
         {error && (
-          <div className="bg-red-900 bg-opacity-20 border border-red-700 text-red-400 p-3 m-3 rounded">
+          <div className={`border p-3 m-3 rounded ${
+            isDarkMode
+              ? 'bg-red-900 bg-opacity-20 border-red-700 text-red-400'
+              : 'bg-red-100 border-red-300 text-red-900'
+          }`}>
             {error}
           </div>
         )}
         
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto py-1 px-4 bg-gray-950">
+          <div className={`mx-auto py-1 px-4 ${
+            isDarkMode ? 'bg-gray-950' : 'bg-white'
+          }`}>
             <div className="space-y-1">
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Rebate ID</div>
-                <div className="text-white flex-1">{rebate.id}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Rebate ID</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{rebate.id}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Rebate Type</div>
-                <div className="text-white flex-1 capitalize flex items-center">
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Rebate Type</div>
+                <div className={`flex-1 capitalize flex items-center ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
                   {rebate.rebate_type}
-                  <button className="ml-2 text-gray-400 hover:text-white">
+                  <button className={isDarkMode ? 'ml-2 text-gray-400 hover:text-white' : 'ml-2 text-gray-600 hover:text-gray-900'}>
                     <Info size={16} />
                   </button>
                 </div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Selected Rebate</div>
-                <div className="text-white flex-1">{rebate.selected_rebate}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Selected Rebate</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{rebate.selected_rebate}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Month</div>
-                <div className="text-white flex-1">{rebate.month}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Month</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{rebate.month}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Number of Days</div>
-                <div className="text-white flex-1 font-bold text-lg">{rebate.number_of_dates}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Number of Days</div>
+                <div className={`flex-1 font-bold text-lg ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{rebate.number_of_dates}</div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Status</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Status</div>
                 <div className="flex-1">
                   <div className={`capitalize font-medium ${getStatusColor(rebate.status)}`}>
                     {rebate.status}
@@ -262,75 +323,117 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose }) => {
                 </div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Created By</div>
-                <div className="text-white flex-1 flex items-center">
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Created By</div>
+                <div className={`flex-1 flex items-center ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
                   {rebate.created_by || '-'}
-                  <button className="ml-2 text-gray-400 hover:text-white">
+                  <button className={isDarkMode ? 'ml-2 text-gray-400 hover:text-white' : 'ml-2 text-gray-600 hover:text-gray-900'}>
                     <Info size={16} />
                   </button>
                 </div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Approved By</div>
-                <div className="text-white flex-1 flex items-center">
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Approved By</div>
+                <div className={`flex-1 flex items-center ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
                   {rebate.modified_by || '-'}
                   {rebate.modified_by && (
-                    <button className="ml-2 text-gray-400 hover:text-white">
+                    <button className={isDarkMode ? 'ml-2 text-gray-400 hover:text-white' : 'ml-2 text-gray-600 hover:text-gray-900'}>
                       <Info size={16} />
                     </button>
                   )}
                 </div>
               </div>
               
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Modified Date</div>
-                <div className="text-white flex-1">{formatDate(rebate.modified_date)}</div>
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Modified Date</div>
+                <div className={`flex-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{formatDate(rebate.modified_date)}</div>
               </div>
             </div>
           </div>
           
-          <div className="mx-auto px-4 bg-gray-950 mt-4">
-            <div className="border-t border-gray-800 pt-4">
+          <div className={`mx-auto px-4 mt-4 ${
+            isDarkMode ? 'bg-gray-950' : 'bg-white'
+          }`}>
+            <div className={`pt-4 ${
+              isDarkMode ? 'border-t border-gray-800' : 'border-t border-gray-300'
+            }`}>
               <div className="flex items-center mb-4">
-                <h3 className="text-white font-medium">Affected Accounts</h3>
-                <span className="ml-2 bg-gray-600 text-white text-xs px-2 py-1 rounded">
+                <h3 className={`font-medium ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Affected Accounts</h3>
+                <span className={`ml-2 text-xs px-2 py-1 rounded ${
+                  isDarkMode ? 'bg-gray-600 text-white' : 'bg-gray-300 text-gray-900'
+                }`}>
                   {rebateUsages.length}
                 </span>
               </div>
               
               {usagesLoading ? (
-                <div className="text-center py-8 text-gray-400">
+                <div className={`text-center py-8 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
                   <div className="animate-pulse">Loading accounts...</div>
                 </div>
               ) : rebateUsages.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-700 text-sm">
-                    <thead className="bg-gray-800">
+                  <table className={`min-w-full text-sm ${
+                    isDarkMode ? 'divide-y divide-gray-700' : 'divide-y divide-gray-300'
+                  }`}>
+                    <thead className={isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}>
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Account No</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Month</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Account No</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Status</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Month</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-gray-900 divide-y divide-gray-800">
+                    <tbody className={isDarkMode ? 'bg-gray-900 divide-y divide-gray-800' : 'bg-white divide-y divide-gray-300'}>
                       {rebateUsages.map((usage) => (
-                        <tr key={usage.id} className="hover:bg-gray-800">
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-300">{usage.account_no}</td>
+                        <tr key={usage.id} className={isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}>
+                          <td className={`px-4 py-3 whitespace-nowrap ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>{usage.account_no}</td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className={`capitalize ${getStatusColor(usage.status)}`}>
                               {usage.status}
                             </span>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-300">{usage.month}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>{usage.month}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-400">
+                <div className={`text-center py-8 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
                   No affected accounts found
                 </div>
               )}
@@ -342,9 +445,17 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose }) => {
       {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-700">
-            <h3 className="text-xl font-semibold text-white mb-4">Success</h3>
-            <p className="text-gray-300 mb-6">{successMessage}</p>
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border ${
+            isDarkMode
+              ? 'bg-gray-800 border-gray-700'
+              : 'bg-white border-gray-300'
+          }`}>
+            <h3 className={`text-xl font-semibold mb-4 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Success</h3>
+            <p className={`mb-6 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>{successMessage}</p>
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => {

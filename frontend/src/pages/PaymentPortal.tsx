@@ -29,6 +29,7 @@ interface LocationItem {
 }
 
 const PaymentPortal: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedRecord, setSelectedRecord] = useState<PaymentPortalRecord | null>(null);
@@ -52,6 +53,26 @@ const PaymentPortal: React.FC = () => {
   };
 
   // Fetch data from API (placeholder for now)
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     const fetchPaymentPortalRecords = async () => {
       try {
@@ -210,10 +231,12 @@ const PaymentPortal: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-950">
+      <div className={`flex items-center justify-center h-full ${
+        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      }`}>
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-orange-500 mb-3"></div>
-          <p className="text-gray-300">Loading payment portal records...</p>
+          <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Loading payment portal records...</p>
         </div>
       </div>
     );
@@ -221,10 +244,16 @@ const PaymentPortal: React.FC = () => {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-950">
-        <div className="bg-gray-800 border border-gray-700 rounded-md p-6 max-w-lg">
+      <div className={`flex items-center justify-center h-full ${
+        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      }`}>
+        <div className={`rounded-md p-6 max-w-lg ${
+          isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+        }`}>
           <h3 className="text-red-500 text-lg font-medium mb-2">Error</h3>
-          <p className="text-gray-300 mb-4">{error}</p>
+          <p className={`mb-4 ${
+            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>{error}</p>
           <button 
             onClick={() => window.location.reload()}
             className="bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded"
@@ -237,12 +266,20 @@ const PaymentPortal: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-950 h-full flex overflow-hidden">
+    <div className={`h-full flex overflow-hidden ${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    }`}>
       {/* Location Sidebar Container */}
-      <div className="w-64 bg-gray-900 border-r border-gray-700 flex-shrink-0 flex flex-col">
-        <div className="p-4 border-b border-gray-700 flex-shrink-0">
+      <div className={`w-64 border-r flex-shrink-0 flex flex-col ${
+        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
+        <div className={`p-4 border-b flex-shrink-0 ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-lg font-semibold text-white">Payment Portal</h2>
+            <h2 className={`text-lg font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Payment Portal</h2>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -252,10 +289,12 @@ const PaymentPortal: React.FC = () => {
               onClick={() => {
                 setSelectedLocation(location.id);
               }}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
+                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${
                 selectedLocation === location.id
                   ? 'bg-orange-500 bg-opacity-20 text-orange-400'
-                  : 'text-gray-300'
+                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}
             >
               <div className="flex items-center">
@@ -266,7 +305,7 @@ const PaymentPortal: React.FC = () => {
                 <span className={`px-2 py-1 rounded-full text-xs ${
                   selectedLocation === location.id
                     ? 'bg-orange-600 text-white'
-                    : 'bg-gray-700 text-gray-300'
+                    : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                 }`}>
                   {location.count}
                 </span>
@@ -277,10 +316,14 @@ const PaymentPortal: React.FC = () => {
       </div>
 
       {/* Payment Portal Records List - Shrinks when detail view is shown */}
-      <div className={`bg-gray-900 overflow-hidden ${selectedRecord ? 'flex-1' : 'flex-1'}`}>
+      <div className={`overflow-hidden flex-1 ${
+        isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+      }`}>
         <div className="flex flex-col h-full">
           {/* Search Bar */}
-          <div className="bg-gray-900 p-4 border-b border-gray-700 flex-shrink-0">
+          <div className={`p-4 border-b flex-shrink-0 ${
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex items-center space-x-3">
               <div className="relative flex-1">
                 <input
@@ -288,11 +331,21 @@ const PaymentPortal: React.FC = () => {
                   placeholder="Search payment portal records..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-800 text-white border border-gray-700 rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 ${
+                    isDarkMode
+                      ? 'bg-gray-800 text-white border border-gray-700'
+                      : 'bg-white text-gray-900 border border-gray-300'
+                  }`}
                 />
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} />
               </div>
-              <button className="bg-gray-800 text-white px-4 py-2 rounded border border-gray-700 flex items-center">
+              <button className={`px-4 py-2 rounded flex items-center ${
+                isDarkMode
+                  ? 'bg-gray-800 text-white border border-gray-700'
+                  : 'bg-gray-200 text-gray-900 border border-gray-300'
+              }`}>
                 <span className="mr-2">Filter</span>
                 <ChevronDown className="h-4 w-4" />
               </button>
@@ -302,84 +355,128 @@ const PaymentPortal: React.FC = () => {
           {/* Table Container */}
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-x-auto overflow-y-auto pb-4">
-              <table className="min-w-full divide-y divide-gray-700 text-sm">
-                <thead className="bg-gray-800 sticky top-0">
+              <table className={`min-w-full text-sm ${
+                isDarkMode ? 'divide-y divide-gray-700' : 'divide-y divide-gray-200'
+              }`}>
+                <thead className={`sticky top-0 ${
+                  isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                }`}>
                   <tr>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       Date Time
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       Account No
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       Received Payment
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       Status
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       Reference No
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       Contact No
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       Account Balance
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       Checkout ID
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       Transaction Status
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       Provider
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-gray-900 divide-y divide-gray-800">
+                <tbody className={`${
+                  isDarkMode ? 'bg-gray-900 divide-y divide-gray-800' : 'bg-white divide-y divide-gray-200'
+                }`}>
                   {filteredRecords.length > 0 ? (
                     filteredRecords.map((record) => (
                       <tr 
                         key={record.id} 
-                        className={`hover:bg-gray-800 cursor-pointer ${selectedRecord?.id === record.id ? 'bg-gray-800' : ''}`}
+                        className={`cursor-pointer ${
+                          isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
+                        } ${selectedRecord?.id === record.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
                         onClick={() => handleRowClick(record)}
                       >
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
                           {record.dateTime}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-red-400 font-medium">
                           {record.accountNo}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-white font-medium">
+                        <td className={`px-4 py-3 whitespace-nowrap font-medium ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
                           {formatCurrency(record.receivedPayment)}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <StatusText status={record.status} />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
                           {record.referenceNo}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
                           {record.contactNo}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
                           {formatCurrency(record.accountBalance)}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
                           {record.checkoutId}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <StatusText status={record.transactionStatus} />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
                           {record.provider}
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={10} className="px-4 py-12 text-center text-gray-400">
+                      <td colSpan={10} className={`px-4 py-12 text-center ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
                         {records.length > 0
                           ? 'No payment portal records found matching your filters'
                           : 'No payment portal records found.'}

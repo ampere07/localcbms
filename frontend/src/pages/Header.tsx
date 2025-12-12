@@ -7,6 +7,27 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
   const [currentDateTime, setCurrentDateTime] = useState('');
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -40,11 +61,15 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
   };
 
   return (
-    <header className="bg-gray-800 border-b border-gray-600 h-16 flex items-center px-4">
+    <header className={`${
+      isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
+    } border-b h-16 flex items-center px-4`}>
       <div className="flex items-center space-x-4">
         <button 
           onClick={handleToggleClick}
-          className="text-gray-400 hover:text-white p-2 transition-colors cursor-pointer"
+          className={`${
+            isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'
+          } p-2 transition-colors cursor-pointer`}
           type="button"
         >
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -52,7 +77,9 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
           </svg>
         </button>
         
-        <h1 className="text-white text-xl font-bold">
+        <h1 className={`${
+          isDarkMode ? 'text-white' : 'text-gray-900'
+        } text-xl font-bold`}>
           SYNC
         </h1>
       </div>
@@ -60,26 +87,36 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
       <div className="flex-1"></div>
 
       <div className="flex items-center space-x-4">
-        <div className="text-gray-300 text-sm">
+        <div className={`${
+          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+        } text-sm`}>
           {currentDateTime}
         </div>
         
         <div className="flex items-center space-x-2">
-          <button className="p-2 text-gray-400 hover:text-white transition-colors">
+          <button className={`p-2 ${
+            isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'
+          } transition-colors`}>
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </button>
           
-          <button className="p-2 text-gray-400 hover:text-white transition-colors">
+          <button className={`p-2 ${
+            isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'
+          } transition-colors`}>
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </button>
           
-          <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-            <svg className="h-5 w-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className={`w-8 h-8 ${
+            isDarkMode ? 'bg-gray-600' : 'bg-gray-300'
+          } rounded-full flex items-center justify-center`}>
+            <svg className={`h-5 w-5 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           </div>

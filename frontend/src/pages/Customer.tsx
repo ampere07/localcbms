@@ -134,6 +134,7 @@ const allColumns = [
 ];
 
 const Customer: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
@@ -166,6 +167,26 @@ const Customer: React.FC = () => {
   const sidebarStartWidthRef = useRef<number>(0);
 
   // Fetch location data
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   // Handle click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -809,11 +830,19 @@ const Customer: React.FC = () => {
     });
 
   return (
-    <div className="bg-gray-950 h-full flex overflow-hidden">
-      <div className="bg-gray-900 border-r border-gray-700 flex-shrink-0 flex flex-col relative" style={{ width: `${sidebarWidth}px` }}>
-        <div className="p-4 border-b border-gray-700 flex-shrink-0">
+    <div className={`h-full flex overflow-hidden ${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    }`}>
+      <div className={`border-r flex-shrink-0 flex flex-col relative ${
+        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+      }`} style={{ width: `${sidebarWidth}px` }}>
+        <div className={`p-4 border-b flex-shrink-0 ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-lg font-semibold text-white">Customer Details</h2>
+            <h2 className={`text-lg font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Customer Details</h2>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -821,10 +850,12 @@ const Customer: React.FC = () => {
             <button
               key={location.id}
               onClick={() => setSelectedLocation(location.id)}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
+                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${
                 selectedLocation === location.id
                   ? 'bg-orange-500 bg-opacity-20 text-orange-400'
-                  : 'text-gray-300'
+                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}
             >
               <div className="flex items-center">
@@ -835,7 +866,7 @@ const Customer: React.FC = () => {
                 <span className={`px-2 py-1 rounded-full text-xs ${
                   selectedLocation === location.id
                     ? 'bg-orange-600 text-white'
-                    : 'bg-gray-700 text-gray-300'
+                    : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                 }`}>
                   {location.count}
                 </span>
@@ -851,9 +882,13 @@ const Customer: React.FC = () => {
         />
       </div>
 
-      <div className="flex-1 bg-gray-900 overflow-hidden">
+      <div className={`flex-1 overflow-hidden ${
+        isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+      }`}>
         <div className="flex flex-col h-full">
-          <div className="bg-gray-900 p-4 border-b border-gray-700 flex-shrink-0">
+          <div className={`p-4 border-b flex-shrink-0 ${
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex items-center space-x-3">
               <div className="relative flex-1">
                 <input
@@ -861,23 +896,39 @@ const Customer: React.FC = () => {
                   placeholder="Search customer records..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-800 text-white border border-gray-700 rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border border-gray-700' 
+                      : 'bg-white text-gray-900 border border-gray-300'
+                  }`}
                 />
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} />
               </div>
               <div className="flex space-x-2">
                 {displayMode === 'table' && (
                   <div className="relative" ref={filterDropdownRef}>
                     <button
-                      className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors flex items-center"
+                      className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
+                        isDarkMode 
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
                       <ListFilter className="h-5 w-5" />
                     </button>
                     {filterDropdownOpen && (
-                      <div className="absolute top-full right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded shadow-lg z-50 max-h-96 flex flex-col">
-                        <div className="p-3 border-b border-gray-700 flex items-center justify-between">
-                          <span className="text-white text-sm font-medium">Column Visibility</span>
+                      <div className={`absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-96 flex flex-col ${
+                        isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+                      }`}>
+                        <div className={`p-3 border-b flex items-center justify-between ${
+                          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                        }`}>
+                          <span className={`text-sm font-medium ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>Column Visibility</span>
                           <div className="flex space-x-2">
                             <button
                               onClick={handleSelectAllColumns}
@@ -885,7 +936,7 @@ const Customer: React.FC = () => {
                             >
                               Select All
                             </button>
-                            <span className="text-gray-600">|</span>
+                            <span className={isDarkMode ? 'text-gray-600' : 'text-gray-400'}>|</span>
                             <button
                               onClick={handleDeselectAllColumns}
                               className="text-xs text-orange-500 hover:text-orange-400"
@@ -898,13 +949,21 @@ const Customer: React.FC = () => {
                           {allColumns.map((column) => (
                             <label
                               key={column.key}
-                              className="flex items-center px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white"
+                              className={`flex items-center px-4 py-2 cursor-pointer text-sm ${
+                                isDarkMode 
+                                  ? 'hover:bg-gray-700 text-white' 
+                                  : 'hover:bg-gray-100 text-gray-900'
+                              }`}
                             >
                               <input
                                 type="checkbox"
                                 checked={visibleColumns.includes(column.key)}
                                 onChange={() => handleToggleColumn(column.key)}
-                                className="mr-3 h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-600 focus:ring-orange-500 focus:ring-offset-gray-800"
+                                className={`mr-3 h-4 w-4 rounded text-orange-600 focus:ring-orange-500 ${
+                                  isDarkMode 
+                                    ? 'border-gray-600 bg-gray-700 focus:ring-offset-gray-800' 
+                                    : 'border-gray-300 bg-white focus:ring-offset-white'
+                                }`}
                               />
                               <span>{column.label}</span>
                             </label>
@@ -916,7 +975,11 @@ const Customer: React.FC = () => {
                 )}
                 <div className="relative z-50" ref={dropdownRef}>
                   <button
-                    className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors flex items-center"
+                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
+                      isDarkMode 
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                    }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
                     <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
@@ -925,13 +988,17 @@ const Customer: React.FC = () => {
                     </svg>
                   </button>
                   {dropdownOpen && (
-                    <div className="fixed right-auto mt-1 w-36 bg-gray-800 border border-gray-700 rounded shadow-lg">
+                    <div className={`fixed right-auto mt-1 w-36 rounded shadow-lg ${
+                      isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+                    }`}>
                       <button
                         onClick={() => {
                           setDisplayMode('card');
                           setDropdownOpen(false);
                         }}
-                        className={`block w-full text-left px-4 py-2 text-sm transition-colors hover:bg-gray-700 ${displayMode === 'card' ? 'text-orange-500' : 'text-white'}`}
+                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
+                          isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                        } ${displayMode === 'card' ? 'text-orange-500' : isDarkMode ? 'text-white' : 'text-gray-900'}`}
                       >
                         Card View
                       </button>
@@ -940,7 +1007,9 @@ const Customer: React.FC = () => {
                           setDisplayMode('table');
                           setDropdownOpen(false);
                         }}
-                        className={`block w-full text-left px-4 py-2 text-sm transition-colors hover:bg-gray-700 ${displayMode === 'table' ? 'text-orange-500' : 'text-white'}`}
+                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
+                          isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                        } ${displayMode === 'table' ? 'text-orange-500' : isDarkMode ? 'text-white' : 'text-gray-900'}`}
                       >
                         Table View
                       </button>
@@ -968,19 +1037,31 @@ const Customer: React.FC = () => {
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto">
               {isLoading ? (
-                <div className="px-4 py-12 text-center text-gray-400">
+                <div className={`px-4 py-12 text-center ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
                   <div className="animate-pulse flex flex-col items-center">
-                    <div className="h-4 w-1/3 bg-gray-700 rounded mb-4"></div>
-                    <div className="h-4 w-1/2 bg-gray-700 rounded"></div>
+                    <div className={`h-4 w-1/3 rounded mb-4 ${
+                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${
+                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}></div>
                   </div>
                   <p className="mt-4">Loading customer records...</p>
                 </div>
               ) : error ? (
-                <div className="px-4 py-12 text-center text-red-400">
+                <div className={`px-4 py-12 text-center ${
+                  isDarkMode ? 'text-red-400' : 'text-red-600'
+                }`}>
                   <p>{error}</p>
                   <button 
                     onClick={handleRefresh}
-                    className="mt-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                    className={`mt-4 px-4 py-2 rounded ${
+                      isDarkMode 
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                    }`}>
                     Retry
                   </button>
                 </div>
@@ -991,14 +1072,20 @@ const Customer: React.FC = () => {
                       <div
                         key={record.id}
                         onClick={() => handleRecordClick(record)}
-                        className={`px-4 py-3 cursor-pointer transition-colors hover:bg-gray-800 border-b border-gray-800 ${selectedCustomer?.billingAccount?.accountNo === record.applicationId ? 'bg-gray-800' : ''}`}
+                        className={`px-4 py-3 cursor-pointer transition-colors border-b ${
+                          isDarkMode 
+                            ? 'hover:bg-gray-800 border-gray-800' 
+                            : 'hover:bg-gray-100 border-gray-200'
+                        } ${selectedCustomer?.billingAccount?.accountNo === record.applicationId ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
                             <div className="text-red-400 font-medium text-sm mb-1">
                               {record.applicationId} | {record.customerName} | {record.address}
                             </div>
-                            <div className="text-white text-sm">
+                            <div className={`text-sm ${
+                              isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
                               {record.status} | ₱ {record.balance.toFixed(2)}
                             </div>
                           </div>
@@ -1015,7 +1102,9 @@ const Customer: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-12 text-gray-400">
+                  <div className={`text-center py-12 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                     No customer records found matching your filters
                   </div>
                 )
@@ -1023,7 +1112,11 @@ const Customer: React.FC = () => {
                 <div className="overflow-x-auto overflow-y-hidden">
                   <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
                     <thead>
-                      <tr className="border-b border-gray-700 bg-gray-800 sticky top-0 z-10">
+                      <tr className={`border-b sticky top-0 z-10 ${
+                        isDarkMode 
+                          ? 'border-gray-700 bg-gray-800' 
+                          : 'border-gray-200 bg-gray-100'
+                      }`}>
                         {filteredColumns.map((column, index) => (
                           <th
                             key={column.key}
@@ -1033,7 +1126,9 @@ const Customer: React.FC = () => {
                             onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, column.key)}
                             onDragEnd={handleDragEnd}
-                            className={`text-left py-3 px-3 text-gray-400 font-normal bg-gray-800 ${column.width} whitespace-nowrap ${index < filteredColumns.length - 1 ? 'border-r border-gray-700' : ''} relative group cursor-move ${
+                            className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${
+                              isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
+                            } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''} ${
                               draggedColumn === column.key ? 'opacity-50' : ''
                             } ${
                               dragOverColumn === column.key ? 'bg-orange-500 bg-opacity-20' : ''
@@ -1059,7 +1154,9 @@ const Customer: React.FC = () => {
                             </div>
                             {index < filteredColumns.length - 1 && (
                               <div
-                                className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 group-hover:bg-gray-600"
+                                className={`absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 ${
+                                  isDarkMode ? 'group-hover:bg-gray-600' : 'group-hover:bg-gray-300'
+                                }`}
                                 onMouseDown={(e) => handleMouseDownResize(e, column.key)}
                               />
                             )}
@@ -1072,13 +1169,19 @@ const Customer: React.FC = () => {
                         filteredBillingRecords.map((record) => (
                           <tr 
                             key={record.id} 
-                            className={`border-b border-gray-800 hover:bg-gray-900 cursor-pointer transition-colors ${selectedCustomer?.billingAccount?.accountNo === record.applicationId ? 'bg-gray-800' : ''}`}
+                            className={`border-b cursor-pointer transition-colors ${
+                              isDarkMode 
+                                ? 'border-gray-800 hover:bg-gray-900' 
+                                : 'border-gray-200 hover:bg-gray-50'
+                            } ${selectedCustomer?.billingAccount?.accountNo === record.applicationId ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
                             onClick={() => handleRecordClick(record)}
                           >
                             {filteredColumns.map((column, index) => (
                               <td 
                                 key={column.key}
-                                className={`py-4 px-3 text-white ${index < filteredColumns.length - 1 ? 'border-r border-gray-800' : ''}`}
+                                className={`py-4 px-3 ${
+                                  isDarkMode ? 'text-white' : 'text-gray-900'
+                                } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''}`}
                                 style={{ 
                                   width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
                                   maxWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
@@ -1093,7 +1196,11 @@ const Customer: React.FC = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={filteredColumns.length} className="px-4 py-12 text-center text-gray-400 border-b border-gray-800">
+                          <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${
+                            isDarkMode 
+                              ? 'text-gray-400 border-gray-800' 
+                              : 'text-gray-600 border-gray-200'
+                          }`}>
                             No customer records found matching your filters
                           </td>
                         </tr>
@@ -1110,10 +1217,14 @@ const Customer: React.FC = () => {
       {(selectedCustomer || isLoadingDetails) && (
         <div className="flex-shrink-0 overflow-hidden">
           {isLoadingDetails ? (
-            <div className="w-[600px] bg-gray-900 text-white h-full flex items-center justify-center border-l border-white border-opacity-30">
+            <div className={`w-[600px] h-full flex items-center justify-center border-l ${
+              isDarkMode 
+                ? 'bg-gray-900 text-white border-white border-opacity-30' 
+                : 'bg-white text-gray-900 border-gray-300'
+            }`}>
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-                <p className="text-gray-400">Loading details...</p>
+                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
               </div>
             </div>
           ) : selectedCustomer ? (

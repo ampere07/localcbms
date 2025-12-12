@@ -14,9 +14,27 @@ const UserManagement: React.FC = () => {
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
     loadUsers();
+  }, []);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark');
+    };
+    
+    checkDarkMode();
+    
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    
+    return () => observer.disconnect();
   }, []);
 
   const loadUsers = async () => {
@@ -153,13 +171,21 @@ const UserManagement: React.FC = () => {
       <Breadcrumb items={[
         { label: 'Users' }
       ]} />
-      <div className="bg-gray-800 rounded-lg border border-gray-600 overflow-hidden text-white">
+      <div className={`rounded-lg border overflow-hidden text-white ${
+        isDarkMode
+          ? 'bg-gray-800 border-gray-600'
+          : 'bg-white border-gray-300'
+      }`}>
         <div className="p-6">
           <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-white mb-2">
+            <h2 className={`text-2xl font-semibold mb-2 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
               User Management
             </h2>
-            <p className="text-gray-400 text-sm">
+            <p className={`text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
               Manage system users and their permissions
             </p>
           </div>
@@ -170,11 +196,19 @@ const UserManagement: React.FC = () => {
               placeholder="Search users by name, username, or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-3 bg-gray-900 border border-gray-600 rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-100 w-full md:w-80"
+              className={`px-4 py-3 border rounded placeholder-gray-500 focus:outline-none w-full md:w-80 ${
+                isDarkMode
+                  ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-100'
+                  : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+              }`}
             />
             <button 
               onClick={handleAddNewUser}
-              className="px-6 py-3 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors text-sm font-medium whitespace-nowrap"
+              className={`px-6 py-3 rounded transition-colors text-sm font-medium whitespace-nowrap ${
+                isDarkMode
+                  ? 'bg-gray-600 hover:bg-gray-700 text-white'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
             >
               Add New User
             </button>
@@ -182,57 +216,113 @@ const UserManagement: React.FC = () => {
 
           {loading ? (
             <div className="text-center py-8">
-              <p className="text-gray-400">Loading users...</p>
+              <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading users...</p>
             </div>
           ) : (
             <>
               {/* Desktop Table View */}
-              <div className="hidden md:block bg-gray-800 rounded border border-gray-600 overflow-hidden">
+              <div className={`hidden md:block rounded border overflow-hidden ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-600'
+                  : 'bg-white border-gray-300'
+              }`}>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="">
-                        <th className="px-4 py-4 text-left text-sm font-medium text-gray-300 border-b border-gray-600">Name</th>
-                        <th className="px-4 py-4 text-left text-sm font-medium text-gray-300 border-b border-gray-600">Username</th>
-                        <th className="px-4 py-4 text-left text-sm font-medium text-gray-300 border-b border-gray-600">Email</th>
-                        <th className="px-4 py-4 text-left text-sm font-medium text-gray-300 border-b border-gray-600">Contact</th>
-                        <th className="px-4 py-4 text-left text-sm font-medium text-gray-300 border-b border-gray-600">Organization</th>
-                        <th className="px-4 py-4 text-left text-sm font-medium text-gray-300 border-b border-gray-600">Created</th>
-                        <th className="px-4 py-4 text-left text-sm font-medium text-gray-300 border-b border-gray-600">Actions</th>
+                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${
+                          isDarkMode
+                            ? 'text-gray-300 border-gray-600'
+                            : 'text-gray-700 border-gray-300'
+                        }`}>Name</th>
+                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${
+                          isDarkMode
+                            ? 'text-gray-300 border-gray-600'
+                            : 'text-gray-700 border-gray-300'
+                        }`}>Username</th>
+                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${
+                          isDarkMode
+                            ? 'text-gray-300 border-gray-600'
+                            : 'text-gray-700 border-gray-300'
+                        }`}>Email</th>
+                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${
+                          isDarkMode
+                            ? 'text-gray-300 border-gray-600'
+                            : 'text-gray-700 border-gray-300'
+                        }`}>Contact</th>
+                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${
+                          isDarkMode
+                            ? 'text-gray-300 border-gray-600'
+                            : 'text-gray-700 border-gray-300'
+                        }`}>Organization</th>
+                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${
+                          isDarkMode
+                            ? 'text-gray-300 border-gray-600'
+                            : 'text-gray-700 border-gray-300'
+                        }`}>Created</th>
+                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${
+                          isDarkMode
+                            ? 'text-gray-300 border-gray-600'
+                            : 'text-gray-700 border-gray-300'
+                        }`}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {currentUsers.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                          <td colSpan={7} className={`px-6 py-8 text-center ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
                             No users found
                           </td>
                         </tr>
                       ) : (
                         currentUsers.map((user: User) => (
-                          <tr key={user.id} className="border-b border-gray-700 hover:bg-gray-750">
-                            <td className="px-4 py-4 text-sm text-white">
+                          <tr key={user.id} className={`border-b ${
+                            isDarkMode
+                              ? 'border-gray-700 hover:bg-gray-750'
+                              : 'border-gray-200 hover:bg-gray-50'
+                          }`}>
+                            <td className={`px-4 py-4 text-sm ${
+                              isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
                               {user.salutation && (
-                                <span className="text-gray-400 mr-1">{user.salutation}</span>
+                                <span className={`mr-1 ${
+                                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                }`}>{user.salutation}</span>
                               )}
                               {getFullName(user)}
                             </td>
-                            <td className="px-4 py-4 text-sm text-white">{user.username}</td>
-                            <td className="px-4 py-4 text-sm text-gray-300">{user.email_address}</td>
-                            <td className="px-4 py-4 text-sm text-gray-300">
+                            <td className={`px-4 py-4 text-sm ${
+                              isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>{user.username}</td>
+                            <td className={`px-4 py-4 text-sm ${
+                              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>{user.email_address}</td>
+                            <td className={`px-4 py-4 text-sm ${
+                              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
                               {user.contact_number || '-'}
                             </td>
-                            <td className="px-4 py-4 text-sm text-gray-300">
+                            <td className={`px-4 py-4 text-sm ${
+                              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
                               {user.organization?.organization_name || 'No Organization'}
                             </td>
-                            <td className="px-4 py-4 text-sm text-gray-300">
+                            <td className={`px-4 py-4 text-sm ${
+                              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
                               {new Date(user.created_at).toLocaleDateString()}
                             </td>
                             <td className="px-4 py-4">
                               <div className="flex gap-2">
                                 <button 
                                   onClick={() => handleEditUser(user)}
-                                  className="p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900 rounded transition-colors"
+                                  className={`p-2 rounded transition-colors ${
+                                    isDarkMode
+                                      ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900'
+                                      : 'text-blue-600 hover:text-blue-700 hover:bg-blue-100'
+                                  }`}
                                   title="Edit user"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -241,7 +331,11 @@ const UserManagement: React.FC = () => {
                                 </button>
                                 <button 
                                   onClick={() => handleDeleteClick(user)}
-                                  className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900 rounded transition-colors"
+                                  className={`p-2 rounded transition-colors ${
+                                    isDarkMode
+                                      ? 'text-red-400 hover:text-red-300 hover:bg-red-900'
+                                      : 'text-red-600 hover:text-red-700 hover:bg-red-100'
+                                  }`}
                                   title="Delete user"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -261,51 +355,91 @@ const UserManagement: React.FC = () => {
               {/* Mobile Card View */}
               <div className="md:hidden space-y-4">
                 {currentUsers.length === 0 ? (
-                  <div className="bg-gray-800 rounded border border-gray-600 p-6 text-center text-gray-400">
+                  <div className={`rounded border p-6 text-center ${
+                    isDarkMode
+                      ? 'bg-gray-800 border-gray-600 text-gray-400'
+                      : 'bg-white border-gray-300 text-gray-600'
+                  }`}>
                     No users found
                   </div>
                 ) : (
                   currentUsers.map((user: User) => (
-                    <div key={user.id} className="bg-gray-800 rounded border border-gray-600 p-4">
+                    <div key={user.id} className={`rounded border p-4 ${
+                      isDarkMode
+                        ? 'bg-gray-800 border-gray-600'
+                        : 'bg-white border-gray-300'
+                    }`}>
                       <div className="mb-3">
-                        <div className="text-white font-medium mb-1">
+                        <div className={`font-medium mb-1 ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
                           {user.salutation && (
-                            <span className="text-gray-400 mr-1">{user.salutation}</span>
+                            <span className={`mr-1 ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>{user.salutation}</span>
                           )}
                           {getFullName(user)}
                         </div>
-                        <div className="text-sm text-gray-400">@{user.username}</div>
+                        <div className={`text-sm ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>@{user.username}</div>
                       </div>
                       
                       <div className="space-y-2 mb-4">
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Email:</span>
-                          <span className="text-gray-300 truncate ml-2">{user.email_address}</span>
+                          <span className={`text-sm ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Email:</span>
+                          <span className={`text-sm truncate ml-2 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>{user.email_address}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Contact:</span>
-                          <span className="text-gray-300">{user.contact_number || '-'}</span>
+                          <span className={`text-sm ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Contact:</span>
+                          <span className={`text-sm ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>{user.contact_number || '-'}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Organization:</span>
-                          <span className="text-gray-300 truncate ml-2">{user.organization?.organization_name || 'No Organization'}</span>
+                          <span className={`text-sm ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Organization:</span>
+                          <span className={`text-sm truncate ml-2 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>{user.organization?.organization_name || 'No Organization'}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Created:</span>
-                          <span className="text-gray-300">{new Date(user.created_at).toLocaleDateString()}</span>
+                          <span className={`text-sm ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Created:</span>
+                          <span className={`text-sm ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>{new Date(user.created_at).toLocaleDateString()}</span>
                         </div>
                       </div>
                       
-                      <div className="flex gap-2 pt-3 border-t border-gray-700">
+                      <div className={`flex gap-2 pt-3 border-t ${
+                        isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      }`}>
                         <button 
                           onClick={() => handleEditUser(user)}
-                          className="flex-1 px-4 py-2 text-blue-400 border border-blue-400 hover:bg-blue-900 rounded transition-colors text-sm font-medium"
+                          className={`flex-1 px-4 py-2 border rounded transition-colors text-sm font-medium ${
+                            isDarkMode
+                              ? 'text-blue-400 border-blue-400 hover:bg-blue-900'
+                              : 'text-blue-600 border-blue-600 hover:bg-blue-100'
+                          }`}
                         >
                           Edit
                         </button>
                         <button 
                           onClick={() => handleDeleteClick(user)}
-                          className="flex-1 px-4 py-2 text-red-400 border border-red-400 hover:bg-red-900 rounded transition-colors text-sm font-medium"
+                          className={`flex-1 px-4 py-2 border rounded transition-colors text-sm font-medium ${
+                            isDarkMode
+                              ? 'text-red-400 border-red-400 hover:bg-red-900'
+                              : 'text-red-600 border-red-600 hover:bg-red-100'
+                          }`}
                         >
                           Delete
                         </button>
@@ -322,22 +456,32 @@ const UserManagement: React.FC = () => {
             <div className="mt-4">
               <div className="px-4 md:px-6 py-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                  <div className="text-sm text-gray-300 text-center sm:text-left">
+                  <div className={`text-sm text-center sm:text-left ${
+                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                     Showing {showingStart} to {showingEnd} of {totalItems} entries
                   </div>
                   <div className="flex items-center justify-center gap-2">
-                    <span className="text-sm text-gray-300">Show</span>
+                    <span className={`text-sm ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Show</span>
                     <select
                       value={itemsPerPage}
                       onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                      className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-gray-400"
+                      className={`px-3 py-1 border rounded text-sm focus:outline-none ${
+                        isDarkMode
+                          ? 'bg-gray-800 border-gray-600 text-white focus:border-gray-400'
+                          : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                      }`}
                     >
                       <option value={10}>10</option>
                       <option value={25}>25</option>
                       <option value={50}>50</option>
                       <option value={100}>100</option>
                     </select>
-                    <span className="text-sm text-gray-300">entries</span>
+                    <span className={`text-sm ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>entries</span>
                   </div>
                 </div>
                 
@@ -345,7 +489,11 @@ const UserManagement: React.FC = () => {
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1 || totalPages === 0}
-                    className="px-3 py-1 text-sm bg-gray-800 border border-gray-600 rounded text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    className={`px-3 py-1 text-sm border rounded whitespace-nowrap ${
+                      isDarkMode
+                        ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                        : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
+                    }`}
                   >
                     Previous
                   </button>
@@ -363,14 +511,20 @@ const UserManagement: React.FC = () => {
                       return (
                         <React.Fragment key={page}>
                           {showEllipsis && (
-                            <span className="px-2 text-gray-400">...</span>
+                            <span className={`px-2 ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>...</span>
                           )}
                           <button
                             onClick={() => handlePageChange(page)}
                             className={`px-3 py-1 text-sm border rounded ${
                               currentPage === page
-                                ? 'bg-blue-600 border-blue-600 text-white'
-                                : 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'
+                                ? isDarkMode
+                                  ? 'bg-blue-600 border-blue-600 text-white'
+                                  : 'bg-blue-500 border-blue-500 text-white'
+                                : isDarkMode
+                                  ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'
+                                  : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100'
                             }`}
                           >
                             {page}
@@ -380,14 +534,20 @@ const UserManagement: React.FC = () => {
                     })}
                   </div>
                   
-                  <div className="sm:hidden text-sm text-gray-300 px-3 py-1">
+                  <div className={`sm:hidden text-sm px-3 py-1 ${
+                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                     {currentPage} / {totalPages}
                   </div>
                   
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages || totalPages === 0}
-                    className="px-3 py-1 text-sm bg-gray-800 border border-gray-600 rounded text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    className={`px-3 py-1 text-sm border rounded whitespace-nowrap ${
+                      isDarkMode
+                        ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                        : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
+                    }`}
                   >
                     Next
                   </button>
@@ -400,17 +560,29 @@ const UserManagement: React.FC = () => {
         {/* Delete Confirmation Modal */}
         {deletingUser && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-gray-900 p-6 rounded border border-gray-700 max-w-md w-full mx-4">
-              <h3 className="text-lg font-semibold text-white mb-4">
+            <div className={`p-6 rounded border max-w-md w-full mx-4 ${
+              isDarkMode
+                ? 'bg-gray-900 border-gray-700'
+                : 'bg-white border-gray-300'
+            }`}>
+              <h3 className={`text-lg font-semibold mb-4 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 Confirm Delete User
               </h3>
-              <p className="text-gray-300 mb-6">
+              <p className={`mb-6 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Are you sure you want to delete user "{getFullName(deletingUser)}" ({deletingUser.username})? This action cannot be undone.
               </p>
               <div className="flex gap-4">
                 <button
                   onClick={handleCancelDelete}
-                  className="px-4 py-2 border border-gray-600 text-white rounded hover:bg-gray-800 transition-colors text-sm font-medium"
+                  className={`px-4 py-2 border rounded transition-colors text-sm font-medium ${
+                    isDarkMode
+                      ? 'border-gray-600 text-white hover:bg-gray-800'
+                      : 'border-gray-300 text-gray-900 hover:bg-gray-100'
+                  }`}
                 >
                   Cancel
                 </button>

@@ -27,6 +27,7 @@ class User extends Authenticatable
         'role_id',
         'group_id',
         'status',
+        'darkmode',
         'last_login'
     ];
 

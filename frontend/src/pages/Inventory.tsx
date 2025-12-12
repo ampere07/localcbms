@@ -39,6 +39,7 @@ interface InventoryFormData {
 const API_BASE_URL = 'http://192.168.100.10:8000/api';
 
 const Inventory: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showInventoryForm, setShowInventoryForm] = useState(false);
@@ -51,6 +52,23 @@ const Inventory: React.FC = () => {
   const [dbCategories, setDbCategories] = useState<{ id: number; name: string }[]>([]);
 
   // Fetch inventory data and categories from API
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme !== 'light');
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    const theme = localStorage.getItem('theme');
+    setIsDarkMode(theme !== 'light');
+
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     fetchInventoryData();
     fetchCategories();
@@ -228,10 +246,14 @@ const Inventory: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-gray-950 h-full flex items-center justify-center">
+      <div className={`h-full flex items-center justify-center ${
+        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      }`}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
-          <div className="text-white text-lg">Loading inventory...</div>
+          <div className={`text-lg ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>Loading inventory...</div>
         </div>
       </div>
     );
@@ -239,11 +261,17 @@ const Inventory: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-gray-950 h-full flex items-center justify-center">
+      <div className={`h-full flex items-center justify-center ${
+        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      }`}>
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 text-red-500 mb-4 mx-auto" />
-          <div className="text-white text-lg mb-2">Error Loading Inventory</div>
-          <div className="text-gray-400 mb-4">{error}</div>
+          <div className={`text-lg mb-2 ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>Error Loading Inventory</div>
+          <div className={`mb-4 ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>{error}</div>
           <button 
             onClick={fetchInventoryData}
             className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
@@ -256,11 +284,19 @@ const Inventory: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-950 h-full flex flex-col md:flex-row overflow-hidden">
+    <div className={`${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    } h-full flex flex-col md:flex-row overflow-hidden`}>
       {/* Category Sidebar - Desktop / Bottom Navbar - Mobile */}
-      <div className="md:w-64 bg-gray-900 md:border-r border-t md:border-t-0 border-gray-700 flex-shrink-0 flex flex-col order-2 md:order-1">
-        <div className="p-4 border-b border-gray-700 flex-shrink-0 hidden md:block">
-          <h2 className="text-lg font-semibold text-white flex items-center">
+      <div className={`md:w-64 md:border-r border-t md:border-t-0 flex-shrink-0 flex flex-col order-2 md:order-1 ${
+        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
+        <div className={`p-4 border-b flex-shrink-0 hidden md:block ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
+          <h2 className={`text-lg font-semibold flex items-center ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>
             <Package className="mr-2" size={20} />
             Inventory
           </h2>
@@ -272,17 +308,19 @@ const Inventory: React.FC = () => {
               <button
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
-                className={`md:w-full flex-shrink-0 flex flex-col md:flex-row items-center md:justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 rounded-md md:rounded-none ${
+                className={`md:w-full flex-shrink-0 flex flex-col md:flex-row items-center md:justify-between px-4 py-3 text-sm transition-colors rounded-md md:rounded-none ${
+                  isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                } ${
                   selectedCategory === category.id
-                    ? 'bg-orange-500 bg-opacity-20 text-orange-400 md:border-r-2 border-orange-500'
-                    : 'text-gray-300'
+                    ? 'bg-orange-500 bg-opacity-20 text-orange-400 md:border-r-2 border-orange-500 font-medium'
+                    : isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}
               >
                 <span className="uppercase font-medium text-xs md:text-sm whitespace-nowrap">{category.name}</span>
                 <span className={`px-2 py-1 rounded-full text-xs mt-1 md:mt-0 ${
                   selectedCategory === category.id
                     ? 'bg-orange-600 text-white'
-                    : 'bg-gray-700 text-gray-300'
+                    : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                 }`}>
                   {category.count}
                 </span>
@@ -293,10 +331,14 @@ const Inventory: React.FC = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 bg-gray-900 overflow-hidden order-1 md:order-2">
+      <div className={`flex-1 overflow-hidden order-1 md:order-2 ${
+        isDarkMode ? 'bg-gray-900' : 'bg-white'
+      }`}>
         <div className="flex flex-col h-full">
           {/* Search Bar */}
-          <div className="bg-gray-900 p-4 border-b border-gray-700 flex-shrink-0">
+          <div className={`p-4 border-b flex-shrink-0 ${
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex items-center space-x-3">
               <div className="relative flex-1">
                 <input
@@ -304,9 +346,15 @@ const Inventory: React.FC = () => {
                   placeholder="Search inventory..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-800 text-white border border-gray-700 rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                  className={`w-full rounded pl-10 pr-4 py-2 border focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700' 
+                      : 'bg-gray-100 text-gray-900 border-gray-300'
+                  }`}
                 />
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} />
               </div>
               <button 
                 className="bg-orange-600 text-white px-4 py-2 rounded text-sm flex items-center space-x-2 hover:bg-orange-700 transition-colors"
@@ -325,17 +373,25 @@ const Inventory: React.FC = () => {
                 filteredItems.map((item, index) => (
                   <div 
                     key={item.item_name + index} 
-                    className={`px-6 py-4 flex items-center justify-between hover:bg-gray-800 transition-colors cursor-pointer group ${
-                      selectedItem?.item_name === item.item_name ? 'bg-gray-800 border-r-2 border-orange-500' : ''
+                    className={`px-6 py-4 flex items-center justify-between transition-colors cursor-pointer group ${
+                      isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                    } ${
+                      selectedItem?.item_name === item.item_name 
+                        ? isDarkMode ? 'bg-gray-800 border-r-2 border-orange-500' : 'bg-gray-100 border-r-2 border-orange-500' 
+                        : ''
                     }`}
                     onClick={() => handleItemClick(item)}
                   >
                     <div>
-                      <div className="text-white font-medium text-base">
+                      <div className={`font-medium text-base ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>
                         {item.item_name}
                       </div>
                       {item.modified_date && (
-                        <div className="text-gray-400 text-sm mt-1">
+                        <div className={`text-sm mt-1 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
                           {new Date(item.modified_date).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: '2-digit',
@@ -350,7 +406,9 @@ const Inventory: React.FC = () => {
                     </div>
                     <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
-                        className="p-2 text-gray-400 hover:text-white rounded transition-colors" 
+                        className={`p-2 rounded transition-colors ${
+                          isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                        }`} 
                         title="View Details"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -363,7 +421,9 @@ const Inventory: React.FC = () => {
                         </svg>
                       </button>
                       <button 
-                        className="p-2 text-gray-400 hover:text-red-400 rounded transition-colors" 
+                        className={`p-2 rounded transition-colors ${
+                          isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-600 hover:text-red-600'
+                        }`} 
                         title="Delete"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -390,7 +450,9 @@ const Inventory: React.FC = () => {
                   </div>
                 ))
               ) : (
-                <div className="p-12 text-center text-gray-400">
+                <div className={`p-12 text-center ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
                   <Package size={48} className="mx-auto mb-4 text-gray-600" />
                   <div className="text-lg mb-2">
                     {selectedCategory === '' ? 'Select a category to view items' : 'No items found'}
@@ -412,7 +474,9 @@ const Inventory: React.FC = () => {
 
       {/* Inventory Details Panel */}
       {selectedItem && (
-        <div className="w-full max-w-2xl bg-gray-900 border-l border-gray-700 flex-shrink-0 relative">
+        <div className={`w-full max-w-2xl border-l flex-shrink-0 relative ${
+          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
           <InventoryDetails
             item={selectedItem}
             inventoryLogs={[]}

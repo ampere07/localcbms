@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trash2, Edit, ChevronLeft, ChevronRight as ChevronRightNav, Maximize2, X, Info, Mail } from 'lucide-react';
 
 interface ExpenseRecord {
@@ -28,30 +28,81 @@ interface ExpensesLogDetailsProps {
 const ExpensesLogDetails: React.FC<ExpensesLogDetailsProps> = ({
   expenseRecord
 }) => {
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark');
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="bg-gray-900 text-white h-full flex flex-col">
+    <div className={`h-full flex flex-col ${
+      isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
+    }`}>
       {/* Header */}
-      <div className="bg-gray-800 px-4 py-3 flex items-center justify-between border-b border-gray-700">
-        <h1 className="text-lg font-semibold text-white">
+      <div className={`px-4 py-3 flex items-center justify-between border-b ${
+        isDarkMode
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-200'
+      }`}>
+        <h1 className={`text-lg font-semibold ${
+          isDarkMode ? 'text-white' : 'text-gray-900'
+        }`}>
           {expenseRecord.date}
         </h1>
         <div className="flex items-center space-x-2">
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <Trash2 size={18} />
           </button>
-          <button className="p-2 text-white bg-orange-600 hover:bg-orange-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-white bg-orange-600 hover:bg-orange-700'
+              : 'text-white bg-orange-500 hover:bg-orange-600'
+          }`}>
             <Edit size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <ChevronLeft size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <ChevronRightNav size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <Maximize2 size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <X size={18} />
           </button>
         </div>
@@ -61,110 +112,168 @@ const ExpensesLogDetails: React.FC<ExpensesLogDetailsProps> = ({
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {/* Date */}
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Date</span>
-          <span className="text-white font-medium">{expenseRecord.date}</span>
+          <span className={`text-sm ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>Date</span>
+          <span className={`font-medium ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>{expenseRecord.date}</span>
         </div>
 
         {/* Expenses ID */}
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Expenses ID</span>
-          <span className="text-white font-medium">{expenseRecord.expensesId}</span>
+          <span className={`text-sm ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>Expenses ID</span>
+          <span className={`font-medium ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>{expenseRecord.expensesId}</span>
         </div>
 
         {/* Provider */}
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Provider</span>
+          <span className={`text-sm ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>Provider</span>
           <div className="flex items-center space-x-2">
-            <span className="text-white font-medium">{expenseRecord.provider}</span>
-            <Info size={16} className="text-gray-400" />
+            <span className={`font-medium ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{expenseRecord.provider}</span>
+            <Info size={16} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
           </div>
         </div>
 
         {/* Description */}
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Description</span>
-          <span className="text-white font-medium">{expenseRecord.description}</span>
+          <span className={`text-sm ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>Description</span>
+          <span className={`font-medium ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>{expenseRecord.description}</span>
         </div>
 
         {/* Amount */}
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Amount</span>
-          <span className="text-white font-medium text-lg">₱{expenseRecord.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+          <span className={`text-sm ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>Amount</span>
+          <span className={`font-medium text-lg ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>₱{expenseRecord.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
         </div>
 
         {/* Processed By */}
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Processed By</span>
+          <span className={`text-sm ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>Processed By</span>
           <div className="flex items-center space-x-2">
-            <span className="text-white font-medium">{expenseRecord.processedBy}</span>
-            <Info size={16} className="text-gray-400" />
+            <span className={`font-medium ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{expenseRecord.processedBy}</span>
+            <Info size={16} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
           </div>
         </div>
 
         {/* Modified By */}
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Modified By</span>
+          <span className={`text-sm ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>Modified By</span>
           <div className="flex items-center space-x-2">
-            <span className="text-white font-medium">{expenseRecord.modifiedBy}</span>
-            <Info size={16} className="text-gray-400" />
+            <span className={`font-medium ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{expenseRecord.modifiedBy}</span>
+            <Info size={16} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
           </div>
         </div>
 
         {/* Modified Date */}
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Modified Date</span>
-          <span className="text-white font-medium">{expenseRecord.modifiedDate}</span>
+          <span className={`text-sm ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>Modified Date</span>
+          <span className={`font-medium ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>{expenseRecord.modifiedDate}</span>
         </div>
 
         {/* User Email */}
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">User Email</span>
+          <span className={`text-sm ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>User Email</span>
           <div className="flex items-center space-x-2">
-            <span className="text-white font-medium">{expenseRecord.userEmail}</span>
-            <Mail size={16} className="text-gray-400" />
+            <span className={`font-medium ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{expenseRecord.userEmail}</span>
+            <Mail size={16} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
           </div>
         </div>
 
         {/* Payee */}
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Payee</span>
-          <span className="text-white font-medium">{expenseRecord.payee}</span>
+          <span className={`text-sm ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>Payee</span>
+          <span className={`font-medium ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>{expenseRecord.payee}</span>
         </div>
 
         {/* Category */}
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Category</span>
+          <span className={`text-sm ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>Category</span>
           <div className="flex items-center space-x-2">
-            <span className="text-white font-medium">{expenseRecord.category}</span>
-            <Info size={16} className="text-gray-400" />
+            <span className={`font-medium ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{expenseRecord.category}</span>
+            <Info size={16} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
           </div>
         </div>
 
         {/* Invoice Number */}
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Invoice No.</span>
+          <span className={`text-sm ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>Invoice No.</span>
           <span className="text-red-400 font-medium">{expenseRecord.invoiceNo}</span>
         </div>
 
         {/* Received Date */}
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Received Date</span>
-          <span className="text-white font-medium">{expenseRecord.receivedDate}</span>
+          <span className={`text-sm ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>Received Date</span>
+          <span className={`font-medium ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>{expenseRecord.receivedDate}</span>
         </div>
 
         {/* Supplier */}
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Supplier</span>
+          <span className={`text-sm ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>Supplier</span>
           <div className="flex items-center space-x-2">
-            <span className="text-white font-medium">{expenseRecord.supplier}</span>
-            <Info size={16} className="text-gray-400" />
+            <span className={`font-medium ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{expenseRecord.supplier}</span>
+            <Info size={16} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
           </div>
         </div>
 
         {/* City */}
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">City</span>
-          <span className="text-white font-medium">{expenseRecord.city}</span>
+          <span className={`text-sm ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>City</span>
+          <span className={`font-medium ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>{expenseRecord.city}</span>
         </div>
       </div>
     </div>

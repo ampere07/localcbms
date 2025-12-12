@@ -10,6 +10,7 @@ interface EditOrganizationFormProps {
 }
 
 const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organization, onCancel, onOrganizationUpdated }) => {
+  const [isDarkMode, setIsDarkMode] = useState(false);
   
   const [formData, setFormData] = useState({
     organization_name: organization?.organization_name || '',
@@ -20,6 +21,23 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark');
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
   
   useEffect(() => {
     if (organization) {
@@ -36,12 +54,20 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
     console.error('EditOrganizationForm received invalid organization data');
     return (
       <div className="p-6">
-        <div className="bg-red-900 border border-red-600 rounded p-4 text-red-200">
+        <div className={`border rounded p-4 ${
+          isDarkMode
+            ? 'bg-red-900 border-red-600 text-red-200'
+            : 'bg-red-100 border-red-300 text-red-800'
+        }`}>
           <h3 className="text-lg font-semibold mb-2">Invalid Organization Data</h3>
           <p>Cannot edit organization: No organization data provided.</p>
           <button 
             onClick={onCancel}
-            className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+            className={`mt-4 px-4 py-2 rounded transition-colors ${
+              isDarkMode
+                ? 'bg-gray-600 hover:bg-gray-700 text-white'
+                : 'bg-gray-300 hover:bg-gray-400 text-gray-900'
+            }`}
           >
             Back to Organizations
           </button>
@@ -149,19 +175,31 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
         { label: 'Organizations', onClick: onCancel },
         { label: 'Edit Organization' }
       ]} />
-      <div className="bg-gray-800 rounded-lg border border-gray-600 overflow-hidden text-white">
+      <div className={`rounded-lg border overflow-hidden ${
+        isDarkMode
+          ? 'bg-gray-800 border-gray-600 text-white'
+          : 'bg-white border-gray-300 text-gray-900'
+      }`}>
         <div className="p-6">
           <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-white mb-2">
+            <h2 className={`text-2xl font-semibold mb-2 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
               Edit Organization
             </h2>
-            <p className="text-gray-400 text-sm">
+            <p className={`text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
               Update organization information
             </p>
           </div>
 
           {errors.general && (
-            <div className="mb-6 p-4 bg-red-900 border border-red-600 rounded text-red-200">
+            <div className={`mb-6 p-4 border rounded ${
+              isDarkMode
+                ? 'bg-red-900 border-red-600 text-red-200'
+                : 'bg-red-100 border-red-300 text-red-800'
+            }`}>
               {errors.general}
             </div>
           )}
@@ -169,7 +207,9 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
           <div className="max-w-2xl">
             <div className="grid grid-cols-1 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Organization Name *
                 </label>
                 <input
@@ -177,8 +217,12 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
                   name="organization_name"
                   value={formData.organization_name}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.organization_name ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.organization_name
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter organization name"
                   required
@@ -189,7 +233,9 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Address
                 </label>
                 <textarea
@@ -197,8 +243,12 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
                   value={formData.address}
                   onChange={handleInputChange}
                   rows={3}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.address ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.address
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter organization address"
                 />
@@ -208,7 +258,9 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Contact Number
                 </label>
                 <input
@@ -216,8 +268,12 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
                   name="contact_number"
                   value={formData.contact_number}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.contact_number ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.contact_number
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter contact number"
                 />
@@ -227,7 +283,9 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Email Address
                 </label>
                 <input
@@ -235,8 +293,12 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
                   name="email_address"
                   value={formData.email_address}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.email_address ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.email_address
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter email address"
                 />
@@ -250,14 +312,22 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
               <button
                 onClick={onCancel}
                 disabled={loading}
-                className="px-6 py-3 border border-gray-600 text-white rounded hover:bg-gray-800 transition-colors text-sm font-medium disabled:opacity-50"
+                className={`px-6 py-3 border rounded transition-colors text-sm font-medium disabled:opacity-50 ${
+                  isDarkMode
+                    ? 'border-gray-600 text-white hover:bg-gray-800'
+                    : 'border-gray-300 text-gray-900 hover:bg-gray-100'
+                }`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleUpdateOrganization}
                 disabled={loading}
-                className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
+                className={`px-6 py-3 rounded transition-colors text-sm font-medium disabled:opacity-50 ${
+                  isDarkMode
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white'
+                }`}
               >
                 {loading ? 'Updating...' : 'Update Organization'}
               </button>

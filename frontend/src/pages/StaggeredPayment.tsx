@@ -47,6 +47,7 @@ interface StaggeredInstallation {
 }
 
 const StaggeredPayment: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedStaggered, setSelectedStaggered] = useState<StaggeredInstallation | null>(null);
@@ -80,6 +81,26 @@ const StaggeredPayment: React.FC = () => {
   const dateItems = [
     { date: 'All', id: '' },
   ];
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const fetchStaggeredPaymentData = async () => {
@@ -200,11 +221,19 @@ const StaggeredPayment: React.FC = () => {
   };
 
   return (
-    <div className="bg-gray-950 h-full flex overflow-hidden">
-      <div className="bg-gray-900 border-r border-gray-700 flex-shrink-0 flex flex-col relative" style={{ width: `${sidebarWidth}px` }}>
-        <div className="p-4 border-b border-gray-700 flex-shrink-0">
+    <div className={`h-full flex overflow-hidden ${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    }`}>
+      <div className={`border-r flex-shrink-0 flex flex-col relative ${
+        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+      }`} style={{ width: `${sidebarWidth}px` }}>
+        <div className={`p-4 border-b flex-shrink-0 ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-lg font-semibold text-white">Staggered Payment</h2>
+            <h2 className={`text-lg font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Staggered Payment</h2>
             <div>
               <button 
                 className="flex items-center space-x-1 bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-sm"
@@ -221,10 +250,12 @@ const StaggeredPayment: React.FC = () => {
             <button
               key={index}
               onClick={() => setSelectedDate(item.date)}
-              className={`w-full flex items-center px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
+              className={`w-full flex items-center px-4 py-3 text-sm transition-colors ${
+                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${
                 selectedDate === item.date
                   ? 'bg-orange-500 bg-opacity-20 text-orange-400'
-                  : 'text-gray-300'
+                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}
             >
               <span className="text-sm font-medium flex items-center">
@@ -244,9 +275,13 @@ const StaggeredPayment: React.FC = () => {
         />
       </div>
 
-      <div className="bg-gray-900 overflow-hidden flex-1">
+      <div className={`overflow-hidden flex-1 ${
+        isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+      }`}>
         <div className="flex flex-col h-full">
-          <div className="bg-gray-900 p-4 border-b border-gray-700 flex-shrink-0">
+          <div className={`p-4 border-b flex-shrink-0 ${
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex flex-col space-y-3">
               <div className="flex items-center space-x-3">
                 <div className="relative flex-1">
@@ -255,9 +290,15 @@ const StaggeredPayment: React.FC = () => {
                     placeholder="Search Staggered Payment records..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-gray-800 text-white border border-gray-700 rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                    className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 ${
+                      isDarkMode
+                        ? 'bg-gray-800 text-white border border-gray-700'
+                        : 'bg-white text-gray-900 border border-gray-300'
+                    }`}
                   />
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                  <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
                 </div>
                 <button
                   onClick={handleRefresh}
@@ -273,63 +314,115 @@ const StaggeredPayment: React.FC = () => {
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-x-auto overflow-y-auto pb-4">
               {isLoading ? (
-                <div className="px-4 py-12 text-center text-gray-400">
+                <div className={`px-4 py-12 text-center ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
                   <div className="animate-pulse flex flex-col items-center">
-                    <div className="h-4 w-1/3 bg-gray-700 rounded mb-4"></div>
-                    <div className="h-4 w-1/2 bg-gray-700 rounded"></div>
+                    <div className={`h-4 w-1/3 rounded mb-4 ${
+                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${
+                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}></div>
                   </div>
                   <p className="mt-4">Loading Staggered Payment records...</p>
                 </div>
               ) : error ? (
-                <div className="px-4 py-12 text-center text-red-400">
+                <div className={`px-4 py-12 text-center ${
+                  isDarkMode ? 'text-red-400' : 'text-red-600'
+                }`}>
                   <p>{error}</p>
                   <button 
                     onClick={handleRefresh}
-                    className="mt-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                    className={`mt-4 px-4 py-2 rounded ${
+                      isDarkMode
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                    }`}>
                     Retry
                   </button>
                 </div>
               ) : filteredRecords.length > 0 ? (
-                <table className="min-w-full divide-y divide-gray-700 text-sm">
-                  <thead className="bg-gray-800 sticky top-0">
+                <table className={`min-w-full divide-y text-sm ${
+                  isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
+                }`}>
+                  <thead className={`sticky top-0 ${
+                    isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                  }`}>
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Install No.</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Account No.</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Full Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Staggered Balance</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Monthly Payment</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Months to Pay</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Staggered Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">Modified By</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Install No.</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Account No.</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Full Name</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Staggered Balance</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Monthly Payment</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Months to Pay</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Status</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Staggered Date</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Modified By</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-gray-900 divide-y divide-gray-800">
+                  <tbody className={`divide-y ${
+                    isDarkMode ? 'bg-gray-900 divide-gray-800' : 'bg-white divide-gray-200'
+                  }`}>
                     {filteredRecords.map((record) => (
                       <tr 
                         key={record.id}
-                        className={`hover:bg-gray-800 cursor-pointer ${selectedStaggered?.id === record.id ? 'bg-gray-800' : ''}`}
+                        className={`cursor-pointer ${
+                          isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
+                        } ${selectedStaggered?.id === record.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
                         onClick={() => handleRowClick(record)}
                       >
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.staggered_install_no}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                        }`}>{record.staggered_install_no}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-red-400 font-medium">{record.account_no}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.billing_account?.customer?.full_name || '-'}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-white font-medium">{formatCurrency(record.staggered_balance)}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-white font-medium">{formatCurrency(record.monthly_payment)}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                        }`}>{record.billing_account?.customer?.full_name || '-'}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap font-medium ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>{formatCurrency(record.staggered_balance)}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap font-medium ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>{formatCurrency(record.monthly_payment)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <span className={record.months_to_pay === 0 ? 'text-green-500 font-bold' : 'text-orange-400 font-bold'}>
                             {record.months_to_pay}
                           </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap"><StatusBadge status={record.status} /></td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{formatDate(record.staggered_date)}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-300">{record.modified_by || '-'}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                        }`}>{formatDate(record.staggered_date)}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                        }`}>{record.modified_by || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                <div className={`h-full flex flex-col items-center justify-center ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                }`}>
                   <h1 className="text-orange-500 text-2xl mb-4">Staggered Payment</h1>
                   <p className="text-lg">No payment records found</p>
                 </div>

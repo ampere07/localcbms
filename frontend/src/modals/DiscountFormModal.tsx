@@ -50,6 +50,15 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [users, setUsers] = useState<any[]>([]);
   const [billingAccounts, setBillingAccounts] = useState<any[]>([]);
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(localStorage.getItem('theme') === 'dark');
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (customerData) {
@@ -228,13 +237,25 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
       />
       
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-        <div className="h-full w-full max-w-2xl bg-gray-900 shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col">
-          <div className="bg-gray-800 px-6 py-4 flex items-center justify-between border-b border-gray-700">
-            <h2 className="text-xl font-semibold text-white">Discounted Form</h2>
+        <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${
+          isDarkMode ? 'bg-gray-900' : 'bg-white'
+        }`}>
+          <div className={`px-6 py-4 flex items-center justify-between border-b ${
+            isDarkMode
+              ? 'bg-gray-800 border-gray-700'
+              : 'bg-gray-100 border-gray-300'
+          }`}>
+            <h2 className={`text-xl font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Discounted Form</h2>
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
+                className={`px-4 py-2 rounded text-sm ${
+                  isDarkMode
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                }`}
               >
                 Cancel
               </button>
@@ -254,7 +275,7 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
               </button>
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-white transition-colors"
+                className={isDarkMode ? 'text-gray-400 hover:text-white transition-colors' : 'text-gray-600 hover:text-gray-900 transition-colors'}
               >
                 <X size={24} />
               </button>
@@ -263,7 +284,9 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Account No.<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -273,12 +296,14 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                     const value = e.target.value;
                     handleInputChange('accountNo', value || null);
                   }}
-                  className={`w-full px-3 py-2 bg-gray-800 border ${
-                    errors.accountNo ? 'border-red-500' : 'border-gray-700'
-                  } rounded text-white focus:outline-none focus:border-orange-500 cursor-pointer overflow-hidden text-ellipsis`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-pointer overflow-hidden text-ellipsis ${
+                    errors.accountNo ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${
+                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  }`}
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 >
-                  <option value="" className="bg-gray-800 text-white">
+                  <option value="" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>
                     Select Account
                   </option>
                   {billingAccounts.map((account) => {
@@ -304,7 +329,7 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                       <option 
                         key={account.id} 
                         value={accountNumber} 
-                        className="bg-gray-800 text-white"
+                        className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
                         title={displayText}
                       >
                         {truncatedText}
@@ -312,33 +337,43 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                     );
                   })}
                 </select>
-                <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`} size={20} />
               </div>
               {errors.accountNo && <p className="text-red-500 text-xs mt-1">{errors.accountNo}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Discount Status
               </label>
               <div className="relative">
                 <select
                   value={formData.status}
                   onChange={(e) => handleInputChange('status', e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500 cursor-pointer"
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-pointer ${
+                    isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 >
-                  <option value="Pending" className="bg-gray-800 text-white">Pending</option>
-                  <option value="Unused" className="bg-gray-800 text-white">Unused</option>
-                  <option value="Permanent" className="bg-gray-800 text-white">Permanent</option>
-                  <option value="Monthly" className="bg-gray-800 text-white">Monthly</option>
+                  <option value="Pending" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Pending</option>
+                  <option value="Unused" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Unused</option>
+                  <option value="Permanent" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Permanent</option>
+                  <option value="Monthly" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Monthly</option>
                 </select>
                 <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Discount Amount<span className="text-red-500">*</span>
               </label>
               <div className="flex items-center">
@@ -347,21 +382,33 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                     type="text"
                     value={`₱ ${formData.discountAmount}`}
                     onChange={(e) => handleInputChange('discountAmount', e.target.value.replace('₱ ', '').replace(/[^0-9.]/g, ''))}
-                    className={`w-full px-3 py-2 bg-gray-800 border ${errors.discountAmount ? 'border-red-500' : 'border-gray-700'} rounded-l text-white focus:outline-none focus:border-orange-500`}
+                    className={`w-full px-3 py-2 border rounded-l focus:outline-none focus:border-orange-500 ${
+                      errors.discountAmount ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    } ${
+                      isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    }`}
                   />
                 </div>
                 <div className="flex flex-col">
                   <button
                     type="button"
                     onClick={() => handleDiscountAmountChange('decrease')}
-                    className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white border border-gray-700 border-l-0 text-sm"
+                    className={`px-3 py-1 border border-l-0 text-sm ${
+                      isDarkMode
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white border-gray-700'
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900 border-gray-300'
+                    }`}
                   >
                     <Minus size={16} />
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDiscountAmountChange('increase')}
-                    className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white border border-gray-700 border-l-0 border-t-0 rounded-r text-sm"
+                    className={`px-3 py-1 border border-l-0 border-t-0 rounded-r text-sm ${
+                      isDarkMode
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white border-gray-700'
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900 border-gray-300'
+                    }`}
                   >
                     <Plus size={16} />
                   </button>
@@ -371,7 +418,9 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Processed By<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -382,12 +431,16 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                     handleInputChange('processedByUserId', value ? parseInt(value) : null);
                   }}
                   disabled
-                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.processedByUserId ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 cursor-not-allowed opacity-60`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed opacity-60 ${
+                    errors.processedByUserId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${
+                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  }`}
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 >
-                  <option value="" className="bg-gray-800 text-white">Select Processor</option>
+                  <option value="" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Select Processor</option>
                   {users.map((user) => (
-                    <option key={user.id} value={user.id} className="bg-gray-800 text-white">
+                    <option key={user.id} value={user.id} className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>
                       {user.email_address || user.username}
                     </option>
                   ))}
@@ -398,7 +451,9 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Approved By<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -408,12 +463,16 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                     const value = e.target.value;
                     handleInputChange('approvedByUserId', value ? parseInt(value) : null);
                   }}
-                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.approvedByUserId ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 cursor-pointer`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-pointer ${
+                    errors.approvedByUserId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${
+                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  }`}
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 >
-                  <option value="" className="bg-gray-800 text-white">Select Approver</option>
+                  <option value="" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Select Approver</option>
                   {users.map((user) => (
-                    <option key={user.id} value={user.id} className="bg-gray-800 text-white">
+                    <option key={user.id} value={user.id} className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>
                       {user.email_address || user.username}
                     </option>
                   ))}
@@ -424,14 +483,20 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Remarks
               </label>
               <textarea
                 value={formData.remarks}
                 onChange={(e) => handleInputChange('remarks', e.target.value)}
                 rows={4}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500 resize-none"
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${
+                  isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
               />
             </div>
           </div>

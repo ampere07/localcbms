@@ -35,6 +35,15 @@ const EditLocationModal: React.FC<EditLocationModalProps> = ({
   const [barangayName, setBarangayName] = useState('');
   const [cityName, setCityName] = useState('');
   const [regionName, setRegionName] = useState('');
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(localStorage.getItem('theme') === 'dark');
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (location && isOpen) {
@@ -141,14 +150,26 @@ const EditLocationModal: React.FC<EditLocationModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-      <div className="h-full w-full max-w-2xl bg-gray-900 shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 flex flex-col overflow-hidden">
+      <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 flex flex-col overflow-hidden ${
+        isDarkMode ? 'bg-gray-900' : 'bg-white'
+      }`}>
         {/* Header */}
-        <div className="bg-gray-800 px-6 py-4 flex items-center justify-between border-b border-gray-700 flex-shrink-0">
-          <h2 className="text-xl font-semibold text-white">Edit {getLocationTypeLabel(location.type)}</h2>
+        <div className={`px-6 py-4 flex items-center justify-between border-b flex-shrink-0 ${
+          isDarkMode
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-gray-100 border-gray-300'
+        }`}>
+          <h2 className={`text-xl font-semibold ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>Edit {getLocationTypeLabel(location.type)}</h2>
           <div className="flex items-center space-x-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors"
+              className={`px-4 py-2 rounded text-sm transition-colors ${
+                isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+              }`}
             >
               Cancel
             </button>
@@ -160,7 +181,7 @@ const EditLocationModal: React.FC<EditLocationModalProps> = ({
             </button>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors"
+              className={isDarkMode ? 'text-gray-400 hover:text-white transition-colors' : 'text-gray-600 hover:text-gray-900 transition-colors'}
             >
               <X size={24} />
             </button>
@@ -172,28 +193,40 @@ const EditLocationModal: React.FC<EditLocationModalProps> = ({
           <div className="max-w-3xl space-y-6">
             {/* Name Field */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Name<span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={editedName}
                 onChange={(e) => setEditedName(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                  isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
               />
             </div>
 
             {/* Barangay Field (for Locations) */}
             {location.type === 'location' && (
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Barangay<span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={barangayName}
                   disabled
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-500 cursor-not-allowed"
+                  className={`w-full px-3 py-2 border rounded cursor-not-allowed ${
+                    isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-gray-500'
+                      : 'bg-gray-100 border-gray-300 text-gray-500'
+                  }`}
                 />
               </div>
             )}
@@ -201,14 +234,20 @@ const EditLocationModal: React.FC<EditLocationModalProps> = ({
             {/* City Field (for Locations) */}
             {location.type === 'location' && (
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   City<span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={cityName}
                   disabled
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-500 cursor-not-allowed"
+                  className={`w-full px-3 py-2 border rounded cursor-not-allowed ${
+                    isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-gray-500'
+                      : 'bg-gray-100 border-gray-300 text-gray-500'
+                  }`}
                 />
               </div>
             )}
@@ -216,14 +255,20 @@ const EditLocationModal: React.FC<EditLocationModalProps> = ({
             {/* Region Field (for Locations) */}
             {location.type === 'location' && (
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Region<span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={regionName}
                   disabled
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-500 cursor-not-allowed"
+                  className={`w-full px-3 py-2 border rounded cursor-not-allowed ${
+                    isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-gray-500'
+                      : 'bg-gray-100 border-gray-300 text-gray-500'
+                  }`}
                 />
               </div>
             )}
@@ -231,7 +276,9 @@ const EditLocationModal: React.FC<EditLocationModalProps> = ({
             {/* Parent Field (for City and Barangay) */}
             {location.type !== 'location' && location.type !== 'region' && location.parentName && (
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   {location.type === 'city' ? 'Region' : 
                    location.type === 'borough' ? 'City' : 'Parent'}
                   <span className="text-red-500">*</span>
@@ -240,21 +287,31 @@ const EditLocationModal: React.FC<EditLocationModalProps> = ({
                   type="text"
                   value={location.parentName}
                   disabled
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-500 cursor-not-allowed"
+                  className={`w-full px-3 py-2 border rounded cursor-not-allowed ${
+                    isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-gray-500'
+                      : 'bg-gray-100 border-gray-300 text-gray-500'
+                  }`}
                 />
               </div>
             )}
 
             {/* ID Field */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 id<span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={location.id}
                 disabled
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-500 cursor-not-allowed"
+                className={`w-full px-3 py-2 border rounded cursor-not-allowed ${
+                  isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-gray-500'
+                    : 'bg-gray-100 border-gray-300 text-gray-500'
+                }`}
               />
             </div>
           </div>

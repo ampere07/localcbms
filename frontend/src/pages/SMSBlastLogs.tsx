@@ -17,6 +17,7 @@ interface SMSBlastLog {
 }
 
 const SMSBlastLogs: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [logs, setLogs] = useState<SMSBlastLog[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<SMSBlastLog[]>([]);
   const [selectedLog, setSelectedLog] = useState<SMSBlastLog | null>(null);
@@ -30,6 +31,23 @@ const SMSBlastLogs: React.FC = () => {
   const statusFilters = ['All', 'Delivered', 'Failed', 'Pending', 'Sent'];
   const providerFilters = ['All', 'Globe', 'Smart', 'DITO'];
   const messageTypeFilters = ['All', 'Customer Advisory', 'Maintenance Advisory', 'Network Advisory', 'Service Advisory'];
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme !== 'light');
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    const theme = localStorage.getItem('theme');
+    setIsDarkMode(theme !== 'light');
+
+    return () => observer.disconnect();
+  }, []);
 
   // Fetch SMS blast logs data
   useEffect(() => {
@@ -121,14 +139,24 @@ const SMSBlastLogs: React.FC = () => {
   };
 
   return (
-    <div className="bg-gray-950 h-full flex overflow-hidden">
+    <div className={`${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    } h-full flex overflow-hidden`}>
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="bg-gray-900 p-4 border-b border-gray-700 flex justify-between items-center">
-          <h1 className="text-xl font-semibold text-white">SMS Blast Logs</h1>
+        <div className={`p-4 border-b flex justify-between items-center ${
+          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
+          <h1 className={`text-xl font-semibold ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>
+            SMS Blast Logs
+          </h1>
           <div className="flex items-center space-x-2">
-            <button className="p-2 bg-gray-800 rounded hover:bg-gray-700">
-              <Filter size={18} className="text-white" />
+            <button className={`p-2 rounded ${
+              isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300'
+            }`}>
+              <Filter size={18} className={isDarkMode ? 'text-white' : 'text-gray-900'} />
             </button>
           </div>
         </div>
@@ -137,7 +165,9 @@ const SMSBlastLogs: React.FC = () => {
         <div className="flex-1 overflow-hidden">
           {isLoading ? (
             <div className="h-full flex items-center justify-center">
-              <div className="text-gray-400">Loading SMS Blast logs...</div>
+              <div className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+                Loading SMS Blast logs...
+              </div>
             </div>
           ) : error ? (
             <div className="h-full flex items-center justify-center">
@@ -145,14 +175,18 @@ const SMSBlastLogs: React.FC = () => {
             </div>
           ) : filteredLogs.length === 0 ? (
             <div className="h-full flex items-center justify-center">
-              <div className="text-gray-400">No items</div>
+              <div className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>No items</div>
             </div>
           ) : (
             <div className="h-full overflow-auto">
-              <table className="min-w-full divide-y divide-gray-700">
-                <thead className="bg-gray-800">
+              <table className={`min-w-full divide-y ${
+                isDarkMode ? 'divide-gray-700' : 'divide-gray-300'
+              }`}>
+                <thead className={isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}>
                   <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    <th scope="col" className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                       message id
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
@@ -175,10 +209,16 @@ const SMSBlastLogs: React.FC = () => {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-gray-900 divide-y divide-gray-800">
+                <tbody className={`divide-y ${
+                  isDarkMode ? 'bg-gray-900 divide-gray-800' : 'bg-white divide-gray-200'
+                }`}>
                   {filteredLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-gray-800 cursor-pointer" onClick={() => handleLogClick(log)}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                    <tr key={log.id} className={`cursor-pointer ${
+                      isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                    }`} onClick={() => handleLogClick(log)}>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>
                         {log.messageId}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
@@ -204,7 +244,9 @@ const SMSBlastLogs: React.FC = () => {
                         {log.messageType}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <ChevronRight className="h-5 w-5 text-gray-400" />
+                        <ChevronRight className={`h-5 w-5 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`} />
                       </td>
                     </tr>
                   ))}
@@ -217,22 +259,36 @@ const SMSBlastLogs: React.FC = () => {
       
       {/* Details panel that slides in from the right when a log is selected */}
       {selectedLog && (
-        <div className="w-full max-w-md bg-gray-900 border-l border-gray-700 flex-shrink-0 relative">
+        <div className={`w-full max-w-md border-l flex-shrink-0 relative ${
+          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
           <div className="absolute top-4 right-4 z-10">
             <button
               onClick={handleCloseDetails}
-              className="text-gray-400 hover:text-white transition-colors bg-gray-800 rounded p-1"
+              className={`transition-colors rounded p-1 ${
+                isDarkMode 
+                  ? 'text-gray-400 hover:text-white bg-gray-800' 
+                  : 'text-gray-600 hover:text-gray-900 bg-gray-200'
+              }`}
             >
               <X size={20} />
             </button>
           </div>
           <div className="p-6 h-full overflow-y-auto">
-            <h2 className="text-xl font-semibold text-white mb-6">SMS Log Details</h2>
+            <h2 className={`text-xl font-semibold mb-6 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              SMS Log Details
+            </h2>
             
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm text-gray-400 uppercase mb-1">Message ID</h3>
-                <p className="text-white">{selectedLog.messageId}</p>
+                <h3 className={`text-sm uppercase mb-1 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Message ID</h3>
+                <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
+                  {selectedLog.messageId}
+                </p>
               </div>
               
               <div>

@@ -35,6 +35,7 @@ const SmsConfig: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [operationLoading, setOperationLoading] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<Record<number, boolean>>({});
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const [formData, setFormData] = useState({
     code: '',
@@ -69,6 +70,23 @@ const SmsConfig: React.FC = () => {
 
   useEffect(() => {
     fetchSmsConfigs();
+  }, []);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark');
+    };
+    
+    checkDarkMode();
+    
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    
+    return () => observer.disconnect();
   }, []);
 
   const handleInputChange = (field: string, value: string) => {
@@ -213,18 +231,28 @@ const SmsConfig: React.FC = () => {
   const canCreateNew = smsConfigs.length < 2;
 
   return (
-    <div className="p-4 bg-gray-950 min-h-full">
-      <div className="mb-4 pb-3 border-b border-gray-700">
+    <div className={`p-4 min-h-full ${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    }`}>
+      <div className={`mb-4 pb-3 border-b ${
+        isDarkMode ? 'border-gray-700' : 'border-gray-300'
+      }`}>
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-white mb-1">
+            <h2 className={`text-xl font-semibold mb-1 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
               SMS Configuration
             </h2>
           </div>
           {canCreateNew && !isCreating && editingId === null && (
             <button
               onClick={handleStartCreate}
-              className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded transition-colors"
+              className={`px-3 py-1.5 text-white text-sm rounded transition-colors ${
+                isDarkMode
+                  ? 'bg-orange-600 hover:bg-orange-700'
+                  : 'bg-orange-500 hover:bg-orange-600'
+              }`}
             >
               Create New
             </button>
@@ -240,13 +268,21 @@ const SmsConfig: React.FC = () => {
         ) : (
           <>
             {smsConfigs.map((config) => (
-              <div key={config.id} className="bg-gray-800 rounded p-4 border border-gray-700">
+              <div key={config.id} className={`rounded p-4 border ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-300'
+              }`}>
                 {editingId === config.id ? (
                   <div className="space-y-3">
-                    <h3 className="text-base font-semibold text-white mb-2">Edit Configuration #{config.id}</h3>
+                    <h3 className={`text-base font-semibold mb-2 ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>Edit Configuration #{config.id}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-medium text-gray-300 mb-1">
+                        <label className={`block text-xs font-medium mb-1 ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
                           API Code
                         </label>
                         <input
@@ -254,7 +290,11 @@ const SmsConfig: React.FC = () => {
                           value={formData.code}
                           onChange={(e) => handleInputChange('code', e.target.value)}
                           placeholder="Enter API code"
-                          className="w-full px-3 py-1.5 text-sm bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-orange-500"
+                          className={`w-full px-3 py-1.5 text-sm rounded focus:outline-none focus:border-orange-500 ${
+                            isDarkMode
+                              ? 'bg-gray-700 border-gray-600 text-white'
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
                           disabled={loading}
                         />
                       </div>
@@ -289,7 +329,11 @@ const SmsConfig: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => togglePasswordVisibility(config.id)}
-                            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 text-xs"
+                            className={`absolute right-2 top-1/2 transform -translate-y-1/2 text-xs ${
+                              isDarkMode
+                                ? 'text-gray-400 hover:text-gray-300'
+                                : 'text-gray-600 hover:text-gray-800'
+                            }`}
                           >
                             {showPassword[config.id] ? 'Hide' : 'Show'}
                           </button>
@@ -315,14 +359,22 @@ const SmsConfig: React.FC = () => {
                       <button
                         onClick={handleSave}
                         disabled={loading}
-                        className="px-3 py-1.5 text-sm bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded transition-colors"
+                        className={`px-3 py-1.5 text-sm disabled:opacity-50 text-white rounded transition-colors ${
+                          isDarkMode
+                            ? 'bg-orange-600 hover:bg-orange-700'
+                            : 'bg-orange-500 hover:bg-orange-600'
+                        }`}
                       >
                         Update
                       </button>
                       <button
                         onClick={handleCancel}
                         disabled={loading}
-                        className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white rounded transition-colors"
+                        className={`px-3 py-1.5 text-sm disabled:opacity-50 rounded transition-colors ${
+                          isDarkMode
+                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                        }`}
                       >
                         Cancel
                       </button>
@@ -331,50 +383,94 @@ const SmsConfig: React.FC = () => {
                 ) : (
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-base font-semibold text-white">Configuration #{config.id}</h3>
+                      <h3 className={`text-base font-semibold ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>Configuration #{config.id}</h3>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleStartEdit(config)}
-                          className="px-3 py-1 text-sm text-blue-400 hover:text-blue-300 hover:bg-blue-900 rounded transition-colors"
+                          className={`px-3 py-1 text-sm rounded transition-colors ${
+                            isDarkMode
+                              ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900'
+                              : 'text-blue-600 hover:text-blue-700 hover:bg-blue-100'
+                          }`}
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => handleDelete(config.id)}
-                          className="px-3 py-1 text-sm text-red-400 hover:text-red-300 hover:bg-red-900 rounded transition-colors"
+                          className={`px-3 py-1 text-sm rounded transition-colors ${
+                            isDarkMode
+                              ? 'text-red-400 hover:text-red-300 hover:bg-red-900'
+                              : 'text-red-600 hover:text-red-700 hover:bg-red-100'
+                          }`}
                         >
                           Delete
                         </button>
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="bg-gray-700 p-2.5 rounded">
-                        <p className="text-gray-400 text-xs mb-0.5">API Code</p>
-                        <p className="text-white font-medium text-sm">{config.code || 'Not set'}</p>
+                      <div className={`p-2.5 rounded ${
+                        isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                      }`}>
+                        <p className={`text-xs mb-0.5 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>API Code</p>
+                        <p className={`font-medium text-sm ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>{config.code || 'Not set'}</p>
                       </div>
-                      <div className="bg-gray-700 p-2.5 rounded">
-                        <p className="text-gray-400 text-xs mb-0.5">Email</p>
-                        <p className="text-white font-medium text-sm">{config.email || 'Not set'}</p>
+                      <div className={`p-2.5 rounded ${
+                        isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                      }`}>
+                        <p className={`text-xs mb-0.5 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Email</p>
+                        <p className={`font-medium text-sm ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>{config.email || 'Not set'}</p>
                       </div>
-                      <div className="bg-gray-700 p-2.5 rounded">
-                        <p className="text-gray-400 text-xs mb-0.5">Sender Name</p>
-                        <p className="text-white font-medium text-sm">{config.sender || 'Not set'}</p>
+                      <div className={`p-2.5 rounded ${
+                        isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                      }`}>
+                        <p className={`text-xs mb-0.5 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Sender Name</p>
+                        <p className={`font-medium text-sm ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>{config.sender || 'Not set'}</p>
                       </div>
-                      <div className="bg-gray-700 p-2.5 rounded">
-                        <p className="text-gray-400 text-xs mb-0.5">Password</p>
-                        <p className="text-white font-medium text-sm">
+                      <div className={`p-2.5 rounded ${
+                        isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                      }`}>
+                        <p className={`text-xs mb-0.5 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Password</p>
+                        <p className={`font-medium text-sm ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
                           {showPassword[config.id] ? config.password : '••••••••'}
                         </p>
                         <button
                           onClick={() => togglePasswordVisibility(config.id)}
-                          className="text-orange-400 hover:text-orange-300 text-xs"
+                          className={`text-xs ${
+                            isDarkMode
+                              ? 'text-orange-400 hover:text-orange-300'
+                              : 'text-orange-600 hover:text-orange-700'
+                          }`}
                         >
                           {showPassword[config.id] ? 'Hide' : 'Show'}
                         </button>
                       </div>
-                      <div className="bg-gray-700 p-2.5 rounded md:col-span-2">
-                        <p className="text-gray-400 text-xs mb-0.5">Last Updated By</p>
-                        <p className="text-white font-medium text-sm">{config.updated_by || 'Unknown'}</p>
+                      <div className={`p-2.5 rounded md:col-span-2 ${
+                        isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                      }`}>
+                        <p className={`text-xs mb-0.5 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Last Updated By</p>
+                        <p className={`font-medium text-sm ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>{config.updated_by || 'Unknown'}</p>
                       </div>
                     </div>
                   </div>
@@ -383,8 +479,14 @@ const SmsConfig: React.FC = () => {
             ))}
 
             {isCreating && (
-              <div className="bg-gray-800 rounded p-4 border border-gray-700">
-                <h3 className="text-base font-semibold text-white mb-2">Create New Configuration</h3>
+              <div className={`rounded p-4 border ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-300'
+              }`}>
+                <h3 className={`text-base font-semibold mb-2 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Create New Configuration</h3>
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
@@ -474,7 +576,9 @@ const SmsConfig: React.FC = () => {
             )}
 
             {smsConfigs.length === 0 && !isCreating && (
-              <div className="text-center py-8 text-gray-400">
+              <div className={`text-center py-8 ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>
                 <p className="text-base mb-1">No SMS configurations found</p>
               </div>
             )}
@@ -484,11 +588,19 @@ const SmsConfig: React.FC = () => {
 
       {operationLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 max-w-sm w-full mx-4">
+          <div className={`border rounded-lg p-6 max-w-sm w-full mx-4 ${
+            isDarkMode
+              ? 'bg-gray-900 border-gray-700'
+              : 'bg-white border-gray-300'
+          }`}>
             <div className="flex flex-col items-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
-              <p className="text-white text-base font-medium">Processing...</p>
-              <p className="text-gray-400 text-sm mt-2">Please wait</p>
+              <p className={`text-base font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Processing...</p>
+              <p className={`text-sm mt-2 ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Please wait</p>
             </div>
           </div>
         </div>
@@ -496,21 +608,37 @@ const SmsConfig: React.FC = () => {
 
       {modal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 max-w-md w-full mx-4">
-            <h3 className="text-base font-semibold text-white mb-3">{modal.title}</h3>
-            <p className="text-gray-300 text-sm mb-4">{modal.message}</p>
+          <div className={`border rounded-lg p-4 max-w-md w-full mx-4 ${
+            isDarkMode
+              ? 'bg-gray-900 border-gray-700'
+              : 'bg-white border-gray-300'
+          }`}>
+            <h3 className={`text-base font-semibold mb-3 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{modal.title}</h3>
+            <p className={`text-sm mb-4 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>{modal.message}</p>
             <div className="flex items-center justify-end gap-2">
               {modal.type === 'confirm' ? (
                 <>
                   <button
                     onClick={modal.onCancel}
-                    className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+                    className={`px-3 py-1.5 text-sm rounded transition-colors ${
+                      isDarkMode
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                    }`}
                   >
                     Cancel
                   </button>
                   <button
                     onClick={modal.onConfirm}
-                    className="px-3 py-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+                    className={`px-3 py-1.5 text-sm text-white rounded transition-colors ${
+                      isDarkMode
+                        ? 'bg-orange-600 hover:bg-orange-700'
+                        : 'bg-orange-500 hover:bg-orange-600'
+                    }`}
                   >
                     Confirm
                   </button>
@@ -518,7 +646,11 @@ const SmsConfig: React.FC = () => {
               ) : (
                 <button
                   onClick={() => setModal({ ...modal, isOpen: false })}
-                  className="px-3 py-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+                  className={`px-3 py-1.5 text-sm text-white rounded transition-colors ${
+                    isDarkMode
+                      ? 'bg-orange-600 hover:bg-orange-700'
+                      : 'bg-orange-500 hover:bg-orange-600'
+                  }`}
                 >
                   OK
                 </button>

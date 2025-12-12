@@ -62,6 +62,15 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
   const [filteredCities, setFilteredCities] = useState<City[]>([]);
   const [filteredBarangays, setFilteredBarangays] = useState<Borough[]>([]);
   const [filteredLocations, setFilteredLocations] = useState<LocationDetail[]>([]);
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(localStorage.getItem('theme') === 'dark');
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -355,15 +364,27 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50" onClick={handleClose}>
       <div 
-        className="h-full w-3/4 md:w-full md:max-w-2xl bg-gray-900 shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col"
+        className={`h-full w-3/4 md:w-full md:max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${
+          isDarkMode ? 'bg-gray-900' : 'bg-white'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-gray-800 px-6 py-4 flex items-center justify-between border-b border-gray-700">
-          <h2 className="text-xl font-semibold text-white">Add Location</h2>
+        <div className={`px-6 py-4 flex items-center justify-between border-b ${
+          isDarkMode
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-gray-100 border-gray-300'
+        }`}>
+          <h2 className={`text-xl font-semibold ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>Add Location</h2>
           <div className="flex items-center space-x-3">
             <button
               onClick={handleClose}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
+              className={`px-4 py-2 rounded text-sm ${
+                isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+              }`}
             >
               Cancel
             </button>
@@ -383,7 +404,7 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
             </button>
             <button
               onClick={handleClose}
-              className="text-gray-400 hover:text-white transition-colors"
+              className={isDarkMode ? 'text-gray-400 hover:text-white transition-colors' : 'text-gray-600 hover:text-gray-900 transition-colors'}
             >
               <X size={24} />
             </button>
@@ -398,7 +419,9 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
           ) : (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Region<span className="text-red-500">*</span>
                 </label>
                 {showNewRegionInput ? (
@@ -408,7 +431,11 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                       value={newRegionName}
                       onChange={(e) => setNewRegionName(e.target.value)}
                       placeholder="Enter new region name"
-                      className="w-full px-3 py-2 bg-gray-800 border border-orange-500 rounded text-white focus:outline-none focus:border-orange-500"
+                      className={`w-full px-3 py-2 border border-orange-500 rounded focus:outline-none focus:border-orange-500 ${
+                        isDarkMode
+                          ? 'bg-gray-800 text-white'
+                          : 'bg-white text-gray-900'
+                      }`}
                       autoFocus
                     />
                     <button
@@ -416,7 +443,7 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                         setShowNewRegionInput(false);
                         setNewRegionName('');
                       }}
-                      className="absolute right-3 top-2.5 text-gray-400 hover:text-white"
+                      className={isDarkMode ? 'absolute right-3 top-2.5 text-gray-400 hover:text-white' : 'absolute right-3 top-2.5 text-gray-600 hover:text-gray-900'}
                     >
                       ✕
                     </button>
@@ -426,7 +453,11 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                     <select
                       value={formData.regionId?.toString() || ''}
                       onChange={(e) => handleRegionChange(e.target.value)}
-                      className={`w-full px-3 py-2 bg-gray-800 border ${errors.regionId ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                        errors.regionId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${
+                        isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`}
                     >
                       <option value="">Select Region</option>
                       {allRegions.map(region => (
@@ -434,14 +465,18 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                       ))}
                       <option value="add_new" className="text-orange-400">+ Add New Region</option>
                     </select>
-                    <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                    <ChevronDown className={`absolute right-3 top-2.5 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`} size={20} />
                   </div>
                 )}
                 {errors.regionId && <p className="text-red-500 text-xs mt-1">{errors.regionId}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   City<span className="text-red-500">*</span>
                 </label>
                 {showNewCityInput ? (
@@ -451,7 +486,11 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                       value={newCityName}
                       onChange={(e) => setNewCityName(e.target.value)}
                       placeholder="Enter new city name"
-                      className="w-full px-3 py-2 bg-gray-800 border border-orange-500 rounded text-white focus:outline-none focus:border-orange-500"
+                      className={`w-full px-3 py-2 border border-orange-500 rounded focus:outline-none focus:border-orange-500 ${
+                        isDarkMode
+                          ? 'bg-gray-800 text-white'
+                          : 'bg-white text-gray-900'
+                      }`}
                       autoFocus
                     />
                     <button
@@ -459,7 +498,7 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                         setShowNewCityInput(false);
                         setNewCityName('');
                       }}
-                      className="absolute right-3 top-2.5 text-gray-400 hover:text-white"
+                      className={isDarkMode ? 'absolute right-3 top-2.5 text-gray-400 hover:text-white' : 'absolute right-3 top-2.5 text-gray-600 hover:text-gray-900'}
                     >
                       ✕
                     </button>
@@ -470,7 +509,11 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                       value={formData.cityId?.toString() || ''}
                       onChange={(e) => handleCityChange(e.target.value)}
                       disabled={!formData.regionId && !showNewRegionInput}
-                      className={`w-full px-3 py-2 bg-gray-800 border ${errors.cityId ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                        errors.cityId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${
+                        isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`}
                     >
                       <option value="">Select City</option>
                       {filteredCities.map(city => (
@@ -478,14 +521,18 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                       ))}
                       <option value="add_new" className="text-orange-400">+ Add New City</option>
                     </select>
-                    <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                    <ChevronDown className={`absolute right-3 top-2.5 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`} size={20} />
                   </div>
                 )}
                 {errors.cityId && <p className="text-red-500 text-xs mt-1">{errors.cityId}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Barangay<span className="text-red-500">*</span>
                 </label>
                 {showNewBarangayInput ? (
@@ -495,7 +542,11 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                       value={newBarangayName}
                       onChange={(e) => setNewBarangayName(e.target.value)}
                       placeholder="Enter new barangay name"
-                      className="w-full px-3 py-2 bg-gray-800 border border-orange-500 rounded text-white focus:outline-none focus:border-orange-500"
+                      className={`w-full px-3 py-2 border border-orange-500 rounded focus:outline-none focus:border-orange-500 ${
+                        isDarkMode
+                          ? 'bg-gray-800 text-white'
+                          : 'bg-white text-gray-900'
+                      }`}
                       autoFocus
                     />
                     <button
@@ -503,7 +554,7 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                         setShowNewBarangayInput(false);
                         setNewBarangayName('');
                       }}
-                      className="absolute right-3 top-2.5 text-gray-400 hover:text-white"
+                      className={isDarkMode ? 'absolute right-3 top-2.5 text-gray-400 hover:text-white' : 'absolute right-3 top-2.5 text-gray-600 hover:text-gray-900'}
                     >
                       ✕
                     </button>
@@ -514,7 +565,11 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                       value={formData.barangayId?.toString() || ''}
                       onChange={(e) => handleBarangayChange(e.target.value)}
                       disabled={!formData.cityId && !showNewCityInput}
-                      className={`w-full px-3 py-2 bg-gray-800 border ${errors.barangayId ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                        errors.barangayId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${
+                        isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`}
                     >
                       <option value="">Select Barangay</option>
                       {filteredBarangays.map(barangay => (
@@ -522,14 +577,18 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                       ))}
                       <option value="add_new" className="text-orange-400">+ Add New Barangay</option>
                     </select>
-                    <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                    <ChevronDown className={`absolute right-3 top-2.5 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`} size={20} />
                   </div>
                 )}
                 {errors.barangayId && <p className="text-red-500 text-xs mt-1">{errors.barangayId}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Location
                 </label>
                 {showNewLocationInput ? (
@@ -539,7 +598,11 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                       value={newLocationName}
                       onChange={(e) => setNewLocationName(e.target.value)}
                       placeholder="Enter new location name"
-                      className="w-full px-3 py-2 bg-gray-800 border border-orange-500 rounded text-white focus:outline-none focus:border-orange-500"
+                      className={`w-full px-3 py-2 border border-orange-500 rounded focus:outline-none focus:border-orange-500 ${
+                        isDarkMode
+                          ? 'bg-gray-800 text-white'
+                          : 'bg-white text-gray-900'
+                      }`}
                       autoFocus
                     />
                     <button
@@ -547,7 +610,7 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                         setShowNewLocationInput(false);
                         setNewLocationName('');
                       }}
-                      className="absolute right-3 top-2.5 text-gray-400 hover:text-white"
+                      className={isDarkMode ? 'absolute right-3 top-2.5 text-gray-400 hover:text-white' : 'absolute right-3 top-2.5 text-gray-600 hover:text-gray-900'}
                     >
                       ✕
                     </button>
@@ -558,7 +621,11 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                       value=""
                       onChange={(e) => handleLocationToggle(e.target.value)}
                       disabled={!formData.barangayId && !showNewBarangayInput}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                        isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      }`}
                     >
                       <option value="">Select Location</option>
                       {filteredLocations.map(location => (
@@ -566,7 +633,9 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                       ))}
                       <option value="add_new" className="text-orange-400">+ Add New Location</option>
                     </select>
-                    <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                    <ChevronDown className={`absolute right-3 top-2.5 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`} size={20} />
                   </div>
                 )}
               </div>

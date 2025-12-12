@@ -62,6 +62,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
   onSave,
   applicationData
 }) => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+
   const getCurrentUser = (): UserData | null => {
     try {
       const authData = localStorage.getItem('authData');
@@ -154,6 +156,26 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
   const [promos, setPromos] = useState<Promo[]>([]);
   const [technicians, setTechnicians] = useState<Array<{ email: string; name: string }>>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const fetchTechnicians = async () => {
@@ -728,23 +750,37 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     <>
     {loading && (
       <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
-        <div className="bg-gray-800 rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px]">
+        <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${
+          isDarkMode ? 'bg-gray-800' : 'bg-white'
+        }`}>
           <Loader2 className="w-20 h-20 text-orange-500 animate-spin" />
           <div className="text-center">
-            <p className="text-white text-4xl font-bold">{loadingPercentage}%</p>
+            <p className={`text-4xl font-bold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{loadingPercentage}%</p>
           </div>
         </div>
       </div>
     )}
     
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-      <div className="h-full w-full max-w-2xl bg-gray-900 shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col">
-        <div className="bg-gray-800 px-6 py-4 flex items-center justify-between border-b border-gray-700">
-          <h2 className="text-xl font-semibold text-white">JO Assign Form</h2>
+      <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${
+        isDarkMode ? 'bg-gray-900' : 'bg-white'
+      }`}>
+        <div className={`px-6 py-4 flex items-center justify-between border-b ${
+          isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
+        }`}>
+          <h2 className={`text-xl font-semibold ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>JO Assign Form</h2>
           <div className="flex items-center space-x-3">
             <button
               onClick={handleCancel}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
+              className={`px-4 py-2 rounded text-sm transition-colors ${
+                isDarkMode 
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+              }`}
             >
               Cancel
             </button>
@@ -757,7 +793,9 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
             </button>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors"
+              className={`transition-colors ${
+                isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+              }`}
             >
               <X size={24} />
             </button>
@@ -767,7 +805,9 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Timestamp<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -775,22 +815,34 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   type="datetime-local"
                   value={formData.timestamp}
                   onChange={(e) => handleInputChange('timestamp', e.target.value)}
-                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.timestamp ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700' 
+                      : 'bg-white text-gray-900 border-gray-300'
+                  } ${errors.timestamp ? 'border-red-500' : ''}`}
                 />
-                <Calendar className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                <Calendar className={`absolute right-3 top-2.5 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} size={20} />
               </div>
               {errors.timestamp && <p className="text-red-500 text-xs mt-1">{errors.timestamp}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Affiliate<span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <select
                   value={formData.groupName}
                   onChange={(e) => handleInputChange('groupName', e.target.value)}
-                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.groupName ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700' 
+                      : 'bg-white text-gray-900 border-gray-300'
+                  } ${errors.groupName ? 'border-red-500' : ''}`}
                 >
                   <option value="">Select Affiliate</option>
                   {formData.groupName && !groups.some(g => g.group_name === formData.groupName) && (
@@ -802,102 +854,148 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                <ChevronDown className={`absolute right-3 top-2.5 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} size={20} />
               </div>
               {errors.groupName && <p className="text-red-500 text-xs mt-1">{errors.groupName}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Status<span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <select
                   value={formData.status}
                   onChange={(e) => handleInputChange('status', e.target.value)}
-                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.status ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700' 
+                      : 'bg-white text-gray-900 border-gray-300'
+                  } ${errors.status ? 'border-red-500' : ''}`}
                 >
                   <option value="" disabled>Select Status</option>
                   <option value="Confirmed">Confirmed</option>
                   <option value="For Confirmation">For Confirmation</option>
                   <option value="Cancelled">Cancelled</option>
                 </select>
-                <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                <ChevronDown className={`absolute right-3 top-2.5 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} size={20} />
               </div>
               {errors.status && <p className="text-red-500 text-xs mt-1">{errors.status}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Referred By</label>
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Referred By</label>
               <input
                 type="text"
                 value={formData.referredBy}
                 onChange={(e) => handleInputChange('referredBy', e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                  isDarkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-900 border-gray-300'
+                }`}
               />
             </div>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 First Name<span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.firstName}
                 onChange={(e) => handleInputChange('firstName', e.target.value)}
-                className={`w-full px-3 py-2 bg-gray-800 border ${errors.firstName ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                  isDarkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-900 border-gray-300'
+                } ${errors.firstName ? 'border-red-500' : ''}`}
               />
               {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Middle Initial</label>
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Middle Initial</label>
               <input
                 type="text"
                 value={formData.middleInitial}
                 onChange={(e) => handleInputChange('middleInitial', e.target.value)}
                 maxLength={1}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                  isDarkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-900 border-gray-300'
+                }`}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Last Name<span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.lastName}
                 onChange={(e) => handleInputChange('lastName', e.target.value)}
-                className={`w-full px-3 py-2 bg-gray-800 border ${errors.lastName ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                  isDarkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-900 border-gray-300'
+                } ${errors.lastName ? 'border-red-500' : ''}`}
               />
               {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Contact Number<span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.contactNumber}
                 onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                className={`w-full px-3 py-2 bg-gray-800 border ${errors.contactNumber ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                  isDarkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-900 border-gray-300'
+                } ${errors.contactNumber ? 'border-red-500' : ''}`}
               />
               {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Applicant Email Address<span className="text-red-500">*</span>
               </label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                className={`w-full px-3 py-2 bg-gray-800 border ${errors.email ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                  isDarkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-900 border-gray-300'
+                } ${errors.email ? 'border-red-500' : ''}`}
               />
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
             </div>
@@ -905,27 +1003,39 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Address<span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.address}
                 onChange={(e) => handleInputChange('address', e.target.value)}
-                className={`w-full px-3 py-2 bg-gray-800 border ${errors.address ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                  isDarkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-900 border-gray-300'
+                } ${errors.address ? 'border-red-500' : ''}`}
               />
               {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Region<span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <select
                   value={formData.region}
                   onChange={(e) => handleInputChange('region', e.target.value)}
-                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.region ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700' 
+                      : 'bg-white text-gray-900 border-gray-300'
+                  } ${errors.region ? 'border-red-500' : ''}`}
                 >
                   <option value="">Select Region</option>
                   {formData.region && !regions.some(reg => reg.name === formData.region) && (
@@ -937,13 +1047,17 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                <ChevronDown className={`absolute right-3 top-2.5 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} size={20} />
               </div>
               {errors.region && <p className="text-red-500 text-xs mt-1">{errors.region}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 City<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -951,7 +1065,11 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   value={formData.city}
                   onChange={(e) => handleInputChange('city', e.target.value)}
                   disabled={!formData.region}
-                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.city ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700' 
+                      : 'bg-white text-gray-900 border-gray-300'
+                  } ${errors.city ? 'border-red-500' : ''}`}
                 >
                   <option value="">{formData.region ? 'Select City' : 'Select Region First'}</option>
                   {formData.city && !filteredCities.some(city => city.name === formData.city) && (
@@ -963,13 +1081,17 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                <ChevronDown className={`absolute right-3 top-2.5 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} size={20} />
               </div>
               {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Barangay<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -977,7 +1099,11 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   value={formData.barangay}
                   onChange={(e) => handleInputChange('barangay', e.target.value)}
                   disabled={!formData.city}
-                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.barangay ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700' 
+                      : 'bg-white text-gray-900 border-gray-300'
+                  } ${errors.barangay ? 'border-red-500' : ''}`}
                 >
                   <option value="">{formData.city ? 'Select Barangay' : 'Select City First'}</option>
                   {formData.barangay && !filteredBarangays.some(b => b.barangay === formData.barangay) && (
@@ -989,13 +1115,17 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                <ChevronDown className={`absolute right-3 top-2.5 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} size={20} />
               </div>
               {errors.barangay && <p className="text-red-500 text-xs mt-1">{errors.barangay}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Location<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -1003,7 +1133,11 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   value={formData.location}
                   onChange={(e) => handleInputChange('location', e.target.value)}
                   disabled={!formData.barangay}
-                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.location ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700' 
+                      : 'bg-white text-gray-900 border-gray-300'
+                  } ${errors.location ? 'border-red-500' : ''}`}
                 >
                   <option value="">{formData.barangay ? 'Select Location' : 'Select Barangay First'}</option>
                   {formData.location && formData.location.trim() !== '' && !filteredLocations.some(loc => loc.location_name === formData.location) && (
@@ -1015,7 +1149,9 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                <ChevronDown className={`absolute right-3 top-2.5 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} size={20} />
               </div>
               {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
             </div>
@@ -1023,14 +1159,20 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Choose Plan<span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <select
                   value={formData.choosePlan}
                   onChange={(e) => handleInputChange('choosePlan', e.target.value)}
-                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.choosePlan ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700' 
+                      : 'bg-white text-gray-900 border-gray-300'
+                  } ${errors.choosePlan ? 'border-red-500' : ''}`}
                 >
                   <option value="">Select Plan</option>
                   {formData.choosePlan && !plans.some(plan => {
@@ -1048,20 +1190,28 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     );
                   })}
                 </select>
-                <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                <ChevronDown className={`absolute right-3 top-2.5 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} size={20} />
               </div>
               {errors.choosePlan && <p className="text-red-500 text-xs mt-1">{errors.choosePlan}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Promo
               </label>
               <div className="relative">
                 <select
                   value={formData.promo}
                   onChange={(e) => handleInputChange('promo', e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500 appearance-none"
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700' 
+                      : 'bg-white text-gray-900 border-gray-300'
+                  }`}
                 >
                   <option value="">Select Promo</option>
                   <option value="None">None</option>
@@ -1074,33 +1224,49 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                <ChevronDown className={`absolute right-3 top-2.5 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} size={20} />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Remarks</label>
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Remarks</label>
               <textarea
                 value={formData.remarks}
                 onChange={(e) => handleInputChange('remarks', e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500 resize-none"
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${
+                  isDarkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-900 border-gray-300'
+                }`}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Installation Fee<span className="text-red-500">*</span>
               </label>
-              <div className="flex items-center bg-gray-800 border border-gray-700 rounded">
-                <span className="px-3 text-gray-400">₱</span>
+              <div className={`flex items-center border rounded ${
+                isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+              }`}>
+                <span className={`px-3 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>₱</span>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   value={formData.installationFee === 0 ? '' : formData.installationFee}
                   onChange={(e) => handleInstallationFeeChange(e.target.value)}
-                  className={`flex-1 px-3 py-2 bg-transparent text-white focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield] ${errors.installationFee ? 'border-red-500' : ''}`}
+                  className={`flex-1 px-3 py-2 bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield] ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  } ${errors.installationFee ? 'border-red-500' : ''}`}
                   placeholder="0.00"
                 />
               </div>
@@ -1108,28 +1274,42 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Contract Template<span className="text-red-500">*</span>
               </label>
-              <div className={`flex items-center bg-gray-800 border ${errors.contractTemplate ? 'border-red-500' : 'border-gray-700'} rounded`}>
+              <div className={`flex items-center border rounded ${
+                isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+              } ${errors.contractTemplate ? 'border-red-500' : ''}`}>
                 <input
                   type="number"
                   value={formData.contractTemplate}
                   onChange={(e) => handleInputChange('contractTemplate', e.target.value)}
-                  className="flex-1 px-3 py-2 bg-transparent text-white focus:outline-none"
+                  className={`flex-1 px-3 py-2 bg-transparent focus:outline-none ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}
                 />
                 <div className="flex">
                   <button
                     type="button"
                     onClick={() => handleNumberChange('contractTemplate', false)}
-                    className="px-3 py-2 text-gray-400 hover:text-white border-l border-gray-700"
+                    className={`px-3 py-2 border-l transition-colors ${
+                      isDarkMode 
+                        ? 'text-gray-400 hover:text-white border-gray-700' 
+                        : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                    }`}
                   >
                     <Minus size={16} />
                   </button>
                   <button
                     type="button"
                     onClick={() => handleNumberChange('contractTemplate', true)}
-                    className="px-3 py-2 text-gray-400 hover:text-white border-l border-gray-700"
+                    className={`px-3 py-2 border-l transition-colors ${
+                      isDarkMode 
+                        ? 'text-gray-400 hover:text-white border-gray-700' 
+                        : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                    }`}
                   >
                     <Plus size={16} />
                   </button>
@@ -1139,10 +1319,14 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Billing Day<span className="text-red-500">*</span>
               </label>
-              <div className="flex items-center bg-gray-800 border border-gray-700 rounded">
+              <div className={`flex items-center border rounded ${
+                isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+              }`}>
                 <input
                   type="number"
                   min="1"
@@ -1150,14 +1334,20 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   value={formData.billingDay}
                   onChange={(e) => handleInputChange('billingDay', e.target.value)}
                   disabled={formData.isLastDayOfMonth}
-                  className={`flex-1 px-3 py-2 bg-transparent text-white focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.billingDay ? 'border-red-500' : ''}`}
+                  className={`flex-1 px-3 py-2 bg-transparent focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  } ${errors.billingDay ? 'border-red-500' : ''}`}
                 />
                 <div className="flex">
                   <button
                     type="button"
                     onClick={() => handleNumberChange('billingDay', false)}
                     disabled={formData.isLastDayOfMonth}
-                    className="px-3 py-2 text-gray-400 hover:text-white border-l border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`px-3 py-2 border-l transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isDarkMode 
+                        ? 'text-gray-400 hover:text-white border-gray-700' 
+                        : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                    }`}
                   >
                     <Minus size={16} />
                   </button>
@@ -1165,7 +1355,11 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     type="button"
                     onClick={() => handleNumberChange('billingDay', true)}
                     disabled={formData.isLastDayOfMonth}
-                    className="px-3 py-2 text-gray-400 hover:text-white border-l border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`px-3 py-2 border-l transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isDarkMode 
+                        ? 'text-gray-400 hover:text-white border-gray-700' 
+                        : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                    }`}
                   >
                     <Plus size={16} />
                   </button>
@@ -1178,9 +1372,13 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   id="isLastDayOfMonth"
                   checked={formData.isLastDayOfMonth}
                   onChange={(e) => handleInputChange('isLastDayOfMonth', e.target.checked)}
-                  className="w-4 h-4 bg-gray-800 border-gray-700 rounded text-orange-600 focus:ring-orange-500 focus:ring-2"
+                  className={`w-4 h-4 rounded text-orange-600 focus:ring-orange-500 focus:ring-2 ${
+                    isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                  }`}
                 />
-                <label htmlFor="isLastDayOfMonth" className="ml-2 text-sm text-gray-300 cursor-pointer">
+                <label htmlFor="isLastDayOfMonth" className={`ml-2 text-sm cursor-pointer ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Always use last day of the month
                 </label>
               </div>
@@ -1198,21 +1396,29 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
           <div className="space-y-4">
             {formData.status === 'Confirmed' && (
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Onsite Status<span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <select
                     value={formData.onsiteStatus}
                     onChange={(e) => handleInputChange('onsiteStatus', e.target.value)}
-                    className={`w-full px-3 py-2 bg-gray-800 border ${errors.onsiteStatus ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                      isDarkMode 
+                        ? 'bg-gray-800 text-white border-gray-700' 
+                        : 'bg-white text-gray-900 border-gray-300'
+                    } ${errors.onsiteStatus ? 'border-red-500' : ''}`}
                   >
                     <option value="In Progress">In Progress</option>
                     <option value="Done">Done</option>
                     <option value="Failed">Failed</option>
                     <option value="Reschedule">Reschedule</option>
                   </select>
-                  <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                  <ChevronDown className={`absolute right-3 top-2.5 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} size={20} />
                 </div>
                 {errors.onsiteStatus && <p className="text-red-500 text-xs mt-1">{errors.onsiteStatus}</p>}
               </div>
@@ -1220,14 +1426,20 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
 
             {formData.status === 'Confirmed' && formData.onsiteStatus !== 'Failed' && (
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Assigned Email<span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <select
                     value={formData.assignedEmail}
                     onChange={(e) => handleInputChange('assignedEmail', e.target.value)}
-                    className={`w-full px-3 py-2 bg-gray-800 border ${errors.assignedEmail ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                      isDarkMode 
+                        ? 'bg-gray-800 text-white border-gray-700' 
+                        : 'bg-white text-gray-900 border-gray-300'
+                    } ${errors.assignedEmail ? 'border-red-500' : ''}`}
                   >
                     <option value="">Select Assigned Email</option>
                     {formData.assignedEmail && !technicians.some(t => t.email === formData.assignedEmail) && (
@@ -1239,27 +1451,37 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                  <ChevronDown className={`absolute right-3 top-2.5 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} size={20} />
                 </div>
                 {errors.assignedEmail && <p className="text-red-500 text-xs mt-1">{errors.assignedEmail}</p>}
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Modified By<span className="text-red-500">*</span>
               </label>
               <input
                 type="email"
                 value={formData.modifiedBy}
                 readOnly
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-700 rounded text-gray-400 cursor-not-allowed"
+                className={`w-full px-3 py-2 border rounded cursor-not-allowed ${
+                  isDarkMode 
+                    ? 'bg-gray-700 border-gray-700 text-gray-400' 
+                    : 'bg-gray-100 border-gray-300 text-gray-600'
+                }`}
                 title="Auto-populated with logged-in user"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Modified Date<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -1267,20 +1489,32 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   type="datetime-local"
                   value={formData.modifiedDate}
                   readOnly
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-700 rounded text-gray-400 cursor-not-allowed"
+                  className={`w-full px-3 py-2 border rounded cursor-not-allowed ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-700 text-gray-400' 
+                      : 'bg-gray-100 border-gray-300 text-gray-600'
+                  }`}
                   title="Auto-populated with current timestamp"
                 />
-                <Calendar className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                <Calendar className={`absolute right-3 top-2.5 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} size={20} />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Installation Landmark</label>
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Installation Landmark</label>
               <input
                 type="text"
                 value={formData.installationLandmark}
                 onChange={(e) => handleInputChange('installationLandmark', e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                  isDarkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-900 border-gray-300'
+                }`}
               />
             </div>
           </div>
@@ -1290,25 +1524,39 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
 
       {modal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-8 max-w-md w-full mx-4">
+          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
             {modal.type === 'loading' ? (
               <div className="text-center">
                 <div className="flex justify-center mb-4">
                   <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-orange-500"></div>
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-2">{modal.title}</h3>
-                <p className="text-gray-400 text-sm">{modal.message}</p>
+                <h3 className={`text-xl font-semibold mb-2 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{modal.title}</h3>
+                <p className={`text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>{modal.message}</p>
               </div>
             ) : (
               <>
-                <h3 className="text-lg font-semibold text-white mb-4">{modal.title}</h3>
-                <p className="text-gray-300 mb-6 whitespace-pre-line">{modal.message}</p>
+                <h3 className={`text-lg font-semibold mb-4 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{modal.title}</h3>
+                <p className={`mb-6 whitespace-pre-line ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>{modal.message}</p>
                 <div className="flex items-center justify-end gap-3">
                   {modal.type === 'confirm' ? (
                     <>
                       <button
                         onClick={modal.onCancel}
-                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+                        className={`px-4 py-2 rounded transition-colors ${
+                          isDarkMode 
+                            ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                        }`}
                       >
                         Cancel
                       </button>

@@ -32,6 +32,7 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
   editData,
   initialCategory = ''
 }) => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [formData, setFormData] = useState<InventoryFormData>({
     itemName: '',
     itemDescription: '',
@@ -51,6 +52,26 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -203,25 +224,39 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
     <>
       {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
-          <div className="bg-gray-800 rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px]">
+          <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${
+            isDarkMode ? 'bg-gray-800' : 'bg-white'
+          }`}>
             <Loader2 className="w-20 h-20 text-orange-500 animate-spin" />
             <div className="text-center">
-              <p className="text-white text-4xl font-bold">{loadingPercentage}%</p>
+              <p className={`text-4xl font-bold ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{loadingPercentage}%</p>
             </div>
           </div>
         </div>
       )}
       
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-        <div className="h-full w-full max-w-2xl bg-gray-900 shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col">
-          <div className="bg-gray-800 px-6 py-4 flex items-center justify-between border-b border-gray-700">
-            <h2 className="text-xl font-semibold text-white">
+        <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${
+          isDarkMode ? 'bg-gray-900' : 'bg-white'
+        }`}>
+          <div className={`px-6 py-4 flex items-center justify-between border-b ${
+            isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
+          }`}>
+            <h2 className={`text-xl font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
               {editData ? 'Edit Inventory Item' : 'Add Inventory Item'}
             </h2>
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
+                className={`px-4 py-2 rounded text-sm transition-colors ${
+                  isDarkMode 
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                }`}
               >
                 Cancel
               </button>
@@ -234,7 +269,9 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
               </button>
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-white transition-colors"
+                className={`transition-colors ${
+                  isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                }`}
               >
                 <X size={24} />
               </button>
@@ -243,57 +280,83 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
 
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Item Name<span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.itemName}
                 onChange={(e) => handleInputChange('itemName', e.target.value)}
-                className={`w-full px-3 py-2 bg-gray-800 border ${errors.itemName ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                  isDarkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-900 border-gray-300'
+                } ${errors.itemName ? 'border-red-500' : ''}`}
                 placeholder="Enter item name"
               />
               {errors.itemName && <p className="text-red-500 text-xs mt-1">{errors.itemName}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Item Description<span className="text-red-500">*</span>
               </label>
               <textarea
                 value={formData.itemDescription}
                 onChange={(e) => handleInputChange('itemDescription', e.target.value)}
                 rows={3}
-                className={`w-full px-3 py-2 bg-gray-800 border ${errors.itemDescription ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 resize-none`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${
+                  isDarkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-900 border-gray-300'
+                } ${errors.itemDescription ? 'border-red-500' : ''}`}
                 placeholder="Enter item description"
               />
               {errors.itemDescription && <p className="text-red-500 text-xs mt-1">{errors.itemDescription}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Quantity Alert<span className="text-red-500">*</span>
               </label>
-              <div className="flex items-center bg-gray-800 border border-gray-700 rounded">
+              <div className={`flex items-center border rounded ${
+                isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+              }`}>
                 <input
                   type="number"
                   value={formData.quantityAlert}
                   onChange={(e) => handleInputChange('quantityAlert', parseInt(e.target.value) || 0)}
-                  className="flex-1 px-3 py-2 bg-transparent text-white focus:outline-none"
+                  className={`flex-1 px-3 py-2 bg-transparent focus:outline-none ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}
                   min="0"
                 />
                 <div className="flex">
                   <button
                     type="button"
                     onClick={() => handleQuantityChange('quantityAlert', false)}
-                    className="px-3 py-2 text-gray-400 hover:text-white border-l border-gray-700"
+                    className={`px-3 py-2 border-l transition-colors ${
+                      isDarkMode 
+                        ? 'text-gray-400 hover:text-white border-gray-700' 
+                        : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                    }`}
                   >
                     <Minus size={16} />
                   </button>
                   <button
                     type="button"
                     onClick={() => handleQuantityChange('quantityAlert', true)}
-                    className="px-3 py-2 text-gray-400 hover:text-white border-l border-gray-700"
+                    className={`px-3 py-2 border-l transition-colors ${
+                      isDarkMode 
+                        ? 'text-gray-400 hover:text-white border-gray-700' 
+                        : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                    }`}
                   >
                     <Plus size={16} />
                   </button>
@@ -302,7 +365,9 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Image
               </label>
               <div className="relative">
@@ -312,26 +377,40 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
                   onChange={handleImageUpload}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
-                <div className="w-full h-24 bg-gray-800 border-2 border-dashed border-gray-700 rounded flex items-center justify-center hover:border-gray-600 transition-colors">
-                  <Camera className="text-gray-400" size={24} />
+                <div className={`w-full h-24 border-2 border-dashed rounded flex items-center justify-center transition-colors ${
+                  isDarkMode 
+                    ? 'bg-gray-800 border-gray-700 hover:border-gray-600' 
+                    : 'bg-gray-50 border-gray-300 hover:border-gray-400'
+                }`}>
+                  <Camera className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} size={24} />
                 </div>
                 {formData.image && (
-                  <p className="text-xs text-gray-400 mt-2">Selected: {formData.image.name}</p>
+                  <p className={`text-xs mt-2 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>Selected: {formData.image.name}</p>
                 )}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Modified By
               </label>
-              <div className="px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-400">
+              <div className={`px-3 py-2 border rounded ${
+                isDarkMode 
+                  ? 'bg-gray-900 border-gray-700 text-gray-400' 
+                  : 'bg-gray-100 border-gray-300 text-gray-600'
+              }`}>
                 {formData.modifiedBy}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Modified Date<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -339,35 +418,53 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
                   type="datetime-local"
                   value={formData.modifiedDate}
                   onChange={(e) => handleInputChange('modifiedDate', e.target.value)}
-                  className={`w-full px-3 py-2 bg-gray-800 border ${errors.modifiedDate ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700' 
+                      : 'bg-white text-gray-900 border-gray-300'
+                  } ${errors.modifiedDate ? 'border-red-500' : ''}`}
                 />
-                <Calendar className="absolute right-3 top-2.5 text-gray-400" size={20} />
+                <Calendar className={`absolute right-3 top-2.5 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} size={20} />
               </div>
               {errors.modifiedDate && <p className="text-red-500 text-xs mt-1">{errors.modifiedDate}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 User Email<span className="text-red-500">*</span>
               </label>
               <input
                 type="email"
                 value={formData.userEmail}
                 onChange={(e) => handleInputChange('userEmail', e.target.value)}
-                className={`w-full px-3 py-2 bg-gray-800 border ${errors.userEmail ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                  isDarkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-900 border-gray-300'
+                } ${errors.userEmail ? 'border-red-500' : ''}`}
                 placeholder="Enter user email"
               />
               {errors.userEmail && <p className="text-red-500 text-xs mt-1">{errors.userEmail}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Category
               </label>
               <select
                 value={formData.category}
                 onChange={(e) => handleInputChange('category', e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                  isDarkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-900 border-gray-300'
+                }`}
               >
                 <option value="">Select category</option>
                 {categories.map(category => (
@@ -377,28 +474,40 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Total Stock Available
               </label>
               <input
                 type="number"
                 value={formData.totalStockAvailable}
                 onChange={(e) => handleInputChange('totalStockAvailable', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                  isDarkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-900 border-gray-300'
+                }`}
                 min="0"
                 placeholder="0"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
                 Total Stock IN
               </label>
               <input
                 type="number"
                 value={formData.totalStockIn}
                 onChange={(e) => handleInputChange('totalStockIn', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                  isDarkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-900 border-gray-300'
+                }`}
                 min="0"
                 placeholder="0"
               />

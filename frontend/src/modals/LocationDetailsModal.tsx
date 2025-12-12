@@ -30,10 +30,31 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
   onEdit,
   onDelete
 }) => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [expandedSections, setExpandedSections] = useState({
     relatedApplications: false,
     relatedServiceOrders: false
   });
+
+  React.useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   if (!isOpen || !location) return null;
 
@@ -64,17 +85,27 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-      <div className="w-full max-w-2xl h-full bg-gray-900 flex flex-col overflow-hidden border-l border-gray-700 animate-slide-in">
+      <div className={`w-full max-w-2xl h-full flex flex-col overflow-hidden border-l animate-slide-in ${
+        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
         {/* Header */}
-        <div className="bg-gray-800 px-4 py-3 flex items-center justify-between border-b border-gray-700">
-          <h2 className="text-white font-semibold text-xl">
+        <div className={`px-4 py-3 flex items-center justify-between border-b ${
+          isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
+        }`}>
+          <h2 className={`font-semibold text-xl ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>
             {location.name}
           </h2>
           
           <div className="flex items-center space-x-2">
             <button 
               onClick={handleDelete}
-              className="text-gray-400 hover:text-white p-2 rounded hover:bg-gray-700 transition-colors"
+              className={`p-2 rounded transition-colors ${
+                isDarkMode 
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              }`}
               title="Delete"
             >
               <Trash2 size={20} />
@@ -86,12 +117,20 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
               <Edit size={18} />
               <span>Edit</span>
             </button>
-            <button className="text-gray-400 hover:text-white p-1 rounded"><ArrowLeft size={20} /></button>
-            <button className="text-gray-400 hover:text-white p-1 rounded"><ArrowRight size={20} /></button>
-            <button className="text-gray-400 hover:text-white p-1 rounded"><Maximize2 size={20} /></button>
+            <button className={`p-1 rounded transition-colors ${
+              isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+            }`}><ArrowLeft size={20} /></button>
+            <button className={`p-1 rounded transition-colors ${
+              isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+            }`}><ArrowRight size={20} /></button>
+            <button className={`p-1 rounded transition-colors ${
+              isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+            }`}><Maximize2 size={20} /></button>
             <button 
               onClick={onClose}
-              className="text-gray-400 hover:text-white p-1 rounded"
+              className={`p-1 rounded transition-colors ${
+                isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+              }`}
               aria-label="Close"
             >
               <X size={22} />
@@ -100,43 +139,65 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
         </div>
         
         {/* Location Details */}
-        <div className="flex-1 overflow-y-auto bg-gray-900">
+        <div className={`flex-1 overflow-y-auto ${
+          isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+        }`}>
           <div className="p-6 space-y-6">
             {/* Name */}
             <div>
-              <div className="text-gray-400 text-sm mb-1">Name</div>
-              <div className="text-white text-base">{location.name}</div>
+              <div className={`text-sm mb-1 ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Name</div>
+              <div className={`text-base ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{location.name}</div>
             </div>
 
             {/* Type */}
             <div>
-              <div className="text-gray-400 text-sm mb-1">Type</div>
-              <div className="text-white text-base">{getLocationTypeLabel(location.type)}</div>
+              <div className={`text-sm mb-1 ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Type</div>
+              <div className={`text-base ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{getLocationTypeLabel(location.type)}</div>
             </div>
 
             {/* Parent Information */}
             {location.parentName && (
               <div>
-                <div className="text-gray-400 text-sm mb-1">
+                <div className={`text-sm mb-1 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
                   {location.type === 'city' ? 'Region' : 
                    location.type === 'borough' ? 'City' : 
                    location.type === 'location' ? 'Barangay' : 'Parent'}
                 </div>
-                <div className="text-white text-base">{location.parentName}</div>
+                <div className={`text-base ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{location.parentName}</div>
               </div>
             )}
 
             {/* ID */}
             <div>
-              <div className="text-gray-400 text-sm mb-1">id</div>
-              <div className="text-white text-base">{location.id}</div>
+              <div className={`text-sm mb-1 ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>id</div>
+              <div className={`text-base ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{location.id}</div>
             </div>
 
             {/* Additional IDs based on type */}
             {location.type === 'city' && location.parentId && (
               <div>
-                <div className="text-gray-400 text-sm mb-1">Region ID</div>
-                <div className="text-white text-base">{location.parentId}</div>
+                <div className={`text-sm mb-1 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Region ID</div>
+                <div className={`text-base ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{location.parentId}</div>
               </div>
             )}
 
@@ -144,14 +205,22 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
               <>
                 {location.cityId && (
                   <div>
-                    <div className="text-gray-400 text-sm mb-1">City ID</div>
-                    <div className="text-white text-base">{location.cityId}</div>
+                    <div className={`text-sm mb-1 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>City ID</div>
+                    <div className={`text-base ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{location.cityId}</div>
                   </div>
                 )}
                 {location.regionId && (
                   <div>
-                    <div className="text-gray-400 text-sm mb-1">Region ID</div>
-                    <div className="text-white text-base">{location.regionId}</div>
+                    <div className={`text-sm mb-1 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Region ID</div>
+                    <div className={`text-base ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{location.regionId}</div>
                   </div>
                 )}
               </>
@@ -161,14 +230,22 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
               <>
                 {location.boroughId && (
                   <div>
-                    <div className="text-gray-400 text-sm mb-1">Barangay ID</div>
-                    <div className="text-white text-base">{location.boroughId}</div>
+                    <div className={`text-sm mb-1 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Barangay ID</div>
+                    <div className={`text-base ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{location.boroughId}</div>
                   </div>
                 )}
                 {location.cityId && (
                   <div>
-                    <div className="text-gray-400 text-sm mb-1">City ID</div>
-                    <div className="text-white text-base">{location.cityId}</div>
+                    <div className={`text-sm mb-1 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>City ID</div>
+                    <div className={`text-base ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{location.cityId}</div>
                   </div>
                 )}
               </>
@@ -176,26 +253,40 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
           </div>
 
           {/* Related Applications Section */}
-          <div className="border-t border-gray-700">
-            <div className="bg-gray-800 px-4 py-3 flex items-center justify-between">
+          <div className={`border-t ${
+            isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
+            <div className={`px-4 py-3 flex items-center justify-between ${
+              isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+            }`}>
               <div className="flex items-center space-x-2">
-                <h3 className="text-white font-medium text-base">Related Applications</h3>
-                <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded">0</span>
+                <h3 className={`font-medium text-base ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Related Applications</h3>
+                <span className={`text-xs px-2 py-1 rounded ${
+                  isDarkMode ? 'bg-gray-600 text-white' : 'bg-gray-300 text-gray-900'
+                }`}>0</span>
               </div>
               <button
                 onClick={() => toggleSection('relatedApplications')}
-                className="text-gray-400 hover:text-white transition-colors"
+                className={`transition-colors ${
+                  isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                }`}
               >
                 {expandedSections.relatedApplications ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
               </button>
             </div>
 
             {expandedSections.relatedApplications && (
-              <div className="bg-gray-900 p-4">
+              <div className={`p-4 ${
+                isDarkMode ? 'bg-gray-900' : 'bg-white'
+              }`}>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-gray-400 border-b border-gray-700">
+                      <tr className={`border-b ${
+                        isDarkMode ? 'text-gray-400 border-gray-700' : 'text-gray-600 border-gray-200'
+                      }`}>
                         <th className="text-left py-2 px-2">Customer Name</th>
                         <th className="text-left py-2 px-2">Address</th>
                         <th className="text-left py-2 px-2">Status</th>
@@ -204,7 +295,9 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
                     </thead>
                     <tbody>
                       <tr>
-                        <td colSpan={4} className="text-center py-8 text-gray-500">
+                        <td colSpan={4} className={`text-center py-8 ${
+                          isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                        }`}>
                           No related applications found
                         </td>
                       </tr>
@@ -216,26 +309,40 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
           </div>
 
           {/* Related Service Orders Section */}
-          <div className="border-t border-gray-700">
-            <div className="bg-gray-800 px-4 py-3 flex items-center justify-between">
+          <div className={`border-t ${
+            isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
+            <div className={`px-4 py-3 flex items-center justify-between ${
+              isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+            }`}>
               <div className="flex items-center space-x-2">
-                <h3 className="text-white font-medium text-base">Related Service Orders</h3>
-                <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded">0</span>
+                <h3 className={`font-medium text-base ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Related Service Orders</h3>
+                <span className={`text-xs px-2 py-1 rounded ${
+                  isDarkMode ? 'bg-gray-600 text-white' : 'bg-gray-300 text-gray-900'
+                }`}>0</span>
               </div>
               <button
                 onClick={() => toggleSection('relatedServiceOrders')}
-                className="text-gray-400 hover:text-white transition-colors"
+                className={`transition-colors ${
+                  isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                }`}
               >
                 {expandedSections.relatedServiceOrders ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
               </button>
             </div>
 
             {expandedSections.relatedServiceOrders && (
-              <div className="bg-gray-900 p-4">
+              <div className={`p-4 ${
+                isDarkMode ? 'bg-gray-900' : 'bg-white'
+              }`}>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-gray-400 border-b border-gray-700">
+                      <tr className={`border-b ${
+                        isDarkMode ? 'text-gray-400 border-gray-700' : 'text-gray-600 border-gray-200'
+                      }`}>
                         <th className="text-left py-2 px-2">Service Type</th>
                         <th className="text-left py-2 px-2">Customer</th>
                         <th className="text-left py-2 px-2">Status</th>
@@ -244,7 +351,9 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
                     </thead>
                     <tbody>
                       <tr>
-                        <td colSpan={4} className="text-center py-8 text-gray-500">
+                        <td colSpan={4} className={`text-center py-8 ${
+                          isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                        }`}>
                           No related service orders found
                         </td>
                       </tr>
@@ -256,7 +365,9 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
           </div>
 
           {/* Expand Button */}
-          <div className="bg-gray-900 p-4 border-t border-gray-700">
+          <div className={`p-4 border-t ${
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'
+          }`}>
             <button className="w-full text-red-500 hover:text-red-400 text-sm font-medium transition-colors">
               Expand
             </button>

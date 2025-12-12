@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight, Trash2, X, FileText, Copy, Printer, ChevronLeft, ChevronRight as ChevronRightNav, Maximize2, AlertTriangle } from 'lucide-react';
 
 interface InventoryItem {
@@ -93,6 +93,7 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
   onDelete,
   onClose
 }) => {
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     inventoryLogs: true,
     borrowedLogs: false,
@@ -101,6 +102,23 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
     defectiveLogs: false
   });
   const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark');
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({
@@ -147,57 +165,97 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
   if (isExpanded) {
     // Render expanded view that takes over the main content area only
     return (
-      <div className="fixed right-0 bottom-0 bg-gray-900 text-white z-40 flex flex-col" 
-           style={{ left: '256px', top: '64px' }}> {/* 256px sidebar width, 64px header height */}
+      <div className={`fixed right-0 bottom-0 z-40 flex flex-col ${
+        isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
+      }`}
+           style={{ left: '256px', top: '64px' }}>
         {/* Toolbar */}
-        <div className="bg-gray-800 px-6 py-2 border-b border-gray-700">
+        <div className={`px-6 py-2 border-b ${
+          isDarkMode
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-gray-100 border-gray-200'
+        }`}>
           <div className="flex items-center justify-between">
             {/* Left side - Breadcrumb Navigation */}
-            <div className="flex items-center text-sm text-gray-300">
+            <div className={`flex items-center text-sm ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-600'
+            }`}>
               <span>Inventory Category List</span>
               <ChevronRight size={16} className="mx-2" />
               <span>{item.category || 'EVENT'}</span>
               <ChevronRight size={16} className="mx-2" />
-              <span className="text-white">{item.item_name}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{item.item_name}</span>
             </div>
             
             {/* Right side - Toolbar buttons */}
             <div className="flex items-center space-x-1">
               <button 
                 onClick={handleDelete}
-                className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded transition-colors"
+                className={`p-2 rounded transition-colors ${
+                  isDarkMode
+                    ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
+                    : 'text-gray-600 hover:text-red-600 hover:bg-gray-200'
+                }`}
                 title="Delete"
               >
                 <Trash2 size={18} />
               </button>
-              <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+              <button className={`p-2 rounded transition-colors ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              }`}>
                 <X size={18} />
               </button>
-              <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+              <button className={`p-2 rounded transition-colors ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              }`}>
                 <Printer size={18} />
               </button>
-              <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+              <button className={`p-2 rounded transition-colors ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              }`}>
                 <Copy size={18} />
               </button>
               <button 
                 onClick={handleEdit}
-                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-sm transition-colors flex items-center space-x-1"
+                className={`px-3 py-1.5 rounded text-sm transition-colors flex items-center space-x-1 ${
+                  isDarkMode
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-red-500 hover:bg-red-600 text-white'
+                }`}
               >
                 <span>Edit</span>
               </button>
               <button 
                 onClick={handleCollapse}
-                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                className={`p-2 rounded transition-colors ${
+                  isDarkMode
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                }`}
                 title="Back to side panel view"
               >
                 <ChevronLeft size={18} />
               </button>
-              <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+              <button className={`p-2 rounded transition-colors ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              }`}>
                 <ChevronRightNav size={18} />
               </button>
               <button 
                 onClick={handleCollapse}
-                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                className={`p-2 rounded transition-colors ${
+                  isDarkMode
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                }`}
                 title="Collapse to side panel view"
               >
                 <Maximize2 size={18} />
@@ -211,8 +269,12 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
           <div className="flex h-full">
             {/* Left Side - Image */}
             <div className="w-1/2 p-6">
-              <div className="bg-gray-800 w-full h-80 flex items-center justify-center border border-gray-700 rounded">
-                <AlertTriangle size={64} className="text-gray-600" />
+              <div className={`w-full h-80 flex items-center justify-center border rounded ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-gray-100 border-gray-200'
+              }`}>
+                <AlertTriangle size={64} className={isDarkMode ? 'text-gray-600' : 'text-gray-400'} />
               </div>
             </div>
 
@@ -220,76 +282,136 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
             <div className="w-1/2 p-6 overflow-y-auto">
               <div className="space-y-6">
               {/* Item Details Section */}
-              <div className="bg-gray-800 border border-gray-700 rounded">
-                <div className="px-6 py-4 border-b border-gray-700">
+              <div className={`border rounded ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-200'
+              }`}>
+                <div className={`px-6 py-4 border-b ${
+                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400 text-sm">Category</span>
-                    <span className="text-white font-medium">{item.category || 'EVENT'}</span>
+                    <span className={`text-sm ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Category</span>
+                    <span className={`font-medium ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{item.category || 'EVENT'}</span>
                   </div>
                 </div>
                 
                 <div className="px-6 py-4 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400 text-sm">Item Name</span>
-                    <span className="text-white font-medium">{item.item_name}</span>
+                    <span className={`text-sm ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Item Name</span>
+                    <span className={`font-medium ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{item.item_name}</span>
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400 text-sm">Quantity Alert</span>
-                    <span className="text-white font-medium">{item.quantity_alert || 10}</span>
+                    <span className={`text-sm ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Quantity Alert</span>
+                    <span className={`font-medium ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{item.quantity_alert || 10}</span>
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400 text-sm">Item Description</span>
-                    <span className="text-white font-medium">{item.item_description || item.item_name}</span>
+                    <span className={`text-sm ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Item Description</span>
+                    <span className={`font-medium ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{item.item_description || item.item_name}</span>
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400 text-sm">Total Stock IN</span>
-                    <span className="text-white font-medium">{totalStockIn}</span>
+                    <span className={`text-sm ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Total Stock IN</span>
+                    <span className={`font-medium ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{totalStockIn}</span>
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400 text-sm">Total Stock Available</span>
+                    <span className={`text-sm ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Total Stock Available</span>
                     <span className="text-green-400 font-bold text-lg">{totalStockAvailable}</span>
                   </div>
                 </div>
               </div>
 
               {/* Related Inventory Logs */}
-              <div className="bg-gray-800 border border-gray-700 rounded">
-                <div className="px-6 py-4 border-b border-gray-700">
+              <div className={`border rounded ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-200'
+              }`}>
+                <div className={`px-6 py-4 border-b ${
+                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
                   <div className="flex items-center space-x-3">
-                    <span className="text-white font-medium text-lg">Related Inventory Logs</span>
-                    <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded">
+                    <span className={`font-medium text-lg ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>Related Inventory Logs</span>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      isDarkMode
+                        ? 'bg-gray-600 text-white'
+                        : 'bg-gray-300 text-gray-700'
+                    }`}>
                       {inventoryLogs.length}
                     </span>
                   </div>
                 </div>
                 
                 {inventoryLogs.length > 0 ? (
-                  <div className="divide-y divide-gray-700">
+                  <div className={`divide-y ${
+                    isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
+                  }`}>
                     {inventoryLogs.map((log) => (
-                      <div key={log.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-750 transition-colors group">
+                      <div key={log.id} className={`px-6 py-4 flex items-center justify-between transition-colors group ${
+                        isDarkMode ? 'hover:bg-gray-750' : 'hover:bg-gray-50'
+                      }`}>
                         <div>
-                          <div className="text-white font-medium">
+                          <div className={`font-medium ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                             Log Entry #{log.id}
                           </div>
-                          <div className="text-gray-400 text-sm">
+                          <div className={`text-sm ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
                             {formatDate(log.date)}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button className="p-2 text-gray-400 hover:text-white rounded transition-colors" title="View Details">
+                          <button className={`p-2 rounded transition-colors ${
+                            isDarkMode
+                              ? 'text-gray-400 hover:text-white'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`} title="View Details">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
                           </button>
-                          <button className="p-2 text-gray-400 hover:text-red-400 rounded transition-colors" title="Delete">
+                          <button className={`p-2 rounded transition-colors ${
+                            isDarkMode
+                              ? 'text-gray-400 hover:text-red-400'
+                              : 'text-gray-600 hover:text-red-600'
+                          }`} title="Delete">
                             <Trash2 size={16} />
                           </button>
-                          <button className="p-2 text-gray-400 hover:text-white rounded transition-colors" title="Edit">
+                          <button className={`p-2 rounded transition-colors ${
+                            isDarkMode
+                              ? 'text-gray-400 hover:text-white'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`} title="Edit">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
@@ -299,76 +421,142 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
                     ))}
                     
                     {/* Footer with Expand and Add Item buttons */}
-                    <div className="px-6 py-3 bg-gray-750 border-t border-gray-700 flex items-center justify-between">
+                    <div className={`px-6 py-3 border-t flex items-center justify-between ${
+                      isDarkMode
+                        ? 'bg-gray-750 border-gray-700'
+                        : 'bg-gray-100 border-gray-200'
+                    }`}>
                       <span className="text-red-500 text-sm cursor-pointer hover:underline">Expand</span>
-                      <button className="bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700 transition-colors">
+                      <button className={`px-3 py-1 rounded text-sm transition-colors ${
+                        isDarkMode
+                          ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                          : 'bg-orange-500 hover:bg-orange-600 text-white'
+                      }`}>
                         Add Item
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="px-6 py-12 text-center text-gray-500">
+                  <div className={`px-6 py-12 text-center ${
+                    isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                  }`}>
                     No items
                   </div>
                 )}
               </div>
 
               {/* Related Borrowed Logs */}
-              <div className="bg-gray-800 border border-gray-700 rounded">
-                <div className="px-6 py-4 border-b border-gray-700">
+              <div className={`border rounded ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-200'
+              }`}>
+                <div className={`px-6 py-4 border-b ${
+                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
                   <div className="flex items-center space-x-3">
-                    <span className="text-white font-medium text-lg">Related Borrowed Logs</span>
-                    <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded">
+                    <span className={`font-medium text-lg ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>Related Borrowed Logs</span>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      isDarkMode
+                        ? 'bg-gray-600 text-white'
+                        : 'bg-gray-300 text-gray-700'
+                    }`}>
                       {borrowedLogs.length}
                     </span>
                   </div>
                 </div>
-                <div className="px-6 py-12 text-center text-gray-500">
+                <div className={`px-6 py-12 text-center ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                }`}>
                   No items
                 </div>
               </div>
 
               {/* Related Job Orders */}
-              <div className="bg-gray-800 border border-gray-700 rounded">
-                <div className="px-6 py-4 border-b border-gray-700">
+              <div className={`border rounded ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-200'
+              }`}>
+                <div className={`px-6 py-4 border-b ${
+                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
                   <div className="flex items-center space-x-3">
-                    <span className="text-white font-medium text-lg">Related Job Orders</span>
-                    <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded">
+                    <span className={`font-medium text-lg ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>Related Job Orders</span>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      isDarkMode
+                        ? 'bg-gray-600 text-white'
+                        : 'bg-gray-300 text-gray-700'
+                    }`}>
                       {jobOrders.length}
                     </span>
                   </div>
                 </div>
-                <div className="px-6 py-12 text-center text-gray-500">
+                <div className={`px-6 py-12 text-center ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                }`}>
                   No items
                 </div>
               </div>
 
               {/* Related Service Orders */}
-              <div className="bg-gray-800 border border-gray-700 rounded">
-                <div className="px-6 py-4 border-b border-gray-700">
+              <div className={`border rounded ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-200'
+              }`}>
+                <div className={`px-6 py-4 border-b ${
+                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
                   <div className="flex items-center space-x-3">
-                    <span className="text-white font-medium text-lg">Related Service Orders</span>
-                    <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded">
+                    <span className={`font-medium text-lg ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>Related Service Orders</span>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      isDarkMode
+                        ? 'bg-gray-600 text-white'
+                        : 'bg-gray-300 text-gray-700'
+                    }`}>
                       {serviceOrders.length}
                     </span>
                   </div>
                 </div>
-                <div className="px-6 py-12 text-center text-gray-500">
+                <div className={`px-6 py-12 text-center ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                }`}>
                   No items
                 </div>
               </div>
 
               {/* Related Defective Logs */}
-              <div className="bg-gray-800 border border-gray-700 rounded">
-                <div className="px-6 py-4 border-b border-gray-700">
+              <div className={`border rounded ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-200'
+              }`}>
+                <div className={`px-6 py-4 border-b ${
+                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
                   <div className="flex items-center space-x-3">
-                    <span className="text-white font-medium text-lg">Related Defective Logs</span>
-                    <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded">
+                    <span className={`font-medium text-lg ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>Related Defective Logs</span>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      isDarkMode
+                        ? 'bg-gray-600 text-white'
+                        : 'bg-gray-300 text-gray-700'
+                    }`}>
                       {defectiveLogs.length}
                     </span>
                   </div>
                 </div>
-                <div className="px-6 py-12 text-center text-gray-500">
+                <div className={`px-6 py-12 text-center ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                }`}>
                   No items
                 </div>
               </div>
@@ -381,57 +569,107 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
   }
 
   return (
-    <div className="bg-gray-900 text-white h-full flex flex-col">
+    <div className={`h-full flex flex-col ${
+      isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
+    }`}>
       {/* Header */}
-      <div className="flex items-center bg-gray-800 px-4 py-2">
-        <div className="bg-gray-700 text-gray-300 px-2 py-1 rounded text-sm uppercase font-medium mr-3">
+      <div className={`flex items-center px-4 py-2 ${
+        isDarkMode ? 'bg-gray-800' : 'bg-gray-100 border-b border-gray-200'
+      }`}>
+        <div className={`px-2 py-1 rounded text-sm uppercase font-medium mr-3 ${
+          isDarkMode
+            ? 'bg-gray-700 text-gray-300'
+            : 'bg-gray-300 text-gray-700'
+        }`}>
           {item.category || 'EVENT'}
         </div>
         <div className="flex-1 text-center">
-          <h1 className="text-lg font-semibold text-white">{item.item_name}</h1>
+          <h1 className={`text-lg font-semibold ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>{item.item_name}</h1>
         </div>
         <button 
           onClick={onClose}
-          className="text-gray-400 hover:text-white transition-colors ml-3"
+          className={`transition-colors ml-3 ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
         >
           <X size={20} />
         </button>
       </div>
 
       {/* Toolbar */}
-      <div className="bg-gray-800 px-4 py-2 border-b border-gray-700">
+      <div className={`px-4 py-2 border-b ${
+        isDarkMode
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-200'
+      }`}>
         <div className="flex items-center justify-center space-x-1">
           <button 
             onClick={handleDelete}
-            className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded transition-colors"
+            className={`p-2 rounded transition-colors ${
+              isDarkMode
+                ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
+                : 'text-gray-600 hover:text-red-600 hover:bg-gray-200'
+            }`}
             title="Delete"
           >
             <Trash2 size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <X size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <Printer size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <Copy size={18} />
           </button>
           <button 
             onClick={handleEdit}
-            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-sm transition-colors flex items-center space-x-1"
+            className={`px-3 py-1.5 rounded text-sm transition-colors flex items-center space-x-1 ${
+              isDarkMode
+                ? 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-red-500 hover:bg-red-600 text-white'
+            }`}
           >
             <span>Edit</span>
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <ChevronLeft size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <ChevronRightNav size={18} />
           </button>
           <button 
             onClick={handleExpand}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+            className={`p-2 rounded transition-colors ${
+              isDarkMode
+                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+            }`}
             title="Expand to full view"
           >
             <Maximize2 size={18} />
@@ -440,9 +678,13 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
       </div>
 
       {/* Main Image/Content Area */}
-      <div className="bg-gray-800 h-64 flex items-center justify-center border-b border-gray-700">
+      <div className={`h-64 flex items-center justify-center border-b ${
+        isDarkMode
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-200'
+      }`}>
         <div className="text-center">
-          <AlertTriangle size={48} className="text-gray-600 mx-auto mb-2" />
+          <AlertTriangle size={48} className={isDarkMode ? 'text-gray-600' : 'text-gray-400'} />
         </div>
       </div>
 
@@ -451,9 +693,15 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
         <div className="p-6 space-y-4">
           {/* Category */}
           <div className="flex items-center justify-between py-2">
-            <span className="text-gray-400 text-sm">Category</span>
+            <span className={`text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Category</span>
             <div className="flex items-center">
-              <span className="bg-gray-700 text-gray-300 px-2 py-1 rounded text-sm uppercase font-medium">
+              <span className={`px-2 py-1 rounded text-sm uppercase font-medium ${
+                isDarkMode
+                  ? 'bg-gray-700 text-gray-300'
+                  : 'bg-gray-300 text-gray-700'
+              }`}>
                 {item.category || 'EVENT'}
               </span>
             </div>
@@ -461,64 +709,98 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
 
           {/* Item Name */}
           <div className="flex items-center justify-between py-2">
-            <span className="text-gray-400 text-sm">Item Name</span>
-            <span className="text-white font-medium">{item.item_name}</span>
+            <span className={`text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Item Name</span>
+            <span className={`font-medium ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{item.item_name}</span>
           </div>
 
           {/* Quantity Alert */}
           <div className="flex items-center justify-between py-2">
-            <span className="text-gray-400 text-sm">Quantity Alert</span>
-            <span className="text-white font-medium">{item.quantity_alert || 10}</span>
+            <span className={`text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Quantity Alert</span>
+            <span className={`font-medium ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{item.quantity_alert || 10}</span>
           </div>
 
           {/* Item Description */}
           <div className="flex items-center justify-between py-2">
-            <span className="text-gray-400 text-sm">Item Description</span>
-            <span className="text-white font-medium">{item.item_description || item.item_name}</span>
+            <span className={`text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Item Description</span>
+            <span className={`font-medium ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{item.item_description || item.item_name}</span>
           </div>
 
           {/* Total Stock IN */}
           <div className="flex items-center justify-between py-2">
-            <span className="text-gray-400 text-sm">Total Stock IN</span>
-            <span className="text-white font-medium">{totalStockIn}</span>
+            <span className={`text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Total Stock IN</span>
+            <span className={`font-medium ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{totalStockIn}</span>
           </div>
 
           {/* Total Stock Available */}
           <div className="flex items-center justify-between py-2">
-            <span className="text-gray-400 text-sm">Total Stock Available</span>
+            <span className={`text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Total Stock Available</span>
             <span className="text-green-400 font-bold text-lg">{totalStockAvailable}</span>
           </div>
         </div>
 
         {/* Related Sections */}
-        <div className="border-t border-gray-700">
+        <div className={`border-t ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
           {/* Related Inventory Logs */}
-          <div className="border-b border-gray-700">
+          <div className={`border-b ${
+            isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
             <button
               onClick={() => toggleSection('inventoryLogs')}
-              className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-800 transition-colors"
+              className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${
+                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              }`}
             >
               <div className="flex items-center space-x-3">
-                <span className="text-white font-medium">Related Inventory Logs</span>
-                <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded min-w-[20px] text-center">
+                <span className={`font-medium ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Related Inventory Logs</span>
+                <span className={`text-xs px-2 py-1 rounded min-w-[20px] text-center ${
+                  isDarkMode
+                    ? 'bg-gray-600 text-white'
+                    : 'bg-gray-300 text-gray-700'
+                }`}>
                   {inventoryLogs.length}
                 </span>
               </div>
               <div className="flex items-center space-x-2">
                 {expandedSections.inventoryLogs ? (
-                  <ChevronDown size={20} className="text-gray-400" />
+                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
                 ) : (
-                  <ChevronRight size={20} className="text-gray-400" />
+                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
                 )}
               </div>
             </button>
 
             {expandedSections.inventoryLogs && (
-              <div className="bg-gray-800">
+              <div className={isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}>
                 {inventoryLogs.length > 0 ? (
                   <div>
                     {/* Table Header */}
-                    <div className="grid grid-cols-4 gap-4 px-6 py-3 bg-gray-700 text-sm font-medium text-gray-300">
+                    <div className={`grid grid-cols-4 gap-4 px-6 py-3 text-sm font-medium ${
+                      isDarkMode
+                        ? 'bg-gray-700 text-gray-300'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}>
                       <div className="flex items-center">
                         Date <ChevronDown size={14} className="ml-1" />
                       </div>
@@ -529,23 +811,45 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
                     
                     {/* Table Row */}
                     {inventoryLogs.map((log) => (
-                      <div key={log.id} className="grid grid-cols-4 gap-4 px-6 py-3 border-b border-gray-700 last:border-b-0">
-                        <div className="text-white text-sm">{formatDate(log.date)}</div>
-                        <div className="text-white text-sm text-center">{log.itemQuantity}</div>
-                        <div className="text-white text-sm text-center">{log.requestedBy}</div>
-                        <div className="text-white text-sm text-center">{log.requestedWith}</div>
+                      <div key={log.id} className={`grid grid-cols-4 gap-4 px-6 py-3 border-b last:border-b-0 ${
+                        isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                      }`}>
+                        <div className={`text-sm ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>{formatDate(log.date)}</div>
+                        <div className={`text-sm text-center ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>{log.itemQuantity}</div>
+                        <div className={`text-sm text-center ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>{log.requestedBy}</div>
+                        <div className={`text-sm text-center ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>{log.requestedWith}</div>
                       </div>
                     ))}
                     
                     {/* Navigation */}
-                    <div className="px-6 py-2 flex items-center justify-between bg-gray-750">
-                      <button className="p-1 text-gray-400 hover:text-white">
+                    <div className={`px-6 py-2 flex items-center justify-between ${
+                      isDarkMode ? 'bg-gray-750' : 'bg-gray-100'
+                    }`}>
+                      <button className={isDarkMode
+                        ? 'p-1 text-gray-400 hover:text-white'
+                        : 'p-1 text-gray-600 hover:text-gray-900'
+                      }>
                         <ChevronLeft size={16} />
                       </button>
-                      <div className="flex-1 h-1 bg-gray-600 rounded mx-4">
-                        <div className="h-full bg-gray-500 rounded" style={{ width: '50%' }}></div>
+                      <div className={`flex-1 h-1 rounded mx-4 ${
+                        isDarkMode ? 'bg-gray-600' : 'bg-gray-300'
+                      }`}>
+                        <div className={`h-full rounded ${
+                          isDarkMode ? 'bg-gray-500' : 'bg-gray-400'
+                        }`} style={{ width: '50%' }}></div>
                       </div>
-                      <button className="p-1 text-gray-400 hover:text-white">
+                      <button className={isDarkMode
+                        ? 'p-1 text-gray-400 hover:text-white'
+                        : 'p-1 text-gray-600 hover:text-gray-900'
+                      }>
                         <ChevronRightNav size={16} />
                       </button>
                     </div>
@@ -560,7 +864,9 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className={`text-center py-8 ${
+                    isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                  }`}>
                     No items
                   </div>
                 )}
@@ -569,78 +875,114 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
           </div>
 
           {/* Related Borrowed Logs */}
-          <div className="border-b border-gray-700">
+          <div className={`border-b ${
+            isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
             <button
               onClick={() => toggleSection('borrowedLogs')}
-              className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-800 transition-colors"
+              className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${
+                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              }`}
             >
               <div className="flex items-center space-x-3">
-                <span className="text-white font-medium">Related Borrowed Logs</span>
-                <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded min-w-[20px] text-center">
+                <span className={`font-medium ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Related Borrowed Logs</span>
+                <span className={`text-xs px-2 py-1 rounded min-w-[20px] text-center ${
+                  isDarkMode
+                    ? 'bg-gray-600 text-white'
+                    : 'bg-gray-300 text-gray-700'
+                }`}>
                   {borrowedLogs.length}
                 </span>
               </div>
               {expandedSections.borrowedLogs ? (
-                <ChevronDown size={20} className="text-gray-400" />
+                <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
               ) : (
-                <ChevronRight size={20} className="text-gray-400" />
+                <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
               )}
             </button>
 
             {expandedSections.borrowedLogs && (
-              <div className="px-6 py-8 text-center text-gray-500">
+              <div className={`px-6 py-8 text-center ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-400'
+              }`}>
                 No items
               </div>
             )}
           </div>
 
           {/* Related Job Orders */}
-          <div className="border-b border-gray-700">
+          <div className={`border-b ${
+            isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
             <button
               onClick={() => toggleSection('jobOrders')}
-              className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-800 transition-colors"
+              className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${
+                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              }`}
             >
               <div className="flex items-center space-x-3">
-                <span className="text-white font-medium">Related Job Orders</span>
-                <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded min-w-[20px] text-center">
+                <span className={`font-medium ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Related Job Orders</span>
+                <span className={`text-xs px-2 py-1 rounded min-w-[20px] text-center ${
+                  isDarkMode
+                    ? 'bg-gray-600 text-white'
+                    : 'bg-gray-300 text-gray-700'
+                }`}>
                   {jobOrders.length}
                 </span>
               </div>
               {expandedSections.jobOrders ? (
-                <ChevronDown size={20} className="text-gray-400" />
+                <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
               ) : (
-                <ChevronRight size={20} className="text-gray-400" />
+                <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
               )}
             </button>
 
             {expandedSections.jobOrders && (
-              <div className="px-6 py-8 text-center text-gray-500">
+              <div className={`px-6 py-8 text-center ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-400'
+              }`}>
                 No items
               </div>
             )}
           </div>
 
           {/* Related Service Orders */}
-          <div className="border-b border-gray-700">
+          <div className={`border-b ${
+            isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
             <button
               onClick={() => toggleSection('serviceOrders')}
-              className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-800 transition-colors"
+              className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${
+                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              }`}
             >
               <div className="flex items-center space-x-3">
-                <span className="text-white font-medium">Related Service Orders</span>
-                <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded min-w-[20px] text-center">
+                <span className={`font-medium ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Related Service Orders</span>
+                <span className={`text-xs px-2 py-1 rounded min-w-[20px] text-center ${
+                  isDarkMode
+                    ? 'bg-gray-600 text-white'
+                    : 'bg-gray-300 text-gray-700'
+                }`}>
                   {serviceOrders.length}
                 </span>
               </div>
               {expandedSections.serviceOrders ? (
-                <ChevronDown size={20} className="text-gray-400" />
+                <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
               ) : (
-                <ChevronRight size={20} className="text-gray-400" />
+                <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
               )}
             </button>
 
             {expandedSections.serviceOrders && (
-              <div className="px-6 py-8 text-center text-gray-500">
+              <div className={`px-6 py-8 text-center ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-400'
+              }`}>
                 No items
               </div>
             )}
@@ -650,23 +992,33 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
           <div>
             <button
               onClick={() => toggleSection('defectiveLogs')}
-              className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-800 transition-colors"
+              className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${
+                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              }`}
             >
               <div className="flex items-center space-x-3">
-                <span className="text-white font-medium">Related Defective Logs</span>
-                <span className="bg-gray-600 text-white text-xs px-2 py-1 rounded min-w-[20px] text-center">
+                <span className={`font-medium ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Related Defective Logs</span>
+                <span className={`text-xs px-2 py-1 rounded min-w-[20px] text-center ${
+                  isDarkMode
+                    ? 'bg-gray-600 text-white'
+                    : 'bg-gray-300 text-gray-700'
+                }`}>
                   {defectiveLogs.length}
                 </span>
               </div>
               {expandedSections.defectiveLogs ? (
-                <ChevronDown size={20} className="text-gray-400" />
+                <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
               ) : (
-                <ChevronRight size={20} className="text-gray-400" />
+                <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
               )}
             </button>
 
             {expandedSections.defectiveLogs && (
-              <div className="px-6 py-8 text-center text-gray-500">
+              <div className={`px-6 py-8 text-center ${
+                isDarkMode ? 'text-gray-500' : 'text-gray-400'
+              }`}>
                 No items
               </div>
             )}

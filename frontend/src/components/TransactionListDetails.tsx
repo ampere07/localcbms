@@ -44,6 +44,7 @@ interface TransactionListDetailsProps {
 }
 
 const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transaction, onClose }) => {
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -54,10 +55,13 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
 
-  // Debug logging
-  console.log('TransactionListDetails received transaction:', transaction);
-  console.log('TransactionListDetails customer:', transaction.account?.customer);
-  console.log('TransactionListDetails full_name:', transaction.account?.customer?.full_name);
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(localStorage.getItem('theme') === 'dark');
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!isResizing) return;
@@ -164,6 +168,26 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
     return `${accountNo} | ${fullName}${location ? ` | ${location}` : ''}`;
   };
 
+  const renderField = (label: string, value: any, hasInfo: boolean = false, isBold: boolean = false) => (
+    <div className={`flex py-2 ${
+      isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+    }`}>
+      <div className={`w-40 text-sm ${
+        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+      }`}>{label}</div>
+      <div className={`flex-1 flex items-center ${isBold ? 'font-bold text-lg' : ''} ${
+        isDarkMode ? 'text-white' : 'text-gray-900'
+      }`}>
+        {value || '-'}
+        {hasInfo && (
+          <button className={isDarkMode ? 'ml-2 text-gray-400 hover:text-white' : 'ml-2 text-gray-600 hover:text-gray-900'}>
+            <Info size={16} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <>
       <LoadingModal 
@@ -172,14 +196,26 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
         percentage={loadingPercentage} 
       />
       
-      <div className="bg-gray-950 flex flex-col overflow-hidden border-l border-white border-opacity-30 relative" style={{ width: `${detailsWidth}px`, height: '100%' }}>
+      <div className={`flex flex-col overflow-hidden border-l relative ${
+        isDarkMode
+          ? 'bg-gray-950 border-white border-opacity-30'
+          : 'bg-white border-gray-300'
+      }`} style={{ width: `${detailsWidth}px`, height: '100%' }}>
       <div
-        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
+        className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${
+          isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
+        }`}
         onMouseDown={handleMouseDownResize}
       />
-      <div className="bg-gray-800 p-3 flex items-center justify-between border-b border-gray-700">
+      <div className={`p-3 flex items-center justify-between border-b ${
+        isDarkMode
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-200'
+      }`}>
         <div className="flex items-center min-w-0 flex-1">
-          <h2 className="text-white font-medium truncate pr-4">{getAccountDisplayText()}</h2>
+          <h2 className={`font-medium truncate pr-4 ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>{getAccountDisplayText()}</h2>
           {loading && <div className="ml-3 animate-pulse text-orange-500 text-sm flex-shrink-0">Loading...</div>}
         </div>
         
@@ -194,12 +230,12 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
               <span>{loading ? 'Approving...' : 'Approve'}</span>
             </button>
           )}
-          <button className="hover:text-white text-gray-400"><ArrowLeft size={16} /></button>
-          <button className="hover:text-white text-gray-400"><ArrowRight size={16} /></button>
-          <button className="hover:text-white text-gray-400"><Maximize2 size={16} /></button>
+          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowLeft size={16} /></button>
+          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowRight size={16} /></button>
+          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><Maximize2 size={16} /></button>
           <button 
             onClick={onClose}
-            className="hover:text-white text-gray-400"
+            className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
             aria-label="Close"
           >
             <X size={18} />
@@ -208,96 +244,54 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
       </div>
       
       {error && (
-        <div className="bg-red-900 bg-opacity-20 border border-red-700 text-red-400 p-3 m-3 rounded">
+        <div className={`border p-3 m-3 rounded ${
+          isDarkMode
+            ? 'bg-red-900 bg-opacity-20 border-red-700 text-red-400'
+            : 'bg-red-100 border-red-300 text-red-900'
+        }`}>
           {error}
         </div>
       )}
       
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto py-1 px-4 bg-gray-950">
+        <div className={`mx-auto py-1 px-4 ${
+          isDarkMode ? 'bg-gray-950' : 'bg-white'
+        }`}>
           <div className="space-y-1">
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Transaction ID</div>
-              <div className="text-white flex-1">{transaction.id}</div>
-            </div>
+            {renderField('Transaction ID', transaction.id)}
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Account No.</div>
+            <div className={`flex py-2 ${
+              isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Account No.</div>
               <div className="text-red-400 flex-1 font-medium flex items-center">
                 {transaction.account?.account_no || '-'}
-                <button className="ml-2 text-gray-400 hover:text-white">
+                <button className={isDarkMode ? 'ml-2 text-gray-400 hover:text-white' : 'ml-2 text-gray-600 hover:text-gray-900'}>
                   <Info size={16} />
                 </button>
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Full Name</div>
-              <div className="text-white flex-1">{transaction.account?.customer?.full_name || '-'}</div>
-            </div>
+            {renderField('Full Name', transaction.account?.customer?.full_name)}
+            {renderField('Contact No.', transaction.account?.customer?.contact_number_primary)}
+            {renderField('Transaction Type', transaction.transaction_type)}
+            {renderField('Received Payment', formatCurrency(transaction.received_payment), false, true)}
+            {renderField('Payment Date', formatDate(transaction.payment_date))}
+            {renderField('Date Processed', formatDate(transaction.date_processed))}
+            {renderField('Processed By', transaction.processed_by_user, true)}
+            {renderField('Payment Method', transaction.payment_method, true)}
+            {renderField('Reference No.', transaction.reference_no)}
+            {renderField('OR No.', transaction.or_no)}
+            {renderField('Remarks', transaction.remarks || 'No remarks')}
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Contact No.</div>
-              <div className="text-white flex-1">{transaction.account?.customer?.contact_number_primary || '-'}</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Transaction Type</div>
-              <div className="text-white flex-1">{transaction.transaction_type}</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Received Payment</div>
-              <div className="text-white flex-1 font-bold text-lg">{formatCurrency(transaction.received_payment)}</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Payment Date</div>
-              <div className="text-white flex-1">{formatDate(transaction.payment_date)}</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Date Processed</div>
-              <div className="text-white flex-1">{formatDate(transaction.date_processed)}</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Processed By</div>
-              <div className="text-white flex-1 flex items-center">
-                {transaction.processed_by_user || '-'}
-                <button className="ml-2 text-gray-400 hover:text-white">
-                  <Info size={16} />
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Payment Method</div>
-              <div className="text-white flex-1 flex items-center">
-                {transaction.payment_method}
-                <button className="ml-2 text-gray-400 hover:text-white">
-                  <Info size={16} />
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Reference No.</div>
-              <div className="text-white flex-1">{transaction.reference_no}</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">OR No.</div>
-              <div className="text-white flex-1">{transaction.or_no}</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Remarks</div>
-              <div className="text-white flex-1">{transaction.remarks || 'No remarks'}</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Status</div>
+            <div className={`flex py-2 ${
+              isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Status</div>
               <div className="flex-1">
                 <div className={`capitalize ${
                   transaction.status.toLowerCase() === 'done' ? 'text-green-500' :
@@ -310,45 +304,20 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
               </div>
             </div>
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Barangay</div>
-              <div className="text-white flex-1 flex items-center">
-                {transaction.account?.customer?.barangay || '-'}
-                <button className="ml-2 text-gray-400 hover:text-white">
-                  <Info size={16} />
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">City</div>
-              <div className="text-white flex-1">{transaction.account?.customer?.city || '-'}</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Region</div>
-              <div className="text-white flex-1">{transaction.account?.customer?.region || '-'}</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Plan</div>
-              <div className="text-white flex-1 flex items-center">
-                {transaction.account?.customer?.desired_plan || '-'}
-                <button className="ml-2 text-gray-400 hover:text-white">
-                  <Info size={16} />
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Account Balance</div>
-              <div className="text-white flex-1">{formatCurrency(transaction.account?.account_balance || 0)}</div>
-            </div>
+            {renderField('Barangay', transaction.account?.customer?.barangay, true)}
+            {renderField('City', transaction.account?.customer?.city)}
+            {renderField('Region', transaction.account?.customer?.region)}
+            {renderField('Plan', transaction.account?.customer?.desired_plan, true)}
+            {renderField('Account Balance', formatCurrency(transaction.account?.account_balance || 0))}
             
             {transaction.image_url && (
-              <div className="flex border-b border-gray-800 py-2">
-                <div className="w-40 text-gray-400 text-sm">Payment Proof</div>
-                <div className="text-white flex-1">
+              <div className={`flex py-2 ${
+                isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+                <div className={`w-40 text-sm ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Payment Proof</div>
+                <div className={isDarkMode ? 'text-white flex-1' : 'text-gray-900 flex-1'}>
                   <a 
                     href={transaction.image_url} 
                     target="_blank" 
@@ -361,25 +330,28 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
               </div>
             )}
             
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Created At</div>
-              <div className="text-white flex-1">{formatDate(transaction.created_at)}</div>
-            </div>
-            
-            <div className="flex border-b border-gray-800 py-2">
-              <div className="w-40 text-gray-400 text-sm">Updated At</div>
-              <div className="text-white flex-1">{formatDate(transaction.updated_at)}</div>
-            </div>
+            {renderField('Created At', formatDate(transaction.created_at))}
+            {renderField('Updated At', formatDate(transaction.updated_at))}
           </div>
         </div>
         
-        <div className="mx-auto px-4 bg-gray-950 mt-4">
-          <div className="border-t border-gray-800 pt-4">
+        <div className={`mx-auto px-4 mt-4 ${
+          isDarkMode ? 'bg-gray-950' : 'bg-white'
+        }`}>
+          <div className={`pt-4 ${
+            isDarkMode ? 'border-t border-gray-800' : 'border-t border-gray-300'
+          }`}>
             <div className="flex items-center mb-4">
-              <h3 className="text-white font-medium">Related Invoices</h3>
-              <span className="ml-2 bg-gray-600 text-white text-xs px-2 py-1 rounded">0</span>
+              <h3 className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Related Invoices</h3>
+              <span className={`ml-2 text-xs px-2 py-1 rounded ${
+                isDarkMode ? 'bg-gray-600 text-white' : 'bg-gray-300 text-gray-900'
+              }`}>0</span>
             </div>
-            <div className="text-center py-8 text-gray-400">
+            <div className={`text-center py-8 ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
               No items
             </div>
           </div>
@@ -387,12 +359,19 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
       </div>
     </div>
 
-    {/* Success Modal */}
     {showSuccessModal && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-700">
-          <h3 className="text-xl font-semibold text-white mb-4">Success</h3>
-          <p className="text-gray-300 mb-6">{successMessage}</p>
+        <div className={`rounded-lg p-6 max-w-md w-full mx-4 border ${
+          isDarkMode
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-white border-gray-300'
+        }`}>
+          <h3 className={`text-xl font-semibold mb-4 ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>Success</h3>
+          <p className={`mb-6 ${
+            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>{successMessage}</p>
           <div className="flex justify-end space-x-3">
             <button
               onClick={() => {

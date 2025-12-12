@@ -10,6 +10,7 @@ interface EditGroupFormProps {
 }
 
 const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupUpdated }) => {
+  const [isDarkMode, setIsDarkMode] = useState(false);
   
   const [formData, setFormData] = useState({
     group_name: group?.group_name || '',
@@ -26,6 +27,23 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark');
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
   
   useEffect(() => {
     loadOrganizations();
@@ -62,12 +80,20 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
     console.error('EditGroupForm received invalid group data');
     return (
       <div className="p-6">
-        <div className="bg-red-900 border border-red-600 rounded p-4 text-red-200">
+        <div className={`border rounded p-4 ${
+          isDarkMode
+            ? 'bg-red-900 border-red-600 text-red-200'
+            : 'bg-red-100 border-red-300 text-red-800'
+        }`}>
           <h3 className="text-lg font-semibold mb-2">Invalid Affiliate Data</h3>
           <p>Cannot edit group: No group data provided.</p>
           <button 
             onClick={onCancel}
-            className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+            className={`mt-4 px-4 py-2 rounded transition-colors ${
+              isDarkMode
+                ? 'bg-gray-600 hover:bg-gray-700 text-white'
+                : 'bg-gray-300 hover:bg-gray-400 text-gray-900'
+            }`}
           >
             Back to Affiliates
           </button>
@@ -216,19 +242,31 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
         { label: 'Groups', onClick: onCancel },
         { label: 'Edit Affiliate' }
       ]} />
-      <div className="bg-gray-800 rounded-lg border border-gray-600 overflow-hidden text-white">
+      <div className={`rounded-lg border overflow-hidden ${
+        isDarkMode
+          ? 'bg-gray-800 border-gray-600 text-white'
+          : 'bg-white border-gray-300 text-gray-900'
+      }`}>
         <div className="p-6">
           <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-white mb-2">
+            <h2 className={`text-2xl font-semibold mb-2 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
               Edit Affiliate
             </h2>
-            <p className="text-gray-400 text-sm">
+            <p className={`text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
               Update Affiliate information
             </p>
           </div>
 
           {errors.general && (
-            <div className="mb-6 p-4 bg-red-900 border border-red-600 rounded text-red-200">
+            <div className={`mb-6 p-4 border rounded ${
+              isDarkMode
+                ? 'bg-red-900 border-red-600 text-red-200'
+                : 'bg-red-100 border-red-300 text-red-800'
+            }`}>
               {errors.general}
             </div>
           )}
@@ -236,7 +274,9 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
           <div className="max-w-2xl">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Affiliate Name *
                 </label>
                 <input
@@ -244,8 +284,12 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
                   name="group_name"
                   value={formData.group_name}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.group_name ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.group_name
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter Affiliate name"
                   required
@@ -256,14 +300,20 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Organization (Optional)
                 </label>
                 <select
                   name="org_id"
                   value={formData.org_id || ''}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded text-white focus:outline-none focus:border-gray-400"
+                  className={`w-full px-4 py-3 border rounded focus:outline-none ${
+                    isDarkMode
+                      ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                  }`}
                 >
                   <option value="">No Organization</option>
                   {organizations.map(org => (
@@ -275,7 +325,9 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Company Name
                 </label>
                 <input
@@ -283,8 +335,12 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
                   name="company_name"
                   value={formData.company_name}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.company_name ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.company_name
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter company name"
                 />
@@ -294,7 +350,9 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Email
                 </label>
                 <input
@@ -302,8 +360,12 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.email ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.email
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter email address"
                 />
@@ -313,7 +375,9 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Hotline
                 </label>
                 <input
@@ -321,8 +385,12 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
                   name="hotline"
                   value={formData.hotline}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.hotline ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.hotline
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter hotline number"
                 />
@@ -332,7 +400,9 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Portal URL
                 </label>
                 <input
@@ -340,8 +410,12 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
                   name="portal_url"
                   value={formData.portal_url}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.portal_url ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.portal_url
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter portal URL"
                 />
@@ -351,7 +425,9 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Facebook Page Link
                 </label>
                 <input
@@ -359,8 +435,12 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
                   name="fb_page_link"
                   value={formData.fb_page_link}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.fb_page_link ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.fb_page_link
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter Facebook page link"
                 />
@@ -370,7 +450,9 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Facebook Messenger Link
                 </label>
                 <input
@@ -378,8 +460,12 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
                   name="fb_messenger_link"
                   value={formData.fb_messenger_link}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.fb_messenger_link ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.fb_messenger_link
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter Facebook Messenger link"
                 />
@@ -389,7 +475,9 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Template
                 </label>
                 <textarea
@@ -397,8 +485,12 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
                   value={formData.template}
                   onChange={handleInputChange}
                   rows={3}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.template ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.template
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter template content"
                 />
@@ -412,14 +504,22 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
               <button
                 onClick={onCancel}
                 disabled={loading}
-                className="px-6 py-3 border border-gray-600 text-white rounded hover:bg-gray-800 transition-colors text-sm font-medium disabled:opacity-50"
+                className={`px-6 py-3 border rounded transition-colors text-sm font-medium disabled:opacity-50 ${
+                  isDarkMode
+                    ? 'border-gray-600 text-white hover:bg-gray-800'
+                    : 'border-gray-300 text-gray-900 hover:bg-gray-100'
+                }`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleUpdateGroup}
                 disabled={loading}
-                className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
+                className={`px-6 py-3 rounded transition-colors text-sm font-medium disabled:opacity-50 ${
+                  isDarkMode
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white'
+                }`}
               >
                 {loading ? 'Updating...' : 'Update Affiliate'}
               </button>

@@ -37,10 +37,28 @@ interface InvoiceDetailsProps {
 }
 
 const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark');
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!isResizing) return;
@@ -75,33 +93,69 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
   };
 
   return (
-    <div className="bg-gray-900 text-white h-full flex flex-col border-l border-white border-opacity-30 relative" style={{ width: `${detailsWidth}px` }}>
+    <div className={`h-full flex flex-col border-l relative ${
+      isDarkMode
+        ? 'bg-gray-900 text-white border-white border-opacity-30'
+        : 'bg-white text-gray-900 border-gray-300'
+    }`} style={{ width: `${detailsWidth}px` }}>
       <div
-        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
+        className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${
+          isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
+        }`}
         onMouseDown={handleMouseDownResize}
       />
       {/* Header with Invoice No and Actions */}
-      <div className="bg-gray-800 px-4 py-3 flex items-center justify-between border-b border-gray-700">
-        <h1 className="text-lg font-semibold text-white truncate pr-4 min-w-0 flex-1">
+      <div className={`px-4 py-3 flex items-center justify-between border-b ${
+        isDarkMode
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-200'
+      }`}>
+        <h1 className={`text-lg font-semibold truncate pr-4 min-w-0 flex-1 ${
+          isDarkMode ? 'text-white' : 'text-gray-900'
+        }`}>
           {invoiceRecord.invoiceNo || '2508182' + invoiceRecord.id}
         </h1>
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <Download size={18} />
           </button>
-          <button className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm transition-colors flex items-center space-x-1">
+          <button className={`px-3 py-1 rounded text-sm transition-colors flex items-center space-x-1 ${
+            isDarkMode
+              ? 'bg-orange-600 hover:bg-orange-700 text-white'
+              : 'bg-orange-500 hover:bg-orange-600 text-white'
+          }`}>
             <span>Apply Stag...</span>
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <ChevronLeft size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <ChevronRight size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <Maximize2 size={18} />
           </button>
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors">
+          <button className={`p-2 rounded transition-colors ${
+            isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+          }`}>
             <X size={18} />
           </button>
         </div>
@@ -109,120 +163,142 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="divide-y divide-gray-800">
+        <div className={`divide-y ${
+          isDarkMode ? 'divide-gray-800' : 'divide-gray-200'
+        }`}>
           {/* Invoice Info */}
           <div className="px-5 py-4">
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Invoice No.</span>
-              <span className="text-white">{invoiceRecord.invoiceNo || '2508182' + invoiceRecord.id}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Invoice No.</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{invoiceRecord.invoiceNo || '2508182' + invoiceRecord.id}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Account No.</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Account No.</span>
               <div className="flex items-center">
                 <span className="text-red-500">
                   {invoiceRecord.accountNo} | {invoiceRecord.fullName} | {invoiceRecord.address}
                 </span>
-                <Info size={16} className="ml-2 text-gray-500" />
+                <Info size={16} className={`ml-2 ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                }`} />
               </div>
             </div>
             
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Full Name</span>
-              <span className="text-white">{invoiceRecord.fullName}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Full Name</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{invoiceRecord.fullName}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Invoice Date</span>
-              <span className="text-white">{invoiceRecord.invoiceDate}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Invoice Date</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{invoiceRecord.invoiceDate}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Contact Number</span>
-              <span className="text-white">{invoiceRecord.contactNumber}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Contact Number</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{invoiceRecord.contactNumber}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Email Address</span>
-              <span className="text-white">{invoiceRecord.emailAddress}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Email Address</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{invoiceRecord.emailAddress}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Plan</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Plan</span>
               <div className="flex items-center">
-                <span className="text-white">{invoiceRecord.plan}</span>
-                <Info size={16} className="ml-2 text-gray-500" />
+                <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{invoiceRecord.plan}</span>
+                <Info size={16} className={`ml-2 ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                }`} />
               </div>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Provider</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Provider</span>
               <div className="flex items-center">
-                <span className="text-white">{invoiceRecord.provider || 'SWITCH'}</span>
-                <Info size={16} className="ml-2 text-gray-500" />
+                <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{invoiceRecord.provider || 'SWITCH'}</span>
+                <Info size={16} className={`ml-2 ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                }`} />
               </div>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Remarks</span>
-              <span className="text-white">{invoiceRecord.remarks || 'System Generated'}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Remarks</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{invoiceRecord.remarks || 'System Generated'}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Invoice Balance</span>
-              <span className="text-white">
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Invoice Balance</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
                 ₱{invoiceRecord.invoiceBalance?.toFixed(2) || '0.00'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Invoice Status</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Invoice Status</span>
               <span className={`${invoiceRecord.invoiceStatus === 'Unpaid' ? 'text-red-500' : 'text-green-500'}`}>
                 {invoiceRecord.invoiceStatus || 'Unpaid'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Others and Basic Charges</span>
-              <span className="text-white">
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Others and Basic Charges</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
                 ₱{invoiceRecord.otherCharges?.toFixed(2) || '0.00'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Total Amount</span>
-              <span className="text-white">
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Total Amount</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
                 ₱{invoiceRecord.totalAmountDue?.toFixed(2) || '0.00'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Invoice Payment</span>
-              <span className="text-white">
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Invoice Payment</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
                 ₱{invoiceRecord.invoicePayment?.toFixed(2) || '0.00'}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">Due Date</span>
-              <span className="text-white">{invoiceRecord.dueDate || '9/30/2025'}</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Due Date</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{invoiceRecord.dueDate || '9/30/2025'}</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Related Staggered Payments Section */}
-      <div className="mt-auto border-t border-gray-800">
-        <div className="px-5 py-3 flex justify-between items-center bg-gray-850 border-b border-gray-700">
+      <div className={`mt-auto border-t ${
+        isDarkMode ? 'border-gray-800' : 'border-gray-200'
+      }`}>
+        <div className={`px-5 py-3 flex justify-between items-center border-b ${
+          isDarkMode
+            ? 'bg-gray-850 border-gray-700'
+            : 'bg-gray-100 border-gray-200'
+        }`}>
           <div className="flex items-center">
-            <h2 className="text-white font-medium">Related Staggered Payments</h2>
-            <span className="ml-2 px-2 py-0.5 bg-gray-700 text-gray-300 text-xs rounded-full">
+            <h2 className={`font-medium ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Related Staggered Payments</h2>
+            <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
+              isDarkMode
+                ? 'bg-gray-700 text-gray-300'
+                : 'bg-gray-300 text-gray-700'
+            }`}>
               {invoiceRecord.staggeredPaymentsCount || 0}
             </span>
           </div>
         </div>
         {/* Empty State */}
-        <div className="px-5 py-16 text-center text-gray-500">
+        <div className={`px-5 py-16 text-center ${
+          isDarkMode ? 'text-gray-500' : 'text-gray-400'
+        }`}>
           No items
         </div>
       </div>

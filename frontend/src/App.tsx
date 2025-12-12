@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import { UserData } from './types/api';
 import { initializeCsrf } from './config/api';
+import { userSettingsService } from './services/userSettingsService';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -23,6 +24,44 @@ function App() {
         try {
           const userData = JSON.parse(authData);
           setIsLoggedIn(true);
+          
+          // Load user's dark mode preference from database
+          // User ID is at root level, not under user property
+          const userId = userData.id;
+          console.log('[App] User ID:', userId);
+          
+          if (userId) {
+            try {
+              console.log('[App] Fetching dark mode preference...');
+              const response = await userSettingsService.getDarkMode(userId);
+              console.log('[App] Dark mode response:', response);
+              
+              if (response.success && response.data) {
+                const darkmodeValue = response.data.darkmode;
+                const isDark = darkmodeValue === 'active';
+                
+                console.log('[App] Darkmode value from DB:', darkmodeValue);
+                console.log('[App] Setting theme to:', isDark ? 'dark' : 'light');
+                
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                
+                if (isDark) {
+                  document.documentElement.classList.add('dark');
+                  console.log('[App] Added dark class to document');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                  console.log('[App] Removed dark class from document');
+                }
+              }
+            } catch (error) {
+              console.error('[App] Failed to load dark mode preference:', error);
+              // Fallback to localStorage if API fails
+              const savedTheme = localStorage.getItem('theme');
+              if (savedTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+              }
+            }
+          }
         } catch (error) {
           console.error('Error parsing auth data:', error);
           localStorage.removeItem('authData');

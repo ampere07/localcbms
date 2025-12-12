@@ -19,6 +19,7 @@ const salutationOptions = [
 ];
 
 const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdated }) => {
+  const [isDarkMode, setIsDarkMode] = useState(false);
   
   const [formData, setFormData] = useState<UpdateUserRequest>({
     salutation: user?.salutation || '',
@@ -36,6 +37,23 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark');
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     loadOrganizations();
@@ -62,12 +80,20 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
     console.error('EditUserForm received invalid user data');
     return (
       <div className="p-6">
-        <div className="bg-red-900 border border-red-600 rounded p-4 text-red-200">
+        <div className={`border rounded p-4 ${
+          isDarkMode
+            ? 'bg-red-900 border-red-600 text-red-200'
+            : 'bg-red-100 border-red-300 text-red-800'
+        }`}>
           <h3 className="text-lg font-semibold mb-2">Invalid User Data</h3>
           <p>Cannot edit user: No user data provided.</p>
           <button 
             onClick={onCancel}
-            className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+            className={`mt-4 px-4 py-2 rounded transition-colors ${
+              isDarkMode
+                ? 'bg-gray-600 hover:bg-gray-700 text-white'
+                : 'bg-gray-300 hover:bg-gray-400 text-gray-900'
+            }`}
           >
             Back to Users
           </button>
@@ -255,19 +281,31 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
         { label: 'Users', onClick: onCancel },
         { label: 'Edit User' }
       ]} />
-      <div className="bg-gray-800 rounded-lg border border-gray-600 overflow-hidden text-white">
+      <div className={`rounded-lg border overflow-hidden ${
+        isDarkMode
+          ? 'bg-gray-800 border-gray-600 text-white'
+          : 'bg-white border-gray-300 text-gray-900'
+      }`}>
         <div className="p-6">
           <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-white mb-2">
+            <h2 className={`text-2xl font-semibold mb-2 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
               Edit User
             </h2>
-            <p className="text-gray-400 text-sm">
+            <p className={`text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
               Update user information
             </p>
           </div>
 
           {errors.general && (
-            <div className="mb-6 p-4 bg-red-900 border border-red-600 rounded text-red-200">
+            <div className={`mb-6 p-4 border rounded ${
+              isDarkMode
+                ? 'bg-red-900 border-red-600 text-red-200'
+                : 'bg-red-100 border-red-300 text-red-800'
+            }`}>
               {errors.general}
             </div>
           )}
@@ -275,14 +313,20 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
           <div className="max-w-2xl">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Salutation
                 </label>
                 <select
                   name="salutation"
                   value={formData.salutation || ''}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded text-white focus:outline-none focus:border-gray-400"
+                  className={`w-full px-4 py-3 border rounded focus:outline-none ${
+                    isDarkMode
+                      ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                  }`}
                 >
                   {salutationOptions.map(option => (
                     <option key={option.value} value={option.value}>
@@ -293,7 +337,9 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   First Name *
                 </label>
                 <input
@@ -301,8 +347,12 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   name="first_name"
                   value={formData.first_name || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.first_name ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.first_name
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter first name"
                   required
@@ -313,7 +363,9 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Middle Initial
                 </label>
                 <input
@@ -322,13 +374,19 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   value={formData.middle_initial || ''}
                   onChange={handleInputChange}
                   maxLength={1}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400"
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    isDarkMode
+                      ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                  }`}
                   placeholder="M"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Last Name *
                 </label>
                 <input
@@ -336,8 +394,12 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   name="last_name"
                   value={formData.last_name || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.last_name ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.last_name
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter last name"
                   required
@@ -348,7 +410,9 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Username *
                 </label>
                 <input
@@ -356,8 +420,12 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   name="username"
                   value={formData.username || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.username ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.username
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter username"
                   required
@@ -368,7 +436,9 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Email *
                 </label>
                 <input
@@ -376,8 +446,12 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   name="email_address"
                   value={formData.email_address || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.email_address ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.email_address
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter email address"
                   required
@@ -388,7 +462,9 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Contact Number
                 </label>
                 <input
@@ -396,8 +472,12 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   name="contact_number"
                   value={formData.contact_number || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.contact_number ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.contact_number
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Enter contact number"
                 />
@@ -407,14 +487,20 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Organization (Optional)
                 </label>
                 <select
                   name="organization_id"
                   value={formData.organization_id || ''}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded text-white focus:outline-none focus:border-gray-400"
+                  className={`w-full px-4 py-3 border rounded focus:outline-none ${
+                    isDarkMode
+                      ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                  }`}
                 >
                   <option value="">No Organization</option>
                   {organizations.map(org => (
@@ -426,14 +512,20 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   Role (Optional)
                 </label>
                 <select
                   name="role_id"
                   value={formData.role_id || ''}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded text-white focus:outline-none focus:border-gray-400"
+                  className={`w-full px-4 py-3 border rounded focus:outline-none ${
+                    isDarkMode
+                      ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                  }`}
                 >
                   <option value="">No Role</option>
                   {roles.map(role => (
@@ -445,7 +537,9 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   New Password (optional)
                 </label>
                 <input
@@ -453,15 +547,21 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   name="password"
                   value={formData.password || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.password ? 'border-red-600' : 'border-gray-600'
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
+                    errors.password
+                      ? 'border-red-600'
+                      : isDarkMode
+                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                   }`}
                   placeholder="Leave blank to keep current password"
                 />
                 {errors.password && (
                   <p className="text-red-400 text-sm mt-1">{errors.password}</p>
                 )}
-                <p className="text-gray-400 text-xs mt-1">
+                <p className={`text-xs mt-1 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
                   Leave blank to keep current password. Minimum 8 characters if changing.
                 </p>
               </div>
@@ -471,14 +571,22 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
               <button
                 onClick={onCancel}
                 disabled={loading}
-                className="px-6 py-3 border border-gray-600 text-white rounded hover:bg-gray-800 transition-colors text-sm font-medium disabled:opacity-50"
+                className={`px-6 py-3 border rounded transition-colors text-sm font-medium disabled:opacity-50 ${
+                  isDarkMode
+                    ? 'border-gray-600 text-white hover:bg-gray-800'
+                    : 'border-gray-300 text-gray-900 hover:bg-gray-100'
+                }`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleUpdateUser}
                 disabled={loading}
-                className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
+                className={`px-6 py-3 rounded transition-colors text-sm font-medium disabled:opacity-50 ${
+                  isDarkMode
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white'
+                }`}
               >
                 {loading ? 'Updating...' : 'Update User'}
               </button>

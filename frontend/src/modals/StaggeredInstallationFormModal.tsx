@@ -38,6 +38,8 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
   onSave,
   customerData
 }) => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+
   const getCurrentDate = () => {
     const now = new Date();
     return now.toISOString().slice(0, 10);
@@ -94,6 +96,26 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [users, setUsers] = useState<Array<{ id: number; email: string }>>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -274,13 +296,21 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
       />
       
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-      <div className="h-full w-full max-w-2xl bg-gray-900 shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col">
-        <div className="bg-gray-800 px-6 py-4 flex items-center justify-between border-b border-gray-700">
-          <h2 className="text-xl font-semibold text-white">Staggered Installation Form</h2>
+      <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${
+        isDarkMode ? 'bg-gray-900' : 'bg-white'
+      }`}>
+        <div className={`px-6 py-4 flex items-center justify-between border-b ${
+          isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
+        }`}>
+          <h2 className={`text-xl font-semibold ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>Staggered Installation Form</h2>
           <div className="flex items-center space-x-3">
             <button
               onClick={handleCancel}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
+              className={`px-4 py-2 rounded text-sm text-white ${
+                isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-400 hover:bg-gray-500'
+              }`}
             >
               Cancel
             </button>
@@ -300,7 +330,9 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
             </button>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors"
+              className={`transition-colors ${
+                isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+              }`}
             >
               <X size={24} />
             </button>
@@ -309,117 +341,153 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Account No.<span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <select
                 value={formData.accountNo}
                 onChange={(e) => handleInputChange('accountNo', e.target.value)}
-                className={`w-full px-3 py-2 bg-gray-800 border ${errors.accountNo ? 'border-red-500' : 'border-gray-700'} rounded text-red-400 focus:outline-none focus:border-orange-500 appearance-none`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                  isDarkMode ? 'bg-gray-800 text-red-400' : 'bg-white text-red-600'
+                } ${errors.accountNo ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
               >
                 <option value={customerData?.accountNo || ''}>
                   {customerData?.accountNo || ''} | {customerData?.fullName || ''} | {customerData?.address || ''}
                 </option>
               </select>
-              <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`} size={20} />
             </div>
             {errors.accountNo && <p className="text-red-500 text-xs mt-1">{errors.accountNo}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Full Name
             </label>
             <input
               type="text"
               value={formData.fullName}
               onChange={(e) => handleInputChange('fullName', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
+                isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+              }`}
               readOnly
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Contact Number
             </label>
             <input
               type="text"
               value={formData.contactNo}
               onChange={(e) => handleInputChange('contactNo', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
+                isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+              }`}
               readOnly
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Email Address
             </label>
             <input
               type="email"
               value={formData.emailAddress}
               onChange={(e) => handleInputChange('emailAddress', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
+                isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+              }`}
               readOnly
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Address
             </label>
             <input
               type="text"
               value={formData.address}
               onChange={(e) => handleInputChange('address', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
+                isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+              }`}
               readOnly
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Plan
             </label>
             <input
               type="text"
               value={formData.plan}
               onChange={(e) => handleInputChange('plan', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
+                isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+              }`}
               readOnly
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Provider
             </label>
             <input
               type="text"
               value={formData.provider}
               onChange={(e) => handleInputChange('provider', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
+                isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+              }`}
               readOnly
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Staggered Install No.
             </label>
             <input
               type="text"
               value={formData.staggeredInstallNo}
               onChange={(e) => handleInputChange('staggeredInstallNo', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
+                isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+              }`}
               readOnly
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Staggered Date
             </label>
             <div className="relative">
@@ -427,26 +495,36 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
                 type="text"
                 value={formData.staggeredDate}
                 onChange={(e) => handleInputChange('staggeredDate', e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                  isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                }`}
               />
-              <Calendar className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+              <Calendar className={`absolute right-3 top-2.5 pointer-events-none ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`} size={20} />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Staggered Balance
             </label>
             <input
               type="text"
               value={`₱ ${formData.staggeredBalance}`}
               onChange={(e) => handleInputChange('staggeredBalance', e.target.value.replace('₱ ', '').replace(/[^0-9.]/g, ''))}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+              }`}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Months to Pay
             </label>
             <input
@@ -454,25 +532,35 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
               min="0"
               value={formData.monthsToPay}
               onChange={(e) => handleInputChange('monthsToPay', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+              }`}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Monthly Payment
             </label>
             <input
               type="text"
               value={`₱ ${formData.monthlyPayment}`}
               readOnly
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-400 cursor-not-allowed"
+              className={`w-full px-3 py-2 border rounded cursor-not-allowed ${
+                isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-400' : 'bg-gray-100 border-gray-300 text-gray-500'
+              }`}
             />
-            <p className="text-xs text-gray-400 mt-1">Automatically calculated based on Total Balance and Months to Pay</p>
+            <p className={`text-xs mt-1 ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+            }`}>Automatically calculated based on Total Balance and Months to Pay</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Modified By
             </label>
             <div className="relative">
@@ -480,7 +568,9 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
                 value={formData.modifiedBy}
                 onChange={(e) => handleInputChange('modifiedBy', e.target.value)}
                 disabled={loadingUsers}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500 appearance-none"
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                  isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                }`}
               >
                 <option value="">Select user...</option>
                 {users.map((user) => (
@@ -489,72 +579,98 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`} size={20} />
             </div>
-            {loadingUsers && <p className="text-xs text-gray-400 mt-1">Loading users...</p>}
+            {loadingUsers && <p className={`text-xs mt-1 ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+            }`}>Loading users...</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Modified Date
             </label>
             <div className="relative">
               <input
                 type="text"
                 value={formData.modifiedDate}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
+                  isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+                }`}
                 readOnly
               />
-              <Calendar className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+              <Calendar className={`absolute right-3 top-2.5 pointer-events-none ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`} size={20} />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               User Email
             </label>
             <input
               type="email"
               value={formData.userEmail}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
+                isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+              }`}
               readOnly
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Remarks
             </label>
             <textarea
               value={formData.remarks}
               onChange={(e) => handleInputChange('remarks', e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500 resize-none"
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${
+                isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+              }`}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               Barangay
             </label>
             <input
               type="text"
               value={formData.barangay}
               onChange={(e) => handleInputChange('barangay', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
+                isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+              }`}
               readOnly
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
               City
             </label>
             <input
               type="text"
               value={formData.city}
               onChange={(e) => handleInputChange('city', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
+                isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+              }`}
               readOnly
             />
           </div>

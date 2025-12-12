@@ -13,12 +13,30 @@ interface UsageType {
 }
 
 const UsageTypeList: React.FC = () => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [usageTypes, setUsageTypes] = useState<UsageType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUsageType, setEditingUsageType] = useState<UsageType | null>(null);
   const [deletingItems, setDeletingItems] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme !== 'light');
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    const theme = localStorage.getItem('theme');
+    setIsDarkMode(theme !== 'light');
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     loadUsageTypes();
@@ -136,13 +154,21 @@ const UsageTypeList: React.FC = () => {
 
   const renderListItem = (usageType: UsageType) => {
     return (
-      <div key={usageType.id} className="bg-gray-900 border-b border-gray-800">
+      <div key={usageType.id} className={`border-b ${
+        isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+      }`}>
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <h3 className="text-white font-medium text-lg">{usageType.usage_name}</h3>
+              <h3 className={`font-medium text-lg ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
+                {usageType.usage_name}
+              </h3>
             </div>
-            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+            <div className={`flex items-center gap-4 mt-2 text-xs ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-400'
+            }`}>
               <span>Created: {formatDate(usageType.created_at)}</span>
               <span>Updated: {formatDate(usageType.updated_at)}</span>
             </div>
@@ -150,7 +176,11 @@ const UsageTypeList: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleEdit(usageType)}
-              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded"
+              className={`p-2 rounded ${
+                isDarkMode 
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              }`}
               title="Edit"
             >
               <Edit2 className="h-4 w-4" />
@@ -158,7 +188,11 @@ const UsageTypeList: React.FC = () => {
             <button
               onClick={() => handleDelete(usageType)}
               disabled={deletingItems.has(usageType.id)}
-              className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed ${
+                isDarkMode 
+                  ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700' 
+                  : 'text-gray-600 hover:text-red-600 hover:bg-gray-200'
+              }`}
               title={deletingItems.has(usageType.id) ? 'Permanently Deleting...' : 'Permanently Delete'}
             >
               {deletingItems.has(usageType.id) ? (
@@ -176,11 +210,19 @@ const UsageTypeList: React.FC = () => {
   const filteredUsageTypes = getFilteredUsageTypes();
 
   return (
-    <div className="min-h-screen bg-gray-950 relative">
-      <div className="bg-gray-900 border-b border-gray-800">
+    <div className={`min-h-screen relative ${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    }`}>
+      <div className={`border-b ${
+        isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+      }`}>
         <div className="px-6 py-4">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-semibold text-white">Usage Type List</h1>
+            <h1 className={`text-xl font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              Usage Type List
+            </h1>
             <div className="flex items-center gap-3">
               <button
                 onClick={handleAddNew}
@@ -189,10 +231,18 @@ const UsageTypeList: React.FC = () => {
                 <Plus className="h-4 w-4" />
                 Add
               </button>
-              <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
+              <button className={`p-2 rounded ${
+                isDarkMode 
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              }`}>
                 <Filter className="h-5 w-5" />
               </button>
-              <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded">
+              <button className={`p-2 rounded ${
+                isDarkMode 
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              }`}>
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
@@ -201,13 +251,19 @@ const UsageTypeList: React.FC = () => {
           </div>
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500" />
+            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-400'
+            }`} />
             <input
               type="text"
               placeholder="Search Usage Type List"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-gray-600 focus:outline-none"
+              className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none ${
+                isDarkMode 
+                  ? 'bg-gray-800 text-white border-gray-700 focus:border-gray-600' 
+                  : 'bg-gray-100 text-gray-900 border-gray-300 focus:border-gray-400'
+              }`}
             />
           </div>
         </div>
@@ -215,15 +271,19 @@ const UsageTypeList: React.FC = () => {
 
       <div className="flex-1 overflow-auto">
         {isLoading ? (
-          <div className="flex justify-center items-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-white" />
+          <div className={`flex justify-center items-center py-20`}>
+            <Loader2 className={`h-8 w-8 animate-spin ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`} />
           </div>
         ) : filteredUsageTypes.length > 0 ? (
           <div>
             {filteredUsageTypes.map(renderListItem)}
           </div>
         ) : (
-          <div className="text-center py-20 text-gray-500">
+          <div className={`text-center py-20 ${
+            isDarkMode ? 'text-gray-500' : 'text-gray-400'
+          }`}>
             No usage types found
           </div>
         )}
