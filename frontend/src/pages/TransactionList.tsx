@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Receipt, Search, ChevronDown } from 'lucide-react';
+import { Receipt, Search, ChevronDown, CheckCheck, X, Check } from 'lucide-react';
 import TransactionListDetails from '../components/TransactionListDetails';
 import { transactionService } from '../services/transactionService';
+import LoadingModal from '../components/LoadingModal';
 
 interface Transaction {
   id: string;
@@ -53,6 +54,14 @@ const TransactionList: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isBatchApproveMode, setIsBatchApproveMode] = useState<boolean>(false);
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState<string[]>([]);
+  const [isApproving, setIsApproving] = useState<boolean>(false);
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
+  const [showFailedModal, setShowFailedModal] = useState<boolean>(false);
+  const [approvalMessage, setApprovalMessage] = useState<string>('');
+  const [approvalDetails, setApprovalDetails] = useState<any>(null);
 
   const formatDate = (dateStr?: string): string => {
     if (!dateStr) return 'No date';
@@ -163,10 +172,102 @@ const TransactionList: React.FC = () => {
   });
 
   const handleRowClick = (transaction: Transaction) => {
-    console.log('Transaction clicked:', transaction);
-    console.log('Customer data:', transaction.account?.customer);
-    console.log('Full name:', transaction.account?.customer?.full_name);
-    setSelectedTransaction(transaction);
+    if (isBatchApproveMode) {
+      if (transaction.status.toLowerCase() === 'pending') {
+        toggleTransactionSelection(transaction.id);
+      }
+    } else {
+      console.log('Transaction clicked:', transaction);
+      console.log('Customer data:', transaction.account?.customer);
+      console.log('Full name:', transaction.account?.customer?.full_name);
+      setSelectedTransaction(transaction);
+    }
+  };
+
+  const toggleTransactionSelection = (transactionId: string) => {
+    const transaction = transactions.find(t => t.id === transactionId);
+    if (!transaction || transaction.status.toLowerCase() !== 'pending') {
+      return;
+    }
+    
+    setSelectedTransactionIds(prev => {
+      if (prev.includes(transactionId)) {
+        return prev.filter(id => id !== transactionId);
+      } else {
+        return [...prev, transactionId];
+      }
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const pendingTransactions = filteredTransactions.filter(t => t.status.toLowerCase() === 'pending');
+    const pendingTransactionIds = pendingTransactions.map(t => t.id);
+    
+    if (selectedTransactionIds.length === pendingTransactionIds.length && pendingTransactionIds.length > 0) {
+      setSelectedTransactionIds([]);
+    } else {
+      setSelectedTransactionIds(pendingTransactionIds);
+    }
+  };
+
+  const handleCancelApprove = () => {
+    setIsBatchApproveMode(false);
+    setSelectedTransactionIds([]);
+  };
+
+  const handleBatchApprove = async () => {
+    if (selectedTransactionIds.length === 0) {
+      return;
+    }
+
+    setShowConfirmModal(true);
+  };
+
+  const confirmBatchApproval = async () => {
+    setShowConfirmModal(false);
+
+    try {
+      setIsApproving(true);
+      setError(null);
+
+      const result = await transactionService.batchApproveTransactions(selectedTransactionIds);
+
+      if (result.success) {
+        const successCount = result.data?.success?.length || 0;
+        const failedCount = result.data?.failed?.length || 0;
+        
+        setApprovalDetails(result.data);
+        
+        if (failedCount > 0) {
+          setApprovalMessage(
+            `Batch approval completed with some failures: ${successCount} successful, ${failedCount} failed`
+          );
+          setShowFailedModal(true);
+        } else {
+          setApprovalMessage(
+            `Successfully approved ${successCount} transaction(s)`
+          );
+          setShowSuccessModal(true);
+        }
+        
+        setIsBatchApproveMode(false);
+        setSelectedTransactionIds([]);
+        
+        const refreshResult = await transactionService.getAllTransactions();
+        if (refreshResult.success && refreshResult.data) {
+          setTransactions(refreshResult.data);
+        }
+      } else {
+        setApprovalMessage(result.message || 'Failed to approve transactions');
+        setShowFailedModal(true);
+      }
+    } catch (err: any) {
+      console.error('Batch approval error:', err);
+      setApprovalMessage(`Failed to approve transactions: ${err.message}`);
+      setShowFailedModal(true);
+    } finally {
+      setIsApproving(false);
+    }
   };
 
   useEffect(() => {
@@ -342,6 +443,48 @@ const TransactionList: React.FC = () => {
                   isDarkMode ? 'text-gray-400' : 'text-gray-500'
                 }`} />
               </div>
+              <button 
+                onClick={() => isBatchApproveMode ? handleCancelApprove() : setIsBatchApproveMode(true)}
+                className={`px-4 py-2 rounded flex items-center transition-colors ${
+                  isBatchApproveMode
+                    ? isDarkMode
+                      ? 'bg-red-600 text-white border border-red-700 hover:bg-red-700'
+                      : 'bg-red-500 text-white border border-red-600 hover:bg-red-600'
+                    : isDarkMode
+                      ? 'bg-orange-500 text-white border border-orange-600 hover:bg-orange-600'
+                      : 'bg-orange-500 text-white border border-orange-600 hover:bg-orange-600'
+                }`}
+              >
+                {isBatchApproveMode ? (
+                  <>
+                    <X className="h-4 w-4 mr-2" />
+                    <span>Cancel Approve</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCheck className="h-4 w-4 mr-2" />
+                    <span>Batch Approve</span>
+                  </>
+                )}
+              </button>
+              {isBatchApproveMode && (
+                <button 
+                  onClick={handleBatchApprove}
+                  disabled={selectedTransactionIds.length === 0 || isApproving}
+                  className={`px-4 py-2 rounded flex items-center transition-colors ${
+                    selectedTransactionIds.length === 0 || isApproving
+                      ? isDarkMode
+                        ? 'bg-gray-700 text-gray-500 border border-gray-600 cursor-not-allowed'
+                        : 'bg-gray-300 text-gray-500 border border-gray-400 cursor-not-allowed'
+                      : isDarkMode
+                        ? 'bg-green-600 text-white border border-green-700 hover:bg-green-700'
+                        : 'bg-green-500 text-white border border-green-600 hover:bg-green-600'
+                  }`}
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  <span>{isApproving ? 'Approving...' : `Approve (${selectedTransactionIds.length})`}</span>
+                </button>
+              )}
               <button className={`px-4 py-2 rounded flex items-center ${
                 isDarkMode
                   ? 'bg-gray-800 text-white border border-gray-700'
@@ -362,6 +505,22 @@ const TransactionList: React.FC = () => {
                   isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
                 }`}>
                   <tr>
+                    {isBatchApproveMode && (
+                      <th className={`px-4 py-3 text-left ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={
+                            selectedTransactionIds.length > 0 &&
+                            selectedTransactionIds.length === filteredTransactions.filter(t => t.status.toLowerCase() === 'pending').length &&
+                            filteredTransactions.filter(t => t.status.toLowerCase() === 'pending').length > 0
+                          }
+                          onChange={toggleSelectAll}
+                          className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                        />
+                      </th>
+                    )}
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
                       isDarkMode ? 'text-gray-400' : 'text-gray-600'
                     }`}>Date Processed</th>
@@ -428,14 +587,44 @@ const TransactionList: React.FC = () => {
                   isDarkMode ? 'bg-gray-900 divide-y divide-gray-800' : 'bg-white divide-y divide-gray-200'
                 }`}>
                   {filteredTransactions.length > 0 ? (
-                    filteredTransactions.map((transaction) => (
-                      <tr 
-                        key={transaction.id} 
-                        className={`cursor-pointer ${
-                          isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
-                        } ${selectedTransaction?.id === transaction.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
-                        onClick={() => handleRowClick(transaction)}
-                      >
+                    filteredTransactions.map((transaction) => {
+                      const isSelected = selectedTransactionIds.includes(transaction.id);
+                      const isPending = transaction.status.toLowerCase() === 'pending';
+                      const canSelect = isBatchApproveMode && isPending;
+                      
+                      return (
+                        <tr 
+                          key={transaction.id} 
+                          className={`${
+                            canSelect ? 'cursor-pointer' : isBatchApproveMode ? 'cursor-not-allowed' : 'cursor-pointer'
+                          } ${
+                            isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
+                          } ${
+                            isSelected 
+                              ? isDarkMode 
+                                ? 'bg-orange-900 bg-opacity-30' 
+                                : 'bg-orange-100'
+                              : selectedTransaction?.id === transaction.id 
+                                ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') 
+                                : isBatchApproveMode && !isPending
+                                  ? (isDarkMode ? 'bg-gray-800 opacity-50' : 'bg-gray-200 opacity-50')
+                                  : ''
+                          }`}
+                          onClick={() => handleRowClick(transaction)}
+                        >
+                          {isBatchApproveMode && (
+                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleTransactionSelection(transaction.id)}
+                                disabled={!isPending}
+                                className={`w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500 ${
+                                  isPending ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
+                                }`}
+                              />
+                            </td>
+                          )}
                         <td className={`px-4 py-3 whitespace-nowrap ${
                           isDarkMode ? 'text-gray-300' : 'text-gray-700'
                         }`}>{formatDate(transaction.date_processed)}</td>
@@ -493,10 +682,11 @@ const TransactionList: React.FC = () => {
                           isDarkMode ? 'text-gray-300' : 'text-gray-700'
                         }`}>{formatDate(transaction.updated_at)}</td>
                       </tr>
-                    ))
+                      );
+                    })
                   ) : (
                     <tr>
-                      <td colSpan={20} className={`px-4 py-12 text-center ${
+                      <td colSpan={isBatchApproveMode ? 21 : 20} className={`px-4 py-12 text-center ${
                         isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>
                         {transactions.length > 0
@@ -518,6 +708,110 @@ const TransactionList: React.FC = () => {
             transaction={selectedTransaction}
             onClose={() => setSelectedTransaction(null)}
           />
+        </div>)}
+
+      <LoadingModal 
+        isOpen={isApproving} 
+        message="Approving transactions..." 
+        percentage={50} 
+      />
+
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border ${
+            isDarkMode
+              ? 'bg-gray-800 border-gray-700'
+              : 'bg-white border-gray-300'
+          }`}>
+            <h3 className={`text-xl font-semibold mb-4 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Confirm Batch Approval</h3>
+            <p className={`mb-6 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
+              Are you sure you want to approve {selectedTransactionIds.length} transaction(s)? This will update account balances and apply payments to invoices.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmBatchApproval}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition-colors"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border ${
+            isDarkMode
+              ? 'bg-gray-800 border-gray-700'
+              : 'bg-white border-gray-300'
+          }`}>
+            <h3 className={`text-xl font-semibold mb-4 text-green-500`}>Success</h3>
+            <p className={`mb-6 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>{approvalMessage}</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFailedModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`rounded-lg p-6 max-w-2xl w-full mx-4 border ${
+            isDarkMode
+              ? 'bg-gray-800 border-gray-700'
+              : 'bg-white border-gray-300'
+          }`}>
+            <h3 className={`text-xl font-semibold mb-4 text-red-500`}>Batch Approval Results</h3>
+            <p className={`mb-4 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>{approvalMessage}</p>
+            
+            {approvalDetails && approvalDetails.failed && approvalDetails.failed.length > 0 && (
+              <div className={`mb-6 p-4 rounded max-h-96 overflow-y-auto ${
+                isDarkMode ? 'bg-gray-900' : 'bg-gray-100'
+              }`}>
+                <h4 className={`font-medium mb-2 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Failed Transactions:</h4>
+                <ul className="space-y-2">
+                  {approvalDetails.failed.map((fail: any, index: number) => (
+                    <li key={index} className={`text-sm ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      <span className="font-medium">ID: {fail.transaction_id}</span> - {fail.reason}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowFailedModal(false)}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

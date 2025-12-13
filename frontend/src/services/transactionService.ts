@@ -113,5 +113,32 @@ export const transactionService = {
         message: error.response?.data?.message || error.message || 'Failed to upload images'
       };
     }
+  },
+
+  batchApproveTransactions: async (transactionIds: string[]): Promise<any> => {
+    try {
+      console.log('Batch approving transactions:', transactionIds);
+      console.log('Transaction IDs type:', typeof transactionIds);
+      console.log('First ID:', transactionIds[0], 'Type:', typeof transactionIds[0]);
+      
+      const response = await apiClient.post<ApiResponse>('/transactions/batch-approve', {
+        transaction_ids: transactionIds
+      });
+      
+      console.log('Batch approve response:', response.data);
+      
+      return {
+        success: true,
+        message: response.data.message || 'Batch approval completed',
+        data: response.data.data
+      };
+    } catch (error: any) {
+      console.error('Error batch approving transactions:', error);
+      console.error('Error response:', error.response?.data);
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to batch approve transactions'
+      };
+    }
   }
 };

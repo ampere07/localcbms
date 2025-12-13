@@ -1945,6 +1945,7 @@ Route::prefix('transactions')->group(function () {
     Route::get('/', [\App\Http\Controllers\TransactionController::class, 'index']);
     Route::post('/', [\App\Http\Controllers\TransactionController::class, 'store']);
     Route::post('/upload-images', [\App\Http\Controllers\TransactionController::class, 'uploadImages']);
+    Route::post('/batch-approve', [\App\Http\Controllers\TransactionController::class, 'batchApprove']);
     Route::get('/{id}', [\App\Http\Controllers\TransactionController::class, 'show']);
     Route::post('/{id}/approve', [\App\Http\Controllers\TransactionController::class, 'approve']);
     Route::put('/{id}/status', [\App\Http\Controllers\TransactionController::class, 'updateStatus']);

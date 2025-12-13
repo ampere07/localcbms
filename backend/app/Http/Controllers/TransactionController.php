@@ -449,6 +449,135 @@ class TransactionController extends Controller
         }
     }
 
+    public function batchApprove(Request $request): JsonResponse
+    {
+        try {
+            \Log::info('Batch approve request received', [
+                'transaction_ids' => $request->input('transaction_ids'),
+                'transaction_ids_type' => gettype($request->input('transaction_ids')),
+                'first_id_type' => $request->input('transaction_ids.0') ? gettype($request->input('transaction_ids.0')) : 'null'
+            ]);
+
+            $validated = $request->validate([
+                'transaction_ids' => 'required|array',
+                'transaction_ids.*' => 'required|exists:transactions,id'
+            ]);
+
+            $transactionIds = $validated['transaction_ids'];
+            $results = [
+                'success' => [],
+                'failed' => [],
+                'total' => count($transactionIds)
+            ];
+
+            foreach ($transactionIds as $transactionId) {
+                try {
+                    DB::beginTransaction();
+
+                    $transaction = Transaction::findOrFail($transactionId);
+
+                    if ($transaction->status !== 'Pending') {
+                        $results['failed'][] = [
+                            'transaction_id' => $transactionId,
+                            'reason' => 'Only pending transactions can be approved',
+                            'current_status' => $transaction->status
+                        ];
+                        DB::rollBack();
+                        continue;
+                    }
+
+                    $accountNo = $transaction->account_no;
+                    $paymentReceived = $transaction->received_payment;
+                    $userId = Auth::id();
+                    $currentTime = now();
+
+                    if (!$accountNo) {
+                        $results['failed'][] = [
+                            'transaction_id' => $transactionId,
+                            'reason' => 'Transaction has no associated account number'
+                        ];
+                        DB::rollBack();
+                        continue;
+                    }
+
+                    $billingAccount = BillingAccount::where('account_no', $accountNo)->first();
+                    if (!$billingAccount) {
+                        $results['failed'][] = [
+                            'transaction_id' => $transactionId,
+                            'reason' => 'Billing account not found',
+                            'account_no' => $accountNo
+                        ];
+                        DB::rollBack();
+                        continue;
+                    }
+
+                    $currentBalance = floatval($billingAccount->account_balance ?? 0);
+                    $newBalance = $currentBalance - $paymentReceived;
+
+                    $billingAccount->account_balance = round($newBalance, 2);
+                    $billingAccount->balance_update_date = $currentTime;
+                    $billingAccount->updated_by = $userId;
+                    $billingAccount->save();
+
+                    $invoiceUpdateResult = $this->updateInvoiceDetails($accountNo, $paymentReceived, $transaction->id, $userId, $currentTime);
+
+                    $transaction->status = 'Done';
+                    $transaction->date_processed = $currentTime;
+                    $transaction->updated_by_user = Auth::check() ? Auth::user()->email : 'unknown';
+                    $transaction->save();
+
+                    DB::commit();
+
+                    $results['success'][] = [
+                        'transaction_id' => $transactionId,
+                        'account_no' => $accountNo,
+                        'payment_applied' => $paymentReceived,
+                        'new_balance' => $newBalance,
+                        'invoices_paid' => count($invoiceUpdateResult['invoices_paid']),
+                        'invoices_partial' => count($invoiceUpdateResult['invoices_partial'])
+                    ];
+
+                    \Log::info('Batch approval - Transaction approved', [
+                        'transaction_id' => $transactionId,
+                        'account_no' => $accountNo
+                    ]);
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    $results['failed'][] = [
+                        'transaction_id' => $transactionId,
+                        'reason' => $e->getMessage()
+                    ];
+                    \Log::error('Batch approval - Transaction failed', [
+                        'transaction_id' => $transactionId,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            $successCount = count($results['success']);
+            $failedCount = count($results['failed']);
+
+            \Log::info('Batch approval completed', [
+                'total' => $results['total'],
+                'success' => $successCount,
+                'failed' => $failedCount
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Batch approval completed: {$successCount} successful, {$failedCount} failed",
+                'data' => $results
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Batch approval error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process batch approval',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function uploadImages(Request $request): JsonResponse
     {
         try {
