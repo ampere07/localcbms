@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Group, Organization } from '../types/api';
 import { groupService, organizationService } from '../services/userService';
 import Breadcrumb from '../pages/Breadcrumb';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface EditGroupFormProps {
   group: Group;
@@ -11,6 +12,7 @@ interface EditGroupFormProps {
 
 const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupUpdated }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   
   const [formData, setFormData] = useState({
     group_name: group?.group_name || '',
@@ -27,6 +29,18 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
+  }, []);
   
   useEffect(() => {
     const checkDarkMode = () => {
@@ -89,11 +103,22 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
           <p>Cannot edit group: No group data provided.</p>
           <button 
             onClick={onCancel}
-            className={`mt-4 px-4 py-2 rounded transition-colors ${
+            className={`mt-4 px-4 py-2 rounded transition-colors text-white ${
               isDarkMode
-                ? 'bg-gray-600 hover:bg-gray-700 text-white'
-                : 'bg-gray-300 hover:bg-gray-400 text-gray-900'
+                ? 'hover:bg-gray-700'
+                : 'hover:bg-gray-400'
             }`}
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+            }}
           >
             Back to Affiliates
           </button>
@@ -515,11 +540,20 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, onCancel, onGroupU
               <button
                 onClick={handleUpdateGroup}
                 disabled={loading}
-                className={`px-6 py-3 rounded transition-colors text-sm font-medium disabled:opacity-50 ${
-                  isDarkMode
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'bg-blue-500 hover:bg-blue-600 text-white'
-                }`}
+                className="px-6 py-3 rounded transition-colors text-sm font-medium disabled:opacity-50 text-white"
+                style={{
+                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading && colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  }
+                }}
               >
                 {loading ? 'Updating...' : 'Update Affiliate'}
               </button>

@@ -52,7 +52,17 @@ class ServiceOrderApiController extends Controller
                     'so.visit_remarks',
                     'so.support_remarks',
                     'so.service_charge',
-                    'so.new_router_sn',
+                    'so.new_router_modem_sn',
+                    'so.new_lcp',
+                    'so.new_nap',
+                    'so.new_port',
+                    'so.new_vlan',
+                    'so.router_model',
+                    'so.old_lcp',
+                    'so.old_nap',
+                    'so.old_port',
+                    'so.old_vlan',
+                    'so.old_router_modem_sn',
                     'so.new_lcpnap',
                     'so.new_plan',
                     'so.client_signature_url',
@@ -120,7 +130,7 @@ class ServiceOrderApiController extends Controller
                 'repair_category' => 'nullable|string|max:255',
                 'support_remarks' => 'nullable|string',
                 'service_charge' => 'nullable|numeric',
-                'new_router_sn' => 'nullable|string|max:255',
+                'new_router_modem_sn' => 'nullable|string|max:255',
                 'new_lcpnap' => 'nullable|string|max:255',
                 'new_plan' => 'nullable|string|max:255',
                 'status' => 'nullable|string|max:50',
@@ -156,7 +166,7 @@ class ServiceOrderApiController extends Controller
                 'repair_category' => $validated['repair_category'] ?? null,
                 'support_remarks' => $validated['support_remarks'] ?? null,
                 'service_charge' => $validated['service_charge'] ?? null,
-                'new_router_sn' => $validated['new_router_sn'] ?? null,
+                'new_router_modem_sn' => $validated['new_router_modem_sn'] ?? null,
                 'new_lcpnap' => $validated['new_lcpnap'] ?? null,
                 'new_plan' => $validated['new_plan'] ?? null,
                 'status' => $validated['status'] ?? 'unused',
@@ -243,7 +253,17 @@ class ServiceOrderApiController extends Controller
                     'so.visit_remarks',
                     'so.support_remarks',
                     'so.service_charge',
-                    'so.new_router_sn',
+                    'so.new_router_modem_sn',
+                    'so.new_lcp',
+                    'so.new_nap',
+                    'so.new_port',
+                    'so.new_vlan',
+                    'so.router_model',
+                    'so.old_lcp',
+                    'so.old_nap',
+                    'so.old_port',
+                    'so.old_vlan',
+                    'so.old_router_modem_sn',
                     'so.new_lcpnap',
                     'so.new_plan',
                     'so.client_signature_url',
@@ -314,7 +334,17 @@ class ServiceOrderApiController extends Controller
                 'repair_category',
                 'support_remarks',
                 'service_charge',
-                'new_router_sn',
+                'new_router_modem_sn',
+                'new_lcp',
+                'new_nap',
+                'new_port',
+                'new_vlan',
+                'router_model',
+                'old_lcp',
+                'old_nap',
+                'old_port',
+                'old_vlan',
+                'old_router_modem_sn',
                 'new_lcpnap',
                 'new_plan',
                 'client_signature_url',
@@ -334,6 +364,82 @@ class ServiceOrderApiController extends Controller
             $data['updated_at'] = now();
             
             Log::info('Filtered data for update', ['data' => $data]);
+            
+            // Handle technical details update if new values are provided
+            $hasNewTechnicalDetails = 
+                $request->filled('new_lcp') || 
+                $request->filled('new_nap') || 
+                $request->filled('new_port') || 
+                $request->filled('new_vlan') || 
+                $request->filled('new_router_modem_sn');
+            
+            if ($hasNewTechnicalDetails) {
+                Log::info('New technical details detected, updating technical_details table');
+                
+                // Get current technical details
+                $technicalDetails = DB::table('technical_details')
+                    ->where('account_no', $serviceOrder->account_no)
+                    ->first();
+                
+                if ($technicalDetails) {
+                    // Store old values in service_orders
+                    if ($request->filled('new_lcp') && !empty($technicalDetails->lcp)) {
+                        $data['old_lcp'] = $technicalDetails->lcp;
+                    }
+                    if ($request->filled('new_nap') && !empty($technicalDetails->nap)) {
+                        $data['old_nap'] = $technicalDetails->nap;
+                    }
+                    if ($request->filled('new_port') && !empty($technicalDetails->port)) {
+                        $data['old_port'] = $technicalDetails->port;
+                    }
+                    if ($request->filled('new_vlan') && !empty($technicalDetails->vlan)) {
+                        $data['old_vlan'] = $technicalDetails->vlan;
+                    }
+                    if ($request->filled('new_router_modem_sn') && !empty($technicalDetails->router_modem_sn)) {
+                        $data['old_router_modem_sn'] = $technicalDetails->router_modem_sn;
+                    }
+                    
+                    // Prepare updates for technical_details
+                    $technicalUpdates = [];
+                    if ($request->filled('new_lcp')) {
+                        $technicalUpdates['lcp'] = $request->input('new_lcp');
+                    }
+                    if ($request->filled('new_nap')) {
+                        $technicalUpdates['nap'] = $request->input('new_nap');
+                    }
+                    if ($request->filled('new_port')) {
+                        $technicalUpdates['port'] = $request->input('new_port');
+                    }
+                    if ($request->filled('new_vlan')) {
+                        $technicalUpdates['vlan'] = $request->input('new_vlan');
+                    }
+                    if ($request->filled('new_router_modem_sn')) {
+                        $technicalUpdates['router_modem_sn'] = $request->input('new_router_modem_sn');
+                    }
+                    
+                    // Update technical_details table
+                    if (!empty($technicalUpdates)) {
+                        $technicalUpdates['updated_at'] = now();
+                        DB::table('technical_details')
+                            ->where('account_no', $serviceOrder->account_no)
+                            ->update($technicalUpdates);
+                        
+                        Log::info('Updated technical_details', [
+                            'account_no' => $serviceOrder->account_no,
+                            'updates' => $technicalUpdates,
+                            'old_values' => [
+                                'old_lcp' => $data['old_lcp'] ?? null,
+                                'old_nap' => $data['old_nap'] ?? null,
+                                'old_port' => $data['old_port'] ?? null,
+                                'old_vlan' => $data['old_vlan'] ?? null,
+                                'old_router_modem_sn' => $data['old_router_modem_sn'] ?? null
+                            ]
+                        ]);
+                    }
+                } else {
+                    Log::warning('No technical details found for account_no: ' . $serviceOrder->account_no);
+                }
+            }
             
             $shouldAddServiceCharge = false;
             $statusChanged = false;

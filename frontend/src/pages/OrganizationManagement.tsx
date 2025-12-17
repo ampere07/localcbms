@@ -4,6 +4,7 @@ import { organizationService } from '../services/userService';
 import Breadcrumb from './Breadcrumb';
 import AddNewOrganizationForm from '../components/AddNewOrganizationForm';
 import EditOrganizationForm from '../components/EditOrganizationForm';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 const OrganizationManagement: React.FC = () => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -15,9 +16,22 @@ const OrganizationManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     loadOrganizations();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -201,14 +215,31 @@ const OrganizationManagement: React.FC = () => {
                   ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-100'
                   : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
               }`}
+              onFocus={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.borderColor = colorPalette.primary;
+                  e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                }
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = isDarkMode ? '#4b5563' : '#d1d5db';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
             <button 
               onClick={handleAddNew}
-              className={`px-6 py-3 rounded transition-colors text-sm font-medium whitespace-nowrap ${
-                isDarkMode
-                  ? 'bg-gray-600 hover:bg-gray-700 text-white'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
+              className="px-6 py-3 rounded transition-colors text-sm font-medium whitespace-nowrap text-white"
+              style={{
+                backgroundColor: colorPalette?.primary || '#3b82f6'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#3b82f6';
+              }}
             >
               Add New Organization
             </button>
@@ -450,6 +481,16 @@ const OrganizationManagement: React.FC = () => {
                           ? 'bg-gray-800 border-gray-600 text-white focus:border-gray-400'
                           : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                       }`}
+                      onFocus={(e) => {
+                        if (colorPalette?.primary) {
+                          e.currentTarget.style.borderColor = colorPalette.primary;
+                          e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                        }
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = isDarkMode ? '#4b5563' : '#d1d5db';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
                     >
                       <option value={10}>10</option>
                       <option value={25}>25</option>

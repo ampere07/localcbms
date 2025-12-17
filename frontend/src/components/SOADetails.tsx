@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mail, ExternalLink, Edit, ChevronLeft, ChevronRight, Maximize2, X, Info } from 'lucide-react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface SOARecord {
   id: string;
@@ -43,6 +44,7 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord }) => {
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
 
@@ -52,6 +54,19 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord }) => {
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -93,9 +108,20 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord }) => {
         : 'bg-white text-gray-900 border-gray-300'
     }`} style={{ width: `${detailsWidth}px` }}>
       <div
-        className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${
-          isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
-        }`}
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
+        style={{
+          backgroundColor: isResizing ? (colorPalette?.primary || '#ea580c') : 'transparent'
+        }}
+        onMouseEnter={(e) => {
+          if (!isResizing) {
+            e.currentTarget.style.backgroundColor = colorPalette?.accent || '#ea580c';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isResizing) {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }
+        }}
         onMouseDown={handleMouseDownResize}
       />
       <div className={`px-4 py-3 flex items-center justify-between border-b ${
@@ -123,7 +149,22 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord }) => {
           }`}>
             <ExternalLink size={18} />
           </button>
-          <button className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm transition-colors">
+          <button 
+            className="px-3 py-1 text-white rounded text-sm transition-colors"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
+          >
             Edit
           </button>
           <button className={`p-2 rounded transition-colors ${

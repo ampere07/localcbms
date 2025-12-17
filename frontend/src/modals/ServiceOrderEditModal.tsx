@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, ChevronDown, Minus, Plus } from 'lucide-react';
 import { UserData } from '../types/api';
 import apiClient from '../config/api';
+import { getAllInventoryItems, InventoryItem } from '../services/inventoryItemService';
+import { createServiceOrderItems, ServiceOrderItem, deleteServiceOrderItems } from '../services/serviceOrderItemService';
 
 interface ServiceOrderEditModalProps {
   isOpen: boolean;
@@ -17,6 +19,11 @@ interface ModalConfig {
   message: string;
   onConfirm?: () => void;
   onCancel?: () => void;
+}
+
+interface OrderItem {
+  itemId: string;
+  quantity: string;
 }
 
 interface ServiceOrderEditFormData {
@@ -55,6 +62,12 @@ interface ServiceOrderEditFormData {
   supportRemarks: string;
   serviceCharge: string;
   status: string;
+  newRouterModemSN: string;
+  newLcp: string;
+  newNap: string;
+  newPort: string;
+  newVlan: string;
+  routerModel: string;
 }
 
 interface ImageFiles {
@@ -88,6 +101,12 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   const currentUserEmail = currentUser?.email || 'unknown@ampere.com';
 
   const [technicians, setTechnicians] = useState<UserData[]>([]);
+  const [lcps, setLcps] = useState<string[]>([]);
+  const [naps, setNaps] = useState<string[]>([]);
+  const [ports, setPorts] = useState<string[]>([]);
+  const [vlans, setVlans] = useState<string[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([{ itemId: '', quantity: '' }]);
 
   const [formData, setFormData] = useState<ServiceOrderEditFormData>({
     accountNo: '',
@@ -132,7 +151,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     userEmail: currentUserEmail,
     supportRemarks: '',
     serviceCharge: '0.00',
-    status: 'unused'
+    status: 'unused',
+    newRouterModemSN: '',
+    newLcp: '',
+    newNap: '',
+    newPort: '',
+    newVlan: '',
+    routerModel: ''
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -215,6 +240,75 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   }, [isOpen, imagePreviews]);
 
   useEffect(() => {
+    const fetchServiceOrderItems = async () => {
+      if (isOpen && serviceOrderData) {
+        const serviceOrderId = serviceOrderData.id;
+        if (serviceOrderId) {
+          try {
+            const response = await apiClient.get(`/service-order-items?service_order_id=${serviceOrderId}`);
+            const data = response.data as { success: boolean; data: any[] };
+            
+            if (data.success && Array.isArray(data.data)) {
+              const items = data.data;
+              
+              if (items.length > 0) {
+                const uniqueItems = new Map();
+                
+                items.forEach((item: any) => {
+                  const key = item.item_name;
+                  if (uniqueItems.has(key)) {
+                    const existing = uniqueItems.get(key);
+                    uniqueItems.set(key, {
+                      itemId: item.item_name || '',
+                      quantity: (parseInt(existing.quantity) + parseInt(item.quantity || 0)).toString()
+                    });
+                  } else {
+                    uniqueItems.set(key, {
+                      itemId: item.item_name || '',
+                      quantity: item.quantity ? item.quantity.toString() : ''
+                    });
+                  }
+                });
+                
+                const formattedItems = Array.from(uniqueItems.values());
+                formattedItems.push({ itemId: '', quantity: '' });
+                
+                setOrderItems(formattedItems);
+              } else {
+                setOrderItems([{ itemId: '', quantity: '' }]);
+              }
+            }
+          } catch (error) {
+            setOrderItems([{ itemId: '', quantity: '' }]);
+          }
+        }
+      }
+    };
+    
+    fetchServiceOrderItems();
+  }, [isOpen, serviceOrderData]);
+
+  useEffect(() => {
+    const fetchInventoryItems = async () => {
+      if (isOpen) {
+        try {
+          const response = await getAllInventoryItems();
+          
+          if (response.success && Array.isArray(response.data)) {
+            setInventoryItems(response.data);
+          } else {
+            setInventoryItems([]);
+          }
+        } catch (error) {
+          setInventoryItems([]);
+        }
+      }
+    };
+    
+    fetchInventoryItems();
+  }, [isOpen]);
+
+  useEffect(() => {
     const fetchTechnicians = async () => {
       try {
         const response = await apiClient.get<{ success: boolean; data: UserData[] }>('/users');
@@ -230,9 +324,43 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         console.error('Error fetching technicians:', error);
       }
     };
+
+    const fetchTechnicalDetails = async () => {
+      try {
+        const [lcpResponse, napResponse, portResponse, vlanResponse] = await Promise.all([
+          apiClient.get<{ success: boolean; data: any[] }>('/lcp'),
+          apiClient.get<{ success: boolean; data: any[] }>('/nap'),
+          apiClient.get<{ success: boolean; data: any[] }>('/port'),
+          apiClient.get<{ success: boolean; data: any[] }>('/vlan')
+        ]);
+
+        if (lcpResponse.data.success && Array.isArray(lcpResponse.data.data)) {
+          const lcpOptions = lcpResponse.data.data.map(item => item.lcp_name || item.lcp || item.name).filter(Boolean);
+          setLcps(lcpOptions as string[]);
+        }
+
+        if (napResponse.data.success && Array.isArray(napResponse.data.data)) {
+          const napOptions = napResponse.data.data.map(item => item.nap_name || item.nap || item.name).filter(Boolean);
+          setNaps(napOptions as string[]);
+        }
+
+        if (portResponse.data.success && Array.isArray(portResponse.data.data)) {
+          const portOptions = portResponse.data.data.map(item => item.Label).filter(Boolean);
+          setPorts(portOptions as string[]);
+        }
+
+        if (vlanResponse.data.success && Array.isArray(vlanResponse.data.data)) {
+          const vlanOptions = vlanResponse.data.data.map(item => item.value).filter(Boolean);
+          setVlans(vlanOptions as string[]);
+        }
+      } catch (error) {
+        console.error('Error fetching technical details:', error);
+      }
+    };
     
     if (isOpen) {
       fetchTechnicians();
+      fetchTechnicalDetails();
     }
   }, [isOpen]);
 
@@ -276,7 +404,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         userEmail: serviceOrderData.userEmail || serviceOrderData.assignedEmail || serviceOrderData.assigned_email || currentUserEmail,
         supportRemarks: serviceOrderData.supportRemarks || serviceOrderData.support_remarks || '',
         serviceCharge: serviceOrderData.serviceCharge ? serviceOrderData.serviceCharge.toString().replace('₱', '').trim() : (serviceOrderData.service_charge ? serviceOrderData.service_charge.toString().replace('₱', '').trim() : '0.00'),
-        status: serviceOrderData.status || 'unused'
+        status: serviceOrderData.status || 'unused',
+        newRouterModemSN: '',
+        newLcp: '',
+        newNap: '',
+        newPort: '',
+        newVlan: '',
+        routerModel: ''
       }));
     }
   }, [serviceOrderData, isOpen, currentUserEmail]);
@@ -392,6 +526,23 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleItemChange = (index: number, field: 'itemId' | 'quantity', value: string) => {
+    const newOrderItems = [...orderItems];
+    newOrderItems[index][field] = value;
+    setOrderItems(newOrderItems);
+    
+    if (field === 'itemId' && value && index === orderItems.length - 1) {
+      setOrderItems([...newOrderItems, { itemId: '', quantity: '' }]);
+    }
+  };
+
+  const handleRemoveItem = (index: number) => {
+    if (orderItems.length > 1) {
+      const newOrderItems = orderItems.filter((_, i) => i !== index);
+      setOrderItems(newOrderItems);
+    }
+  };
+
   const handleSave = async () => {
     const updatedFormData = {
       ...formData,
@@ -491,7 +642,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         updated_by: updatedFormData.modifiedBy,
         support_remarks: updatedFormData.supportRemarks,
         service_charge: parseFloat(updatedFormData.serviceCharge),
-        status: updatedFormData.status
+        status: updatedFormData.status,
+        new_router_modem_sn: updatedFormData.newRouterModemSN,
+        new_lcp: updatedFormData.newLcp,
+        new_nap: updatedFormData.newNap,
+        new_port: updatedFormData.newPort,
+        new_vlan: updatedFormData.newVlan,
+        router_model: updatedFormData.routerModel
       };
 
       const response = await apiClient.put<{ success: boolean; message?: string; data?: any }>(
@@ -501,6 +658,63 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Service order update failed');
+      }
+
+      // Save service order items
+      const validItems = orderItems.filter(item => {
+        const quantity = parseInt(item.quantity);
+        const isValid = item.itemId && item.itemId.trim() !== '' && !isNaN(quantity) && quantity > 0;
+        return isValid;
+      });
+
+      if (validItems.length > 0) {
+        try {
+          const existingItemsResponse = await apiClient.get<{ success: boolean; data: any[] }>(`/service-order-items?service_order_id=${serviceOrderId}`);
+          
+          if (existingItemsResponse.data.success && existingItemsResponse.data.data.length > 0) {
+            const existingItems = existingItemsResponse.data.data;
+            
+            for (const item of existingItems) {
+              try {
+                await apiClient.delete(`/service-order-items/${item.id}`);
+              } catch (deleteErr) {
+                console.error('Error deleting existing item:', deleteErr);
+              }
+            }
+          }
+        } catch (deleteError: any) {
+          console.error('Error fetching/deleting existing items:', deleteError);
+        }
+
+        const serviceOrderItems: ServiceOrderItem[] = validItems.map(item => {
+          return {
+            service_order_id: parseInt(serviceOrderId.toString()),
+            item_name: item.itemId,
+            quantity: parseInt(item.quantity)
+          };
+        });
+        
+        try {
+          const itemsResponse = await createServiceOrderItems(serviceOrderItems);
+          
+          if (!itemsResponse.success) {
+            throw new Error(itemsResponse.message || 'Failed to create service order items');
+          }
+        } catch (itemsError: any) {
+          console.error('Error saving items:', itemsError);
+          const errorMsg = itemsError.response?.data?.message || itemsError.message || 'Unknown error';
+          setLoading(false);
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Failed to Save Items',
+            message: `Service order updated but failed to save items: ${errorMsg}`,
+            onConfirm: () => {
+              setModal({ ...modal, isOpen: false });
+            }
+          });
+          return;
+        }
       }
 
       setModal({
@@ -929,10 +1143,18 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                           } ${errors.repairCategory ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                         >
                           <option value="">Select Repair Category</option>
-                          <option value="Installation">Installation</option>
-                          <option value="Repair">Repair</option>
-                          <option value="Maintenance">Maintenance</option>
-                          <option value="Upgrade">Upgrade</option>
+                          <option value="Fiber Relaying">Fiber Relaying</option>
+                          <option value="Migrate">Migrate</option>
+                          <option value="others">others</option>
+                          <option value="Pullout">Pullout</option>
+                          <option value="Reboot/Reconfig Router">Reboot/Reconfig Router</option>
+                          <option value="Relocate Router">Relocate Router</option>
+                          <option value="Relocate">Relocate</option>
+                          <option value="Replace Patch Cord">Replace Patch Cord</option>
+                          <option value="Replace Router">Replace Router</option>
+                          <option value="Resplice">Resplice</option>
+                          <option value="Transfer LCP/NAP/PORT">Transfer LCP/NAP/PORT</option>
+                          <option value="Update Vlan">Update Vlan</option>
                         </select>
                         <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
                           isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -945,6 +1167,456 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         </div>
                       )}
                     </div>
+
+                    {formData.repairCategory === 'Migrate' && (
+                      <>
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>New Router Modem SN<span className="text-red-500">*</span></label>
+                          <input 
+                            type="text" 
+                            value={formData.newRouterModemSN} 
+                            onChange={(e) => handleInputChange('newRouterModemSN', e.target.value)} 
+                            placeholder="Enter Router Modem SN"
+                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                              isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                            } ${errors.newRouterModemSN ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                          />
+                          {errors.newRouterModemSN && (
+                            <div className="flex items-center mt-1">
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                              <p className="text-orange-500 text-xs">This entry is required</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>New LCP<span className="text-red-500">*</span></label>
+                          <div className="relative">
+                            <select 
+                              value={formData.newLcp} 
+                              onChange={(e) => handleInputChange('newLcp', e.target.value)} 
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                              } ${errors.newLcp ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select LCP</option>
+                              {lcps.map((lcp) => (
+                                <option key={lcp} value={lcp}>{lcp}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} size={20} />
+                          </div>
+                          {errors.newLcp && (
+                            <div className="flex items-center mt-1">
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                              <p className="text-orange-500 text-xs">This entry is required</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>New NAP<span className="text-red-500">*</span></label>
+                          <div className="relative">
+                            <select 
+                              value={formData.newNap} 
+                              onChange={(e) => handleInputChange('newNap', e.target.value)} 
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                              } ${errors.newNap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select NAP</option>
+                              {naps.map((nap) => (
+                                <option key={nap} value={nap}>{nap}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} size={20} />
+                          </div>
+                          {errors.newNap && (
+                            <div className="flex items-center mt-1">
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                              <p className="text-orange-500 text-xs">This entry is required</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>New Port<span className="text-red-500">*</span></label>
+                          <div className="relative">
+                            <select 
+                              value={formData.newPort} 
+                              onChange={(e) => handleInputChange('newPort', e.target.value)} 
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                              } ${errors.newPort ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select Port</option>
+                              {ports.map((port) => (
+                                <option key={port} value={port}>{port}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} size={20} />
+                          </div>
+                          {errors.newPort && (
+                            <div className="flex items-center mt-1">
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                              <p className="text-orange-500 text-xs">This entry is required</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>New VLAN<span className="text-red-500">*</span></label>
+                          <div className="relative">
+                            <select 
+                              value={formData.newVlan} 
+                              onChange={(e) => handleInputChange('newVlan', e.target.value)} 
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                              } ${errors.newVlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select VLAN</option>
+                              {vlans.map((vlan) => (
+                                <option key={vlan} value={vlan}>{vlan}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} size={20} />
+                          </div>
+                          {errors.newVlan && (
+                            <div className="flex items-center mt-1">
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                              <p className="text-orange-500 text-xs">This entry is required</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Router Model<span className="text-red-500">*</span></label>
+                          <input 
+                            type="text" 
+                            value={formData.routerModel} 
+                            onChange={(e) => handleInputChange('routerModel', e.target.value)} 
+                            placeholder="Enter Router Model"
+                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                              isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                            } ${errors.routerModel ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                          />
+                          {errors.routerModel && (
+                            <div className="flex items-center mt-1">
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                              <p className="text-orange-500 text-xs">This entry is required</p>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {formData.repairCategory === 'Relocate Router' && (
+                      <div>
+                        <label className={`block text-sm font-medium mb-2 ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Router Model<span className="text-red-500">*</span></label>
+                        <input 
+                          type="text" 
+                          value={formData.routerModel} 
+                          onChange={(e) => handleInputChange('routerModel', e.target.value)} 
+                          placeholder="Enter Router Model"
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                            isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                          } ${errors.routerModel ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                        />
+                        {errors.routerModel && (
+                          <div className="flex items-center mt-1">
+                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                            <p className="text-orange-500 text-xs">This entry is required</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {formData.repairCategory === 'Relocate' && (
+                      <>
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>New LCP<span className="text-red-500">*</span></label>
+                          <div className="relative">
+                            <select 
+                              value={formData.newLcp} 
+                              onChange={(e) => handleInputChange('newLcp', e.target.value)} 
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                              } ${errors.newLcp ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select LCP</option>
+                              {lcps.map((lcp) => (
+                                <option key={lcp} value={lcp}>{lcp}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} size={20} />
+                          </div>
+                          {errors.newLcp && (
+                            <div className="flex items-center mt-1">
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                              <p className="text-orange-500 text-xs">This entry is required</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>New NAP<span className="text-red-500">*</span></label>
+                          <div className="relative">
+                            <select 
+                              value={formData.newNap} 
+                              onChange={(e) => handleInputChange('newNap', e.target.value)} 
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                              } ${errors.newNap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select NAP</option>
+                              {naps.map((nap) => (
+                                <option key={nap} value={nap}>{nap}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} size={20} />
+                          </div>
+                          {errors.newNap && (
+                            <div className="flex items-center mt-1">
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                              <p className="text-orange-500 text-xs">This entry is required</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>New Port<span className="text-red-500">*</span></label>
+                          <div className="relative">
+                            <select 
+                              value={formData.newPort} 
+                              onChange={(e) => handleInputChange('newPort', e.target.value)} 
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                              } ${errors.newPort ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select Port</option>
+                              {ports.map((port) => (
+                                <option key={port} value={port}>{port}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} size={20} />
+                          </div>
+                          {errors.newPort && (
+                            <div className="flex items-center mt-1">
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                              <p className="text-orange-500 text-xs">This entry is required</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>New VLAN<span className="text-red-500">*</span></label>
+                          <div className="relative">
+                            <select 
+                              value={formData.newVlan} 
+                              onChange={(e) => handleInputChange('newVlan', e.target.value)} 
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                              } ${errors.newVlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select VLAN</option>
+                              {vlans.map((vlan) => (
+                                <option key={vlan} value={vlan}>{vlan}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} size={20} />
+                          </div>
+                          {errors.newVlan && (
+                            <div className="flex items-center mt-1">
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                              <p className="text-orange-500 text-xs">This entry is required</p>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {formData.repairCategory === 'Replace Router' && (
+                      <div>
+                        <label className={`block text-sm font-medium mb-2 ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>New Router Modem SN<span className="text-red-500">*</span></label>
+                        <input 
+                          type="text" 
+                          value={formData.newRouterModemSN} 
+                          onChange={(e) => handleInputChange('newRouterModemSN', e.target.value)} 
+                          placeholder="Enter Router Modem SN"
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                            isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                          } ${errors.newRouterModemSN ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                        />
+                        {errors.newRouterModemSN && (
+                          <div className="flex items-center mt-1">
+                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                            <p className="text-orange-500 text-xs">This entry is required</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {formData.repairCategory === 'Transfer LCP/NAP/PORT' && (
+                      <>
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>New LCP<span className="text-red-500">*</span></label>
+                          <div className="relative">
+                            <select 
+                              value={formData.newLcp} 
+                              onChange={(e) => handleInputChange('newLcp', e.target.value)} 
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                              } ${errors.newLcp ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select LCP</option>
+                              {lcps.map((lcp) => (
+                                <option key={lcp} value={lcp}>{lcp}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} size={20} />
+                          </div>
+                          {errors.newLcp && (
+                            <div className="flex items-center mt-1">
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                              <p className="text-orange-500 text-xs">This entry is required</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>New NAP<span className="text-red-500">*</span></label>
+                          <div className="relative">
+                            <select 
+                              value={formData.newNap} 
+                              onChange={(e) => handleInputChange('newNap', e.target.value)} 
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                              } ${errors.newNap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select NAP</option>
+                              {naps.map((nap) => (
+                                <option key={nap} value={nap}>{nap}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} size={20} />
+                          </div>
+                          {errors.newNap && (
+                            <div className="flex items-center mt-1">
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                              <p className="text-orange-500 text-xs">This entry is required</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>New Port<span className="text-red-500">*</span></label>
+                          <div className="relative">
+                            <select 
+                              value={formData.newPort} 
+                              onChange={(e) => handleInputChange('newPort', e.target.value)} 
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                              } ${errors.newPort ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select Port</option>
+                              {ports.map((port) => (
+                                <option key={port} value={port}>{port}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} size={20} />
+                          </div>
+                          {errors.newPort && (
+                            <div className="flex items-center mt-1">
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                              <p className="text-orange-500 text-xs">This entry is required</p>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {formData.repairCategory === 'Update Vlan' && (
+                      <div>
+                        <label className={`block text-sm font-medium mb-2 ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>New VLAN<span className="text-red-500">*</span></label>
+                        <div className="relative">
+                          <select 
+                            value={formData.newVlan} 
+                            onChange={(e) => handleInputChange('newVlan', e.target.value)} 
+                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                              isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                            } ${errors.newVlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                          >
+                            <option value="">Select VLAN</option>
+                            {vlans.map((vlan) => (
+                              <option key={vlan} value={vlan}>{vlan}</option>
+                            ))}
+                          </select>
+                          <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`} size={20} />
+                        </div>
+                        {errors.newVlan && (
+                          <div className="flex items-center mt-1">
+                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                            <p className="text-orange-500 text-xs">This entry is required</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${
@@ -1116,12 +1788,15 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                           } ${errors.itemName1 ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                         >
                           <option value="">Select Item</option>
-                          <option value="Router">Router</option>
-                          <option value="Modem">Modem</option>
-                          <option value="Cable">Cable</option>
-                          <option value="Connector">Connector</option>
+                          {inventoryItems.map((invItem) => (
+                            <option key={invItem.id} value={invItem.item_name}>
+                              {invItem.item_name}
+                            </option>
+                          ))}
                         </select>
-                        <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`} size={20} />
                       </div>
                       {errors.itemName1 && (
                         <div className="flex items-center mt-1">
@@ -1379,6 +2054,76 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 )}
               </>
             )}
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Items<span className="text-red-500">*</span></label>
+              {orderItems.map((item, index) => (
+                <div key={index} className="mb-3">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1">
+                      <div className="relative">
+                        <select 
+                          value={item.itemId} 
+                          onChange={(e) => handleItemChange(index, 'itemId', e.target.value)} 
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                            isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                          }`}
+                        >
+                          <option value="">Select Item {index + 1}</option>
+                          {inventoryItems.map((invItem) => (
+                            <option key={invItem.id} value={invItem.item_name}>
+                              {invItem.item_name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`} size={20} />
+                      </div>
+                      {errors[`item_${index}`] && (
+                        <p className="text-orange-500 text-xs mt-1">{errors[`item_${index}`]}</p>
+                      )}
+                    </div>
+                    
+                    {item.itemId && (
+                      <div className="w-32">
+                        <input 
+                          type="number" 
+                          value={item.quantity} 
+                          onChange={(e) => handleItemChange(index, 'quantity', e.target.value)} 
+                          placeholder="Qty"
+                          min="1"
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                            isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                          }`}
+                        />
+                        {errors[`quantity_${index}`] && (
+                          <p className="text-orange-500 text-xs mt-1">{errors[`quantity_${index}`]}</p>
+                        )}
+                      </div>
+                    )}
+                    
+                    {orderItems.length > 1 && item.itemId && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveItem(index)}
+                        className="p-2 text-red-500 hover:text-red-400"
+                      >
+                        <X size={20} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {errors.items && (
+                <div className="flex items-center mt-1">
+                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                  <p className="text-orange-500 text-xs">{errors.items}</p>
+                </div>
+              )}
+            </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${

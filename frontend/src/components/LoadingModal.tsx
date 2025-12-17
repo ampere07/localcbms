@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface LoadingModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ const LoadingModal: React.FC<LoadingModalProps> = ({
   percentage 
 }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -31,6 +33,18 @@ const LoadingModal: React.FC<LoadingModalProps> = ({
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
+  }, []);
+
   if (!isOpen) return null;
 
   return (
@@ -39,7 +53,12 @@ const LoadingModal: React.FC<LoadingModalProps> = ({
         isDarkMode ? 'bg-gray-800' : 'bg-white'
       }`}>
         <div className="flex flex-col items-center">
-          <Loader2 className="w-12 h-12 text-orange-500 animate-spin mb-4" />
+          <Loader2 
+            className="w-12 h-12 animate-spin mb-4" 
+            style={{
+              color: colorPalette?.primary || '#ea580c'
+            }}
+          />
           <p className={`text-center mb-2 ${
             isDarkMode ? 'text-white' : 'text-gray-900'
           }`}>{message}</p>
@@ -50,11 +69,19 @@ const LoadingModal: React.FC<LoadingModalProps> = ({
                 isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
               }`}>
                 <div 
-                  className="bg-orange-500 h-2.5 rounded-full transition-all duration-300"
-                  style={{ width: `${percentage}%` }}
+                  className="h-2.5 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: `${percentage}%`,
+                    backgroundColor: colorPalette?.primary || '#ea580c'
+                  }}
                 ></div>
               </div>
-              <p className="text-center text-orange-500 text-sm font-medium">
+              <p 
+                className="text-center text-sm font-medium"
+                style={{
+                  color: colorPalette?.primary || '#ea580c'
+                }}
+              >
                 {percentage}%
               </p>
             </div>

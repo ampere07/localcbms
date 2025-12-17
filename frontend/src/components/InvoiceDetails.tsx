@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mail, ExternalLink, Edit, ChevronLeft, ChevronRight, Maximize2, X, Info, Download } from 'lucide-react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface InvoiceRecord {
   id: string;
@@ -40,6 +41,7 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
 
@@ -58,6 +60,19 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -99,9 +114,20 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
         : 'bg-white text-gray-900 border-gray-300'
     }`} style={{ width: `${detailsWidth}px` }}>
       <div
-        className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${
-          isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
-        }`}
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
+        style={{
+          backgroundColor: isResizing ? (colorPalette?.primary || '#ea580c') : 'transparent'
+        }}
+        onMouseEnter={(e) => {
+          if (!isResizing) {
+            e.currentTarget.style.backgroundColor = colorPalette?.accent || '#ea580c';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isResizing) {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }
+        }}
         onMouseDown={handleMouseDownResize}
       />
       {/* Header with Invoice No and Actions */}
@@ -123,11 +149,22 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
           }`}>
             <Download size={18} />
           </button>
-          <button className={`px-3 py-1 rounded text-sm transition-colors flex items-center space-x-1 ${
-            isDarkMode
-              ? 'bg-orange-600 hover:bg-orange-700 text-white'
-              : 'bg-orange-500 hover:bg-orange-600 text-white'
-          }`}>
+          <button 
+            className="px-3 py-1 rounded text-sm transition-colors flex items-center space-x-1 text-white"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
+          >
             <span>Apply Stag...</span>
           </button>
           <button className={`p-2 rounded transition-colors ${

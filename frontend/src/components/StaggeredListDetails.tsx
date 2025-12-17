@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import LoadingModal from './LoadingModal';
 import { staggeredInstallationService } from '../services/staggeredInstallationService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface StaggeredInstallation {
   id: string;
@@ -66,6 +67,7 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -85,6 +87,19 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
         console.error('Failed to parse auth data:', error);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -217,10 +232,21 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
           : 'bg-white border-gray-300'
       }`} style={{ width: `${detailsWidth}px`, height: '100%' }}>
         <div
-          className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${
-            isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
-          }`}
+          className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
           onMouseDown={handleMouseDownResize}
+          style={{
+            backgroundColor: isResizing ? (colorPalette?.primary || '#f97316') : 'transparent'
+          }}
+          onMouseEnter={(e) => {
+            if (!isResizing && colorPalette?.accent) {
+              e.currentTarget.style.backgroundColor = colorPalette.accent;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isResizing) {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }
+          }}
         />
         <div className={`p-3 flex items-center justify-between border-b ${
           isDarkMode
@@ -241,7 +267,20 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
               <button
                 onClick={handleApproveStaggered}
                 disabled={loading}
-                className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded text-sm transition-colors"
+                className="flex items-center space-x-2 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded text-sm transition-colors"
+                style={{
+                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading && colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading && colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
               >
                 <CheckCircle size={16} />
                 <span>{loading ? 'Approving...' : 'Approve'}</span>
@@ -582,7 +621,20 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
                     onClose();
                   }
                 }}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition-colors"
+                className="text-white px-6 py-2 rounded transition-colors"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
               >
                 OK
               </button>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Filter, Plus, ChevronRight, X, Search } from 'lucide-react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface SMSBlastLog {
   id: string;
@@ -27,10 +28,24 @@ const SMSBlastLogs: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [selectedProvider, setSelectedProvider] = useState<string>('All');
   const [selectedMessageType, setSelectedMessageType] = useState<string>('All');
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   const statusFilters = ['All', 'Delivered', 'Failed', 'Pending', 'Sent'];
   const providerFilters = ['All', 'Globe', 'Smart', 'DITO'];
   const messageTypeFilters = ['All', 'Customer Advisory', 'Maintenance Advisory', 'Network Advisory', 'Service Advisory'];
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {

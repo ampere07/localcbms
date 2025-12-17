@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Organization } from '../types/api';
 import { organizationService } from '../services/userService';
 import Breadcrumb from '../pages/Breadcrumb';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface EditOrganizationFormProps {
   organization: Organization;
@@ -11,6 +12,7 @@ interface EditOrganizationFormProps {
 
 const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organization, onCancel, onOrganizationUpdated }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   
   const [formData, setFormData] = useState({
     organization_name: organization?.organization_name || '',
@@ -21,6 +23,18 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
+  }, []);
   
   useEffect(() => {
     const checkDarkMode = () => {
@@ -63,11 +77,18 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
           <p>Cannot edit organization: No organization data provided.</p>
           <button 
             onClick={onCancel}
-            className={`mt-4 px-4 py-2 rounded transition-colors ${
-              isDarkMode
-                ? 'bg-gray-600 hover:bg-gray-700 text-white'
-                : 'bg-gray-300 hover:bg-gray-400 text-gray-900'
-            }`}
+            className="mt-4 px-4 py-2 rounded transition-colors text-white"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+            }}
           >
             Back to Organizations
           </button>
@@ -323,11 +344,20 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
               <button
                 onClick={handleUpdateOrganization}
                 disabled={loading}
-                className={`px-6 py-3 rounded transition-colors text-sm font-medium disabled:opacity-50 ${
-                  isDarkMode
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'bg-blue-500 hover:bg-blue-600 text-white'
-                }`}
+                className="px-6 py-3 rounded transition-colors text-sm font-medium disabled:opacity-50 text-white"
+                style={{
+                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading && colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  }
+                }}
               >
                 {loading ? 'Updating...' : 'Update Organization'}
               </button>

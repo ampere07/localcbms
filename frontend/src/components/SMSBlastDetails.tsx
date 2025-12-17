@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, Edit, ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface SMSBlastRecord {
   id?: string;
@@ -32,6 +33,7 @@ interface SMSBlastDetailsProps {
 
 const SMSBlastDetails: React.FC<SMSBlastDetailsProps> = ({ smsBlastRecord }) => {
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -39,6 +41,18 @@ const SMSBlastDetails: React.FC<SMSBlastDetailsProps> = ({ smsBlastRecord }) => 
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   return (
@@ -63,11 +77,20 @@ const SMSBlastDetails: React.FC<SMSBlastDetailsProps> = ({ smsBlastRecord }) => 
           }`}>
             <Trash2 size={18} />
           </button>
-          <button className={`px-3 py-1 text-white rounded text-sm transition-colors flex items-center space-x-1 ${
-            isDarkMode
-              ? 'bg-orange-600 hover:bg-orange-700'
-              : 'bg-orange-600 hover:bg-orange-700'
-          }`}>
+          <button 
+            className="px-3 py-1 text-white rounded text-sm transition-colors flex items-center space-x-1"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+            }}
+          >
             <Edit size={16} />
             <span>Edit</span>
           </button>

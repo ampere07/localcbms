@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import SOADetails from '../components/SOADetails';
 import { soaService, SOARecord } from '../services/soaService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface SOARecordUI {
   id: string;
@@ -58,6 +59,7 @@ const SOA: React.FC = () => {
   const [soaRecords, setSOARecords] = useState<SOARecordUI[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   const allColumns = [
     { key: 'id', label: 'ID', width: 'min-w-20' },
@@ -111,6 +113,19 @@ const SOA: React.FC = () => {
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -321,9 +336,13 @@ const SOA: React.FC = () => {
                 isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
               } ${
                 selectedDate === item.date
-                  ? 'bg-orange-500 bg-opacity-20 text-orange-400'
+                  ? ''
                   : isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}
+              style={selectedDate === item.date ? {
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                color: colorPalette?.primary || '#fb923c'
+              } : {}}
             >
               <span className="text-sm font-medium flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
@@ -337,7 +356,20 @@ const SOA: React.FC = () => {
         </div>
 
         <div
-          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-10"
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
+          style={{
+            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#ea580c') : 'transparent'
+          }}
+          onMouseEnter={(e) => {
+            if (!isResizingSidebar && colorPalette?.primary) {
+              e.currentTarget.style.backgroundColor = colorPalette.primary;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isResizingSidebar) {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }
+          }}
           onMouseDown={handleMouseDownSidebarResize}
         />
       </div>
@@ -356,11 +388,22 @@ const SOA: React.FC = () => {
                   placeholder="Search SOA records..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 ${
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${
                     isDarkMode
                       ? 'bg-gray-800 text-white border border-gray-700'
                       : 'bg-white text-gray-900 border border-gray-300'
                   }`}
+                  style={{
+                    '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                  } as React.CSSProperties}
+                  onFocus={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.borderColor = colorPalette.primary;
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                  }}
                 />
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
                   isDarkMode ? 'text-gray-400' : 'text-gray-500'
@@ -369,7 +412,20 @@ const SOA: React.FC = () => {
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors"
+                className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
+                style={{
+                  backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                }}
+                onMouseEnter={(e) => {
+                  if (!isLoading && colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isLoading && colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
               >
                 {isLoading ? 'Loading...' : 'Refresh'}
               </button>

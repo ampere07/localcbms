@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Group, Organization } from '../types/api';
 import { groupService, organizationService } from '../services/userService';
 import Breadcrumb from '../pages/Breadcrumb';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface AddNewGroupFormProps {
   onCancel: () => void;
@@ -25,6 +26,19 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -428,11 +442,20 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
               <button
                 onClick={handleCreateGroup}
                 disabled={loading}
-                className={`px-6 py-3 rounded transition-colors text-sm font-medium disabled:opacity-50 ${
-                  isDarkMode 
-                    ? 'bg-gray-600 text-white hover:bg-gray-700'
-                    : 'bg-gray-500 text-white hover:bg-gray-600'
-                }`}
+                className="px-6 py-3 rounded transition-colors text-sm font-medium disabled:opacity-50 text-white"
+                style={{
+                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading && colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  }
+                }}
               >
                 {loading ? 'Creating...' : 'Create Affiliate'}
               </button>

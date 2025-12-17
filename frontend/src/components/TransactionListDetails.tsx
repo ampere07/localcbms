@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { transactionService } from '../services/transactionService';
 import LoadingModal from './LoadingModal';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface Transaction {
   id: string;
@@ -52,6 +53,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   const [successMessage, setSuccessMessage] = useState('');
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
 
@@ -61,6 +63,19 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -202,9 +217,20 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
           : 'bg-white border-gray-300'
       }`} style={{ width: `${detailsWidth}px`, height: '100%' }}>
       <div
-        className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${
-          isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
-        }`}
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
+        style={{
+          backgroundColor: isResizing ? (colorPalette?.primary || '#ea580c') : 'transparent'
+        }}
+        onMouseEnter={(e) => {
+          if (!isResizing) {
+            e.currentTarget.style.backgroundColor = colorPalette?.accent || '#ea580c';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isResizing) {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }
+        }}
         onMouseDown={handleMouseDownResize}
       />
       <div className={`p-3 flex items-center justify-between border-b ${
@@ -224,7 +250,20 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
             <button
               onClick={handleApproveTransaction}
               disabled={loading}
-              className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded text-sm transition-colors"
+              className="flex items-center space-x-2 text-white px-3 py-1.5 rounded text-sm transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#22c55e')
+              }}
+              onMouseEnter={(e) => {
+                if (!loading && colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading && colorPalette?.primary) {
+                  e.currentTarget.style.backgroundColor = colorPalette.primary;
+                }
+              }}
             >
               <CheckCircle size={16} />
               <span>{loading ? 'Approving...' : 'Approve'}</span>
@@ -380,7 +419,20 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                   onClose();
                 }
               }}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded transition-colors"
+              className="text-white px-6 py-2 rounded transition-colors"
+              style={{
+                backgroundColor: colorPalette?.primary || '#22c55e'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.backgroundColor = colorPalette.primary;
+                }
+              }}
             >
               OK
             </button>

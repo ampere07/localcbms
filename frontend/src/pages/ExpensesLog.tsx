@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Eye, X } from 'lucide-react';
 import ExpensesLogDetails from '../components/ExpensesLogDetails';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface ExpenseRecord {
   id: string;
@@ -29,6 +30,7 @@ const ExpensesLog: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -45,6 +47,18 @@ const ExpensesLog: React.FC = () => {
     });
     
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -319,11 +333,21 @@ const ExpensesLog: React.FC = () => {
               placeholder="Search expense records..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full rounded pl-10 pr-4 py-3 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm ${
+              className={`w-full rounded pl-10 pr-4 py-3 focus:outline-none text-sm ${
                 isDarkMode 
                   ? 'bg-slate-700 text-white border-slate-600' 
                   : 'bg-white text-gray-900 border-gray-300'
               }`}
+              onFocus={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.borderColor = colorPalette.primary;
+                  e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                }
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = isDarkMode ? '#475569' : '#d1d5db';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
             <Search className={`absolute left-3 top-3.5 h-4 w-4 ${
               isDarkMode ? 'text-slate-400' : 'text-gray-500'

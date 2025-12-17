@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Globe, Search, ChevronDown } from 'lucide-react';
 import PaymentPortalDetails from '../components/PaymentPortalDetails';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 // Interfaces for payment portal data
 interface PaymentPortalRecord {
@@ -36,6 +37,7 @@ const PaymentPortal: React.FC = () => {
   const [records, setRecords] = useState<PaymentPortalRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   // Format date function
   const formatDate = (dateStr?: string): string => {
@@ -71,6 +73,19 @@ const PaymentPortal: React.FC = () => {
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -235,7 +250,10 @@ const PaymentPortal: React.FC = () => {
         isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
         <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-orange-500 mb-3"></div>
+          <div 
+            className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 mb-3"
+            style={{ borderTopColor: colorPalette?.primary || '#ea580c', borderBottomColor: colorPalette?.primary || '#ea580c' }}
+          ></div>
           <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Loading payment portal records...</p>
         </div>
       </div>
@@ -256,7 +274,20 @@ const PaymentPortal: React.FC = () => {
           }`}>{error}</p>
           <button 
             onClick={() => window.location.reload()}
-            className="bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded"
+            className="text-white py-2 px-4 rounded transition-colors"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
           >
             Retry
           </button>
@@ -293,20 +324,29 @@ const PaymentPortal: React.FC = () => {
                 isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
               } ${
                 selectedLocation === location.id
-                  ? 'bg-orange-500 bg-opacity-20 text-orange-400'
+                  ? ''
                   : isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}
+              style={selectedLocation === location.id ? {
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                color: colorPalette?.primary || '#fb923c'
+              } : {}}
             >
               <div className="flex items-center">
                 <Globe className="h-4 w-4 mr-2" />
                 <span className="capitalize">{location.name}</span>
               </div>
               {location.count > 0 && (
-                <span className={`px-2 py-1 rounded-full text-xs ${
-                  selectedLocation === location.id
-                    ? 'bg-orange-600 text-white'
-                    : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                }`}>
+                <span
+                  className={`px-2 py-1 rounded-full text-xs ${
+                    selectedLocation === location.id
+                      ? 'text-white'
+                      : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                  }`}
+                  style={selectedLocation === location.id ? {
+                    backgroundColor: colorPalette?.primary || '#ea580c'
+                  } : {}}
+                >
                   {location.count}
                 </span>
               )}
@@ -331,11 +371,22 @@ const PaymentPortal: React.FC = () => {
                   placeholder="Search payment portal records..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 ${
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${
                     isDarkMode
                       ? 'bg-gray-800 text-white border border-gray-700'
                       : 'bg-white text-gray-900 border border-gray-300'
                   }`}
+                  style={{
+                    '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                  } as React.CSSProperties}
+                  onFocus={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.borderColor = colorPalette.primary;
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                  }}
                 />
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
                   isDarkMode ? 'text-gray-400' : 'text-gray-500'

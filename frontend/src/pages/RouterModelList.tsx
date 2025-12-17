@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, Filter, Loader2 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import AddRouterModelModal from '../modals/AddRouterModelModal';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface RouterModel {
   SN: string;
@@ -22,9 +23,22 @@ const RouterModelList: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRouter, setEditingRouter] = useState<RouterModel | null>(null);
   const [deletingItems, setDeletingItems] = useState<Set<string>>(new Set());
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     loadRouters();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   const loadRouters = async () => {
@@ -212,7 +226,18 @@ const RouterModelList: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleAddNew}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2"
+                className="px-4 py-2 text-white rounded-lg flex items-center gap-2 transition-colors"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#dc2626'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#dc2626';
+                }}
               >
                 <Plus className="h-4 w-4" />
                 Add
@@ -235,7 +260,17 @@ const RouterModelList: React.FC = () => {
               placeholder="Search Router Models"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-gray-600 focus:outline-none"
+              className="w-full pl-10 pr-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none"
+              onFocus={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.borderColor = colorPalette.primary;
+                  e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                }
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = '#374151';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
           </div>
         </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { getAllPorts, deletePort, Port } from '../services/portService';
 import AddPortModal from '../modals/AddPortModal';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 const Ports: React.FC = () => {
   const [ports, setPorts] = useState<Port[]>([]);
@@ -13,10 +14,23 @@ const Ports: React.FC = () => {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     fetchPorts();
   }, [currentPage, searchQuery]);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
+  }, []);
 
   const fetchPorts = async () => {
     try {
@@ -118,7 +132,18 @@ const Ports: React.FC = () => {
           <div className="text-gray-400 mb-4">{error}</div>
           <button 
             onClick={fetchPorts}
-            className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
+            className="text-white px-4 py-2 rounded transition-colors"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+            }}
           >
             Retry
           </button>
@@ -143,13 +168,34 @@ const Ports: React.FC = () => {
               placeholder="Search Ports"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-800 text-white border border-gray-600 rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full bg-gray-800 text-white border border-gray-600 rounded pl-10 pr-4 py-2 focus:outline-none"
+              onFocus={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.borderColor = colorPalette.primary;
+                  e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                }
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = '#4b5563';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
           </div>
           <button 
             onClick={handleAddClick}
-            className="bg-orange-600 text-white px-4 py-2 rounded text-sm flex items-center space-x-2 hover:bg-orange-700 transition-colors ml-4"
+            className="text-white px-4 py-2 rounded text-sm flex items-center space-x-2 transition-colors ml-4"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+            }}
           >
             <Plus size={16} />
             <span>Add</span>

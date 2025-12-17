@@ -3,6 +3,7 @@ import {
   ArrowLeft, ArrowRight, Maximize2, X, Phone, MessageSquare, Info, 
   ExternalLink, Mail, Edit, Trash2, Globe, RefreshCw, CheckCircle
 } from 'lucide-react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface PaymentPortalDetailsProps {
   record: {
@@ -35,6 +36,7 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
   const [error, setError] = useState<string | null>(null);
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
 
@@ -53,6 +55,19 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -128,9 +143,20 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
         : 'bg-white border-gray-300'
     }`} style={{ width: `${detailsWidth}px`, height: '100%' }}>
       <div
-        className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${
-          isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
-        }`}
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
+        style={{
+          backgroundColor: isResizing ? (colorPalette?.primary || '#ea580c') : 'transparent'
+        }}
+        onMouseEnter={(e) => {
+          if (!isResizing) {
+            e.currentTarget.style.backgroundColor = colorPalette?.accent || '#ea580c';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isResizing) {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }
+        }}
         onMouseDown={handleMouseDownResize}
       />
       <div className={`p-3 flex items-center justify-between border-b ${
@@ -492,7 +518,22 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
             </div>
             
             <div className="flex justify-end mt-4 mb-6">
-              <button className={isDarkMode ? 'text-orange-500 hover:text-orange-400 text-sm font-medium' : 'text-orange-600 hover:text-orange-700 text-sm font-medium'}>
+              <button 
+                className="text-sm font-medium"
+                style={{
+                  color: colorPalette?.primary || (isDarkMode ? '#f97316' : '#ea580c')
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.color = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.color = colorPalette.primary;
+                  }
+                }}
+              >
                 Expand
               </button>
             </div>

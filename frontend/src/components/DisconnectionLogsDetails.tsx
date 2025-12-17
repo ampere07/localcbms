@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Maximize2, X, Info } from 'lucide-react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface DisconnectionRecord {
   id?: string;
@@ -39,6 +40,19 @@ interface DisconnectionLogsDetailsProps {
 
 const DisconnectionLogsDetails: React.FC<DisconnectionLogsDetailsProps> = ({ disconnectionRecord }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     const checkDarkMode = () => {

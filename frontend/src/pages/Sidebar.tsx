@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Users, FileText, LogOut, ChevronRight, User, Building2, Shield, FileCheck, Wrench, Map, MapPinned , MapPin, Package, CreditCard, List, Router, DollarSign, Receipt, FileBarChart, Clock, Calendar, UserCheck, AlertTriangle, Tag, MessageSquare, Settings, Network, Activity } from 'lucide-react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface SidebarProps {
   activeSection: string;
@@ -20,6 +21,7 @@ interface MenuItem {
 const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLogout, isCollapsed, userRole }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -39,6 +41,19 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
   }, []);
 
   const menuItems: MenuItem[] = [
@@ -212,13 +227,18 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
             level > 0 ? 'pl-8' : 'pl-4'
           } ${
             isCurrentItemActive
-              ? isDarkMode
-                ? 'bg-orange-500 bg-opacity-20 text-orange-400 border-r-2 border-orange-500'
-                : 'bg-orange-100 text-orange-600 border-r-2 border-orange-500'
+              ? ''
               : isDarkMode
               ? 'text-gray-300 hover:text-white hover:bg-gray-700'
               : 'text-gray-700 hover:text-black hover:bg-gray-100'
           }`}
+          style={isCurrentItemActive ? {
+            backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : isDarkMode ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.1)',
+            color: colorPalette?.primary || (isDarkMode ? '#fb923c' : '#ea580c'),
+            borderRightWidth: '2px',
+            borderRightStyle: 'solid',
+            borderRightColor: colorPalette?.primary || '#ea580c'
+          } : {}}
         >
           <div className="flex items-center">
             <IconComponent className={`h-5 w-5 ${

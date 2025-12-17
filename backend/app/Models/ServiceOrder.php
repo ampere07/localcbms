@@ -51,6 +51,20 @@ class ServiceOrder extends Model
         'Repair_Category',
         'Support_Status',
         'status',
+        'new_modem_router_sn',
+        'new_lcpnsp',
+        'new_plan',
+        'old_lcp',
+        'old_nap',
+        'old_port',
+        'old_router_modem_sn',
+        'old_vlan',
+        'new_router_modem_sn',
+        'new_lcp',
+        'new_nap',
+        'new_port',
+        'new_vlan',
+        'router_model',
     ];
     
     protected $dates = [

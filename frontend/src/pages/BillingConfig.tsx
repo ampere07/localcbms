@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Receipt, Hash, Edit2, Trash2, Save, X, Calendar } from 'lucide-react';
 import { customAccountNumberService, CustomAccountNumber } from '../services/customAccountNumberService';
 import apiClient from '../config/api';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface BillingConfigData {
   advance_generation_day: number;
@@ -50,6 +51,8 @@ const BillingConfig: React.FC = () => {
     title: '',
     message: ''
   });
+
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   const fetchCustomAccountNumber = async () => {
     try {
@@ -109,6 +112,19 @@ const BillingConfig: React.FC = () => {
   useEffect(() => {
     fetchCustomAccountNumber();
     fetchBillingConfig();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
   }, []);
 
   const handleSaveAccountNumber = async () => {
@@ -446,8 +462,13 @@ const BillingConfig: React.FC = () => {
             ) : customAccountNumber && !isEditingAccountNumber ? (
               <div className="flex items-center justify-between py-2">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-orange-500 bg-opacity-20 flex items-center justify-center">
-                    <Hash className="h-5 w-5 text-orange-400" />
+                  <div className="h-10 w-10 rounded-full flex items-center justify-center"
+                    style={{
+                      backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)'
+                    }}>
+                    <Hash className="h-5 w-5" style={{
+                      color: colorPalette?.primary || '#fb923c'
+                    }} />
                   </div>
                   <div>
                     <p className={`font-medium text-lg ${
@@ -506,7 +527,20 @@ const BillingConfig: React.FC = () => {
                   <button
                     onClick={handleSaveAccountNumber}
                     disabled={loadingAccountNumber}
-                    className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 disabled:opacity-50 text-white rounded transition-colors"
+                    style={{
+                      backgroundColor: loadingAccountNumber ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!loadingAccountNumber && colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!loadingAccountNumber && colorPalette?.primary) {
+                        e.currentTarget.style.backgroundColor = colorPalette.primary;
+                      }
+                    }}
                   >
                     <Save size={18} />
                     <span>{customAccountNumber ? 'Update' : 'Create'}</span>
@@ -764,7 +798,20 @@ const BillingConfig: React.FC = () => {
                   <button
                     onClick={handleSaveBillingConfig}
                     disabled={loadingBillingConfig}
-                    className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 disabled:opacity-50 text-white rounded transition-colors"
+                    style={{
+                      backgroundColor: loadingBillingConfig ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!loadingBillingConfig && colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!loadingBillingConfig && colorPalette?.primary) {
+                        e.currentTarget.style.backgroundColor = colorPalette.primary;
+                      }
+                    }}
                   >
                     <Save size={18} />
                     <span>{billingConfig ? 'Update' : 'Create'}</span>
@@ -852,7 +899,20 @@ const BillingConfig: React.FC = () => {
                   </button>
                   <button
                     onClick={modal.onConfirm}
-                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+                    className="px-4 py-2 text-white rounded transition-colors"
+                    style={{
+                      backgroundColor: colorPalette?.primary || '#ea580c'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (colorPalette?.primary) {
+                        e.currentTarget.style.backgroundColor = colorPalette.primary;
+                      }
+                    }}
                   >
                     Confirm
                   </button>
@@ -860,7 +920,20 @@ const BillingConfig: React.FC = () => {
               ) : (
                 <button
                   onClick={() => setModal({ ...modal, isOpen: false })}
-                  className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+                  className="px-4 py-2 text-white rounded transition-colors"
+                  style={{
+                    backgroundColor: colorPalette?.primary || '#ea580c'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.accent) {
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = colorPalette.primary;
+                    }
+                  }}
                 >
                   OK
                 </button>

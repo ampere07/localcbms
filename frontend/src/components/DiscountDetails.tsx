@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mail, ExternalLink, Check, ChevronLeft, ChevronRight, Maximize2, X, Info } from 'lucide-react';
 import { update } from '../services/discountService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface DiscountRecord {
   id?: string;
@@ -44,6 +45,7 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -79,6 +81,19 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
       }
     }
   }, [discountRecord.approvedByEmail, discountRecord.discountStatus]);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     if (!isResizing) return;
@@ -157,8 +172,21 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
         : 'bg-white text-gray-900 border-gray-300'
     }`} style={{ width: `${detailsWidth}px` }}>
       <div
-        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
         onMouseDown={handleMouseDownResize}
+        style={{
+          backgroundColor: isResizing ? (colorPalette?.primary || '#f97316') : 'transparent'
+        }}
+        onMouseEnter={(e) => {
+          if (!isResizing && colorPalette?.accent) {
+            e.currentTarget.style.backgroundColor = colorPalette.accent;
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isResizing) {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }
+        }}
       />
       <div className={`px-4 py-3 flex items-center justify-between border-b ${
         isDarkMode
@@ -174,11 +202,20 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
           {showApproveButton && (
             <button 
               onClick={handleApprove}
-              className={`px-3 py-1 rounded text-sm transition-colors flex items-center space-x-1 ${
-                isDarkMode
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : 'bg-green-500 hover:bg-green-600 text-white'
-              }`}
+              className="px-3 py-1 rounded text-sm transition-colors flex items-center space-x-1 text-white"
+              style={{
+                backgroundColor: colorPalette?.primary || '#ea580c'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.backgroundColor = colorPalette.primary;
+                }
+              }}
             >
               <Check size={16} />
               <span>Approve</span>
@@ -440,11 +477,20 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
               <button
                 onClick={handleConfirmApprove}
                 disabled={isApproving}
-                className={`flex-1 px-4 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center ${
-                  isDarkMode
-                    ? 'bg-green-600 hover:bg-green-700 text-white'
-                    : 'bg-green-500 hover:bg-green-600 text-white'
-                }`}
+                className="flex-1 px-4 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-white"
+                style={{
+                  backgroundColor: isApproving ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                }}
+                onMouseEnter={(e) => {
+                  if (!isApproving && colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isApproving && colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
               >
                 {isApproving ? (
                   <>

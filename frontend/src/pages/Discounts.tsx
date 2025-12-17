@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, ChevronRight, Tag } from 'lucide-react';
 import DiscountDetails from '../components/DiscountDetails';
 import * as discountService from '../services/discountService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface DiscountRecord {
   id: string;
@@ -118,6 +119,7 @@ const Discounts: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -156,6 +158,19 @@ const Discounts: React.FC = () => {
     };
     
     fetchLocationData();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -290,8 +305,21 @@ const Discounts: React.FC = () => {
             }`}>Discounts</h2>
             <div>
               <button 
-                className="flex items-center space-x-1 bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-sm"
+                className="flex items-center space-x-1 text-white px-3 py-1 rounded text-sm transition-colors"
                 onClick={() => alert('Add new discount')}
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
               >
                 <span className="font-bold">+</span>
                 <span>Add</span>
@@ -309,21 +337,26 @@ const Discounts: React.FC = () => {
                   isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
                 } ${
                   selectedLocation === location.id
-                    ? location.id === 'all' 
-                      ? 'bg-orange-500 bg-opacity-20 text-orange-400' 
-                      : 'bg-orange-500 bg-opacity-20 text-orange-400'
+                    ? ''
                     : isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}
+                style={selectedLocation === location.id ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#fb923c'
+                } : {}}
               >
                 {location.id === 'all' ? (
                   <>
                     <span className="text-xs md:text-sm whitespace-nowrap">All</span>
                     {location.count > 0 && (
-                      <span className={`px-2 py-1 rounded-full text-xs mt-1 md:mt-0 ${
-                        selectedLocation === location.id
-                          ? 'bg-orange-600 text-white'
-                          : 'bg-gray-700 text-gray-300'
-                      }`}>
+                      <span className={`px-2 py-1 rounded-full text-xs mt-1 md:mt-0`}
+                        style={selectedLocation === location.id ? {
+                          backgroundColor: colorPalette?.primary || '#ea580c',
+                          color: 'white'
+                        } : {
+                          backgroundColor: isDarkMode ? '#374151' : '#d1d5db',
+                          color: isDarkMode ? '#d1d5db' : '#4b5563'
+                        }}>
                         {location.count}
                       </span>
                     )}
@@ -335,11 +368,14 @@ const Discounts: React.FC = () => {
                       <span className="capitalize text-xs md:text-sm whitespace-nowrap">{location.name}</span>
                     </div>
                     {location.count > 0 && (
-                      <span className={`px-2 py-1 rounded-full text-xs mt-1 md:mt-0 ${
-                        selectedLocation === location.id
-                          ? 'bg-orange-600 text-white'
-                          : 'bg-gray-700 text-gray-300'
-                      }`}>
+                      <span className={`px-2 py-1 rounded-full text-xs mt-1 md:mt-0`}
+                        style={selectedLocation === location.id ? {
+                          backgroundColor: colorPalette?.primary || '#ea580c',
+                          color: 'white'
+                        } : {
+                          backgroundColor: isDarkMode ? '#374151' : '#d1d5db',
+                          color: isDarkMode ? '#d1d5db' : '#4b5563'
+                        }}>
                         {location.count}
                       </span>
                     )}
@@ -351,8 +387,21 @@ const Discounts: React.FC = () => {
         </div>
 
         <div
-          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-10 hidden md:block"
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10 hidden md:block"
           onMouseDown={handleMouseDownSidebarResize}
+          style={{
+            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#f97316') : 'transparent'
+          }}
+          onMouseEnter={(e) => {
+            if (!isResizingSidebar && colorPalette?.primary) {
+              e.currentTarget.style.backgroundColor = colorPalette.primary;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isResizingSidebar) {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }
+          }}
         />
       </div>
 

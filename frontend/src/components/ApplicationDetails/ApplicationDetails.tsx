@@ -10,6 +10,7 @@ import JOAssignFormModal from '../../modals/JOAssignFormModal';
 import ApplicationVisitFormModal from '../../modals/ApplicationVisitFormModal';
 import { JobOrderData } from '../../services/jobOrderService';
 import { ApplicationVisitData, getApplicationVisits } from '../../services/applicationVisitService';
+import { settingsColorPaletteService, ColorPalette } from '../../services/settingsColorPaletteService';
 
 interface ApplicationDetailsProps {
   application: {
@@ -43,6 +44,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -59,6 +61,19 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
     });
     
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {

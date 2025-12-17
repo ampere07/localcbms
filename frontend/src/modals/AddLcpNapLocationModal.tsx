@@ -5,6 +5,7 @@ import { barangayService, Barangay } from '../services/barangayService';
 import { locationDetailService, LocationDetail } from '../services/locationDetailService';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 import { GOOGLE_MAPS_API_KEY } from '../config/maps';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface AddLcpNapLocationModalProps {
   isOpen: boolean;
@@ -87,6 +88,7 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
   const [showCoordinatesMap, setShowCoordinatesMap] = useState<boolean>(false);
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
@@ -100,6 +102,18 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -674,7 +688,12 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
           <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${
             isDarkMode ? 'bg-gray-800' : 'bg-white'
           }`}>
-            <Loader2 className="w-20 h-20 text-orange-500 animate-spin" />
+            <Loader2 
+              className="w-20 h-20 animate-spin" 
+              style={{
+                color: colorPalette?.primary || '#ea580c'
+              }}
+            />
             <div className="text-center">
               <p className={`text-4xl font-bold ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
@@ -1068,7 +1087,18 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent && !loading) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+            }}
           >
             {loading ? 'Saving...' : 'Save'}
           </button>

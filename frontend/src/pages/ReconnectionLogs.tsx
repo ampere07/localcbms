@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AlertTriangle, Search, Circle, X } from 'lucide-react';
 import ReconnectionLogsDetails from '../components/ReconnectionLogsDetails';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface ReconnectionLogRecord {
   id: string;
@@ -46,6 +47,19 @@ const ReconnectionLogs: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -455,11 +469,20 @@ const ReconnectionLogs: React.FC = () => {
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className={`text-white px-4 py-2 rounded text-sm transition-colors ${
-                  isDarkMode 
-                    ? 'bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600'
-                    : 'bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400'
-                }`}
+                className="text-white px-4 py-2 rounded text-sm transition-colors"
+                style={{
+                  backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                }}
+                onMouseEnter={(e) => {
+                  if (!isLoading && colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isLoading) {
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  }
+                }}
               >
                 {isLoading ? 'Loading...' : 'Refresh'}
               </button>

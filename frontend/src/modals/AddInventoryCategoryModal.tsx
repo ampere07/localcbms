@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Loader2 } from 'lucide-react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface AddInventoryCategoryModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
   const [modifiedBy] = useState('ravenampere0123@gmail.com');
   const [modifiedDate, setModifiedDate] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -26,6 +28,18 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -154,7 +168,18 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
               <button
                 onClick={handleSave}
                 disabled={loading}
-                className="px-6 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
+                className="px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent && !loading) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                }}
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 Save
@@ -238,7 +263,12 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
           <div className={`rounded-lg p-12 flex flex-col items-center gap-6 ${
             isDarkMode ? 'bg-gray-800' : 'bg-white'
           }`}>
-            <Loader2 className="h-16 w-16 text-red-600 animate-spin" />
+            <Loader2 
+              className="h-16 w-16 animate-spin" 
+              style={{
+                color: colorPalette?.primary || '#ea580c'
+              }}
+            />
             <p className={`font-bold text-4xl ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>{Math.round(loadingProgress)}%</p>

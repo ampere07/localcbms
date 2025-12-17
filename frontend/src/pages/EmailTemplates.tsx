@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../config/api';
 import { Editor } from '@tinymce/tinymce-react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface EmailTemplateData {
   Template_Code: string;
@@ -33,6 +34,7 @@ const EmailTemplates: React.FC = () => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isCreating, setIsCreating] = useState<boolean>(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   
   const editorRef = useRef<any>(null);
 
@@ -77,6 +79,18 @@ const EmailTemplates: React.FC = () => {
 
   useEffect(() => {
     fetchTemplates();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -293,11 +307,18 @@ const EmailTemplates: React.FC = () => {
             }`}>Email Templates</h2>
             <button
               onClick={handleStartCreate}
-              className={`px-3 py-1.5 text-white text-sm rounded transition-colors ${
-                isDarkMode
-                  ? 'bg-orange-600 hover:bg-orange-700'
-                  : 'bg-orange-500 hover:bg-orange-600'
-              }`}
+              className="px-3 py-1.5 text-white text-sm rounded transition-colors"
+              style={{
+                backgroundColor: colorPalette?.primary || '#ea580c'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+              }}
               disabled={isCreating}
             >
               New
@@ -561,11 +582,18 @@ const EmailTemplates: React.FC = () => {
                 <>
                   <button
                     onClick={handleSave}
-                    className={`px-4 py-2 text-white text-sm rounded transition-colors ${
-                      isDarkMode
-                        ? 'bg-orange-600 hover:bg-orange-700'
-                        : 'bg-orange-500 hover:bg-orange-600'
-                    }`}
+                    className="px-4 py-2 text-white text-sm rounded transition-colors"
+                    style={{
+                      backgroundColor: colorPalette?.primary || '#ea580c'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                    }}
                   >
                     Save
                   </button>
@@ -708,11 +736,18 @@ const EmailTemplates: React.FC = () => {
                   </button>
                   <button
                     onClick={modal.onConfirm}
-                    className={`px-3 py-1.5 text-sm text-white rounded transition-colors ${
-                      isDarkMode
-                        ? 'bg-orange-600 hover:bg-orange-700'
-                        : 'bg-orange-500 hover:bg-orange-600'
-                    }`}
+                    className="px-3 py-1.5 text-sm text-white rounded transition-colors"
+                    style={{
+                      backgroundColor: colorPalette?.primary || '#ea580c'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                    }}
                   >
                     Confirm
                   </button>
@@ -720,11 +755,18 @@ const EmailTemplates: React.FC = () => {
               ) : (
                 <button
                   onClick={() => setModal({ ...modal, isOpen: false })}
-                  className={`px-3 py-1.5 text-sm text-white rounded transition-colors ${
-                    isDarkMode
-                      ? 'bg-orange-600 hover:bg-orange-700'
-                      : 'bg-orange-500 hover:bg-orange-600'
-                  }`}
+                  className="px-3 py-1.5 text-sm text-white rounded transition-colors"
+                  style={{
+                    backgroundColor: colorPalette?.primary || '#ea580c'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.accent) {
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  }}
                 >
                   OK
                 </button>

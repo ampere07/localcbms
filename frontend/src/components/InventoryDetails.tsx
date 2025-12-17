@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight, Trash2, X, FileText, Copy, Printer, ChevronLeft, ChevronRight as ChevronRightNav, Maximize2, AlertTriangle } from 'lucide-react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface InventoryItem {
   item_name: string;
@@ -94,6 +95,7 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
   onClose
 }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     inventoryLogs: true,
     borrowedLogs: false,
@@ -102,6 +104,18 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
     defectiveLogs: false
   });
   const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -223,11 +237,18 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
               </button>
               <button 
                 onClick={handleEdit}
-                className={`px-3 py-1.5 rounded text-sm transition-colors flex items-center space-x-1 ${
-                  isDarkMode
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                    : 'bg-red-500 hover:bg-red-600 text-white'
-                }`}
+                className="px-3 py-1.5 rounded text-sm transition-colors flex items-center space-x-1 text-white"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                }}
               >
                 <span>Edit</span>
               </button>
@@ -427,11 +448,20 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
                         : 'bg-gray-100 border-gray-200'
                     }`}>
                       <span className="text-red-500 text-sm cursor-pointer hover:underline">Expand</span>
-                      <button className={`px-3 py-1 rounded text-sm transition-colors ${
-                        isDarkMode
-                          ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                          : 'bg-orange-500 hover:bg-orange-600 text-white'
-                      }`}>
+                      <button 
+                        className="px-3 py-1 rounded text-sm transition-colors text-white"
+                        style={{
+                          backgroundColor: colorPalette?.primary || '#ea580c'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                        }}
+                      >
                         Add Item
                       </button>
                     </div>
@@ -641,11 +671,18 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
           </button>
           <button 
             onClick={handleEdit}
-            className={`px-3 py-1.5 rounded text-sm transition-colors flex items-center space-x-1 ${
-              isDarkMode
-                ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-red-500 hover:bg-red-600 text-white'
-            }`}
+            className="px-3 py-1.5 rounded text-sm transition-colors flex items-center space-x-1 text-white"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+            }}
           >
             <span>Edit</span>
           </button>

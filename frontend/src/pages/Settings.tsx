@@ -23,6 +23,7 @@ const Settings: React.FC = () => {
   const [selectedImageSizeId, setSelectedImageSizeId] = useState<number | null>(null);
   const [isEditingImageSize, setIsEditingImageSize] = useState<boolean>(false);
   const [isSavingImageSize, setIsSavingImageSize] = useState<boolean>(false);
+  const [colorPalette, setColorPalette] = useState<DbColorPalette | null>(null);
   
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isTogglingDarkMode, setIsTogglingDarkMode] = useState<boolean>(false);
@@ -31,6 +32,18 @@ const Settings: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [showError, setShowError] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     const loadUserPreferences = async () => {
@@ -318,9 +331,10 @@ const Settings: React.FC = () => {
             <button
               onClick={handleThemeToggle}
               disabled={isTogglingDarkMode}
-              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                isDarkMode ? 'bg-orange-500' : 'bg-gray-600'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: isDarkMode ? (colorPalette?.primary || '#ea580c') : '#4b5563'
+              }}
             >
               <span
                 className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
@@ -328,7 +342,7 @@ const Settings: React.FC = () => {
                 }`}
               >
                 {isDarkMode ? (
-                  <Moon className="h-4 w-4 text-orange-500 m-1" />
+                  <Moon className="h-4 w-4 m-1" style={{ color: colorPalette?.primary || '#ea580c' }} />
                 ) : (
                   <Sun className="h-4 w-4 text-gray-600 m-1" />
                 )}
@@ -369,7 +383,7 @@ const Settings: React.FC = () => {
                     </h4>
                     <div className="flex items-center gap-2">
                       {palette.status === 'active' && (
-                        <div className="h-5 w-5 rounded-full bg-orange-500 flex items-center justify-center">
+                        <div className="h-5 w-5 rounded-full flex items-center justify-center" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>
                           <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                           </svg>
@@ -442,14 +456,14 @@ const Settings: React.FC = () => {
             
             <button
               onClick={() => setShowAddPaletteModal(true)}
-              className={`p-4 rounded border border-dashed hover:border-orange-500 transition-all flex flex-col items-center justify-center gap-2 min-h-[140px] ${
+              className={`p-4 rounded border border-dashed transition-all flex flex-col items-center justify-center gap-2 min-h-[140px] ${
                 isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-300'
               }`}
             >
               <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
                 isDarkMode ? 'bg-gray-800' : 'bg-gray-200'
               }`}>
-                <Plus className="h-5 w-5 text-orange-400" />
+                <Plus className="h-5 w-5" style={{ color: colorPalette?.primary || '#ea580c' }} />
               </div>
               <p className={`font-medium text-sm ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
@@ -504,14 +518,14 @@ const Settings: React.FC = () => {
                     </span>
                   </div>
                   {size.status === 'active' && !isEditingImageSize && (
-                    <div className="h-5 w-5 rounded-full bg-orange-500 flex items-center justify-center">
+                    <div className="h-5 w-5 rounded-full flex items-center justify-center" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>
                       <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
                   )}
                   {selectedImageSizeId === size.id && isEditingImageSize && (
-                    <div className="h-5 w-5 rounded-full bg-orange-500 flex items-center justify-center">
+                    <div className="h-5 w-5 rounded-full flex items-center justify-center" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>
                       <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
@@ -525,7 +539,18 @@ const Settings: React.FC = () => {
               {!isEditingImageSize ? (
                 <button
                   onClick={handleEditImageSize}
-                  className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors text-sm"
+                  className="px-4 py-2 text-white rounded transition-colors text-sm"
+                  style={{
+                    backgroundColor: colorPalette?.primary || '#ea580c'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.accent) {
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  }}
                 >
                   Edit
                 </button>
@@ -534,7 +559,20 @@ const Settings: React.FC = () => {
                   <button
                     onClick={handleSaveImageSize}
                     disabled={isSavingImageSize || selectedImageSizeId === activeImageSizeId}
-                    className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed text-sm"
+                    className="px-4 py-2 text-white rounded transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed text-sm"
+                    style={{
+                      backgroundColor: (isSavingImageSize || selectedImageSizeId === activeImageSizeId) ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSavingImageSize && selectedImageSizeId !== activeImageSizeId && colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSavingImageSize && selectedImageSizeId !== activeImageSizeId) {
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                      }
+                    }}
                   >
                     {isSavingImageSize ? 'Saving...' : 'Save'}
                   </button>
@@ -561,7 +599,7 @@ const Settings: React.FC = () => {
       {isLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60]">
           <div className="bg-gray-800 rounded-lg p-8 flex flex-col items-center gap-4">
-            <Loader2 className="h-12 w-12 text-orange-500 animate-spin" />
+            <Loader2 className="h-12 w-12 animate-spin" style={{ color: colorPalette?.primary || '#ea580c' }} />
             <p className="text-white font-medium">{loadingMessage}</p>
           </div>
         </div>
@@ -570,7 +608,7 @@ const Settings: React.FC = () => {
       {isTogglingDarkMode && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60]">
           <div className="bg-gray-800 rounded-lg p-8 flex flex-col items-center gap-4">
-            <Loader2 className="h-12 w-12 text-orange-500 animate-spin" />
+            <Loader2 className="h-12 w-12 animate-spin" style={{ color: colorPalette?.primary || '#ea580c' }} />
             <p className="text-white font-medium">Updating theme preference...</p>
           </div>
         </div>

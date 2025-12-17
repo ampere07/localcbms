@@ -7,6 +7,7 @@ import { getCities, City } from '../services/cityService';
 import { getRegions, Region } from '../services/regionService';
 import { Application as ApiApplication } from '../types/application';
 import { locationEvents, LOCATION_EVENTS } from '../services/locationEvents';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface Application {
   id: string;
@@ -98,6 +99,7 @@ const ApplicationManagement: React.FC = () => {
   const startWidthRef = useRef<number>(0);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -161,6 +163,19 @@ const ApplicationManagement: React.FC = () => {
     if (!locationDataLoaded) return;
     fetchApplications();
   }, [locationDataLoaded]);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
+  }, []);
 
   const fetchApplications = async () => {
     try {
@@ -643,7 +658,20 @@ const ApplicationManagement: React.FC = () => {
             }`}>Applications</h2>
             <button 
               onClick={() => setIsAddModalOpen(true)}
-              className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-sm flex items-center space-x-1 transition-colors"
+              className="text-white px-3 py-1 rounded text-sm flex items-center space-x-1 transition-colors"
+              style={{
+                backgroundColor: colorPalette?.primary || '#ea580c'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.backgroundColor = colorPalette.primary;
+                }
+              }}
               aria-label="Add new application"
             >
               <span>Form</span>
@@ -659,20 +687,27 @@ const ApplicationManagement: React.FC = () => {
                 isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
               } ${
                 selectedLocation === location.id
-                  ? 'bg-orange-500 bg-opacity-20 text-orange-400'
+                  ? ''
                   : isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}
+              style={selectedLocation === location.id ? {
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                color: colorPalette?.primary || '#fb923c'
+              } : {}}
             >
               <div className="flex items-center">
                 <FileText className="h-4 w-4 mr-2" />
                 <span className="capitalize">{location.name}</span>
               </div>
               {location.count > 0 && (
-                <span className={`px-2 py-1 rounded-full text-xs ${
-                  selectedLocation === location.id
-                    ? 'bg-orange-600 text-white'
-                    : 'bg-gray-700 text-gray-300'
-                }`}>
+                <span className="px-2 py-1 rounded-full text-xs"
+                  style={selectedLocation === location.id ? {
+                    backgroundColor: colorPalette?.primary || '#ea580c',
+                    color: 'white'
+                  } : {
+                    backgroundColor: isDarkMode ? '#374151' : '#d1d5db',
+                    color: isDarkMode ? '#d1d5db' : '#4b5563'
+                  }}>
                   {location.count}
                 </span>
               )}
@@ -681,8 +716,21 @@ const ApplicationManagement: React.FC = () => {
         </div>
         
         <div
-          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-10"
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
           onMouseDown={handleMouseDownSidebarResize}
+          style={{
+            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#f97316') : 'transparent'
+          }}
+          onMouseEnter={(e) => {
+            if (!isResizingSidebar && colorPalette?.accent) {
+              e.currentTarget.style.backgroundColor = colorPalette.accent;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isResizingSidebar) {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }
+          }}
         />
       </div>
 
@@ -710,20 +758,27 @@ const ApplicationManagement: React.FC = () => {
                   onClick={() => handleLocationSelect(location.id)}
                   className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
                     selectedLocation === location.id
-                      ? 'bg-orange-500 bg-opacity-20 text-orange-400'
+                      ? ''
                       : 'text-gray-300'
                   }`}
+                  style={selectedLocation === location.id ? {
+                    backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                    color: colorPalette?.primary || '#fb923c'
+                  } : {}}
                 >
                   <div className="flex items-center">
                     <FileText className="h-4 w-4 mr-2" />
                     <span className="capitalize">{location.name}</span>
                   </div>
                   {location.count > 0 && (
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      selectedLocation === location.id
-                        ? 'bg-orange-600 text-white'
-                        : 'bg-gray-700 text-gray-300'
-                    }`}>
+                    <span className="px-2 py-1 rounded-full text-xs"
+                      style={selectedLocation === location.id ? {
+                        backgroundColor: colorPalette?.primary || '#ea580c',
+                        color: 'white'
+                      } : {
+                        backgroundColor: '#374151',
+                        color: '#d1d5db'
+                      }}>
                       {location.count}
                     </span>
                   )}
@@ -757,11 +812,21 @@ const ApplicationManagement: React.FC = () => {
                   placeholder="Search applications..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 ${
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${
                     isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                      ? 'bg-gray-800 text-white border border-gray-700'
+                      : 'bg-white text-gray-900 border border-gray-300'
                   }`}
+                  onFocus={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.borderColor = colorPalette.primary;
+                      e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 />
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
                   isDarkMode ? 'text-gray-400' : 'text-gray-500'
@@ -789,14 +854,40 @@ const ApplicationManagement: React.FC = () => {
                           <div className="flex space-x-2">
                             <button
                               onClick={handleSelectAllColumns}
-                              className="text-xs text-orange-500 hover:text-orange-400"
+                              className="text-xs"
+                              style={{
+                                color: colorPalette?.primary || '#f97316'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (colorPalette?.accent) {
+                                  e.currentTarget.style.color = colorPalette.accent;
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (colorPalette?.primary) {
+                                  e.currentTarget.style.color = colorPalette.primary;
+                                }
+                              }}
                             >
                               Select All
                             </button>
                             <span className="text-gray-600">|</span>
                             <button
                               onClick={handleDeselectAllColumns}
-                              className="text-xs text-orange-500 hover:text-orange-400"
+                              className="text-xs"
+                              style={{
+                                color: colorPalette?.primary || '#f97316'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (colorPalette?.accent) {
+                                  e.currentTarget.style.color = colorPalette.accent;
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (colorPalette?.primary) {
+                                  e.currentTarget.style.color = colorPalette.primary;
+                                }
+                              }}
                             >
                               Deselect All
                             </button>
@@ -833,7 +924,7 @@ const ApplicationManagement: React.FC = () => {
                     <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
                   {dropdownOpen && (
-                    <div className={`absolute top-full right-0 mt-1 w-36 rounded shadow-lg border ${
+                    <div className={`absolute top-full right-0 mt-1 w-36 rounded shadow-lg border z-50 ${
                         isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
                       }`}>
                       <button
@@ -843,7 +934,12 @@ const ApplicationManagement: React.FC = () => {
                         }}
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
                             isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                          } ${displayMode === 'card' ? 'text-orange-500' : isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                          }`}
+                        style={displayMode === 'card' ? {
+                          color: colorPalette?.primary || '#f97316'
+                        } : {
+                          color: isDarkMode ? 'white' : '#111827'
+                        }}
                       >
                         Card View
                       </button>
@@ -854,7 +950,12 @@ const ApplicationManagement: React.FC = () => {
                         }}
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
                             isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                          } ${displayMode === 'table' ? 'text-orange-500' : isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                          }`}
+                        style={displayMode === 'table' ? {
+                          color: colorPalette?.primary || '#f97316'
+                        } : {
+                          color: isDarkMode ? 'white' : '#111827'
+                        }}
                       >
                         Table View
                       </button>
@@ -864,7 +965,20 @@ const ApplicationManagement: React.FC = () => {
                 <button
                   onClick={() => fetchApplications()}
                   disabled={isLoading}
-                  className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors"
+                  className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
+                  style={{
+                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isLoading && colorPalette?.accent) {
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isLoading && colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = colorPalette.primary;
+                    }
+                  }}
                 >
                   {isLoading ? 'Loading...' : 'Refresh'}
                 </button>
@@ -968,7 +1082,7 @@ const ApplicationManagement: React.FC = () => {
                 <div className="overflow-x-auto overflow-y-hidden">
                   <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
                     <thead>
-                      <tr className={`border-b sticky top-0 z-10 ${
+                      <tr className={`border-b sticky top-0 z-20 ${
                         isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
                       }`}>
                         {filteredColumns.map((column, index) => (
@@ -999,9 +1113,11 @@ const ApplicationManagement: React.FC = () => {
                                   className="ml-2 transition-colors"
                                 >
                                   {sortColumn === column.key && sortDirection === 'desc' ? (
-                                    <ArrowDown className="h-4 w-4 text-orange-400" />
+                                    <ArrowDown className="h-4 w-4" style={{ color: colorPalette?.primary || '#fb923c' }} />
                                   ) : (
-                                    <ArrowUp className="h-4 w-4 text-gray-400 hover:text-orange-400" />
+                                    <ArrowUp className="h-4 w-4 text-gray-400" style={{
+                                      color: sortColumn === column.key ? (colorPalette?.primary || '#fb923c') : undefined
+                                    }} />
                                   )}
                                 </button>
                               )}
@@ -1073,18 +1189,25 @@ const ApplicationManagement: React.FC = () => {
               onClick={() => setSelectedLocation(location.id)}
               className={`flex-shrink-0 flex flex-col items-center justify-center px-4 py-2 text-xs transition-colors ${
                 selectedLocation === location.id
-                  ? 'bg-orange-500 bg-opacity-20 text-orange-400'
+                  ? ''
                   : 'text-gray-300'
               }`}
+              style={selectedLocation === location.id ? {
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                color: colorPalette?.primary || '#fb923c'
+              } : {}}
             >
               <FileText className="h-5 w-5 mb-1" />
               <span className="capitalize whitespace-nowrap">{location.name}</span>
               {location.count > 0 && (
-                <span className={`mt-1 px-2 py-0.5 rounded-full text-xs ${
-                  selectedLocation === location.id
-                    ? 'bg-orange-600 text-white'
-                    : 'bg-gray-700 text-gray-300'
-                }`}>
+                <span className="mt-1 px-2 py-0.5 rounded-full text-xs"
+                  style={selectedLocation === location.id ? {
+                    backgroundColor: colorPalette?.primary || '#ea580c',
+                    color: 'white'
+                  } : {
+                    backgroundColor: '#374151',
+                    color: '#d1d5db'
+                  }}>
                   {location.count}
                 </span>
               )}

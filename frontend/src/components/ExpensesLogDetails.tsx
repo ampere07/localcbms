@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, Edit, ChevronLeft, ChevronRight as ChevronRightNav, Maximize2, X, Info, Mail } from 'lucide-react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface ExpenseRecord {
   id: string;
@@ -29,6 +30,19 @@ const ExpensesLogDetails: React.FC<ExpensesLogDetailsProps> = ({
   expenseRecord
 }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -70,11 +84,20 @@ const ExpensesLogDetails: React.FC<ExpensesLogDetailsProps> = ({
           }`}>
             <Trash2 size={18} />
           </button>
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-white bg-orange-600 hover:bg-orange-700'
-              : 'text-white bg-orange-500 hover:bg-orange-600'
-          }`}>
+          <button 
+            className="p-2 rounded transition-colors text-white"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+            }}
+          >
             <Edit size={18} />
           </button>
           <button className={`p-2 rounded transition-colors ${

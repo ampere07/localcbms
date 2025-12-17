@@ -6,6 +6,7 @@ import StaggeredInstallationFormModal from '../modals/StaggeredInstallationFormM
 import DiscountFormModal from '../modals/DiscountFormModal';
 import SORequestFormModal from '../modals/SORequestFormModal';
 import { BillingDetailRecord } from '../types/billing';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface OnlineStatusRecord {
   id: string;
@@ -60,6 +61,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   const [showSORequestFormModal, setShowSORequestFormModal] = useState(false);
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
 
@@ -78,6 +80,19 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
   }, []);
 
   const toggleSection = (section: string) => {
@@ -214,7 +229,20 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
         : 'bg-white text-gray-900 border-gray-300'
     }`} style={{ width: `${detailsWidth}px` }}>
       <div
-        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-50"
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
+        style={{
+          backgroundColor: isResizing ? (colorPalette?.primary || '#ea580c') : 'transparent'
+        }}
+        onMouseEnter={(e) => {
+          if (!isResizing) {
+            e.currentTarget.style.backgroundColor = colorPalette?.accent || '#ea580c';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isResizing) {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }
+        }}
         onMouseDown={handleMouseDownResize}
       />
       <div className={`px-4 py-3 flex items-center justify-between border-b ${
@@ -254,11 +282,20 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           </button>
           <button 
             onClick={handleTransactClick}
-            className={`px-3 py-1 rounded text-sm transition-colors ${
-              isDarkMode
-                ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                : 'bg-orange-500 hover:bg-orange-600 text-white'
-            }`}
+            className="px-3 py-1 rounded text-sm transition-colors text-white"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
           >
             Transact
           </button>
@@ -300,11 +337,22 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
         isDarkMode ? 'border-gray-700' : 'border-gray-200'
       }`}>
         <div className="flex flex-col items-center space-y-2">
-          <button className={`flex items-center justify-center w-10 h-10 text-white rounded-full transition-colors ${
-            isDarkMode
-              ? 'bg-orange-600 hover:bg-orange-700'
-              : 'bg-orange-500 hover:bg-orange-600'
-          }`}>
+          <button 
+            className="flex items-center justify-center w-10 h-10 text-white rounded-full transition-colors"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
+          >
             <Paperclip size={18} />
           </button>
           <span className={`text-xs ${
@@ -312,11 +360,22 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           }`}>Attachment</span>
         </div>
         <div className="flex flex-col items-center space-y-2">
-          <button className={`flex items-center justify-center w-10 h-10 text-white rounded-full transition-colors ${
-            isDarkMode
-              ? 'bg-orange-600 hover:bg-orange-700'
-              : 'bg-orange-500 hover:bg-orange-600'
-          }`}>
+          <button 
+            className="flex items-center justify-center w-10 h-10 text-white rounded-full transition-colors"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
+          >
             <Calendar size={18} />
           </button>
           <span className={`text-xs ${
@@ -1078,11 +1137,20 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
               </button>
               <button
                 onClick={handleSORequestConfirm}
-                className={`px-4 py-2 rounded transition-colors ${
-                  isDarkMode
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                    : 'bg-red-500 hover:bg-red-600 text-white'
-                }`}
+                className="px-4 py-2 rounded transition-colors text-white"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
               >
                 Yes, Continue
               </button>

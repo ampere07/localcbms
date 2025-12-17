@@ -9,6 +9,7 @@ import ConfirmationModal from '../modals/MoveToJoModal';
 import JOAssignFormModal from '../modals/JOAssignFormModal';
 import ApplicationVisitStatusModal from '../modals/ApplicationVisitStatusModal';
 import { JobOrderData } from '../services/jobOrderService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface ApplicationVisitDetailsProps {
   applicationVisit: {
@@ -57,6 +58,19 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -263,9 +277,18 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             </>
           )}
           <button 
-            className={`text-white px-3 py-1 rounded-sm flex items-center ${
-              isDarkMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'
-            }`}
+            className="text-white px-3 py-1 rounded-sm flex items-center transition-colors"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+            }}
             onClick={handleEditVisit}
             title="Edit Visit Details"
           >
@@ -291,14 +314,36 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
         }`}>
           <div className="flex items-center justify-center px-4 space-x-4 md:space-x-8">
             <button 
-              className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${
-                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
-              }`}
+              className="flex flex-col items-center text-center p-2 rounded-md transition-colors"
+              style={{
+                backgroundColor: isDarkMode ? 'transparent' : 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = isDarkMode ? '#1f2937' : '#e5e7eb';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
               onClick={() => handleStatusUpdate(null)}
               disabled={loading}
               title="Clear status and reset to default"
             >
-              <div className={`p-2 rounded-full ${loading ? isDarkMode ? 'bg-gray-600' : 'bg-gray-400' : isDarkMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'}`}>
+              <div 
+                className="p-2 rounded-full transition-colors"
+                style={{
+                  backgroundColor: loading ? (isDarkMode ? '#4b5563' : '#9ca3af') : (colorPalette?.primary || '#ea580c')
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading && colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  }
+                }}
+              >
                 <Eraser className="text-white" size={18} />
               </div>
               <span className={`text-xs mt-1 ${
@@ -312,7 +357,22 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               disabled={loading}
               title="Mark visit as failed"
             >
-              <div className={`p-2 rounded-full ${loading ? 'bg-gray-600' : 'bg-orange-600 hover:bg-orange-700'}`}>
+              <div 
+                className="p-2 rounded-full transition-colors"
+                style={{
+                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading && colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  }
+                }}
+              >
                 <XOctagon className="text-white" size={18} />
               </div>
               <span className={`text-xs mt-1 ${
@@ -326,7 +386,22 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               disabled={loading}
               title="Mark visit as in progress"
             >
-              <div className={`p-2 rounded-full ${loading ? 'bg-gray-600' : 'bg-orange-600 hover:bg-orange-700'}`}>
+              <div 
+                className="p-2 rounded-full transition-colors"
+                style={{
+                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading && colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  }
+                }}
+              >
                 <RotateCw className="text-white" size={18} />
               </div>
               <span className={`text-xs mt-1 ${

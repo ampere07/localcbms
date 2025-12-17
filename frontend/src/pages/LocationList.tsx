@@ -3,6 +3,7 @@ import { MapPin, Search, Plus, Edit2, Trash2, ChevronRight, ChevronDown } from '
 import AddLocationModal from '../modals/AddLocationModal';
 import EditLocationModal from '../modals/EditLocationModal';
 import LocationDetailsModal from '../modals/LocationDetailsModal';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { 
   getRegions, 
   getCities, 
@@ -50,6 +51,20 @@ const LocationList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [expandedRegions, setExpandedRegions] = useState<Set<number>>(new Set());
   const [expandedCities, setExpandedCities] = useState<Set<number>>(new Set());
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -392,7 +407,10 @@ const LocationList: React.FC = () => {
         isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
         <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-orange-500 mb-3"></div>
+          <div 
+            className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 mb-3"
+            style={{ borderTopColor: colorPalette?.primary || '#ea580c', borderBottomColor: colorPalette?.primary || '#ea580c' }}
+          ></div>
           <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Loading locations...</p>
         </div>
       </div>
@@ -413,7 +431,20 @@ const LocationList: React.FC = () => {
           }`}>{error}</p>
           <button 
             onClick={() => fetchLocationData()}
-            className="bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded"
+            className="text-white py-2 px-4 rounded transition-colors"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
           >
             Retry
           </button>
@@ -446,22 +477,29 @@ const LocationList: React.FC = () => {
               onClick={() => setSidebarFilter({ type: 'all' })}
               className={`md:w-full flex-shrink-0 flex flex-col md:flex-row items-center md:justify-between px-4 py-3 text-sm transition-colors rounded-md md:rounded-none ${
                 isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-              } ${
-                sidebarFilter.type === 'all'
-                  ? 'bg-orange-500 bg-opacity-20 text-orange-400'
-                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}
+              style={sidebarFilter.type === 'all' ? {
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                color: colorPalette?.primary || '#fb923c'
+              } : {
+                color: isDarkMode ? '#d1d5db' : '#374151'
+              }}
             >
               <div className="flex flex-col md:flex-row items-center">
                 <MapPin className="h-4 w-4 md:mr-2 mb-1 md:mb-0" />
                 <span className="text-xs md:text-sm whitespace-nowrap">All</span>
               </div>
               {allLocations.length > 0 && (
-                <span className={`px-2 py-1 rounded-full text-xs mt-1 md:mt-0 ${
-                  sidebarFilter.type === 'all'
-                    ? 'bg-orange-600 text-white'
-                    : 'bg-gray-700 text-gray-300'
-                }`}>
+                <span
+                  className="px-2 py-1 rounded-full text-xs mt-1 md:mt-0"
+                  style={sidebarFilter.type === 'all' ? {
+                    backgroundColor: colorPalette?.primary || '#ea580c',
+                    color: 'white'
+                  } : {
+                    backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
+                    color: isDarkMode ? '#d1d5db' : '#374151'
+                  }}
+                >
                   {allLocations.length}
                 </span>
               )}
@@ -492,19 +530,26 @@ const LocationList: React.FC = () => {
                       onClick={() => setSidebarFilter({ type: 'region', id: region.id })}
                       className={`flex-1 md:flex-1 flex flex-col md:flex-row items-center md:justify-between py-3 px-4 md:pr-4 md:pl-0 text-sm transition-colors rounded-md md:rounded-none ${
                         isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                      } ${
-                        isSelected
-                          ? 'bg-orange-500 bg-opacity-20 text-orange-400'
-                          : isDarkMode ? 'text-gray-300' : 'text-gray-700'
                       }`}
+                      style={isSelected ? {
+                        backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                        color: colorPalette?.primary || '#fb923c'
+                      } : {
+                        color: isDarkMode ? '#d1d5db' : '#374151'
+                      }}
                     >
                       <span className="text-xs md:text-sm whitespace-nowrap">{region.name}</span>
                       {regionCount > 0 && (
-                        <span className={`px-2 py-1 rounded-full text-xs mt-1 md:mt-0 ${
-                          isSelected
-                            ? 'bg-orange-600 text-white'
-                            : 'bg-gray-700 text-gray-300'
-                        }`}>
+                        <span
+                          className="px-2 py-1 rounded-full text-xs mt-1 md:mt-0"
+                          style={isSelected ? {
+                            backgroundColor: colorPalette?.primary || '#ea580c',
+                            color: 'white'
+                          } : {
+                            backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
+                            color: isDarkMode ? '#d1d5db' : '#374151'
+                          }}
+                        >
                           {regionCount}
                         </span>
                       )}
@@ -536,19 +581,26 @@ const LocationList: React.FC = () => {
                             onClick={() => setSidebarFilter({ type: 'city', id: city.id })}
                             className={`flex-1 flex items-center justify-between py-2 pr-4 text-sm transition-colors ${
                               isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                            } ${
-                              isCitySelected
-                                ? 'bg-orange-500 bg-opacity-20 text-orange-400'
-                                : isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}
+                            style={isCitySelected ? {
+                              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                              color: colorPalette?.primary || '#fb923c'
+                            } : {
+                              color: isDarkMode ? '#d1d5db' : '#374151'
+                            }}
                           >
                             <span className="text-xs">{city.name}</span>
                             {cityCount > 0 && (
-                              <span className={`px-2 py-0.5 rounded-full text-xs ${
-                                isCitySelected
-                                  ? 'bg-orange-600 text-white'
-                                  : 'bg-gray-700 text-gray-300'
-                              }`}>
+                              <span
+                                className="px-2 py-0.5 rounded-full text-xs"
+                                style={isCitySelected ? {
+                                  backgroundColor: colorPalette?.primary || '#ea580c',
+                                  color: 'white'
+                                } : {
+                                  backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
+                                  color: isDarkMode ? '#d1d5db' : '#374151'
+                                }}
+                              >
                                 {cityCount}
                               </span>
                             )}
@@ -566,19 +618,26 @@ const LocationList: React.FC = () => {
                               onClick={() => setSidebarFilter({ type: 'borough', id: barangay.id })}
                               className={`w-full flex items-center justify-between py-2 pl-12 pr-4 text-sm transition-colors ${
                                 isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                              } ${
-                                isBarangaySelected
-                                  ? 'bg-orange-500 bg-opacity-20 text-orange-400'
-                                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
                               }`}
+                              style={isBarangaySelected ? {
+                                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                                color: colorPalette?.primary || '#fb923c'
+                              } : {
+                                color: isDarkMode ? '#d1d5db' : '#374151'
+                              }}
                             >
                               <span className="text-xs">{barangay.name}</span>
                               {barangayCount > 0 && (
-                                <span className={`px-2 py-0.5 rounded-full text-xs ${
-                                  isBarangaySelected
-                                    ? 'bg-orange-600 text-white'
-                                    : 'bg-gray-700 text-gray-300'
-                                }`}>
+                                <span
+                                  className="px-2 py-0.5 rounded-full text-xs"
+                                  style={isBarangaySelected ? {
+                                    backgroundColor: colorPalette?.primary || '#ea580c',
+                                    color: 'white'
+                                  } : {
+                                    backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
+                                    color: isDarkMode ? '#d1d5db' : '#374151'
+                                  }}
+                                >
                                   {barangayCount}
                                 </span>
                               )}
@@ -610,11 +669,21 @@ const LocationList: React.FC = () => {
                   placeholder="Search locations..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 ${
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${
                     isDarkMode
                       ? 'bg-gray-800 text-white border border-gray-700'
                       : 'bg-white text-gray-900 border border-gray-300'
                   }`}
+                  onFocus={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.borderColor = colorPalette.primary;
+                      e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 />
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
                   isDarkMode ? 'text-gray-400' : 'text-gray-500'
@@ -622,7 +691,20 @@ const LocationList: React.FC = () => {
               </div>
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded text-sm transition-colors flex items-center space-x-1"
+                className="text-white px-4 py-2 rounded text-sm transition-colors flex items-center space-x-1"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
               >
                 <Plus className="h-4 w-4" />
                 <span>Add</span>

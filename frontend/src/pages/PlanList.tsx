@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, Filter, Loader2 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import AddPlanModal from '../modals/AddPlanModal';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface Plan {
   id: number;
@@ -22,8 +23,21 @@ const PlanList: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
-  
   const [deletingItems, setDeletingItems] = useState<Set<number>>(new Set());
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -252,7 +266,20 @@ const PlanList: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleAddNew}
-                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+                className="px-4 py-2 text-white rounded-lg flex items-center gap-2 transition-colors"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
               >
                 <Plus className="h-4 w-4" />
                 Add
@@ -285,11 +312,21 @@ const PlanList: React.FC = () => {
               placeholder="Search Plan List"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-1 focus:ring-orange-500 ${
+              className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none ${
                 isDarkMode
-                  ? 'bg-gray-800 text-white border-gray-700 focus:border-orange-500'
-                  : 'bg-white text-gray-900 border-gray-300 focus:border-orange-500'
+                  ? 'bg-gray-800 text-white border-gray-700'
+                  : 'bg-white text-gray-900 border-gray-300'
               }`}
+              onFocus={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.borderColor = colorPalette.primary;
+                  e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                }
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
           </div>
         </div>

@@ -10,9 +10,11 @@ import JobOrderDoneFormModal from '../modals/JobOrderDoneFormModal';
 import JobOrderDoneFormTechModal from '../modals/JobOrderDoneFormTechModal';
 import JobOrderEditFormModal from '../modals/JobOrderEditFormModal';
 import ApprovalConfirmationModal from '../modals/ApprovalConfirmationModal';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, onRefresh, isMobile = false }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDoneModalOpen, setIsDoneModalOpen] = useState(false);
@@ -41,6 +43,18 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
   
   // Get user role from localStorage
@@ -420,11 +434,18 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             </button>
           )}
           <button 
-            className={`px-3 py-1 rounded-sm flex items-center ${
-              isDarkMode
-                ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                : 'bg-orange-500 hover:bg-orange-600 text-white'
-            }`}
+            className="px-3 py-1 rounded-sm flex items-center text-white"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+            }}
             onClick={handleDoneClick}
             disabled={loading}
           >
@@ -457,9 +478,12 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                 isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
               }`}
             >
-              <div className={`p-2 rounded-full ${
-                isDarkMode ? 'bg-orange-600' : 'bg-orange-500'
-              }`}>
+              <div 
+                className="p-2 rounded-full"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+              >
                 <div className="text-white">
                   <Edit size={18} />
                 </div>

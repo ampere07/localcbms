@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Plus, Filter, Search, X } from 'lucide-react';
 import SMSBlastDetails from '../components/SMSBlastDetails';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface SMSBlastRecord {
   id: string;
@@ -22,9 +23,23 @@ const SMSBlast: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSMSBlast, setSelectedSMSBlast] = useState<SMSBlastRecord | null>(null);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   const barangayFilters = ['All', 'Pila Pila', 'Lunsad', 'Libid'];
   const cityFilters = ['All', 'Binangonan'];
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -228,7 +243,20 @@ const SMSBlast: React.FC = () => {
           <div className="flex items-center space-x-2">
             <button 
               onClick={handleAddNew}
-              className="flex items-center space-x-1 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded"
+              className="flex items-center space-x-1 text-white px-4 py-2 rounded transition-colors"
+              style={{
+                backgroundColor: colorPalette?.primary || '#ea580c'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.backgroundColor = colorPalette.primary;
+                }
+              }}
             >
               <Plus size={18} />
               <span>Add</span>

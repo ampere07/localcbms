@@ -7,6 +7,7 @@ import {
   deleteInventoryCategory,
   InventoryCategory 
 } from '../services/inventoryCategoryService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 const InventoryCategoryList: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
@@ -15,6 +16,20 @@ const InventoryCategoryList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -137,7 +152,20 @@ const InventoryCategoryList: React.FC = () => {
           }`}>{error}</div>
           <button 
             onClick={fetchCategories}
-            className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
+            className="text-white px-4 py-2 rounded transition-colors"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
           >
             Retry
           </button>
@@ -185,11 +213,21 @@ const InventoryCategoryList: React.FC = () => {
               placeholder="Search Inventory Category List"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full rounded pl-10 pr-4 py-2 border focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 ${
+              className={`w-full rounded pl-10 pr-4 py-2 border focus:outline-none ${
                 isDarkMode 
                   ? 'bg-gray-800 text-white border-gray-600' 
                   : 'bg-gray-100 text-gray-900 border-gray-300'
               }`}
+              onFocus={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.borderColor = colorPalette.primary;
+                  e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                }
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = isDarkMode ? '#4b5563' : '#d1d5db';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
             <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
               isDarkMode ? 'text-gray-400' : 'text-gray-500'
@@ -197,7 +235,20 @@ const InventoryCategoryList: React.FC = () => {
           </div>
           <button 
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-orange-600 text-white px-4 py-2 rounded text-sm flex items-center space-x-2 hover:bg-orange-700 transition-colors ml-4"
+            className="text-white px-4 py-2 rounded text-sm flex items-center space-x-2 transition-colors ml-4"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
           >
             <Plus size={16} />
             <span>Add</span>

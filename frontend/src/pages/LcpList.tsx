@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
 import EditLcpModal from '../modals/EditLcpModal';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface LcpItem {
   id: number;
@@ -23,8 +24,22 @@ const LcpList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const [deletingItems, setDeletingItems] = useState<Set<number>>(new Set());
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.100.10:8000/api';
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -188,11 +203,21 @@ const LcpList: React.FC = () => {
                   placeholder="Search LCP"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500 ${
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${
                     isDarkMode 
                       ? 'bg-gray-800 text-white border-gray-700' 
                       : 'bg-gray-100 text-gray-900 border-gray-300'
                   } border`}
+                  onFocus={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.borderColor = colorPalette.primary;
+                      e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 />
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
                   isDarkMode ? 'text-gray-400' : 'text-gray-500'
@@ -200,7 +225,20 @@ const LcpList: React.FC = () => {
               </div>
               <button
                 onClick={handleAddNew}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm transition-colors flex items-center space-x-1"
+                className="text-white px-4 py-2 rounded text-sm transition-colors flex items-center space-x-1"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
               >
                 <Plus className="h-4 w-4" />
                 <span>Add</span>
@@ -230,11 +268,20 @@ const LcpList: React.FC = () => {
                   <p>{error}</p>
                   <button 
                     onClick={() => loadLcpItems()}
-                    className={`mt-4 px-4 py-2 rounded ${
-                      isDarkMode 
-                        ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                    }`}>
+                    className="mt-4 px-4 py-2 rounded text-white transition-colors"
+                    style={{
+                      backgroundColor: colorPalette?.primary || '#ea580c'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (colorPalette?.primary) {
+                        e.currentTarget.style.backgroundColor = colorPalette.primary;
+                      }
+                    }}>
                     Retry
                   </button>
                 </div>

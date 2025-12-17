@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../config/api';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface RadiusConfigData {
   id: number;
@@ -36,6 +37,7 @@ const RadiusConfig: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<Record<number, boolean>>({});
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   const [formData, setFormData] = useState({
     ssl_type: '',
@@ -68,6 +70,18 @@ const RadiusConfig: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     fetchRadiusConfigs();
@@ -250,11 +264,18 @@ const RadiusConfig: React.FC = () => {
           {canCreateNew && !isCreating && editingId === null && (
             <button
               onClick={handleStartCreate}
-              className={`px-3 py-1.5 text-white text-sm rounded transition-colors ${
-                isDarkMode
-                  ? 'bg-orange-600 hover:bg-orange-700'
-                  : 'bg-orange-500 hover:bg-orange-600'
-              }`}
+              className="px-3 py-1.5 text-white text-sm rounded transition-colors"
+              style={{
+                backgroundColor: colorPalette?.primary || '#ea580c'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+              }}
             >
               Create New
             </button>
@@ -265,7 +286,7 @@ const RadiusConfig: React.FC = () => {
       <div className="space-y-3">
         {loading && radiusConfigs.length === 0 && !isCreating ? (
           <div className="flex items-center justify-center py-6">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: colorPalette?.primary || '#ea580c' }}></div>
           </div>
         ) : (
           <>
@@ -381,11 +402,20 @@ const RadiusConfig: React.FC = () => {
                       <button
                         onClick={handleSave}
                         disabled={loading}
-                        className={`px-3 py-1.5 text-sm disabled:opacity-50 text-white rounded transition-colors ${
-                          isDarkMode
-                            ? 'bg-orange-600 hover:bg-orange-700'
-                            : 'bg-orange-500 hover:bg-orange-600'
-                        }`}
+                        className="px-3 py-1.5 text-sm disabled:opacity-50 text-white rounded transition-colors"
+                        style={{
+                          backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!loading && colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!loading) {
+                            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                          }
+                        }}
                       >
                         Update
                       </button>
@@ -607,7 +637,20 @@ const RadiusConfig: React.FC = () => {
                     <button
                       onClick={handleSave}
                       disabled={loading}
-                      className="px-3 py-1.5 text-sm bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded transition-colors"
+                      className="px-3 py-1.5 text-sm disabled:opacity-50 text-white rounded transition-colors"
+                      style={{
+                        backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!loading && colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!loading) {
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                        }
+                      }}
                     >
                       Create
                     </button>
@@ -662,11 +705,18 @@ const RadiusConfig: React.FC = () => {
                   </button>
                   <button
                     onClick={modal.onConfirm}
-                    className={`px-3 py-1.5 text-sm text-white rounded transition-colors ${
-                      isDarkMode
-                        ? 'bg-orange-600 hover:bg-orange-700'
-                        : 'bg-orange-500 hover:bg-orange-600'
-                    }`}
+                    className="px-3 py-1.5 text-sm text-white rounded transition-colors"
+                    style={{
+                      backgroundColor: colorPalette?.primary || '#ea580c'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                    }}
                   >
                     Confirm
                   </button>
@@ -674,11 +724,18 @@ const RadiusConfig: React.FC = () => {
               ) : (
                 <button
                   onClick={() => setModal({ ...modal, isOpen: false })}
-                  className={`px-3 py-1.5 text-sm text-white rounded transition-colors ${
-                    isDarkMode
-                      ? 'bg-orange-600 hover:bg-orange-700'
-                      : 'bg-orange-500 hover:bg-orange-600'
-                  }`}
+                  className="px-3 py-1.5 text-sm text-white rounded transition-colors"
+                  style={{
+                    backgroundColor: colorPalette?.primary || '#ea580c'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.accent) {
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  }}
                 >
                   OK
                 </button>

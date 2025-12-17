@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface StatusRemark {
   id: number;
@@ -21,10 +22,24 @@ const StatusRemarksList: React.FC = () => {
   const [editingRemark, setEditingRemark] = useState<StatusRemark | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   const [formData, setFormData] = useState({
     status_remarks: ''
   });
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    
+    fetchColorPalette();
+  }, []);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -187,7 +202,7 @@ const StatusRemarksList: React.FC = () => {
         isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
         <div className="text-center">
-          <Loader2 className="animate-spin h-12 w-12 text-orange-500 mb-4 mx-auto" />
+          <Loader2 className="animate-spin h-12 w-12 mb-4 mx-auto" style={{ color: colorPalette?.primary || '#ea580c' }} />
           <div className={`text-lg ${
             isDarkMode ? 'text-white' : 'text-gray-900'
           }`}>Loading status remarks...</div>
@@ -210,7 +225,20 @@ const StatusRemarksList: React.FC = () => {
           }`}>{error}</div>
           <button 
             onClick={fetchStatusRemarks}
-            className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
+            className="text-white px-4 py-2 rounded transition-colors"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
           >
             Retry
           </button>
@@ -243,11 +271,21 @@ const StatusRemarksList: React.FC = () => {
               placeholder="Search Status Remarks"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 ${
+              className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${
                 isDarkMode
                   ? 'bg-gray-800 text-white border border-gray-600'
                   : 'bg-white text-gray-900 border border-gray-300'
               }`}
+              onFocus={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.borderColor = colorPalette.primary;
+                  e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                }
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = isDarkMode ? '#4b5563' : '#d1d5db';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
             <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
               isDarkMode ? 'text-gray-400' : 'text-gray-500'
@@ -255,7 +293,20 @@ const StatusRemarksList: React.FC = () => {
           </div>
           <button 
             onClick={handleAddClick}
-            className="bg-orange-600 text-white px-4 py-2 rounded text-sm flex items-center space-x-2 hover:bg-orange-700 transition-colors ml-4"
+            className="text-white px-4 py-2 rounded text-sm flex items-center space-x-2 transition-colors ml-4"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
           >
             <Plus size={16} />
             <span>Add</span>
@@ -388,7 +439,17 @@ const StatusRemarksList: React.FC = () => {
                     type="text"
                     value={formData.status_remarks}
                     onChange={(e) => setFormData({ ...formData, status_remarks: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none"
+                    onFocus={(e) => {
+                      if (colorPalette?.primary) {
+                        e.currentTarget.style.borderColor = colorPalette.primary;
+                        e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                      }
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#4b5563';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                     placeholder="Enter status remark"
                   />
                 </div>
@@ -408,7 +469,20 @@ const StatusRemarksList: React.FC = () => {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex-1 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    style={{
+                      backgroundColor: colorPalette?.primary || '#ea580c'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!saving && colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!saving && colorPalette?.primary) {
+                        e.currentTarget.style.backgroundColor = colorPalette.primary;
+                      }
+                    }}
                   >
                     {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                     {editingRemark ? 'Update' : 'Add'}
