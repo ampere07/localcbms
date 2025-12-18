@@ -3,6 +3,7 @@ import {
   X, Edit, Trash2, ArrowLeft, ArrowRight, Maximize2, 
   ChevronDown, ChevronUp
 } from 'lucide-react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface LocationItem {
   id: number;
@@ -31,6 +32,7 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
   onDelete
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [expandedSections, setExpandedSections] = useState({
     relatedApplications: false,
     relatedServiceOrders: false
@@ -54,6 +56,18 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  React.useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   if (!isOpen || !location) return null;

@@ -10,6 +10,7 @@ import { userService } from '../services/userService';
 import { getRegions, getCities, City } from '../services/cityService';
 import { barangayService, Barangay } from '../services/barangayService';
 import { locationDetailService, LocationDetail } from '../services/locationDetailService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface JOAssignFormModalProps {
   isOpen: boolean;
@@ -63,6 +64,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
   applicationData
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   const getCurrentUser = (): UserData | null => {
     try {
@@ -175,6 +177,18 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -787,7 +801,18 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
             <button
               onClick={handleSave}
               disabled={loading}
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
+              className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
+              style={{
+                backgroundColor: colorPalette?.primary || '#ea580c'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent && !loading) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+              }}
             >
               {loading ? 'Saving...' : 'Save'}
             </button>
@@ -1562,7 +1587,18 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                       </button>
                       <button
                         onClick={modal.onConfirm}
-                        className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+                        className="px-4 py-2 text-white rounded transition-colors"
+                        style={{
+                          backgroundColor: colorPalette?.primary || '#ea580c'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                        }}
                       >
                         Confirm
                       </button>
@@ -1576,7 +1612,18 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                           setModal({ ...modal, isOpen: false });
                         }
                       }}
-                      className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+                      className="px-4 py-2 text-white rounded transition-colors"
+                      style={{
+                        backgroundColor: colorPalette?.primary || '#ea580c'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                      }}
                     >
                       OK
                     </button>

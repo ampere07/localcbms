@@ -19,6 +19,7 @@ import { getAllInventoryItems, InventoryItem } from '../services/inventoryItemSe
 import { createJobOrderItems, JobOrderItem } from '../services/jobOrderItemService';
 import apiClient from '../config/api';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface Region {
   id: number;
@@ -120,6 +121,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
   jobOrderData
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   const getCurrentUser = (): UserData | null => {
     try {
@@ -256,6 +258,18 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {

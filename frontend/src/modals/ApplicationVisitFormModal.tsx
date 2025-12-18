@@ -9,6 +9,7 @@ import { barangayService, Barangay } from '../services/barangayService';
 import { locationDetailService, LocationDetail } from '../services/locationDetailService';
 import { planService, Plan } from '../services/planService';
 import apiClient from '../config/api';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface ApplicationVisitFormModalProps {
   isOpen: boolean;
@@ -130,6 +131,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [technicians, setTechnicians] = useState<Array<{ email: string; name: string }>>([]);
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -137,6 +139,18 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
   
   const [modal, setModal] = useState<ModalConfig>({
@@ -594,7 +608,18 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
             <button
               onClick={handleSave}
               disabled={loading}
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
+              className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
+              style={{
+                backgroundColor: colorPalette?.primary || '#ea580c'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent && !loading) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+              }}
             >
               {loading ? (
                 <>
@@ -1029,7 +1054,18 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                       </button>
                       <button
                         onClick={modal.onConfirm}
-                        className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+                        className="px-4 py-2 text-white rounded transition-colors"
+                        style={{
+                          backgroundColor: colorPalette?.primary || '#ea580c'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                        }}
                       >
                         Confirm
                       </button>
@@ -1043,7 +1079,18 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                           setModal({ ...modal, isOpen: false });
                         }
                       }}
-                      className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+                      className="px-4 py-2 text-white rounded transition-colors"
+                      style={{
+                        backgroundColor: colorPalette?.primary || '#ea580c'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                      }}
                     >
                       OK
                     </button>

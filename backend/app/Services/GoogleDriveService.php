@@ -5,6 +5,7 @@ namespace App\Services;
 use Google\Client as GoogleClient;
 use Google\Service\Drive as GoogleDrive;
 use Illuminate\Support\Facades\Log;
+use App\Models\SettingsImageSize;
 
 class GoogleDriveService
 {
@@ -15,6 +16,105 @@ class GoogleDriveService
     {
         $this->service = $this->initializeGoogleDriveService();
         $this->parentFolderId = env('GOOGLE_DRIVE_FOLDER_ID');
+    }
+
+    private function getActiveImageSizePercentage()
+    {
+        try {
+            $activeSettings = SettingsImageSize::where('status', 'active')->first();
+            
+            if ($activeSettings && $activeSettings->image_size_value) {
+                Log::info('Retrieved active image size setting', [
+                    'size' => $activeSettings->image_size,
+                    'percentage' => $activeSettings->image_size_value
+                ]);
+                return $activeSettings->image_size_value;
+            }
+            
+            Log::info('No active image size setting found, using 100%');
+            return 100;
+        } catch (\Exception $e) {
+            Log::error('Error retrieving image size setting, defaulting to 100%', [
+                'error' => $e->getMessage()
+            ]);
+            return 100;
+        }
+    }
+
+    private function resizeImage($imageContent, $mimeType, $percentage)
+    {
+        if ($percentage >= 100) {
+            return $imageContent;
+        }
+
+        try {
+            $image = imagecreatefromstring($imageContent);
+            
+            if ($image === false) {
+                Log::warning('Failed to create image from string, uploading original');
+                return $imageContent;
+            }
+
+            $originalWidth = imagesx($image);
+            $originalHeight = imagesy($image);
+
+            $newWidth = round($originalWidth * ($percentage / 100));
+            $newHeight = round($originalHeight * ($percentage / 100));
+
+            $resizedImage = imagecreatetruecolor($newWidth, $newHeight);
+
+            if (strpos($mimeType, 'png') !== false) {
+                imagealphablending($resizedImage, false);
+                imagesavealpha($resizedImage, true);
+                $transparent = imagecolorallocatealpha($resizedImage, 255, 255, 255, 127);
+                imagefilledrectangle($resizedImage, 0, 0, $newWidth, $newHeight, $transparent);
+            }
+
+            imagecopyresampled(
+                $resizedImage,
+                $image,
+                0, 0, 0, 0,
+                $newWidth,
+                $newHeight,
+                $originalWidth,
+                $originalHeight
+            );
+
+            ob_start();
+            
+            if (strpos($mimeType, 'png') !== false) {
+                imagepng($resizedImage, null, 9);
+            } elseif (strpos($mimeType, 'gif') !== false) {
+                imagegif($resizedImage);
+            } else {
+                imagejpeg($resizedImage, null, 85);
+            }
+            
+            $resizedContent = ob_get_clean();
+
+            imagedestroy($image);
+            imagedestroy($resizedImage);
+
+            $originalSize = strlen($imageContent);
+            $resizedSize = strlen($resizedContent);
+            $reduction = round((($originalSize - $resizedSize) / $originalSize) * 100, 2);
+
+            Log::info('Image resized successfully', [
+                'original_dimensions' => "{$originalWidth}x{$originalHeight}",
+                'new_dimensions' => "{$newWidth}x{$newHeight}",
+                'percentage' => $percentage,
+                'original_size' => $originalSize,
+                'resized_size' => $resizedSize,
+                'size_reduction' => "{$reduction}%"
+            ]);
+
+            return $resizedContent;
+        } catch (\Exception $e) {
+            Log::error('Error resizing image, uploading original', [
+                'error' => $e->getMessage()
+            ]);
+            return $imageContent;
+        }
     }
 
     private function initializeGoogleDriveService()
@@ -143,6 +243,11 @@ class GoogleDriveService
                 $content = file_get_contents($file->getRealPath());
                 $detectedMimeType = $mimeType ?? $file->getMimeType();
             }
+
+            if ($this->isImageMimeType($detectedMimeType)) {
+                $percentage = $this->getActiveImageSizePercentage();
+                $content = $this->resizeImage($content, $detectedMimeType, $percentage);
+            }
             
             $uploadedFile = $this->service->files->create($fileMetadata, [
                 'data' => $content,
@@ -172,6 +277,12 @@ class GoogleDriveService
             ]);
             throw $e;
         }
+    }
+
+    private function isImageMimeType($mimeType)
+    {
+        $imageMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+        return in_array($mimeType, $imageMimeTypes);
     }
 
     private function makeFileViewable($fileId)

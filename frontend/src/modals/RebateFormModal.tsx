@@ -6,6 +6,7 @@ import * as lcpnapService from '../services/lcpnapService';
 import * as lcpService from '../services/lcpService';
 import * as locationDetailService from '../services/locationDetailService';
 import { userService } from '../services/userService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface RebateFormModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
   onSave
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   const getUserEmail = () => {
     try {
@@ -73,6 +75,18 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, ChevronDown, Minus, Plus, Camera } from 'lucide-react';
 import { transactionService } from '../services/transactionService';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface TransactionFormModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   billingRecord
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   const getCurrentDateTime = () => {
     const now = new Date();
@@ -82,6 +84,14 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      const palette = await settingsColorPaletteService.getActive();
+      setColorPalette(palette);
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -323,7 +333,20 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
             <button
               onClick={handleSave}
               disabled={loading}
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center transition-colors"
+              className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center transition-colors"
+              style={{
+                backgroundColor: colorPalette?.primary || '#ea580c'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent && !loading) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.backgroundColor = colorPalette.primary;
+                }
+              }}
             >
               {loading ? (
                 <>
@@ -652,20 +675,36 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
               Transaction Type<span className="text-red-500">*</span>
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {['Recurring Fee', 'Installation Fee', 'Security Deposit'].map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => handleTransactionTypeChange(type)}
-                  className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
-                    formData.transactionType === type
-                      ? 'bg-orange-600 text-white'
-                      : isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
+              {['Recurring Fee', 'Installation Fee', 'Security Deposit'].map((type) => {
+                const isSelected = formData.transactionType === type;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => handleTransactionTypeChange(type)}
+                    className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                      isSelected
+                        ? 'text-white'
+                        : isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                    style={isSelected ? {
+                      backgroundColor: colorPalette?.primary || '#ea580c'
+                    } : undefined}
+                    onMouseEnter={(e) => {
+                      if (isSelected && colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (isSelected && colorPalette?.primary) {
+                        e.currentTarget.style.backgroundColor = colorPalette.primary;
+                      }
+                    }}
+                  >
+                    {type}
+                  </button>
+                );
+              })}
             </div>
             {errors.transactionType && <p className="text-red-500 text-xs mt-1">{errors.transactionType}</p>}
           </div>

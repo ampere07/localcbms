@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface LocationItem {
   id: number;
@@ -36,6 +37,7 @@ const EditLocationModal: React.FC<EditLocationModalProps> = ({
   const [cityName, setCityName] = useState('');
   const [regionName, setRegionName] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -43,6 +45,18 @@ const EditLocationModal: React.FC<EditLocationModalProps> = ({
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -175,7 +189,18 @@ const EditLocationModal: React.FC<EditLocationModalProps> = ({
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm transition-colors"
+              className="px-4 py-2 text-white rounded text-sm transition-colors"
+              style={{
+                backgroundColor: colorPalette?.primary || '#ea580c'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+              }}
             >
               Save
             </button>

@@ -852,7 +852,6 @@ Route::post('/login', function (Request $request) {
                    ->first();
         
         if (!$user) {
-            // Log the error details
             \Log::warning('Login failed: User not found', [
                 'identifier' => $identifier,
                 'ip' => $request->ip()
@@ -866,7 +865,6 @@ Route::post('/login', function (Request $request) {
         
         // Verify password
         if (!Hash::check($password, $user->password_hash)) {
-            // Log the error details
             \Log::warning('Login failed: Invalid password', [
                 'identifier' => $identifier,
                 'ip' => $request->ip()
@@ -878,7 +876,19 @@ Route::post('/login', function (Request $request) {
             ], 401);
         }
         
-        // Now load relationships after authentication succeeds
+        // CRITICAL: Actually log the user in to create an authenticated session
+        \Auth::login($user);
+        
+        // Verify session was created
+        $sessionUserId = \Auth::id();
+        \Log::info('User authenticated', [
+            'user_id' => $user->id,
+            'session_user_id' => $sessionUserId,
+            'session_id' => session()->getId(),
+            'username' => $user->username
+        ]);
+        
+        // Load relationships after authentication succeeds
         try {
             $user->load(['organization', 'role', 'group']);
         } catch (\Exception $relationError) {
@@ -886,19 +896,10 @@ Route::post('/login', function (Request $request) {
                 'user_id' => $user->id,
                 'error' => $relationError->getMessage()
             ]);
-            // Continue without relationships rather than failing
         }
         
-        // Successfully authenticated
-        \Log::info('User login successful', [
-            'user_id' => $user->id,
-            'username' => $user->username,
-            'role_id' => $user->role_id,
-            'has_role' => $user->role ? true : false
-        ]);
-        
-        // Get user role for response - handle null role
-        $primaryRole = 'user'; // default role
+        // Get user role for response
+        $primaryRole = 'user';
         if ($user->role && $user->role->role_name) {
             $primaryRole = strtolower($user->role->role_name);
         }
@@ -936,7 +937,6 @@ Route::post('/login', function (Request $request) {
                 'user_id' => $user->id,
                 'error' => $orgError->getMessage()
             ]);
-            // Continue without organization data
         }
         
         // Generate token
@@ -950,7 +950,6 @@ Route::post('/login', function (Request $request) {
         ]);
         
     } catch (\Exception $e) {
-        // Log the detailed exception
         \Log::error('Login exception: ' . $e->getMessage(), [
             'file' => $e->getFile(),
             'line' => $e->getLine(),
@@ -2506,6 +2505,55 @@ Route::get('/billing-generation/test', function() {
 Route::prefix('user-settings')->group(function () {
     Route::post('/darkmode', [\App\Http\Controllers\UserSettingsController::class, 'updateDarkMode']);
     Route::get('/{userId}/darkmode', [\App\Http\Controllers\UserSettingsController::class, 'getDarkMode']);
+});
+
+// User Preferences Routes
+Route::prefix('user-preferences')->middleware('web')->group(function () {
+    Route::get('/debug', function() {
+        try {
+            $userId = \Auth::id();
+            $tableExists = \Schema::hasTable('user_preferences');
+            
+            \Log::info('[UserPreferences Debug] Checking auth', [
+                'user_id' => $userId,
+                'session_id' => session()->getId(),
+                'has_session' => session()->has('_token'),
+                'cookies' => request()->cookies->all()
+            ]);
+            
+            $result = [
+                'success' => true,
+                'user_authenticated' => $userId !== null,
+                'user_id' => $userId,
+                'session_id' => session()->getId(),
+                'table_exists' => $tableExists
+            ];
+            
+            if ($tableExists) {
+                $result['columns'] = \Schema::getColumnListing('user_preferences');
+                $result['record_count'] = \DB::table('user_preferences')->count();
+                
+                if ($userId) {
+                    $result['user_preferences'] = \DB::table('user_preferences')
+                        ->where('user_id', $userId)
+                        ->get();
+                }
+            }
+            
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
+    });
+    
+    Route::get('/all', [\App\Http\Controllers\UserPreferenceController::class, 'getAllPreferences']);
+    Route::get('/{key}', [\App\Http\Controllers\UserPreferenceController::class, 'getPreference']);
+    Route::post('/{key}', [\App\Http\Controllers\UserPreferenceController::class, 'setPreference']);
+    Route::delete('/{key}', [\App\Http\Controllers\UserPreferenceController::class, 'deletePreference']);
 });
 
 // Debug route to check users table structure

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface ApprovalConfirmationModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ const ApprovalConfirmationModal: React.FC<ApprovalConfirmationModalProps> = ({
   loading = false
 }) => {
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -22,6 +24,18 @@ const ApprovalConfirmationModal: React.FC<ApprovalConfirmationModalProps> = ({
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
   if (!isOpen) return null;
 
@@ -56,7 +70,18 @@ const ApprovalConfirmationModal: React.FC<ApprovalConfirmationModalProps> = ({
             <button
               onClick={onConfirm}
               disabled={loading}
-              className="px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: colorPalette?.primary || '#ea580c'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent && !loading) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+              }}
             >
               {loading ? 'Processing...' : 'Approve'}
             </button>

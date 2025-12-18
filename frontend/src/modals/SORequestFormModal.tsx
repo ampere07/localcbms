@@ -3,6 +3,7 @@ import { X, ChevronDown, CheckCircle } from 'lucide-react';
 import LoadingModal from '../components/LoadingModal';
 import * as serviceOrderService from '../services/serviceOrderService';
 import * as concernService from '../services/concernService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface SORequestFormModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
   customerData
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   const getUserEmail = () => {
     try {
@@ -86,6 +88,14 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      const palette = await settingsColorPaletteService.getActive();
+      setColorPalette(palette);
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -251,7 +261,20 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
               
               <button
                 onClick={handleSuccessClose}
-                className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+                className="px-6 py-2 text-white rounded transition-colors"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
               >
                 OK
               </button>
@@ -282,7 +305,20 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
               <button
                 onClick={handleSave}
                 disabled={loading}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
+                className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent && !loading) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
               >
                 {loading ? (
                   <>

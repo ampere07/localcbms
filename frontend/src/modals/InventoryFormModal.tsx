@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Minus, Plus, Camera, Calendar, Loader2 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface InventoryFormModalProps {
   isOpen: boolean;
@@ -52,6 +53,7 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -71,6 +73,18 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -263,7 +277,18 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
               <button
                 onClick={handleSave}
                 disabled={loading}
-                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
+                className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent && !loading) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                }}
               >
                 {loading ? 'Saving...' : (editData ? 'Update' : 'Save')}
               </button>

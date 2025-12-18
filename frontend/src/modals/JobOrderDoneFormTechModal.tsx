@@ -18,6 +18,7 @@ import { locationDetailService, LocationDetail } from '../services/locationDetai
 import { updateApplication } from '../services/applicationService';
 import apiClient from '../config/api';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface Region {
   id: number;
@@ -80,6 +81,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
   jobOrderData
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -99,6 +101,18 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   const getCurrentUser = (): UserData | null => {

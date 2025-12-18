@@ -4,6 +4,7 @@ import { UserData } from '../types/api';
 import apiClient from '../config/api';
 import { getAllInventoryItems, InventoryItem } from '../services/inventoryItemService';
 import { createServiceOrderItems, ServiceOrderItem, deleteServiceOrderItems } from '../services/serviceOrderItemService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface ServiceOrderEditModalProps {
   isOpen: boolean;
@@ -84,6 +85,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   serviceOrderData
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   const getCurrentUser = (): UserData | null => {
     try {
@@ -221,6 +223,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      const palette = await settingsColorPaletteService.getActive();
+      setColorPalette(palette);
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -778,7 +788,24 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               }`}>
                 Cancel
               </button>
-              <button onClick={handleSave} disabled={loading} className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded text-sm">
+              <button 
+                onClick={handleSave} 
+                disabled={loading} 
+                className="px-4 py-2 disabled:opacity-50 text-white rounded text-sm"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
+              >
                 Save
               </button>
             </div>

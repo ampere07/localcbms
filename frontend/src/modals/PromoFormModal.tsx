@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface Promo {
   id: number;
@@ -22,6 +23,7 @@ const PromoFormModal: React.FC<PromoFormModalProps> = ({
   editingPromo
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     status: ''
@@ -47,6 +49,18 @@ const PromoFormModal: React.FC<PromoFormModalProps> = ({
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {

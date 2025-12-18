@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface TransactConfirmationModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ const TransactConfirmationModal: React.FC<TransactConfirmationModalProps> = ({
   billingRecord
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -37,6 +39,14 @@ const TransactConfirmationModal: React.FC<TransactConfirmationModalProps> = ({
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      const palette = await settingsColorPaletteService.getActive();
+      setColorPalette(palette);
+    };
+    fetchColorPalette();
   }, []);
 
   if (!isOpen) return null;
@@ -68,8 +78,21 @@ const TransactConfirmationModal: React.FC<TransactConfirmationModalProps> = ({
             Cancel
           </button>
           <button 
-            className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded transition-colors"
+            className="text-white px-4 py-2 rounded transition-colors"
             onClick={onConfirm}
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
           >
             Confirm Transaction
           </button>

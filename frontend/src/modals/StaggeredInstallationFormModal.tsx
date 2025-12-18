@@ -3,6 +3,7 @@ import { X, Calendar, ChevronDown } from 'lucide-react';
 import { staggeredInstallationService } from '../services/staggeredInstallationService';
 import { userService } from '../services/userService';
 import LoadingModal from '../components/LoadingModal';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface StaggeredInstallationFormModalProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
   customerData
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   const getCurrentDate = () => {
     const now = new Date();
@@ -115,6 +117,14 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      const palette = await settingsColorPaletteService.getActive();
+      setColorPalette(palette);
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -317,7 +327,20 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
             <button
               onClick={handleSave}
               disabled={loading}
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
+              className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
+              style={{
+                backgroundColor: colorPalette?.primary || '#ea580c'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent && !loading) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.backgroundColor = colorPalette.primary;
+                }
+              }}
             >
               {loading ? (
                 <>
