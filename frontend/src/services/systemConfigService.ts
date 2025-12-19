@@ -1,4 +1,5 @@
 import apiClient from '../config/api';
+import { requestCache } from '../utils/requestCache';
 
 export interface SystemConfigResponse {
   success: boolean;
@@ -17,8 +18,14 @@ export interface UploadLogoResponse {
 
 class SystemConfigService {
   async getLogo(): Promise<string | null> {
-    const response = await apiClient.get<SystemConfigResponse>('/system-config/logo');
-    return response.data.data || null;
+    return requestCache.get(
+      'system_logo',
+      async () => {
+        const response = await apiClient.get<SystemConfigResponse>('/system-config/logo');
+        return response.data.data || null;
+      },
+      30000
+    );
   }
 
   async uploadLogo(file: File, updatedBy: string): Promise<UploadLogoResponse> {
@@ -32,6 +39,7 @@ class SystemConfigService {
       },
     });
 
+    requestCache.invalidate('system_logo');
     return response.data;
   }
 
@@ -39,6 +47,7 @@ class SystemConfigService {
     const response = await apiClient.delete<SystemConfigResponse>('/system-config/logo', {
       params: { updated_by: updatedBy }
     });
+    requestCache.invalidate('system_logo');
     return response.data;
   }
 }

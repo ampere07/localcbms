@@ -16,12 +16,22 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const loadLogo = async () => {
       try {
         const url = await systemConfigService.getLogo();
-        setLogoUrl(url);
+        if (mountedRef.current) {
+          setLogoUrl(url);
+        }
       } catch (error) {
         console.error('Failed to load logo:', error);
       }
@@ -61,12 +71,18 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
 
   useEffect(() => {
     const fetchInitialData = async () => {
+      if (!mountedRef.current) return;
+      
       try {
         const count = await notificationService.getUnreadCount();
-        setUnreadCount(count);
+        if (mountedRef.current) {
+          setUnreadCount(count);
+        }
         
         const data = await notificationService.getRecentApplications(10);
-        setNotifications(data);
+        if (mountedRef.current) {
+          setNotifications(data);
+        }
       } catch (error) {
         console.error('Failed to fetch initial notifications:', error);
       }
@@ -75,16 +91,22 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
     fetchInitialData();
 
     const interval = setInterval(async () => {
+      if (!mountedRef.current) return;
+      
       try {
         const count = await notificationService.getUnreadCount();
-        setUnreadCount(count);
+        if (mountedRef.current) {
+          setUnreadCount(count);
+        }
         
         const data = await notificationService.getRecentApplications(10);
-        setNotifications(data);
+        if (mountedRef.current) {
+          setNotifications(data);
+        }
       } catch (error) {
         console.error('Failed to fetch notifications:', error);
       }
-    }, 10000);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, []);
@@ -122,11 +144,15 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
       setLoading(true);
       try {
         const data = await notificationService.getRecentApplications(10);
-        setNotifications(data);
+        if (mountedRef.current) {
+          setNotifications(data);
+        }
       } catch (error) {
         console.error('Failed to fetch notifications:', error);
       } finally {
-        setLoading(false);
+        if (mountedRef.current) {
+          setLoading(false);
+        }
       }
     }
   };

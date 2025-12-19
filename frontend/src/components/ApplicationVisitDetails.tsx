@@ -837,6 +837,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
         onSave={handleSaveEditedVisit}
         visitData={{
           id: currentVisitData.id,
+          application_id: currentVisitData.application_id,
           first_name: applicationDetails?.first_name || currentVisitData.first_name || '',
           middle_initial: applicationDetails?.middle_initial || currentVisitData.middle_initial || '',
           last_name: applicationDetails?.last_name || currentVisitData.last_name || '',

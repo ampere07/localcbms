@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronDown, Camera ,Loader2 } from 'lucide-react';
 import { updateApplicationVisit, uploadApplicationVisitImages } from '../services/applicationVisitService';
+import { updateApplication } from '../services/applicationService';
 import { getRegions, getCities, City } from '../services/cityService';
 import { barangayService, Barangay } from '../services/barangayService';
 import { locationDetailService, LocationDetail } from '../services/locationDetailService';
@@ -621,6 +622,29 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
     }
   };
 
+  const mapFormDataToApplicationUpdate = () => {
+    const updateData: Record<string, any> = {
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      mobile_number: formData.contactNumber,
+      email_address: formData.email,
+      installation_address: formData.address,
+      region: formData.region,
+      city: formData.city,
+      barangay: formData.barangay
+    };
+    
+    if (formData.middleInitial) {
+      updateData.middle_initial = formData.middleInitial;
+    }
+    
+    if (formData.secondContactNumber) {
+      updateData.secondary_mobile_number = formData.secondContactNumber;
+    }
+    
+    return updateData;
+  };
+
   const handleSave = async () => {
     const isValid = validateForm();
     
@@ -663,6 +687,29 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
     }, 200);
     
     try {
+      if (!visitData?.application_id) {
+        throw new Error('Missing application ID. Cannot update application data.');
+      }
+
+      const applicationUpdateData = mapFormDataToApplicationUpdate();
+      
+      try {
+        await updateApplication(visitData.application_id.toString(), applicationUpdateData);
+      } catch (appError: any) {
+        console.error('Error updating application:', appError);
+        
+        clearInterval(progressInterval);
+        const errorMsg = appError.response?.data?.message || appError.message || 'Unknown error';
+        setModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Error',
+          message: `Failed to update application data!\n\nError: ${errorMsg}\n\nPlease try again.`
+        });
+        setLoading(false);
+        return;
+      }
+      
       const updateData = mapFormDataToUpdateData();
       
       const result = await updateApplicationVisit(visitData.id, updateData);
@@ -690,13 +737,13 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
           await new Promise(resolve => setTimeout(resolve, 500));
           
           if (uploadResult.success) {
-            const updatedVisit = { ...visitData, ...updateData };
+            const updatedVisit = { ...visitData, ...updateData, ...applicationUpdateData };
             setPendingUpdate(updatedVisit);
             setModal({
               isOpen: true,
               type: 'success',
               title: 'Success',
-              message: `Visit details updated and images uploaded successfully!\n\nCustomer: ${visitData.first_name} ${visitData.last_name}`,
+              message: `Application and visit details updated, images uploaded successfully!\n\nCustomer: ${visitData.first_name} ${visitData.last_name}`,
               onConfirm: () => {
                 setErrors({});
                 onSave(pendingUpdate!);
@@ -728,13 +775,13 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
         setLoadingPercentage(100);
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        const updatedVisit = { ...visitData, ...updateData };
+        const updatedVisit = { ...visitData, ...updateData, ...applicationUpdateData };
         setPendingUpdate(updatedVisit);
         setModal({
-          isOpen: true,
-          type: 'success',
-          title: 'Success',
-          message: `Visit details updated successfully!\n\nCustomer: ${formData.firstName} ${formData.lastName}`,
+        isOpen: true,
+        type: 'success',
+        title: 'Success',
+        message: `Application and visit details updated successfully!\n\nCustomer: ${formData.firstName} ${formData.lastName}`,
           onConfirm: () => {
             setErrors({});
             onSave(pendingUpdate!);

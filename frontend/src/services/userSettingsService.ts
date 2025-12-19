@@ -1,4 +1,5 @@
 import api from '../config/api';
+import { requestCache } from '../utils/requestCache';
 
 export interface DarkModeResponse {
   success: boolean;
@@ -14,11 +15,18 @@ export const userSettingsService = {
       user_id: userId,
       darkmode
     });
+    requestCache.invalidate(`darkmode_${userId}`);
     return response.data;
   },
 
   getDarkMode: async (userId: number): Promise<DarkModeResponse> => {
-    const response = await api.get<DarkModeResponse>(`/user-settings/${userId}/darkmode`);
-    return response.data;
+    return requestCache.get(
+      `darkmode_${userId}`,
+      async () => {
+        const response = await api.get<DarkModeResponse>(`/user-settings/${userId}/darkmode`);
+        return response.data;
+      },
+      10000
+    );
   }
 };

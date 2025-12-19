@@ -651,7 +651,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                 type="text"
                 value={formData.firstName}
                 onChange={(e) => handleInputChange('firstName', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                onFocus={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.borderColor = colorPalette.primary;
+                    e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                  }
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = errors.firstName ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
                   errors.firstName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                 } ${
                   isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
@@ -671,7 +681,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                 value={formData.middleInitial}
                 onChange={(e) => handleInputChange('middleInitial', e.target.value)}
                 maxLength={1}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                onFocus={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.borderColor = colorPalette.primary;
+                    e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                  }
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
                   isDarkMode
                     ? 'bg-gray-800 border-gray-700 text-white'
                     : 'bg-white border-gray-300 text-gray-900'
@@ -689,7 +709,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                 type="text"
                 value={formData.lastName}
                 onChange={(e) => handleInputChange('lastName', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                onFocus={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.borderColor = colorPalette.primary;
+                    e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                  }
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = errors.lastName ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
                   errors.lastName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                 } ${
                   isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
@@ -708,7 +738,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                 type="text"
                 value={formData.contactNumber}
                 onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                onFocus={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.borderColor = colorPalette.primary;
+                    e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                  }
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = errors.contactNumber ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
                   errors.contactNumber ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                 } ${
                   isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
@@ -727,7 +767,21 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                 type="text"
                 value={formData.secondContactNumber || ''}
                 onChange={(e) => handleInputChange('secondContactNumber', e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-orange-500"
+                onFocus={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.borderColor = colorPalette.primary;
+                    e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                  }
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
+                  isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
               />
             </div>
 
@@ -741,7 +795,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                onFocus={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.borderColor = colorPalette.primary;
+                    e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                  }
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = errors.email ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
                   errors.email ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                 } ${
                   isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
@@ -760,7 +824,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                 type="text"
                 value={formData.address}
                 onChange={(e) => handleInputChange('address', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                onFocus={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.borderColor = colorPalette.primary;
+                    e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                  }
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = errors.address ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
                   errors.address ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                 } ${
                   isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
@@ -779,7 +853,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                 <select
                   value={formData.region}
                   onChange={(e) => handleInputChange('region', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                  onFocus={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.borderColor = colorPalette.primary;
+                      e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = errors.region ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
                     errors.region ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                   } ${
                     isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
@@ -813,7 +897,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                   value={formData.city}
                   onChange={(e) => handleInputChange('city', e.target.value)}
                   disabled={!formData.region}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                  onFocus={(e) => {
+                    if (colorPalette?.primary && !e.currentTarget.disabled) {
+                      e.currentTarget.style.borderColor = colorPalette.primary;
+                      e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = errors.city ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
                     errors.city ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                   } ${
                     isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
@@ -845,7 +939,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                   value={formData.barangay}
                   onChange={(e) => handleInputChange('barangay', e.target.value)}
                   disabled={!formData.city}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                  onFocus={(e) => {
+                    if (colorPalette?.primary && !e.currentTarget.disabled) {
+                      e.currentTarget.style.borderColor = colorPalette.primary;
+                      e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = errors.barangay ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
                     errors.barangay ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                   } ${
                     isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
@@ -877,7 +981,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                   value={formData.location}
                   onChange={(e) => handleInputChange('location', e.target.value)}
                   disabled={!formData.barangay}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                  onFocus={(e) => {
+                    if (colorPalette?.primary && !e.currentTarget.disabled) {
+                      e.currentTarget.style.borderColor = colorPalette.primary;
+                      e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = errors.location ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
                     errors.location ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                   } ${
                     isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
@@ -908,7 +1022,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                 <select
                   value={formData.choosePlan}
                   onChange={(e) => handleInputChange('choosePlan', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                  onFocus={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.borderColor = colorPalette.primary;
+                      e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = errors.choosePlan ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
                     errors.choosePlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                   } ${
                     isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
@@ -945,7 +1069,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                 <select
                   value={formData.promo}
                   onChange={(e) => handleInputChange('promo', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                  onFocus={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.borderColor = colorPalette.primary;
+                      e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
                     isDarkMode
                       ? 'bg-gray-800 border-gray-700 text-white'
                       : 'bg-white border-gray-300 text-gray-900'
@@ -976,7 +1110,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                 value={formData.remarks}
                 onChange={(e) => handleInputChange('remarks', e.target.value)}
                 rows={3}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${
+                onFocus={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.borderColor = colorPalette.primary;
+                    e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                  }
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors resize-none ${
                   isDarkMode
                     ? 'bg-gray-800 border-gray-700 text-white'
                     : 'bg-white border-gray-300 text-gray-900'
@@ -993,7 +1137,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
               <select
                 value={formData.assignedEmail}
                 onChange={(e) => handleInputChange('assignedEmail', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+                onFocus={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.borderColor = colorPalette.primary;
+                    e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                  }
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = errors.assignedEmail ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
                   errors.assignedEmail ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                 } ${
                   isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'

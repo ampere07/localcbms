@@ -1,4 +1,5 @@
 import apiClient from '../config/api';
+import { requestCache } from '../utils/requestCache';
 
 export interface Notification {
   id: number;
@@ -35,8 +36,14 @@ const isAxiosError = (error: any): error is AxiosErrorType => {
 export const notificationService = {
   async getRecentApplications(limit: number = 10): Promise<Notification[]> {
     try {
-      const response = await apiClient.get<NotificationResponse>(`/notifications/recent-applications?limit=${limit}`);
-      return response.data.data || [];
+      return await requestCache.get(
+        `notifications_${limit}`,
+        async () => {
+          const response = await apiClient.get<NotificationResponse>(`/notifications/recent-applications?limit=${limit}`);
+          return response.data.data || [];
+        },
+        5000
+      );
     } catch (error) {
       if (isAxiosError(error)) {
         console.error('Failed to fetch notifications:', {
@@ -53,8 +60,14 @@ export const notificationService = {
 
   async getUnreadCount(): Promise<number> {
     try {
-      const response = await apiClient.get<UnreadCountResponse>('/notifications/unread-count');
-      return response.data.count || 0;
+      return await requestCache.get(
+        'unread_count',
+        async () => {
+          const response = await apiClient.get<UnreadCountResponse>('/notifications/unread-count');
+          return response.data.count || 0;
+        },
+        5000
+      );
     } catch (error) {
       if (isAxiosError(error)) {
         console.error('Failed to fetch unread count:', {

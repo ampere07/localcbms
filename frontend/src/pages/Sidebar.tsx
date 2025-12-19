@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LayoutDashboard, Users, FileText, LogOut, ChevronRight, User, Building2, Shield, FileCheck, Wrench, Map, MapPinned , MapPin, Package, CreditCard, List, Router, DollarSign, Receipt, FileBarChart, Clock, Calendar, UserCheck, AlertTriangle, Tag, MessageSquare, Settings, Network, Activity } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
@@ -24,6 +24,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [currentDateTime, setCurrentDateTime] = useState('');
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -72,9 +80,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
 
   useEffect(() => {
     const fetchColorPalette = async () => {
+      if (!mountedRef.current) return;
+      
       try {
         const activePalette = await settingsColorPaletteService.getActive();
-        setColorPalette(activePalette);
+        if (mountedRef.current) {
+          setColorPalette(activePalette);
+        }
       } catch (err) {
         console.error('Failed to fetch color palette:', err);
       }
