@@ -16,8 +16,6 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<any>(null);
-  const [socketConnected, setSocketConnected] = useState(false);
 
   useEffect(() => {
     const loadLogo = async () => {
@@ -62,82 +60,34 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
   }, []);
 
   useEffect(() => {
-    const initializeSocket = async () => {
-      try {
-        const { io } = await import('socket.io-client');
-        
-        socketRef.current = io(process.env.REACT_APP_SOCKET_URL || 'https://backend.atssfiber.ph:3001', {
-          transports: ['websocket', 'polling'],
-          reconnection: true,
-          reconnectionDelay: 1000,
-          reconnectionAttempts: 5
-        });
-
-        socketRef.current.on('connect', () => {
-          console.log('Socket connected');
-          setSocketConnected(true);
-          socketRef.current?.emit('subscribe-notifications');
-        });
-
-        socketRef.current.on('new-application', (data: AppNotification) => {
-          console.log('New application received:', data);
-          
-          setNotifications(prev => [data, ...prev].slice(0, 10));
-          setUnreadCount(prev => prev + 1);
-
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('New Application', {
-              body: `${data.customer_name} - ${data.plan_name}`,
-              icon: '/logo.png'
-            });
-          }
-        });
-
-        socketRef.current.on('disconnect', () => {
-          console.log('Socket disconnected');
-          setSocketConnected(false);
-        });
-
-        if ('Notification' in window && Notification.permission === 'default') {
-          Notification.requestPermission();
-        }
-      } catch (error) {
-        console.log('Socket.IO not available, using polling only');
-      }
-    };
-
-    initializeSocket();
-
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     const fetchInitialData = async () => {
-      const count = await notificationService.getUnreadCount();
-      setUnreadCount(count);
-      
-      const data = await notificationService.getRecentApplications(10);
-      setNotifications(data);
+      try {
+        const count = await notificationService.getUnreadCount();
+        setUnreadCount(count);
+        
+        const data = await notificationService.getRecentApplications(10);
+        setNotifications(data);
+      } catch (error) {
+        console.error('Failed to fetch initial notifications:', error);
+      }
     };
 
     fetchInitialData();
 
     const interval = setInterval(async () => {
-      const count = await notificationService.getUnreadCount();
-      setUnreadCount(count);
-      
-      if (!socketConnected) {
+      try {
+        const count = await notificationService.getUnreadCount();
+        setUnreadCount(count);
+        
         const data = await notificationService.getRecentApplications(10);
         setNotifications(data);
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error);
       }
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [socketConnected]);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -170,9 +120,14 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
     
     if (!showNotifications) {
       setLoading(true);
-      const data = await notificationService.getRecentApplications(10);
-      setNotifications(data);
-      setLoading(false);
+      try {
+        const data = await notificationService.getRecentApplications(10);
+        setNotifications(data);
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
