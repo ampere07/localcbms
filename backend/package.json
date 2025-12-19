@@ -1,15 +1,14 @@
 {
-    "private": true,
-    "scripts": {
-        "start": "php artisan serve --host=192.168.100.10 --port=8000",
-        "dev": "vite",
-        "build": "vite build"
-    },
-    "devDependencies": {
-        "axios": "^1.1.2",
-        "laravel-vite-plugin": "^0.7.2",
-        "lodash": "^4.17.19",
-        "postcss": "^8.1.14",
-        "vite": "^4.0.0"
-    }
+  "name": "cbms-socket-server",
+  "version": "1.0.0",
+  "description": "Socket.IO server for CBMS real-time notifications",
+  "main": "socket-server.js",
+  "scripts": {
+    "start": "node socket-server.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.7.2",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  }
 }

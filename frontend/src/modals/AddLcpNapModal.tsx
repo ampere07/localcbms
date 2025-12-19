@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Camera, MapPin } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 
 interface AddLcpNapModalProps {
   isOpen: boolean;
@@ -65,6 +66,7 @@ const AddLcpNapModal: React.FC<AddLcpNapModalProps> = ({
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -85,6 +87,21 @@ const AddLcpNapModal: React.FC<AddLcpNapModalProps> = ({
     };
     fetchColorPalette();
   }, []);
+
+  useEffect(() => {
+    const fetchActiveImageSize = async () => {
+      if (isOpen) {
+        try {
+          const imageSizeSettings = await getActiveImageSize();
+          setActiveImageSize(imageSizeSettings);
+          console.log('Active image size settings:', imageSizeSettings);
+        } catch (error) {
+          console.error('Error fetching active image size:', error);
+        }
+      }
+    };
+    fetchActiveImageSize();
+  }, [isOpen]);
 
   useEffect(() => {
     const authData = localStorage.getItem('authData');
@@ -212,13 +229,39 @@ const AddLcpNapModal: React.FC<AddLcpNapModalProps> = ({
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
     const { files } = e.target;
     if (files && files.length > 0) {
-      setFormData(prev => ({ 
-        ...prev, 
-        [fieldName]: files[0]
-      }));
+      const file = files[0];
+      
+      if (activeImageSize && activeImageSize.image_size_value < 100) {
+        try {
+          console.log(`Resizing ${fieldName} image...`);
+          console.log('Original file size:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+          
+          const resizedFile = await resizeImage(file, activeImageSize.image_size_value);
+          
+          console.log('Resized file size:', (resizedFile.size / 1024 / 1024).toFixed(2), 'MB');
+          console.log('Size reduction:', ((1 - resizedFile.size / file.size) * 100).toFixed(2), '%');
+          
+          const fileToUse = resizedFile.size < file.size ? resizedFile : file;
+          setFormData(prev => ({ 
+            ...prev, 
+            [fieldName]: fileToUse
+          }));
+        } catch (error) {
+          console.error('Error resizing image:', error);
+          setFormData(prev => ({ 
+            ...prev, 
+            [fieldName]: file
+          }));
+        }
+      } else {
+        setFormData(prev => ({ 
+          ...prev, 
+          [fieldName]: file
+        }));
+      }
     }
   };
 

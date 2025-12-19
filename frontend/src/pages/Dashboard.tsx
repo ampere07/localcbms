@@ -250,6 +250,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             onLogout={onLogout}
             isCollapsed={sidebarCollapsed}
             userRole={userData?.role || ''}
+            userEmail={userData?.email || ''}
           />
           </div>
         </div>

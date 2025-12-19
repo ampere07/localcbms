@@ -1,6 +1,4 @@
-const API_BASE_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:8000/api'
-  : 'https://backend.atssfiber.ph/api';
+import { API_BASE_URL } from '../config/api';
 
 const STORAGE_PREFIX = 'user_pref_';
 

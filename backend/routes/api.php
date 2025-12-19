@@ -2579,3 +2579,16 @@ Route::get('/debug/users-table', function() {
         ], 500);
     }
 });
+
+// System Config routes
+Route::prefix('system-config')->group(function () {
+    Route::get('/logo', [\App\Http\Controllers\SystemConfigController::class, 'getLogo']);
+    Route::post('/logo', [\App\Http\Controllers\SystemConfigController::class, 'uploadLogo']);
+    Route::delete('/logo', [\App\Http\Controllers\SystemConfigController::class, 'deleteLogo']);
+});
+
+// Notification routes
+Route::prefix('notifications')->group(function () {
+    Route::get('/recent-applications', [\App\Http\Controllers\NotificationController::class, 'getRecentApplications']);
+    Route::get('/unread-count', [\App\Http\Controllers\NotificationController::class, 'getUnreadCount']);
+});

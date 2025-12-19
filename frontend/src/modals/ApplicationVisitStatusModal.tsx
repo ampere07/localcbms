@@ -7,6 +7,7 @@ import { locationDetailService, LocationDetail } from '../services/locationDetai
 import { statusRemarksService, StatusRemark } from '../services/statusRemarksService';
 import { userService } from '../services/userService';
 import { planService, Plan } from '../services/planService';
+import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface Region {
@@ -106,6 +107,21 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
     };
     fetchColorPalette();
   }, []);
+
+  useEffect(() => {
+    const fetchImageSizeSettings = async () => {
+      if (isOpen) {
+        try {
+          const settings = await getActiveImageSize();
+          setActiveImageSize(settings);
+        } catch (error) {
+          setActiveImageSize(null);
+        }
+      }
+    };
+    
+    fetchImageSizeSettings();
+  }, [isOpen]);
   
   const [modal, setModal] = useState<ModalConfig>({
     isOpen: false,
@@ -214,6 +230,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
     image2: null,
     image3: null
   });
+  const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
 
   const convertGoogleDriveUrl = (url: string | null | undefined): string | null => {
     if (!url) return null;
@@ -487,18 +504,54 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
     }
   };
 
-  const handleImageChange = (field: 'image1' | 'image2' | 'image3', file: File) => {
-    handleTechnicianInputChange(field, file);
-    
-    if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
-      URL.revokeObjectURL(imagePreviews[field]!);
-    }
-    
-    const previewUrl = URL.createObjectURL(file);
-    setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
-    
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+  const handleImageChange = async (field: 'image1' | 'image2' | 'image3', file: File) => {
+    try {
+      let processedFile = file;
+      const originalSize = (file.size / 1024 / 1024).toFixed(2);
+      
+      if (activeImageSize && activeImageSize.image_size_value < 100) {
+        try {
+          const resizedFile = await resizeImage(file, activeImageSize.image_size_value);
+          const resizedSize = (resizedFile.size / 1024 / 1024).toFixed(2);
+          
+          if (resizedFile.size < file.size) {
+            processedFile = resizedFile;
+            console.log(`[RESIZE SUCCESS] ${field}: ${originalSize}MB → ${resizedSize}MB (${activeImageSize.image_size_value}%, saved ${((1 - resizedFile.size / file.size) * 100).toFixed(1)}%)`);
+          } else {
+            console.log(`[RESIZE SKIP] ${field}: Resized file (${resizedSize}MB) is not smaller than original (${originalSize}MB), using original`);
+          }
+        } catch (resizeError) {
+          console.error(`[RESIZE FAILED] ${field}:`, resizeError);
+          processedFile = file;
+        }
+      }
+      
+      handleTechnicianInputChange(field, processedFile);
+      
+      if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreviews[field]!);
+      }
+      
+      const previewUrl = URL.createObjectURL(processedFile);
+      setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
+      
+      if (errors[field]) {
+        setErrors(prev => ({ ...prev, [field]: '' }));
+      }
+    } catch (error) {
+      console.error(`[UPLOAD ERROR] ${field}:`, error);
+      handleTechnicianInputChange(field, file);
+      
+      if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreviews[field]!);
+      }
+      
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
+      
+      if (errors[field]) {
+        setErrors(prev => ({ ...prev, [field]: '' }));
+      }
     }
   };
 

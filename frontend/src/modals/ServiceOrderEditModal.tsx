@@ -5,6 +5,7 @@ import apiClient from '../config/api';
 import { getAllInventoryItems, InventoryItem } from '../services/inventoryItemService';
 import { createServiceOrderItems, ServiceOrderItem, deleteServiceOrderItems } from '../services/serviceOrderItemService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 
 interface ServiceOrderEditModalProps {
   isOpen: boolean;
@@ -86,6 +87,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
 
   const getCurrentUser = (): UserData | null => {
     try {
@@ -232,6 +234,21 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     };
     fetchColorPalette();
   }, []);
+
+  useEffect(() => {
+    const fetchActiveImageSize = async () => {
+      if (isOpen) {
+        try {
+          const imageSizeSettings = await getActiveImageSize();
+          setActiveImageSize(imageSizeSettings);
+          console.log('Active image size settings:', imageSizeSettings);
+        } catch (error) {
+          console.error('Error fetching active image size:', error);
+        }
+      }
+    };
+    fetchActiveImageSize();
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -432,19 +449,59 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     }
   };
 
-  const handleImageChange = (field: keyof ImageFiles, file: File | null) => {
-    setImageFiles(prev => ({ ...prev, [field]: file }));
-    
-    if (file) {
-      if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
-        URL.revokeObjectURL(imagePreviews[field]!);
+  const handleImageChange = async (field: keyof ImageFiles, file: File | null) => {
+    if (file && activeImageSize && activeImageSize.image_size_value < 100) {
+      try {
+        console.log(`Resizing ${field} image...`);
+        console.log('Original file size:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+        
+        const resizedFile = await resizeImage(file, activeImageSize.image_size_value);
+        
+        console.log('Resized file size:', (resizedFile.size / 1024 / 1024).toFixed(2), 'MB');
+        console.log('Size reduction:', ((1 - resizedFile.size / file.size) * 100).toFixed(2), '%');
+        
+        const fileToUse = resizedFile.size < file.size ? resizedFile : file;
+        setImageFiles(prev => ({ ...prev, [field]: fileToUse }));
+        
+        if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
+          URL.revokeObjectURL(imagePreviews[field]!);
+        }
+        
+        const previewUrl = URL.createObjectURL(fileToUse);
+        setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
+        
+        if (errors[field]) {
+          setErrors(prev => ({ ...prev, [field]: '' }));
+        }
+      } catch (error) {
+        console.error('Error resizing image:', error);
+        setImageFiles(prev => ({ ...prev, [field]: file }));
+        
+        if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
+          URL.revokeObjectURL(imagePreviews[field]!);
+        }
+        
+        const previewUrl = URL.createObjectURL(file);
+        setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
+        
+        if (errors[field]) {
+          setErrors(prev => ({ ...prev, [field]: '' }));
+        }
       }
+    } else {
+      setImageFiles(prev => ({ ...prev, [field]: file }));
       
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
-      
-      if (errors[field]) {
-        setErrors(prev => ({ ...prev, [field]: '' }));
+      if (file) {
+        if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
+          URL.revokeObjectURL(imagePreviews[field]!);
+        }
+        
+        const previewUrl = URL.createObjectURL(file);
+        setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
+        
+        if (errors[field]) {
+          setErrors(prev => ({ ...prev, [field]: '' }));
+        }
       }
     }
   };

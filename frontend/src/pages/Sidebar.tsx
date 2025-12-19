@@ -8,6 +8,7 @@ interface SidebarProps {
   onLogout: () => void;
   isCollapsed?: boolean;
   userRole: string;
+  userEmail?: string;
 }
 
 interface MenuItem {
@@ -18,10 +19,36 @@ interface MenuItem {
   allowedRoles?: string[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLogout, isCollapsed, userRole }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLogout, isCollapsed, userRole, userEmail }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [currentDateTime, setCurrentDateTime] = useState('');
+
+  useEffect(() => {
+    const updateDateTime = () => {
+      const now = new Date();
+      const dateOptions: Intl.DateTimeFormatOptions = {
+        weekday: 'short',
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric'
+      };
+      const timeOptions: Intl.DateTimeFormatOptions = {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      };
+      const dateStr = now.toLocaleDateString('en-US', dateOptions);
+      const timeStr = now.toLocaleTimeString('en-US', timeOptions);
+      setCurrentDateTime(`${dateStr} ${timeStr}`);
+    };
+
+    updateDateTime();
+    const interval = setInterval(updateDateTime, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -272,20 +299,54 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
     } h-full ${
       isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
     } border-r flex flex-col transition-all duration-300 ease-in-out overflow-hidden`}>
-      <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden scrollbar-none" style={{ maxHeight: 'calc(100% - 80px)' }}>
+      <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden scrollbar-none">
         {filteredMenuItems.map(item => renderMenuItem(item))}
       </nav>
       
-      <div className={`p-4 ${
+      <div className={`px-3 py-3 ${
         isDarkMode ? 'border-gray-600' : 'border-gray-300'
       } border-t flex-shrink-0`}>
+        {!isCollapsed && (
+          <div className="mb-3">
+            <div className={`text-xs mb-2 text-center ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
+              {currentDateTime}
+            </div>
+            <div className="flex items-center mb-2">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-200 border-gray-300'
+              } border-2`}>
+                <User className={`h-5 w-5 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`} />
+              </div>
+              <div className="ml-3 flex-1 min-w-0">
+                <div className={`text-sm font-medium truncate ${
+                  isDarkMode ? 'text-gray-200' : 'text-gray-800'
+                }`}>
+                  {userEmail || 'user@example.com'}
+                </div>
+                <div className={`text-xs truncate ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  {userRole}
+                </div>
+              </div>
+            </div>
+            <div className={`h-px ${
+              isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+            } mb-2`} />
+          </div>
+        )}
+        
         <button
           onClick={onLogout}
-          className={`w-full px-4 py-3 ${
+          className={`w-full px-3 py-2 ${
             isDarkMode 
-              ? 'text-gray-300 hover:text-white border-gray-500 hover:bg-gray-700' 
-              : 'text-gray-700 hover:text-black border-gray-400 hover:bg-gray-100'
-          } border rounded transition-colors text-sm flex items-center justify-center`}
+              ? 'text-gray-300 hover:text-white hover:bg-gray-700' 
+              : 'text-gray-700 hover:text-black hover:bg-gray-100'
+          } rounded transition-colors text-sm flex items-center justify-center`}
         >
           <LogOut className={`h-4 w-4 ${!isCollapsed ? 'mr-2' : ''}`} />
           {!isCollapsed && <span>Logout</span>}

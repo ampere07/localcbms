@@ -4,6 +4,7 @@ import AddColorPaletteModal from '../modals/AddColorPaletteModal';
 import { settingsImageSizeService, ImageSize } from '../services/settingsImageSizeService';
 import { settingsColorPaletteService, ColorPalette as DbColorPalette } from '../services/settingsColorPaletteService';
 import { userSettingsService } from '../services/userSettingsService';
+import { systemConfigService } from '../services/systemConfigService';
 
 interface ColorPalette {
   id: string;
@@ -32,6 +33,9 @@ const Settings: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [showError, setShowError] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -43,6 +47,19 @@ const Settings: React.FC = () => {
       }
     };
     fetchColorPalette();
+  }, []);
+
+  useEffect(() => {
+    const loadLogo = async () => {
+      try {
+        const url = await systemConfigService.getLogo();
+        setLogoUrl(url);
+      } catch (error) {
+        console.error('Failed to load logo:', error);
+      }
+    };
+
+    loadLogo();
   }, []);
 
   useEffect(() => {
@@ -285,6 +302,77 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setErrorMessage('File size must be less than 5MB');
+        setShowError(true);
+        setTimeout(() => setShowError(false), 3000);
+        return;
+      }
+      setLogoFile(file);
+    }
+  };
+
+  const handleUploadLogo = async () => {
+    if (!logoFile) return;
+
+    setIsUploadingLogo(true);
+    setLoadingMessage('Uploading logo to Google Drive...');
+
+    try {
+      const authData = localStorage.getItem('authData');
+      const userData = authData ? JSON.parse(authData) : null;
+      const updatedBy = userData?.username || 'system';
+
+      const result = await systemConfigService.uploadLogo(logoFile, updatedBy);
+      
+      if (result.success && result.data) {
+        setLogoUrl(result.data.logo_url);
+        setLogoFile(null);
+        localStorage.setItem('logoUpdated', Date.now().toString());
+        window.dispatchEvent(new Event('storage'));
+        setSuccessMessage('Logo uploaded successfully!');
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 2000);
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to upload logo');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  const handleDeleteLogo = async () => {
+    if (!window.confirm('Are you sure you want to delete the logo?')) return;
+
+    setIsLoading(true);
+    setLoadingMessage('Deleting logo...');
+
+    try {
+      const authData = localStorage.getItem('authData');
+      const userData = authData ? JSON.parse(authData) : null;
+      const updatedBy = userData?.username || 'system';
+
+      await systemConfigService.deleteLogo(updatedBy);
+      setLogoUrl(null);
+      localStorage.setItem('logoUpdated', Date.now().toString());
+      window.dispatchEvent(new Event('storage'));
+      setSuccessMessage('Logo deleted successfully!');
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2000);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to delete logo');
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className={`p-6 min-h-screen ${
       isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
@@ -304,7 +392,151 @@ const Settings: React.FC = () => {
           isDarkMode ? 'border-gray-700' : 'border-gray-300'
         }`}>
           <div className="flex items-center gap-3 mb-4">
-            <Sun className="h-5 w-5 text-orange-400" />
+            <Image className="h-5 w-5" style={{ color: colorPalette?.primary || '#ea580c' }} />
+            <h3 className={`text-lg font-semibold ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              System Logo
+            </h3>
+          </div>
+          
+          <div className={`p-6 rounded border ${
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-300'
+          }`}>
+            {logoUrl ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-center p-4 bg-white rounded">
+                  <img 
+                    src={logoUrl} 
+                    alt="System Logo" 
+                    className="max-h-32 object-contain"
+                    onError={(e) => {
+                      console.error('Failed to load logo image');
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <label
+                    className="px-4 py-2 text-white rounded transition-colors cursor-pointer text-sm"
+                    style={{
+                      backgroundColor: colorPalette?.primary || '#ea580c'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                    }}
+                  >
+                    Change Logo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                  <button
+                    onClick={handleDeleteLogo}
+                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
+                  >
+                    Delete Logo
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className={`flex flex-col items-center justify-center p-8 border-2 border-dashed rounded ${
+                  isDarkMode ? 'border-gray-600' : 'border-gray-400'
+                }`}>
+                  <Image className={`h-12 w-12 mb-4 ${
+                    isDarkMode ? 'text-gray-600' : 'text-gray-400'
+                  }`} />
+                  <p className={`text-sm mb-2 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
+                    No logo uploaded
+                  </p>
+                  <p className={`text-xs ${
+                    isDarkMode ? 'text-gray-500' : 'text-gray-500'
+                  }`}>
+                    Supported formats: JPEG, PNG, GIF, SVG (Max 5MB)
+                  </p>
+                </div>
+                {logoFile ? (
+                  <div className="space-y-2">
+                    <p className={`text-sm ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      Selected: {logoFile.name}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleUploadLogo}
+                        disabled={isUploadingLogo}
+                        className="px-4 py-2 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        style={{
+                          backgroundColor: isUploadingLogo ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isUploadingLogo && colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isUploadingLogo) {
+                            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                          }
+                        }}
+                      >
+                        {isUploadingLogo ? 'Uploading...' : 'Upload Logo'}
+                      </button>
+                      <button
+                        onClick={() => setLogoFile(null)}
+                        disabled={isUploadingLogo}
+                        className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label
+                    className="px-4 py-2 text-white rounded transition-colors cursor-pointer inline-block text-sm"
+                    style={{
+                      backgroundColor: colorPalette?.primary || '#ea580c'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                    }}
+                  >
+                    Select Logo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className={`pb-6 border-b ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-300'
+        }`}>
+          <div className="flex items-center gap-3 mb-4">
+            <Sun className="h-5 w-5" style={{ color: colorPalette?.primary || '#ea580c' }} />
             <h3 className={`text-lg font-semibold ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
@@ -353,7 +585,7 @@ const Settings: React.FC = () => {
 
         <div className="pt-6">
           <div className="flex items-center gap-3 mb-4">
-            <Palette className="h-5 w-5 text-orange-400" />
+            <Palette className="h-5 w-5" style={{ color: colorPalette?.primary || '#ea580c' }} />
             <h3 className={`text-lg font-semibold ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
@@ -369,11 +601,11 @@ const Settings: React.FC = () => {
                   key={palette.id}
                   className={`p-4 rounded border transition-all relative ${
                     isDarkMode ? 'bg-gray-900' : 'bg-gray-100'
-                  } ${
-                    palette.status === 'active'
-                      ? 'border-orange-500 shadow-lg'
-                      : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                   }`}
+                  style={{
+                    borderColor: palette.status === 'active' ? (colorPalette?.primary || '#ea580c') : undefined,
+                    boxShadow: palette.status === 'active' ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)' : undefined
+                  }}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <h4 className={`font-medium text-sm ${
@@ -481,7 +713,7 @@ const Settings: React.FC = () => {
           isDarkMode ? 'border-gray-700' : 'border-gray-300'
         }`}>
           <div className="flex items-center gap-3 mb-4">
-            <Image className="h-5 w-5 text-orange-400" />
+            <Image className="h-5 w-5" style={{ color: colorPalette?.primary || '#ea580c' }} />
             <h3 className={`text-lg font-semibold ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
@@ -499,11 +731,11 @@ const Settings: React.FC = () => {
                   onClick={() => isEditingImageSize && setSelectedImageSizeId(size.id)}
                   className={`flex items-center justify-between p-3 rounded border transition-all ${
                     isEditingImageSize ? 'cursor-pointer' : ''
-                  } ${
-                    selectedImageSizeId === size.id
-                      ? 'border-orange-500 bg-orange-500/10'
-                      : isDarkMode ? 'border-gray-700 hover:border-gray-600' : 'border-gray-300 hover:border-gray-400'
                   }`}
+                  style={{
+                    borderColor: selectedImageSizeId === size.id ? (colorPalette?.primary || '#ea580c') : undefined,
+                    backgroundColor: selectedImageSizeId === size.id ? `${colorPalette?.primary || '#ea580c'}1A` : undefined
+                  }}
                 >
                   <div className="flex items-center gap-3">
                     <span className={`font-medium ${

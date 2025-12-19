@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Bell, RefreshCw } from 'lucide-react';
+import { systemConfigService } from '../services/systemConfigService';
+import { notificationService, type Notification as AppNotification } from '../services/notificationService';
 
 interface HeaderProps {
   onToggleSidebar?: () => void;
@@ -6,8 +9,37 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
-  const [currentDateTime, setCurrentDateTime] = useState('');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<any>(null);
+  const [socketConnected, setSocketConnected] = useState(false);
+
+  useEffect(() => {
+    const loadLogo = async () => {
+      try {
+        const url = await systemConfigService.getLogo();
+        setLogoUrl(url);
+      } catch (error) {
+        console.error('Failed to load logo:', error);
+      }
+    };
+
+    loadLogo();
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'logoUpdated') {
+        loadLogo();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -30,33 +62,117 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
   }, []);
 
   useEffect(() => {
-    const updateDateTime = () => {
-      const now = new Date();
-      const dateOptions: Intl.DateTimeFormatOptions = {
-        weekday: 'short',
-        month: 'short',
-        day: '2-digit',
-        year: 'numeric'
-      };
-      const timeOptions: Intl.DateTimeFormatOptions = {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      };
-      const dateStr = now.toLocaleDateString('en-US', dateOptions);
-      const timeStr = now.toLocaleTimeString('en-US', timeOptions);
-      setCurrentDateTime(`${dateStr} ${timeStr}`);
+    const initializeSocket = async () => {
+      try {
+        const { io } = await import('socket.io-client');
+        
+        socketRef.current = io(process.env.REACT_APP_SOCKET_URL || 'https://backend.atssfiber.ph:3001', {
+          transports: ['websocket', 'polling'],
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionAttempts: 5
+        });
+
+        socketRef.current.on('connect', () => {
+          console.log('Socket connected');
+          setSocketConnected(true);
+          socketRef.current?.emit('subscribe-notifications');
+        });
+
+        socketRef.current.on('new-application', (data: AppNotification) => {
+          console.log('New application received:', data);
+          
+          setNotifications(prev => [data, ...prev].slice(0, 10));
+          setUnreadCount(prev => prev + 1);
+
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('New Application', {
+              body: `${data.customer_name} - ${data.plan_name}`,
+              icon: '/logo.png'
+            });
+          }
+        });
+
+        socketRef.current.on('disconnect', () => {
+          console.log('Socket disconnected');
+          setSocketConnected(false);
+        });
+
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+      } catch (error) {
+        console.log('Socket.IO not available, using polling only');
+      }
     };
 
-    updateDateTime();
-    const interval = setInterval(updateDateTime, 60000);
+    initializeSocket();
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      const count = await notificationService.getUnreadCount();
+      setUnreadCount(count);
+      
+      const data = await notificationService.getRecentApplications(10);
+      setNotifications(data);
+    };
+
+    fetchInitialData();
+
+    const interval = setInterval(async () => {
+      const count = await notificationService.getUnreadCount();
+      setUnreadCount(count);
+      
+      if (!socketConnected) {
+        const data = await notificationService.getRecentApplications(10);
+        setNotifications(data);
+      }
+    }, 10000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [socketConnected]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
 
   const handleToggleClick = () => {
     if (onToggleSidebar) {
       onToggleSidebar();
+    }
+  };
+
+  const handleRefresh = () => {
+    window.location.reload();
+  };
+
+  const toggleNotifications = async () => {
+    setShowNotifications(!showNotifications);
+    
+    if (!showNotifications) {
+      setLoading(true);
+      const data = await notificationService.getRecentApplications(10);
+      setNotifications(data);
+      setLoading(false);
     }
   };
 
@@ -77,49 +193,112 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
           </svg>
         </button>
         
-        <h1 className={`${
-          isDarkMode ? 'text-white' : 'text-gray-900'
-        } text-xl font-bold`}>
-          SYNC
-        </h1>
+        {logoUrl ? (
+          <div className="flex flex-col items-center">
+            <img 
+              src={logoUrl} 
+              alt="System Logo" 
+              className="h-10 object-contain"
+              onError={(e) => {
+                console.error('Failed to load header logo');
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            <span className={`text-[10px] ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+            }`}>
+              powered by SYNC
+            </span>
+          </div>
+        ) : (
+          <h1 className={`${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          } text-xl font-bold`}>
+            SYNC
+          </h1>
+        )}
       </div>
       
       <div className="flex-1"></div>
 
-      <div className="flex items-center space-x-4">
-        <div className={`${
-          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-        } text-sm`}>
-          {currentDateTime}
-        </div>
+      <div className="flex items-center space-x-2">
+        <button 
+          onClick={handleRefresh}
+          className={`p-2 ${
+            isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'
+          } transition-colors`}
+        >
+          <RefreshCw className="h-5 w-5" />
+        </button>
         
-        <div className="flex items-center space-x-2">
-          <button className={`p-2 ${
-            isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'
-          } transition-colors`}>
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
+        <div className="relative" ref={notificationRef}>
+          <button 
+            onClick={toggleNotifications}
+            className={`p-2 relative ${
+              isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'
+            } transition-colors`}
+          >
+            <Bell className="h-5 w-5" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            )}
           </button>
-          
-          <button className={`p-2 ${
-            isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'
-          } transition-colors`}>
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
-          
-          <div className={`w-8 h-8 ${
-            isDarkMode ? 'bg-gray-600' : 'bg-gray-300'
-          } rounded-full flex items-center justify-center`}>
-            <svg className={`h-5 w-5 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </div>
+
+          {showNotifications && (
+            <div className={`absolute right-0 mt-2 w-96 rounded-lg shadow-lg ${
+              isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            } border z-50`}>
+              <div className={`p-4 border-b ${
+                isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+                <h3 className={`font-semibold ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
+                  Recent Applications
+                </h3>
+              </div>
+              <div className="max-h-96 overflow-y-auto">
+                {loading ? (
+                  <div className={`p-4 text-center ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
+                    Loading...
+                  </div>
+                ) : notifications.length === 0 ? (
+                  <div className={`p-4 text-center ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
+                    No new applications
+                  </div>
+                ) : (
+                  notifications.map((notification) => (
+                    <div 
+                      key={notification.id}
+                      className={`p-4 border-b ${
+                        isDarkMode ? 'border-gray-700 hover:bg-gray-750' : 'border-gray-200 hover:bg-gray-50'
+                      } transition-colors cursor-pointer`}
+                    >
+                      <div className={`font-medium ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        {notification.customer_name}
+                      </div>
+                      <div className={`text-sm ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        Plan: {notification.plan_name}
+                      </div>
+                      <div className={`text-xs mt-1 ${
+                        isDarkMode ? 'text-gray-500' : 'text-gray-500'
+                      }`}>
+                        {notification.formatted_date}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class ApplicationController extends Controller
 {
@@ -98,6 +99,26 @@ class ApplicationController extends Controller
         }
     }
 
+    private function broadcastNewApplication($application)
+    {
+        try {
+            $data = [
+                'id' => $application->id,
+                'customer_name' => $this->getFullName($application),
+                'plan_name' => $application->desired_plan ?? 'Unknown',
+                'status' => $application->status ?? 'pending',
+                'created_at' => $application->created_at,
+                'formatted_date' => $application->created_at->diffForHumans(),
+            ];
+
+            Http::timeout(2)->post('http://127.0.0.1:3001/broadcast/new-application', $data);
+        } catch (\Exception $e) {
+            Log::warning('Failed to broadcast new application to socket server', [
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
     public function store(Request $request)
     {
         try {
@@ -133,6 +154,8 @@ class ApplicationController extends Controller
             $validatedData['created_by_user_id'] = auth()->id();
 
             $application = Application::create($validatedData);
+
+            $this->broadcastNewApplication($application);
 
             $formattedApplication = [
                 'id' => (string)$application->id,
