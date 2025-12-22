@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { FileText, Search, Circle, X, ListFilter, ArrowUp, ArrowDown, Menu } from 'lucide-react';
+import { FileText, Search, Circle, X, ListFilter, ArrowUp, ArrowDown, Menu, Filter, RefreshCw } from 'lucide-react';
 import ServiceOrderDetails from '../components/ServiceOrderDetails';
+import ServiceOrderFunnelFilter from '../components/filters/ServiceOrderFunnelFilter';
 import { getServiceOrders, ServiceOrderData } from '../services/serviceOrderService';
 import { getCities, City } from '../services/cityService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -105,6 +106,7 @@ const ServiceOrder: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [mobileView, setMobileView] = useState<MobileView>('locations');
+  const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -1019,24 +1021,25 @@ const ServiceOrder: React.FC = () => {
                 }`} />
               </div>
               <div className="hidden md:flex space-x-2">
+                <button
+                  onClick={() => setIsFunnelFilterOpen(true)}
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
+                    isDarkMode
+                      ? 'hover:bg-gray-700 text-white'
+                      : 'hover:bg-gray-200 text-gray-900'
+                  }`}
+                >
+                  <Filter className="h-5 w-5" />
+                </button>
                 {displayMode === 'table' && (
                   <div className="relative" ref={filterDropdownRef}>
                     <button
-                      className="text-white px-4 py-2 rounded text-sm transition-colors flex items-center"
+                      className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
+                        isDarkMode
+                          ? 'hover:bg-gray-800 text-white'
+                          : 'hover:bg-gray-100 text-gray-900'
+                      }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
-                      style={{
-                        backgroundColor: colorPalette?.primary || '#ea580c'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (colorPalette?.accent) {
-                          e.currentTarget.style.backgroundColor = colorPalette.accent;
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (colorPalette?.primary) {
-                          e.currentTarget.style.backgroundColor = colorPalette.primary;
-                        }
-                      }}
                     >
                       <ListFilter className="h-5 w-5" />
                     </button>
@@ -1122,21 +1125,12 @@ const ServiceOrder: React.FC = () => {
                 )}
                 <div className="relative z-50" ref={dropdownRef}>
                 <button
-                  className="text-white px-4 py-2 rounded text-sm transition-colors flex items-center"
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
+                    isDarkMode
+                      ? 'hover:bg-gray-800 text-white'
+                      : 'hover:bg-gray-100 text-gray-900'
+                  }`}
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  style={{
-                    backgroundColor: colorPalette?.primary || '#ea580c'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (colorPalette?.accent) {
-                      e.currentTarget.style.backgroundColor = colorPalette.accent;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (colorPalette?.primary) {
-                      e.currentTarget.style.backgroundColor = colorPalette.primary;
-                    }
-                  }}
                 >
                     <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
                     <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1185,7 +1179,7 @@ const ServiceOrder: React.FC = () => {
                 <button
                   onClick={handleRefresh}
                   disabled={loading}
-                  className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
+                  className="text-white px-3 py-2 rounded text-sm flex items-center transition-colors disabled:bg-gray-600"
                   style={{
                     backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
                   }}
@@ -1200,7 +1194,7 @@ const ServiceOrder: React.FC = () => {
                     }
                   }}
                 >
-                  {loading ? 'Loading...' : 'Refresh'}
+                  <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
                 </button>
               </div>
             </div>
@@ -1390,6 +1384,15 @@ const ServiceOrder: React.FC = () => {
           />
         </div>
       )}
+
+      <ServiceOrderFunnelFilter
+        isOpen={isFunnelFilterOpen}
+        onClose={() => setIsFunnelFilterOpen(false)}
+        onApplyFilters={(filters) => {
+          console.log('Applied filters:', filters);
+          setIsFunnelFilterOpen(false);
+        }}
+      />
     </div>
   );
 };

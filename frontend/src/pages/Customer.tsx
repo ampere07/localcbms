@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { CreditCard, Search, Circle, X, ListFilter, ArrowUp, ArrowDown } from 'lucide-react';
+import { CreditCard, Search, Circle, X, ListFilter, ArrowUp, ArrowDown, RefreshCw, Filter } from 'lucide-react';
 import BillingDetails from '../components/CustomerDetails';
 import { getBillingRecords, BillingRecord } from '../services/billingService';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
@@ -7,6 +7,7 @@ import { BillingDetailRecord } from '../types/billing';
 import { getCities, City } from '../services/cityService';
 import { getRegions, Region } from '../services/regionService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import CustomerFunnelFilter from '../filter/CustomerFunnelFilter';
 
 const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
   return {
@@ -160,6 +161,7 @@ const Customer: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState<number>(256);
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -939,13 +941,23 @@ const Customer: React.FC = () => {
                 }`} />
               </div>
               <div className="flex space-x-2">
+                <button
+                  onClick={() => setIsFunnelFilterOpen(true)}
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
+                    isDarkMode 
+                      ? 'hover:bg-gray-700 text-white' 
+                      : 'hover:bg-gray-200 text-gray-900'
+                  }`}
+                >
+                  <Filter className="h-5 w-5" />
+                </button>
                 {displayMode === 'table' && (
                   <div className="relative" ref={filterDropdownRef}>
                     <button
                       className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
                         isDarkMode 
-                          ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          ? 'hover:bg-gray-700 text-white' 
+                          : 'hover:bg-gray-200 text-gray-900'
                       }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
@@ -1034,8 +1046,8 @@ const Customer: React.FC = () => {
                   <button
                     className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
                       isDarkMode 
-                        ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                        ? 'hover:bg-gray-700 text-white' 
+                        : 'hover:bg-gray-200 text-gray-900'
                     }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
@@ -1085,7 +1097,7 @@ const Customer: React.FC = () => {
                 <button
                   onClick={handleRefresh}
                   disabled={isLoading}
-                  className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
+                  className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600 flex items-center"
                   style={{
                     backgroundColor: colorPalette?.primary || '#ea580c',
                   }}
@@ -1100,7 +1112,7 @@ const Customer: React.FC = () => {
                     }
                   }}
                 >
-                  {isLoading ? 'Loading...' : 'Refresh'}
+                  <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
                 </button>
               </div>
             </div>
@@ -1327,6 +1339,15 @@ const Customer: React.FC = () => {
           ) : null}
         </div>
       )}
+
+      <CustomerFunnelFilter
+        isOpen={isFunnelFilterOpen}
+        onClose={() => setIsFunnelFilterOpen(false)}
+        onApplyFilters={(filters) => {
+          console.log('Applied filters:', filters);
+          setIsFunnelFilterOpen(false);
+        }}
+      />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, Search, ChevronDown, ListFilter, ArrowUp, ArrowDown, Menu, X, ArrowLeft, RefreshCw } from 'lucide-react';
+import { FileText, Search, ChevronDown, ListFilter, ArrowUp, ArrowDown, Menu, X, ArrowLeft, RefreshCw, Filter } from 'lucide-react';
 import JobOrderDetails from '../components/JobOrderDetails';
+import JobOrderFunnelFilter from '../components/filters/JobOrderFunnelFilter';
 import { getJobOrders } from '../services/jobOrderService';
 import { getCities, City } from '../services/cityService';
 import { getBillingStatuses, BillingStatus } from '../services/lookupService';
@@ -88,7 +89,7 @@ const JobOrderPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string>('');
-  const [displayMode, setDisplayMode] = useState<DisplayMode>('table');
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(allColumns.map(col => col.key));
@@ -104,6 +105,7 @@ const JobOrderPage: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [mobileView, setMobileView] = useState<'locations' | 'orders' | 'details'>('locations');
+  const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -1052,10 +1054,24 @@ const JobOrderPage: React.FC = () => {
                 }`} />
               </div>
               <div className="flex space-x-2">
+                <button
+                  onClick={() => setIsFunnelFilterOpen(true)}
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
+                    isDarkMode
+                      ? 'hover:bg-gray-700 text-white'
+                      : 'hover:bg-gray-200 text-gray-900'
+                  }`}
+                >
+                  <Filter className="h-5 w-5" />
+                </button>
                 {displayMode === 'table' && (
                   <div className="relative" ref={filterDropdownRef}>
                     <button
-                      className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors flex items-center"
+                      className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
+                        isDarkMode
+                          ? 'hover:bg-gray-800 text-white'
+                          : 'hover:bg-gray-100 text-gray-900'
+                      }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
                       <ListFilter className="h-5 w-5" />
@@ -1217,8 +1233,8 @@ const JobOrderPage: React.FC = () => {
                   <button
                     className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
                       isDarkMode 
-                        ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                        ? 'hover:bg-gray-800 text-white' 
+                        : 'hover:bg-gray-100 text-gray-900'
                     }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
@@ -1262,11 +1278,20 @@ const JobOrderPage: React.FC = () => {
                 </div>
                 <button
                   onClick={() => window.location.reload()}
-                  className={`p-2 rounded text-sm transition-colors ${
-                    isDarkMode 
-                      ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                  }`}
+                  className="text-white px-3 py-2 rounded text-sm flex items-center transition-colors"
+                  style={{
+                    backgroundColor: colorPalette?.primary || '#ea580c'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.accent) {
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = colorPalette.primary;
+                    }
+                  }}
                   aria-label="Refresh"
                 >
                   <RefreshCw className="h-5 w-5" />
@@ -1464,6 +1489,15 @@ const JobOrderPage: React.FC = () => {
           />
         </div>
       )}
+
+      <JobOrderFunnelFilter
+        isOpen={isFunnelFilterOpen}
+        onClose={() => setIsFunnelFilterOpen(false)}
+        onApplyFilters={(filters) => {
+          console.log('Applied filters:', filters);
+          setIsFunnelFilterOpen(false);
+        }}
+      />
     </div>
   );
 };

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { FileText, Search, ListFilter, ChevronDown, ArrowUp, ArrowDown, Menu, X } from 'lucide-react';
+import { FileText, Search, ListFilter, ChevronDown, ArrowUp, ArrowDown, Menu, X, Filter, RefreshCw } from 'lucide-react';
 import ApplicationDetails from '../components/ApplicationDetails';
 import AddApplicationModal from '../modals/AddApplicationModal';
+import ApplicationFunnelFilter from '../filter/ApplicationFunnelFilter';
 import { getApplications } from '../services/applicationService';
 import { getCities, City } from '../services/cityService';
 import { getRegions, Region } from '../services/regionService';
@@ -92,6 +93,7 @@ const ApplicationManagement: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+  const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -833,10 +835,24 @@ const ApplicationManagement: React.FC = () => {
                 }`} />
               </div>
               <div className="hidden md:flex space-x-2">
+                <button
+                  onClick={() => setIsFunnelFilterOpen(true)}
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
+                    isDarkMode 
+                      ? 'hover:bg-gray-800 text-white' 
+                      : 'hover:bg-gray-100 text-gray-900'
+                  }`}
+                >
+                  <Filter className="h-5 w-5" />
+                </button>
                 {displayMode === 'table' && (
                   <div className="relative" ref={filterDropdownRef}>
                     <button
-                      className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors flex items-center"
+                      className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
+                        isDarkMode 
+                          ? 'hover:bg-gray-800 text-white' 
+                          : 'hover:bg-gray-100 text-gray-900'
+                      }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
                       <ListFilter className="h-5 w-5" />
@@ -917,7 +933,11 @@ const ApplicationManagement: React.FC = () => {
                 )}
                 <div className="relative" ref={dropdownRef}>
                   <button
-                    className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors flex items-center"
+                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
+                      isDarkMode 
+                        ? 'hover:bg-gray-800 text-white' 
+                        : 'hover:bg-gray-100 text-gray-900'
+                    }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
                     <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
@@ -980,7 +1000,7 @@ const ApplicationManagement: React.FC = () => {
                     }
                   }}
                 >
-                  {isLoading ? 'Loading...' : 'Refresh'}
+                  <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
                 </button>
               </div>
             </div>
@@ -1243,6 +1263,16 @@ const ApplicationManagement: React.FC = () => {
         onSave={() => {
           fetchApplications();
           setIsAddModalOpen(false);
+        }}
+      />
+
+      {/* Application Funnel Filter */}
+      <ApplicationFunnelFilter
+        isOpen={isFunnelFilterOpen}
+        onClose={() => setIsFunnelFilterOpen(false)}
+        onApplyFilters={(filters) => {
+          console.log('Applied filters:', filters);
+          setIsFunnelFilterOpen(false);
         }}
       />
     </div>

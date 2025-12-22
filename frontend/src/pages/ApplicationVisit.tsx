@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FileText, Search, ChevronDown, RefreshCw, ListFilter, ArrowUp, ArrowDown, Menu, X, ArrowLeft } from 'lucide-react';
+import { FileText, Search, ChevronDown, RefreshCw, ListFilter, ArrowUp, ArrowDown, Menu, X, ArrowLeft, Filter } from 'lucide-react';
 import ApplicationVisitDetails from '../components/ApplicationVisitDetails';
+import ApplicationVisitFunnelFilter from '../components/filters/ApplicationVisitFunnelFilter';
 import { getAllApplicationVisits } from '../services/applicationVisitService';
 import { getApplication } from '../services/applicationService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -105,6 +106,7 @@ const ApplicationVisit: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [mobileView, setMobileView] = useState<'locations' | 'visits' | 'details'>('locations');
+  const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -1081,33 +1083,22 @@ const ApplicationVisit: React.FC = () => {
               </div>
               <div className="flex space-x-2">
                 <button
-                  onClick={handleRefresh}
-                  disabled={isRefreshing}
-                  className="text-white px-3 py-2 rounded text-sm flex items-center transition-colors"
-                  style={{
-                    backgroundColor: isRefreshing ? '#4b5563' : (colorPalette?.primary || '#ea580c')
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isRefreshing && colorPalette?.accent) {
-                      e.currentTarget.style.backgroundColor = colorPalette.accent;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isRefreshing && colorPalette?.primary) {
-                      e.currentTarget.style.backgroundColor = colorPalette.primary;
-                    }
-                  }}
-                  title="Refresh application visits"
+                  onClick={() => setIsFunnelFilterOpen(true)}
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
+                    isDarkMode
+                      ? 'hover:bg-gray-700 text-white'
+                      : 'hover:bg-gray-200 text-gray-900'
+                  }`}
                 >
-                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <Filter className="h-5 w-5" />
                 </button>
                 {displayMode === 'table' && (
                   <div className="relative" ref={filterDropdownRef}>
                     <button
                       className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
                         isDarkMode
-                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          ? 'hover:bg-gray-800 text-white'
+                          : 'hover:bg-gray-100 text-gray-900'
                       }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
@@ -1257,8 +1248,8 @@ const ApplicationVisit: React.FC = () => {
                   <button
                     className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
                       isDarkMode
-                        ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                        ? 'hover:bg-gray-800 text-white'
+                        : 'hover:bg-gray-100 text-gray-900'
                     }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
@@ -1302,8 +1293,28 @@ const ApplicationVisit: React.FC = () => {
                         Table View
                       </button>
                     </div>
-                  )}
-                </div>
+                  )}                </div>
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="text-white px-3 py-2 rounded text-sm flex items-center transition-colors"
+                  style={{
+                    backgroundColor: isRefreshing ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isRefreshing && colorPalette?.accent) {
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isRefreshing && colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = colorPalette.primary;
+                    }
+                  }}
+                  title="Refresh application visits"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </button>
               </div>
             </div>
           </div>
@@ -1490,7 +1501,14 @@ const ApplicationVisit: React.FC = () => {
         </div>
       )}
 
-
+      <ApplicationVisitFunnelFilter
+        isOpen={isFunnelFilterOpen}
+        onClose={() => setIsFunnelFilterOpen(false)}
+        onApplyFilters={(filters) => {
+          console.log('Applied filters:', filters);
+          setIsFunnelFilterOpen(false);
+        }}
+      />
 
       <style>{`
         .hide-scrollbar::-webkit-scrollbar {
