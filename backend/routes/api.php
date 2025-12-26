@@ -2675,3 +2675,10 @@ Route::post('/debug/verify-password', function(Request $request) {
         'hash' => $user->password_hash
     ]);
 });
+
+// Xendit Payment routes
+Route::prefix('payments')->group(function () {
+    Route::post('/create', [\App\Http\Controllers\Api\XenditPaymentController::class, 'createPayment']);
+    Route::post('/webhook', [\App\Http\Controllers\Api\XenditPaymentController::class, 'handleWebhook']);
+    Route::post('/status', [\App\Http\Controllers\Api\XenditPaymentController::class, 'checkPaymentStatus']);
+});

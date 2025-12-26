@@ -3,6 +3,7 @@ import { Search, X } from 'lucide-react';
 import SOADetails from '../components/SOADetails';
 import { soaService, SOARecord } from '../services/soaService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { paymentService } from '../services/paymentService';
 
 interface SOARecordUI {
   id: string;
@@ -61,6 +62,12 @@ const SOA: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [userRole, setUserRole] = useState<string>('');
+  const [accountNo, setAccountNo] = useState<string>('');
+  const [accountBalance, setAccountBalance] = useState<number>(0);
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState<boolean>(false);
+  const [showPaymentVerifyModal, setShowPaymentVerifyModal] = useState<boolean>(false);
+  const [paymentAmount, setPaymentAmount] = useState<number>(0);
+  const [fullName, setFullName] = useState<string>('');
 
   const allColumns = [
     { key: 'id', label: 'ID', width: 'min-w-20' },
@@ -130,6 +137,11 @@ const SOA: React.FC = () => {
       try {
         const user = JSON.parse(authData);
         setUserRole(user.role?.toLowerCase() || '');
+        setAccountNo(user.account_no || '');
+        const balance = parseFloat(user.account_balance || '0');
+        setAccountBalance(balance);
+        setPaymentAmount(balance);
+        setFullName(user.full_name || '');
       } catch (error) {
         console.error('Error parsing auth data:', error);
       }
@@ -235,6 +247,63 @@ const SOA: React.FC = () => {
 
   const handleRefresh = async () => {
     await fetchSOAData();
+  };
+
+  const handlePayNow = () => {
+    setPaymentAmount(accountBalance > 0 ? accountBalance : 100);
+    setShowPaymentVerifyModal(true);
+  };
+
+  const handleCloseVerifyModal = () => {
+    setShowPaymentVerifyModal(false);
+    setPaymentAmount(accountBalance);
+  };
+
+  const handleProceedToCheckout = async () => {
+    if (paymentAmount < 1) {
+      alert('Minimum payment amount is ₱1.00');
+      return;
+    }
+
+    if (isPaymentProcessing) {
+      return;
+    }
+
+    setIsPaymentProcessing(true);
+
+    try {
+      const response = await paymentService.createPayment(accountNo, paymentAmount);
+
+      if (response.status === 'success' && response.payment_url) {
+        setShowPaymentVerifyModal(false);
+        
+        const proceed = window.confirm(
+          `Payment Link Ready!\n\nReference: ${response.reference_no}\nAmount: ₱${response.amount?.toFixed(2)}\n\nClick OK to proceed to payment page.`
+        );
+
+        if (proceed) {
+          window.open(response.payment_url, '_blank');
+        }
+      } else {
+        throw new Error(response.message || 'Failed to create payment link');
+      }
+    } catch (error: any) {
+      console.error('Payment error:', error);
+      
+      if (error.message.includes('pending payment')) {
+        const retry = window.confirm(
+          `${error.message}\n\nWould you like to try opening the existing payment link?`
+        );
+        
+        if (retry) {
+          setShowPaymentVerifyModal(false);
+        }
+      } else {
+        alert(error.message || 'Failed to create payment. Please try again.');
+      }
+    } finally {
+      setIsPaymentProcessing(false);
+    }
   };
 
   useEffect(() => {
@@ -468,22 +537,24 @@ const SOA: React.FC = () => {
               </div>
               {userRole === 'customer' && (
                 <button
-                  className="text-white px-4 py-2 rounded text-sm transition-colors"
+                  onClick={handlePayNow}
+                  disabled={isPaymentProcessing}
+                  className="text-white px-4 py-2 rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
-                    backgroundColor: colorPalette?.primary || '#ea580c'
+                    backgroundColor: isPaymentProcessing ? '#6b7280' : (colorPalette?.primary || '#ea580c')
                   }}
                   onMouseEnter={(e) => {
-                    if (colorPalette?.accent) {
+                    if (!isPaymentProcessing && colorPalette?.accent) {
                       e.currentTarget.style.backgroundColor = colorPalette.accent;
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (colorPalette?.primary) {
+                    if (!isPaymentProcessing && colorPalette?.primary) {
                       e.currentTarget.style.backgroundColor = colorPalette.primary;
                     }
                   }}
                 >
-                  Pay Now
+                  {isPaymentProcessing ? 'Processing...' : 'Pay Now'}
                 </button>
               )}
               <button
@@ -614,6 +685,113 @@ const SOA: React.FC = () => {
       {selectedRecord && userRole !== 'customer' && (
         <div className="flex-shrink-0 overflow-hidden">
           <SOADetails soaRecord={selectedRecord} />
+        </div>
+      )}
+
+      {showPaymentVerifyModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div 
+            className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${
+              isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
+            }`}
+          >
+            <div className={`p-6 border-b ${
+              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+            }`}>
+              <h3 className="text-xl font-bold text-center">Confirm Payment</h3>
+            </div>
+
+            <div className="p-6">
+              <div className={`p-4 rounded mb-4 ${
+                isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+              }`}>
+                <div className="flex justify-between mb-2">
+                  <span>Account:</span>
+                  <span className="font-bold">{fullName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Current Balance:</span>
+                  <span className={`font-bold ${
+                    accountBalance > 0 ? 'text-red-500' : 'text-green-500'
+                  }`}>₱{accountBalance.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block font-bold mb-2">Payment Amount</label>
+                <input
+                  type="number"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
+                  min="1"
+                  step="0.01"
+                  className={`w-full px-4 py-3 rounded text-lg font-bold ${
+                    isDarkMode 
+                      ? 'bg-gray-800 border-gray-700 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  } border focus:outline-none focus:ring-2`}
+                  style={{
+                    '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                  } as React.CSSProperties}
+                />
+                <div className={`text-sm text-right mt-1 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  {accountBalance > 0 ? (
+                    <span>Outstanding balance: ₱{accountBalance.toFixed(2)}</span>
+                  ) : (
+                    <span>Minimum: ₱1.00</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCloseVerifyModal}
+                  disabled={isPaymentProcessing}
+                  className={`flex-1 px-4 py-3 rounded font-bold transition-colors ${
+                    isDarkMode
+                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleProceedToCheckout}
+                  disabled={isPaymentProcessing || paymentAmount < 1}
+                  className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: (isPaymentProcessing || paymentAmount < 1) 
+                      ? '#6b7280' 
+                      : (colorPalette?.primary || '#ea580c')
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isPaymentProcessing && paymentAmount >= 1 && colorPalette?.accent) {
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isPaymentProcessing && paymentAmount >= 1 && colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = colorPalette.primary;
+                    }
+                  }}
+                >
+                  {isPaymentProcessing ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processing...
+                    </span>
+                  ) : (
+                    'PROCEED TO CHECKOUT →'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
