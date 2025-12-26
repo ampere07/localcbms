@@ -60,6 +60,7 @@ const SOA: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [userRole, setUserRole] = useState<string>('');
 
   const allColumns = [
     { key: 'id', label: 'ID', width: 'min-w-20' },
@@ -93,6 +94,14 @@ const SOA: React.FC = () => {
     { key: 'region', label: 'Region', width: 'min-w-32' },
   ];
 
+  const customerColumns = [
+    { key: 'statementDate', label: 'Statement Date', width: 'min-w-36' },
+    { key: 'id', label: 'ID', width: 'min-w-20' },
+    { key: 'action', label: 'Action', width: 'min-w-32' },
+  ];
+
+  const displayColumns = userRole === 'customer' ? customerColumns : allColumns;
+
   const dateItems: Array<{ date: string; id: string }> = [{ date: 'All', id: '' }];
 
   useEffect(() => {
@@ -113,6 +122,18 @@ const SOA: React.FC = () => {
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const authData = localStorage.getItem('authData');
+    if (authData) {
+      try {
+        const user = JSON.parse(authData);
+        setUserRole(user.role?.toLowerCase() || '');
+      } catch (error) {
+        console.error('Error parsing auth data:', error);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -203,7 +224,9 @@ const SOA: React.FC = () => {
   });
 
   const handleRowClick = (record: SOARecordUI) => {
-    setSelectedRecord(record);
+    if (userRole !== 'customer') {
+      setSelectedRecord(record);
+    }
   };
 
   const handleCloseDetails = () => {
@@ -246,6 +269,12 @@ const SOA: React.FC = () => {
     sidebarStartWidthRef.current = sidebarWidth;
   };
 
+  const handleDownloadPDF = (printLink: string | undefined) => {
+    if (printLink) {
+      window.open(printLink, '_blank');
+    }
+  };
+
   const renderCellValue = (record: SOARecordUI, columnKey: string) => {
     switch (columnKey) {
       case 'id':
@@ -254,6 +283,32 @@ const SOA: React.FC = () => {
         return <span className="text-red-400">{record.accountNo}</span>;
       case 'statementDate':
         return record.statementDate;
+      case 'action':
+        return (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDownloadPDF(record.printLink);
+            }}
+            disabled={!record.printLink}
+            className="px-3 py-1 rounded text-sm text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: record.printLink ? (colorPalette?.primary || '#ea580c') : '#6b7280'
+            }}
+            onMouseEnter={(e) => {
+              if (record.printLink && colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (record.printLink && colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
+          >
+            Download PDF
+          </button>
+        );
       case 'balanceFromPreviousBill':
         return `₱ ${record.balanceFromPreviousBill.toFixed(2)}`;
       case 'paymentReceivedPrevious':
@@ -315,9 +370,10 @@ const SOA: React.FC = () => {
     <div className={`h-full flex overflow-hidden ${
       isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
     }`}>
-      <div className={`border-r flex-shrink-0 flex flex-col relative ${
-        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-      }`} style={{ width: `${sidebarWidth}px` }}>
+      {userRole !== 'customer' && (
+        <div className={`border-r flex-shrink-0 flex flex-col relative ${
+          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`} style={{ width: `${sidebarWidth}px` }}>
         <div className={`p-4 border-b flex-shrink-0 ${
           isDarkMode ? 'border-gray-700' : 'border-gray-200'
         }`}>
@@ -372,7 +428,8 @@ const SOA: React.FC = () => {
           }}
           onMouseDown={handleMouseDownSidebarResize}
         />
-      </div>
+        </div>
+      )}
 
       <div className={`flex-1 overflow-hidden ${
         isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
@@ -409,6 +466,26 @@ const SOA: React.FC = () => {
                   isDarkMode ? 'text-gray-400' : 'text-gray-500'
                 }`} />
               </div>
+              {userRole === 'customer' && (
+                <button
+                  className="text-white px-4 py-2 rounded text-sm transition-colors"
+                  style={{
+                    backgroundColor: colorPalette?.primary || '#ea580c'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.accent) {
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = colorPalette.primary;
+                    }
+                  }}
+                >
+                  Pay Now
+                </button>
+              )}
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
@@ -472,13 +549,13 @@ const SOA: React.FC = () => {
                           ? 'border-gray-700 bg-gray-800'
                           : 'border-gray-200 bg-gray-100'
                       }`}>
-                        {allColumns.map((column, index) => (
+                        {displayColumns.map((column, index) => (
                           <th
                             key={column.key}
                             className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap ${
                               isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
                             } ${
-                              index < allColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''
+                              index < displayColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''
                             }`}
                           >
                             {column.label}
@@ -493,20 +570,22 @@ const SOA: React.FC = () => {
                             key={record.id} 
                             className={`border-b cursor-pointer transition-colors ${
                               isDarkMode
-                                ? 'border-gray-800 hover:bg-gray-900'
-                                : 'border-gray-200 hover:bg-gray-50'
-                            } ${
+                              ? 'border-gray-800 hover:bg-gray-900'
+                              : 'border-gray-200 hover:bg-gray-50'
+                              } ${
                               selectedRecord?.id === record.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''
+                              } ${
+                                userRole === 'customer' ? '' : 'cursor-pointer'
                             }`}
                             onClick={() => handleRowClick(record)}
                           >
-                            {allColumns.map((column, index) => (
+                            {displayColumns.map((column, index) => (
                               <td
                                 key={column.key}
                                 className={`py-4 px-3 whitespace-nowrap ${
                                   isDarkMode ? 'text-white' : 'text-gray-900'
                                 } ${
-                                  index < allColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''
+                                  index < displayColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''
                                 }`}
                               >
                                 {renderCellValue(record, column.key)}
@@ -516,7 +595,7 @@ const SOA: React.FC = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={allColumns.length} className={`px-4 py-12 text-center ${
+                          <td colSpan={displayColumns.length} className={`px-4 py-12 text-center ${
                             isDarkMode ? 'text-gray-400' : 'text-gray-600'
                           }`}>
                             No SOA records found matching your filters
@@ -532,7 +611,7 @@ const SOA: React.FC = () => {
         </div>
       </div>
 
-      {selectedRecord && (
+      {selectedRecord && userRole !== 'customer' && (
         <div className="flex-shrink-0 overflow-hidden">
           <SOADetails soaRecord={selectedRecord} />
         </div>

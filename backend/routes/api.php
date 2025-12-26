@@ -760,6 +760,62 @@ Route::prefix('debug')->group(function () {
 });
 
 // Authentication endpoints
+Route::post('/fix-customer-password', function (Request $request) {
+    try {
+        $username = $request->input('username');
+        
+        if (!$username) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Username is required'
+            ], 400);
+        }
+        
+        $user = User::where('username', $username)->first();
+        
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'User not found'
+            ], 404);
+        }
+        
+        // Get the customer contact number
+        $customer = \App\Models\Customer::where('email_address', $user->email_address)->first();
+        
+        if (!$customer) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Customer record not found'
+            ], 404);
+        }
+        
+        // Reset password to contact number
+        $newPassword = $customer->contact_number_primary;
+        $user->password_hash = Hash::make($newPassword);
+        $user->save();
+        
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Password reset successfully',
+            'data' => [
+                'username' => $user->username,
+                'email' => $user->email_address,
+                'contact_number' => $customer->contact_number_primary,
+                'new_password' => $newPassword
+            ]
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Failed to reset password',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+// Authentication endpoints
 Route::post('/login-debug', function (Request $request) {
     try {
         $identifier = $request->input('email');
@@ -2591,4 +2647,31 @@ Route::prefix('system-config')->group(function () {
 Route::prefix('notifications')->group(function () {
     Route::get('/recent-applications', [\App\Http\Controllers\NotificationController::class, 'getRecentApplications']);
     Route::get('/unread-count', [\App\Http\Controllers\NotificationController::class, 'getUnreadCount']);
+});
+
+Route::post('/debug/verify-password', function(Request $request) {
+    $username = $request->input('username');
+    $password = $request->input('password');
+    
+    $user = \App\Models\User::where('username', $username)->first();
+    
+    if (!$user) {
+        return response()->json([
+            'success' => false,
+            'message' => 'User not found'
+        ]);
+    }
+    
+    $passwordMatch = Hash::check($password, $user->password_hash);
+    
+    return response()->json([
+        'success' => true,
+        'user' => [
+            'username' => $user->username,
+            'email' => $user->email_address,
+            'contact' => $user->contact_number,
+        ],
+        'password_match' => $passwordMatch,
+        'hash' => $user->password_hash
+    ]);
 });

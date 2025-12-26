@@ -130,21 +130,26 @@ class ServiceOrderController extends Controller
         try {
             Log::info('Creating service order', $request->all());
             
+            $ticketId = $this->generateTicketId();
+            Log::info('Generated ticket_id: ' . $ticketId);
+            
             $insertData = [
-                'ticket_id' => $request->ticket_id,
+                'ticket_id' => $ticketId,
                 'account_no' => $request->account_no,
-                'timestamp' => $request->timestamp,
-                'support_status' => $request->support_status,
+                'timestamp' => $request->timestamp ?? now(),
+                'support_status' => $request->support_status ?? 'Pending',
                 'concern_id' => null,
                 'concern_remarks' => $request->concern_remarks,
                 'priority_level' => $request->priority_level,
                 'requested_by' => $request->requested_by,
-                'visit_status' => $request->visit_status,
+                'visit_status' => $request->visit_status ?? 'Pending',
                 'status' => $request->status ?? 'unused',
                 'created_by_user_id' => null,
                 'created_at' => now(),
                 'updated_at' => now()
             ];
+            
+            Log::info('Insert data before concern lookup:', $insertData);
             
             if ($request->has('concern') && !empty($request->concern)) {
                 $supportConcern = DB::selectOne("SELECT id FROM support_concern WHERE name = ?", [$request->concern]);
@@ -160,19 +165,31 @@ class ServiceOrderController extends Controller
                 }
             }
             
+            Log::info('Insert data before insertion:', $insertData);
+            Log::info('Columns: ' . implode(', ', array_keys($insertData)));
+            Log::info('Values: ' . json_encode(array_values($insertData)));
+            
             $columns = implode(', ', array_keys($insertData));
             $placeholders = implode(', ', array_fill(0, count($insertData), '?'));
             $query = "INSERT INTO service_orders ({$columns}) VALUES ({$placeholders})";
             
+            Log::info('SQL Query: ' . $query);
+            
             DB::insert($query, array_values($insertData));
             $serviceOrderId = DB::getPdo()->lastInsertId();
             
-            Log::info('Service order created successfully', ['id' => $serviceOrderId]);
+            $insertedOrder = DB::selectOne("SELECT * FROM service_orders WHERE id = ?", [$serviceOrderId]);
+            Log::info('Inserted service order:', (array)$insertedOrder);
+            
+            Log::info('Service order created successfully', ['id' => $serviceOrderId, 'ticket_id' => $ticketId]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Service order created successfully',
-                'data' => ['id' => $serviceOrderId],
+                'data' => [
+                    'id' => $serviceOrderId,
+                    'ticket_id' => $ticketId
+                ],
             ], 201);
         } catch (\Exception $e) {
             Log::error('Error creating service order: ' . $e->getMessage());
@@ -564,5 +581,28 @@ class ServiceOrderController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function generateTicketId(): string
+    {
+        $currentYear = date('Y');
+        
+        $lastTicket = DB::selectOne(
+            "SELECT ticket_id FROM service_orders WHERE ticket_id LIKE ? ORDER BY ticket_id DESC LIMIT 1",
+            [$currentYear . '%']
+        );
+        
+        if ($lastTicket && $lastTicket->ticket_id) {
+            $lastNumber = (int) substr($lastTicket->ticket_id, 4);
+            $newNumber = $lastNumber + 1;
+        } else {
+            $newNumber = 1;
+        }
+        
+        $ticketId = $currentYear . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
+        
+        Log::info('Generated ticket ID: ' . $ticketId);
+        
+        return $ticketId;
     }
 }

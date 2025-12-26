@@ -63,6 +63,7 @@ const Invoice: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [userRole, setUserRole] = useState<string>('');
 
   const allColumns = [
     { key: 'id', label: 'ID', width: 'min-w-20' },
@@ -94,6 +95,16 @@ const Invoice: React.FC = () => {
     { key: 'region', label: 'Region', width: 'min-w-32' },
   ];
 
+  const customerColumns = [
+    { key: 'id', label: 'ID', width: 'min-w-20' },
+    { key: 'invoiceDate', label: 'Invoice Date', width: 'min-w-36' },
+    { key: 'dueDate', label: 'Due Date', width: 'min-w-32' },
+    { key: 'totalAmount', label: 'Total Amount', width: 'min-w-32' },
+    { key: 'status', label: 'Status', width: 'min-w-28' },
+  ];
+
+  const displayColumns = userRole === 'customer' ? customerColumns : allColumns;
+
   const dateItems: Array<{ date: string; id: string }> = [{ date: 'All', id: '' }];
 
   useEffect(() => {
@@ -114,6 +125,18 @@ const Invoice: React.FC = () => {
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const authData = localStorage.getItem('authData');
+    if (authData) {
+      try {
+        const user = JSON.parse(authData);
+        setUserRole(user.role?.toLowerCase() || '');
+      } catch (error) {
+        console.error('Error parsing auth data:', error);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -209,7 +232,9 @@ const Invoice: React.FC = () => {
   });
 
   const handleRowClick = (record: InvoiceRecordUI) => {
-    setSelectedRecord(record);
+    if (userRole !== 'customer') {
+      setSelectedRecord(record);
+    }
   };
 
   const handleCloseDetails = () => {
@@ -325,9 +350,10 @@ const Invoice: React.FC = () => {
     <div className={`h-full flex overflow-hidden ${
       isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
     }`}>
-      <div className={`border-r flex-shrink-0 flex flex-col relative ${
-        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-      }`} style={{ width: `${sidebarWidth}px` }}>
+      {userRole !== 'customer' && (
+        <div className={`border-r flex-shrink-0 flex flex-col relative ${
+          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`} style={{ width: `${sidebarWidth}px` }}>
         <div className={`p-4 border-b flex-shrink-0 ${
           isDarkMode ? 'border-gray-700' : 'border-gray-200'
         }`}>
@@ -382,7 +408,8 @@ const Invoice: React.FC = () => {
           }}
           onMouseDown={handleMouseDownSidebarResize}
         />
-      </div>
+        </div>
+      )}
 
       <div className={`flex-1 overflow-hidden ${
         isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
@@ -419,6 +446,26 @@ const Invoice: React.FC = () => {
                   isDarkMode ? 'text-gray-400' : 'text-gray-500'
                 }`} />
               </div>
+              {userRole === 'customer' && (
+                <button
+                  className="text-white px-4 py-2 rounded text-sm transition-colors"
+                  style={{
+                    backgroundColor: colorPalette?.primary || '#ea580c'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.accent) {
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = colorPalette.primary;
+                    }
+                  }}
+                >
+                  Pay Now
+                </button>
+              )}
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
@@ -482,13 +529,13 @@ const Invoice: React.FC = () => {
                           ? 'border-gray-700 bg-gray-800'
                           : 'border-gray-200 bg-gray-100'
                       }`}>
-                        {allColumns.map((column, index) => (
+                        {displayColumns.map((column, index) => (
                           <th
                             key={column.key}
                             className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap ${
                               isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
                             } ${
-                              index < allColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''
+                              index < displayColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''
                             }`}
                           >
                             {column.label}
@@ -501,22 +548,24 @@ const Invoice: React.FC = () => {
                         filteredRecords.map((record) => (
                           <tr 
                             key={record.id} 
-                            className={`border-b cursor-pointer transition-colors ${
+                            className={`border-b transition-colors ${
                               isDarkMode
                                 ? 'border-gray-800 hover:bg-gray-900'
                                 : 'border-gray-200 hover:bg-gray-50'
                             } ${
                               selectedRecord?.id === record.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''
+                            } ${
+                              userRole === 'customer' ? '' : 'cursor-pointer'
                             }`}
                             onClick={() => handleRowClick(record)}
                           >
-                            {allColumns.map((column, index) => (
+                            {displayColumns.map((column, index) => (
                               <td
                                 key={column.key}
                                 className={`py-4 px-3 whitespace-nowrap ${
                                   isDarkMode ? 'text-white' : 'text-gray-900'
                                 } ${
-                                  index < allColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''
+                                  index < displayColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''
                                 }`}
                               >
                                 {renderCellValue(record, column.key)}
@@ -526,7 +575,7 @@ const Invoice: React.FC = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={allColumns.length} className={`px-4 py-12 text-center ${
+                          <td colSpan={displayColumns.length} className={`px-4 py-12 text-center ${
                             isDarkMode ? 'text-gray-400' : 'text-gray-600'
                           }`}>
                             No Invoice records found matching your filters
@@ -542,7 +591,7 @@ const Invoice: React.FC = () => {
         </div>
       </div>
 
-      {selectedRecord && (
+      {selectedRecord && userRole !== 'customer' && (
         <div className="flex-shrink-0 overflow-hidden">
           <InvoiceDetails invoiceRecord={selectedRecord} />
         </div>

@@ -138,6 +138,9 @@ class ServiceOrderApiController extends Controller
                 'updated_by_user' => 'nullable|string|max:255'
             ]);
             
+            $ticketId = $this->generateTicketId();
+            Log::info('Generated ticket_id: ' . $ticketId);
+            
             $timestamp = null;
             if (isset($validated['timestamp'])) {
                 try {
@@ -151,6 +154,7 @@ class ServiceOrderApiController extends Controller
             }
             
             $data = [
+                'ticket_id' => $ticketId,
                 'account_no' => $validated['account_no'],
                 'timestamp' => $timestamp,
                 'support_status' => $validated['support_status'] ?? 'Open',
@@ -176,11 +180,17 @@ class ServiceOrderApiController extends Controller
                 'updated_at' => now()
             ];
             
+            Log::info('Insert data: ', $data);
+            
             $id = DB::table('service_orders')->insertGetId($data);
             
             $serviceOrder = DB::table('service_orders')->where('id', $id)->first();
             
-            Log::info('Service order created successfully', ['id' => $id]);
+            Log::info('Service order created successfully', [
+                'id' => $id,
+                'ticket_id' => $ticketId,
+                'inserted_data' => (array)$serviceOrder
+            ]);
             
             return response()->json([
                 'success' => true,
@@ -210,6 +220,29 @@ class ServiceOrderApiController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+    
+    private function generateTicketId(): string
+    {
+        $currentYear = date('Y');
+        
+        $lastTicket = DB::selectOne(
+            "SELECT ticket_id FROM service_orders WHERE ticket_id LIKE ? ORDER BY ticket_id DESC LIMIT 1",
+            [$currentYear . '%']
+        );
+        
+        if ($lastTicket && $lastTicket->ticket_id) {
+            $lastNumber = (int) substr($lastTicket->ticket_id, 4);
+            $newNumber = $lastNumber + 1;
+        } else {
+            $newNumber = 1;
+        }
+        
+        $ticketId = $currentYear . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
+        
+        Log::info('Generated ticket ID: ' . $ticketId);
+        
+        return $ticketId;
     }
     
     public function show($id): JsonResponse

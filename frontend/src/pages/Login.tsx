@@ -7,7 +7,7 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -17,8 +17,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError('Please enter both email and password');
+    if (!identifier || !password) {
+      setError('Please enter your username/email and password');
       return;
     }
     
@@ -30,12 +30,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const demoEmail = process.env.REACT_APP_DEMO_EMAIL;
       const demoPassword = process.env.REACT_APP_DEMO_PASSWORD;
       
-      if (email === demoEmail && password === demoPassword) {
+      if (identifier === demoEmail && password === demoPassword) {
         // Mock successful login for demo credentials
         const mockUserData: UserData = {
           id: 1,
           username: 'admin',
-          email: email,
+          email: identifier,
           full_name: 'Admin User',
           role: 'administrator'
         };
@@ -43,8 +43,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         return;
       }
       
-      // Try actual API login for other credentials
-      const response = await login(email, password);
+      // Try actual API login with username or email
+      const response = await login(identifier, password);
       if (response.status === 'success') {
         const userData: UserData = {
           id: response.data.user.id,
@@ -277,12 +277,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               marginBottom: '8px',
               fontSize: '14px'
             }}>
-              Email
+              Email or Username
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               style={{
                 width: '100%',
                 padding: '12px',
@@ -292,7 +292,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 color: '#fff',
                 fontSize: '16px'
               }}
-              placeholder="Enter your email"
+              placeholder="Enter your email or username"
             />
           </div>
           

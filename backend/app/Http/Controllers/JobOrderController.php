@@ -13,12 +13,15 @@ use App\Models\Port;
 use App\Models\VLAN;
 use App\Models\LCPNAP;
 use App\Models\Plan;
+use App\Models\User;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Hash;
 
 use App\Services\GoogleDriveService;
 use App\Models\RadiusConfig;
@@ -497,6 +500,46 @@ class JobOrderController extends Controller
                 'updated_by_user_email' => 'system@ampere.com'
             ]);
 
+            $customerRoleId = 3;
+
+            $existingUser = User::where('username', $accountNumber)->first();
+            if ($existingUser) {
+                \Log::warning('User with account number already exists', [
+                    'account_number' => $accountNumber,
+                    'existing_user_id' => $existingUser->id,
+                ]);
+            } else {
+                // Create user with direct password hash assignment to avoid mutator
+                $userData = [
+                    'username' => $accountNumber,
+                    'email_address' => $customer->email_address,
+                    'first_name' => $customer->first_name,
+                    'middle_initial' => $customer->middle_initial,
+                    'last_name' => $customer->last_name,
+                    'contact_number' => $customer->contact_number_primary,
+                    'role_id' => $customerRoleId,
+                    'status' => 'active',
+                    'created_by_user_id' => $defaultUserId,
+                    'updated_by_user_id' => $defaultUserId,
+                ];
+                
+                // Directly insert into database to bypass mutator
+                $userId = \DB::table('users')->insertGetId(array_merge($userData, [
+                    'password_hash' => Hash::make($customer->contact_number_primary),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]));
+                
+                $user = User::find($userId);
+
+                \Log::info('Customer user account created', [
+                    'user_id' => $user->id,
+                    'username' => $accountNumber,
+                    'email_address' => $customer->email_address,
+                    'role_id' => $customerRoleId,
+                ]);
+            }
+
             DB::commit();
 
             return response()->json([
@@ -513,6 +556,8 @@ class JobOrderController extends Controller
                     'account_balance' => $installationFee,
                     'contact_number_primary' => $customer->contact_number_primary,
                     'contact_number_secondary' => $customer->contact_number_secondary,
+                    'user_created' => !isset($existingUser),
+                    'user_username' => $accountNumber,
                 ]
             ]);
 

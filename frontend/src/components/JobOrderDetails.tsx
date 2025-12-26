@@ -325,7 +325,17 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       const response = await approveJobOrder(jobOrder.id);
       
       if (response.success) {
-        alert('Job Order approved successfully! Customer, billing account, and technical details have been created.');
+        const accountNumber = response.data?.account_number || 'N/A';
+        const contactNumber = response.data?.contact_number_primary || 'N/A';
+        const userCreated = response.data?.user_created;
+        
+        let message = 'Job Order approved successfully! Customer, billing account, and technical details have been created.';
+        
+        if (userCreated) {
+          message += `\n\nCustomer Login Credentials:\nUsername: ${accountNumber}\nPassword: ${contactNumber}`;
+        }
+        
+        alert(message);
         setIsApprovalModalOpen(false);
         if (onRefresh) {
           onRefresh();

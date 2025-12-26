@@ -96,18 +96,18 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   }, []);
 
   const menuItems: MenuItem[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['administrator'] },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['administrator', 'customer'] },
     {
       id: 'billing',
       label: 'Billing',
       icon: CreditCard,
-      allowedRoles: ['administrator'],
+      allowedRoles: ['administrator', 'customer'],
       children: [
         { id: 'customer', label: 'Customer', icon: User, allowedRoles: ['administrator'] },
         { id: 'transaction-list', label: 'Transaction List', icon: Receipt, allowedRoles: ['administrator'] },
         { id: 'payment-portal', label: 'Payment Portal', icon: DollarSign, allowedRoles: ['administrator'] },
-        { id: 'soa', label: 'SOA', icon: FileText, allowedRoles: ['administrator'] },
-        { id: 'invoice', label: 'Invoice', icon: Receipt, allowedRoles: ['administrator'] },
+        { id: 'soa', label: 'SOA', icon: FileText, allowedRoles: ['administrator', 'customer'] },
+        { id: 'invoice', label: 'Invoice', icon: Receipt, allowedRoles: ['administrator', 'customer'] },
         { id: 'overdue', label: 'Overdue', icon: Clock, allowedRoles: ['administrator'] },
         { id: 'dc-notice', label: 'DC Notice', icon: AlertTriangle, allowedRoles: ['administrator'] },
         { id: 'mass-rebate', label: 'Rebates', icon: DollarSign, allowedRoles: ['administrator'] },
@@ -156,8 +156,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       id: 'support',
       label: 'Support',
       icon: Wrench,
-      allowedRoles: ['administrator', 'technician'],
+      allowedRoles: ['administrator', 'technician', 'customer'],
       children: [
+        { id: 'support', label: 'Support Ticket', icon: FileText, allowedRoles: ['customer'] },
         { id: 'service-order', label: 'Service Order', icon: Wrench, allowedRoles: ['administrator', 'technician'] }
       ]
     },

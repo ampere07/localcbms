@@ -44,6 +44,7 @@ import BillingConfig from './BillingConfig';
 import RadiusConfig from './RadiusConfig';
 import SmsConfig from './SmsConfig';
 import EmailTemplates from './EmailTemplates';
+import Support from './Support';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -99,6 +100,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const renderContent = () => {
     switch (activeSection) {
 
+      case 'support':
+        return <Support />;
       case 'soa':
         return <SOA />;
       case 'invoice':
