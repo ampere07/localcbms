@@ -31,6 +31,11 @@ class EnhancedBillingGenerationServiceWithNotifications
     {
         $this->notificationService = $notificationService;
     }
+    
+    protected function log($level, $message, $context = [])
+    {
+        Log::channel('billing')->{$level}($message, $context);
+    }
 
     public function generateSOAForBillingDay(int $billingDay, Carbon $generationDate, int $userId): array
     {
@@ -61,13 +66,13 @@ class EnhancedBillingGenerationServiceWithNotifications
                         'account_no' => $account->account_no,
                         'error' => $e->getMessage()
                     ];
-                    Log::error("Failed to generate SOA for account {$account->account_no}: " . $e->getMessage());
+                    $this->log('error', "Failed to generate SOA for account {$account->account_no}: " . $e->getMessage());
                 }
             }
 
             return $results;
         } catch (\Exception $e) {
-            Log::error("Error in generateSOAForBillingDay: " . $e->getMessage());
+            $this->log('error', "Error in generateSOAForBillingDay: " . $e->getMessage());
             throw $e;
         }
     }
@@ -101,13 +106,13 @@ class EnhancedBillingGenerationServiceWithNotifications
                         'account_no' => $account->account_no,
                         'error' => $e->getMessage()
                     ];
-                    Log::error("Failed to generate invoice for account {$account->account_no}: " . $e->getMessage());
+                    $this->log('error', "Failed to generate invoice for account {$account->account_no}: " . $e->getMessage());
                 }
             }
 
             return $results;
         } catch (\Exception $e) {
-            Log::error("Error in generateInvoicesForBillingDay: " . $e->getMessage());
+            $this->log('error', "Error in generateInvoicesForBillingDay: " . $e->getMessage());
             throw $e;
         }
     }
@@ -126,7 +131,7 @@ class EnhancedBillingGenerationServiceWithNotifications
                 );
             })->afterResponse();
             
-            Log::info('Notification queued', [
+            $this->log('info', 'Notification queued', [
                 'account_no' => $account->account_no,
                 'has_invoice' => $invoice !== null,
                 'has_soa' => $soa !== null
@@ -137,7 +142,7 @@ class EnhancedBillingGenerationServiceWithNotifications
                 'queued' => true
             ];
         } catch (\Exception $e) {
-            Log::error('Failed to queue notification', [
+            $this->log('error', 'Failed to queue notification', [
                 'account_no' => $account->account_no,
                 'error' => $e->getMessage()
             ]);
@@ -171,7 +176,7 @@ class EnhancedBillingGenerationServiceWithNotifications
 
         $accounts = $query->get();
 
-        Log::info('Loaded accounts with complete data', [
+        $this->log('info', 'Loaded accounts with complete data', [
             'billing_day' => $billingDay,
             'generation_date' => $generationDate->format('Y-m-d'),
             'accounts_count' => $accounts->count()
@@ -278,7 +283,7 @@ class EnhancedBillingGenerationServiceWithNotifications
 
             DB::commit();
             
-            Log::info('SOA created successfully', [
+            $this->log('info', 'SOA created successfully', [
                 'account_no' => $account->account_no,
                 'statement_id' => $statement->id,
                 'total_amount_due' => $statement->total_amount_due
@@ -372,7 +377,7 @@ class EnhancedBillingGenerationServiceWithNotifications
                 'balance_update_date' => $invoiceDate
             ]);
             
-            Log::info('Invoice created with discount applied to balance', [
+            $this->log('info', 'Invoice created with discount applied to balance', [
                 'account_no' => $account->account_no,
                 'invoice_balance' => $prorateAmount,
                 'total_amount' => $totalAmount,
@@ -387,7 +392,7 @@ class EnhancedBillingGenerationServiceWithNotifications
 
             DB::commit();
             
-            Log::info('Invoice created successfully', [
+            $this->log('info', 'Invoice created successfully', [
                 'account_no' => $account->account_no,
                 'invoice_id' => $invoice->id,
                 'total_amount' => $invoice->total_amount
@@ -400,9 +405,6 @@ class EnhancedBillingGenerationServiceWithNotifications
             throw $e;
         }
     }
-
-    // Include all remaining methods from the original EnhancedBillingGenerationService
-    // (generateInvoiceId, calculateAdjustedBillingDate, calculateProrateAmount, etc.)
     
     protected function generateInvoiceId(Carbon $date): string
     {
@@ -457,7 +459,7 @@ class EnhancedBillingGenerationServiceWithNotifications
         $billingConfig = BillingConfig::first();
         
         if (!$billingConfig || $billingConfig->advance_generation_day === null) {
-            Log::info('No advance_generation_day configured, using default 0');
+            $this->log('info', 'No advance_generation_day configured, using default 0');
             return 0;
         }
         
@@ -492,7 +494,7 @@ class EnhancedBillingGenerationServiceWithNotifications
             }
         }
         
-        Log::info('Calculated target billing days', [
+        $this->log('info', 'Calculated target billing days', [
             'generation_date' => $generationDate->format('Y-m-d'),
             'current_day' => $currentDay,
             'advance_generation_day' => $advanceGenerationDay,
@@ -520,7 +522,7 @@ class EnhancedBillingGenerationServiceWithNotifications
         foreach ($targetBillingDays as $billingDay) {
             $billingDayLabel = $billingDay === self::END_OF_MONTH_BILLING ? 'End of Month (0)' : "Day {$billingDay}";
             
-            Log::info("Processing billing day: {$billingDayLabel}");
+            $this->log('info', "Processing billing day: {$billingDayLabel}");
             
             $soaResults = $this->generateSOAForBillingDay($billingDay, $today, $userId);
             $invoiceResults = $this->generateInvoicesForBillingDay($billingDay, $today, $userId);
@@ -754,7 +756,7 @@ class EnhancedBillingGenerationServiceWithNotifications
     {
         $accountBalance = floatval($account->account_balance);
         
-        Log::info('Getting previous balance for SOA', [
+        $this->log('info', 'Getting previous balance for SOA', [
             'account_no' => $account->account_no,
             'account_balance' => $accountBalance,
             'current_date' => $currentDate->format('Y-m-d')
@@ -895,7 +897,7 @@ class EnhancedBillingGenerationServiceWithNotifications
                 $staggered->save();
             }
         } catch (\Exception $e) {
-            Log::error('Error tracking staggered invoice association: ' . $e->getMessage());
+            $this->log('error', 'Error tracking staggered invoice association: ' . $e->getMessage());
         }
     }
 }

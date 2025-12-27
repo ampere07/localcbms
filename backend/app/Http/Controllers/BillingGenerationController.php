@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\BillingGenerationService;
-use App\Services\EnhancedBillingGenerationService;
+use App\Services\EnhancedBillingGenerationServiceWithNotifications;
 use App\Services\BillingNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -18,7 +18,7 @@ class BillingGenerationController extends Controller
 
     public function __construct(
         BillingGenerationService $billingService,
-        EnhancedBillingGenerationService $enhancedBillingService,
+        EnhancedBillingGenerationServiceWithNotifications $enhancedBillingService,
         BillingNotificationService $notificationService
     ) {
         $this->billingService = $billingService;
@@ -339,8 +339,6 @@ class BillingGenerationController extends Controller
                     'invoice_id' => $invoice->id
                 ]);
 
-                // No notification sent for invoice - only SOA gets notifications
-
             } catch (\Exception $e) {
                 Log::error('Invoice generation failed', [
                     'account_no' => $account->account_no,
@@ -581,8 +579,6 @@ class BillingGenerationController extends Controller
                         'total_amount_due' => $statement->total_amount_due
                     ];
                     
-                    // Don't send notification yet - wait until invoice is created and balance is updated
-                    
                     Log::info('SOA created successfully', [
                         'account_no' => $account->account_no,
                         'customer_name' => $customerName,
@@ -615,10 +611,9 @@ class BillingGenerationController extends Controller
                         'total_amount' => $invoice->total_amount
                     ];
                     
-                    // Now send notification AFTER invoice is created and balance is updated
                     if ($sendNotifications && isset($statement)) {
                         try {
-                            $account->refresh(); // Refresh to get updated account_balance
+                            $account->refresh();
                             $notificationResult = $this->notificationService->notifyBillingGenerated($account, null, $statement);
                             $soaResults['notifications'][] = [
                                 'account_no' => $account->account_no,
