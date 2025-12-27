@@ -1,6 +1,14 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
+const getApiBaseUrl = (): string => {
+  const baseUrl = process.env.REACT_APP_API_BASE_URL;
+  if (!baseUrl) {
+    throw new Error("REACT_APP_API_BASE_URL is not defined");
+  }
+  return baseUrl;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface PaymentResponse {
   status: string;
@@ -8,6 +16,7 @@ export interface PaymentResponse {
   payment_url?: string;
   payment_id?: string;
   amount?: number;
+  account_balance?: number;
   message?: string;
 }
 
@@ -26,20 +35,36 @@ export interface PaymentStatusResponse {
 export const paymentService = {
   createPayment: async (accountNo: string, amount: number): Promise<PaymentResponse> => {
     try {
+      // Debug logging
+      console.log('Payment Service - Creating payment:', { accountNo, amount });
+      
+      if (!accountNo || accountNo.trim() === '') {
+        throw new Error('Account number is missing from user session. Please log in again.');
+      }
+
       const authData = localStorage.getItem('authData');
       let token = '';
       
       if (authData) {
         const parsed = JSON.parse(authData);
         token = parsed.token || '';
+        console.log('Auth data:', { 
+          hasToken: !!token, 
+          accountNo: parsed.account_no,
+          username: parsed.username 
+        });
       }
+
+      const payload = {
+        account_no: accountNo,
+        amount: amount
+      };
+
+      console.log('Payment payload:', payload);
 
       const response = await axios.post<PaymentResponse>(
         `${API_BASE_URL}/payments/create`,
-        {
-          account_no: accountNo,
-          amount: amount
-        },
+        payload,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -50,10 +75,12 @@ export const paymentService = {
 
       return response.data as PaymentResponse;
     } catch (error: any) {
+      console.error('Payment creation error:', error.response?.data || error.message);
+      
       if (error.response?.data) {
         throw new Error(error.response.data.message || 'Payment creation failed');
       }
-      throw new Error('Network error. Please check your connection.');
+      throw new Error(error.message || 'Network error. Please check your connection.');
     }
   },
 

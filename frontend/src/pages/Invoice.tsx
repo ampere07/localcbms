@@ -71,6 +71,8 @@ const Invoice: React.FC = () => {
   const [showPaymentVerifyModal, setShowPaymentVerifyModal] = useState<boolean>(false);
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [fullName, setFullName] = useState<string>('');
+  const [showPaymentLinkModal, setShowPaymentLinkModal] = useState<boolean>(false);
+  const [paymentLinkData, setPaymentLinkData] = useState<{referenceNo: string; amount: number; paymentUrl: string} | null>(null);
 
   const allColumns = [
     { key: 'id', label: 'ID', width: 'min-w-20' },
@@ -140,10 +142,10 @@ const Invoice: React.FC = () => {
       try {
         const user = JSON.parse(authData);
         setUserRole(user.role?.toLowerCase() || '');
-        setAccountNo(user.account_no || '');
+        setAccountNo(user.username || ''); // username IS the account_no
         const balance = parseFloat(user.account_balance || '0');
         setAccountBalance(balance);
-        setPaymentAmount(balance);
+        setPaymentAmount(balance > 0 ? balance : 100); // Default to 100 if no balance
         setFullName(user.full_name || '');
       } catch (error) {
         console.error('Error parsing auth data:', error);
@@ -269,7 +271,6 @@ const Invoice: React.FC = () => {
 
   const handleProceedToCheckout = async () => {
     if (paymentAmount < 1) {
-      alert('Minimum payment amount is ₱1.00');
       return;
     }
 
@@ -284,34 +285,34 @@ const Invoice: React.FC = () => {
 
       if (response.status === 'success' && response.payment_url) {
         setShowPaymentVerifyModal(false);
-        
-        const proceed = window.confirm(
-          `Payment Link Ready!\n\nReference: ${response.reference_no}\nAmount: ₱${response.amount?.toFixed(2)}\n\nClick OK to proceed to payment page.`
-        );
-
-        if (proceed) {
-          window.open(response.payment_url, '_blank');
-        }
+        setPaymentLinkData({
+          referenceNo: response.reference_no || '',
+          amount: response.amount || paymentAmount,
+          paymentUrl: response.payment_url
+        });
+        setShowPaymentLinkModal(true);
       } else {
         throw new Error(response.message || 'Failed to create payment link');
       }
     } catch (error: any) {
       console.error('Payment error:', error);
-      
-      if (error.message.includes('pending payment')) {
-        const retry = window.confirm(
-          `${error.message}\n\nWould you like to try opening the existing payment link?`
-        );
-        
-        if (retry) {
-          setShowPaymentVerifyModal(false);
-        }
-      } else {
-        alert(error.message || 'Failed to create payment. Please try again.');
-      }
+      setShowPaymentVerifyModal(false);
     } finally {
       setIsPaymentProcessing(false);
     }
+  };
+
+  const handleOpenPaymentLink = () => {
+    if (paymentLinkData?.paymentUrl) {
+      window.open(paymentLinkData.paymentUrl, '_blank');
+      setShowPaymentLinkModal(false);
+      setPaymentLinkData(null);
+    }
+  };
+
+  const handleCancelPaymentLink = () => {
+    setShowPaymentLinkModal(false);
+    setPaymentLinkData(null);
   };
 
   useEffect(() => {
@@ -770,6 +771,51 @@ const Invoice: React.FC = () => {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPaymentLinkModal && paymentLinkData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div 
+            className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
+          >
+            <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h3 className="text-xl font-bold text-center">Proceed to Payment Portal</h3>
+            </div>
+
+            <div className="p-6">
+              <div className={`p-4 rounded mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                <div className="flex justify-between mb-3">
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Reference:</span>
+                  <span className="font-mono font-bold">{paymentLinkData.referenceNo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
+                  <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#ea580c' }}>
+                    ₱{paymentLinkData.amount.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleOpenPaymentLink}
+                className="w-full px-4 py-3 rounded font-bold text-white transition-colors"
+                style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
+              >
+                PROCEED
+              </button>
             </div>
           </div>
         </div>

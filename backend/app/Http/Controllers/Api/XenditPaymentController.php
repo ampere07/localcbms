@@ -19,26 +19,41 @@ class XenditPaymentController extends Controller
     {
         $this->xenditApiKey = env('XENDIT_API_KEY');
         $this->xenditCallbackToken = env('XENDIT_CALLBACK_TOKEN');
-        $this->portalLink = env('APP_URL', 'http://localhost:3000');
+        $this->portalLink = env('APP_URL', 'https://sync.atssfiber.ph');
     }
 
     public function createPayment(Request $request)
     {
         try {
-            $validated = $request->validate([
-                'account_no' => 'required|string',
-                'amount' => 'required|numeric|min:1',
-            ]);
+            // Get account_no from request body (sent by frontend)
+            $accountNo = $request->input('account_no');
+            $amount = $request->input('amount');
 
-            $accountNo = $validated['account_no'];
-            $amount = floatval($validated['amount']);
+            if (!$accountNo) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Account number is required'
+                ], 422);
+            }
 
-            $account = DB::table('accounts')
-                ->join('customers', 'accounts.customer_id', '=', 'customers.id')
-                ->where('accounts.account_no', $accountNo)
+            if (!$amount || $amount < 1) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Amount must be at least ₱1.00'
+                ], 422);
+            }
+
+            $amount = floatval($amount);
+
+            // Get account details from billing_accounts table using username (account_no)
+            $account = DB::table('billing_accounts')
+                ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                ->where('billing_accounts.account_no', $accountNo)
                 ->select(
-                    'accounts.*',
-                    'customers.full_name',
+                    'billing_accounts.id',
+                    'billing_accounts.account_no',
+                    'billing_accounts.account_balance',
+                    DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name"),
                     'customers.email_address',
                     'customers.contact_number_primary',
                     'customers.desired_plan'
@@ -52,10 +67,11 @@ class XenditPaymentController extends Controller
                 ], 404);
             }
 
-            $dupCheck = DB::table('payment_portal_logs')
-                ->where('account_id', $account->id)
-                ->where('transaction_status', 'PENDING')
-                ->where('date_time', '>', now()->subMinutes(5))
+            // Check for duplicate pending payments
+            $dupCheck = DB::table('pending_payments')
+                ->where('account_no', $accountNo)
+                ->where('status', 'PENDING')
+                ->where('payment_date', '>', now()->subMinutes(5))
                 ->first();
 
             if ($dupCheck) {
@@ -67,12 +83,15 @@ class XenditPaymentController extends Controller
                 ], 400);
             }
 
+            // Generate unique reference number
             $randomSuffix = bin2hex(random_bytes(10));
             $referenceNo = $accountNo . '-' . $randomSuffix;
 
+            // Create redirect URLs
             $redirectSuccess = $this->portalLink . '/payment-success?ref=' . $referenceNo;
             $redirectFail = $this->portalLink . '/payment-failed?ref=' . $referenceNo;
 
+            // Parse customer name
             $fullNameParts = explode(' ', trim($account->full_name ?? 'Customer'));
             $surname = (count($fullNameParts) > 1) ? array_pop($fullNameParts) : $fullNameParts[0];
             $givenName = implode(' ', $fullNameParts);
@@ -80,6 +99,7 @@ class XenditPaymentController extends Controller
                 $givenName = $surname;
             }
 
+            // Format mobile number
             $mobile = preg_replace('/[^0-9]/', '', $account->contact_number_primary ?? '');
             if (strlen($mobile) === 10) {
                 $mobile = '63' . $mobile;
@@ -87,6 +107,7 @@ class XenditPaymentController extends Controller
                 $mobile = '63' . substr($mobile, 1);
             }
 
+            // Prepare Xendit payload
             $payload = [
                 'external_id' => $referenceNo,
                 'amount' => $amount,
@@ -112,6 +133,7 @@ class XenditPaymentController extends Controller
                 'failure_redirect_url' => $redirectFail
             ];
 
+            // Call Xendit API
             $response = Http::withBasicAuth($this->xenditApiKey, '')
                 ->timeout(30)
                 ->post('https://api.xendit.co/v2/invoices', $payload);
@@ -119,7 +141,8 @@ class XenditPaymentController extends Controller
             if (!$response->successful()) {
                 Log::error('Xendit API Error', [
                     'status' => $response->status(),
-                    'body' => $response->body()
+                    'body' => $response->body(),
+                    'account_no' => $accountNo
                 ]);
 
                 return response()->json([
@@ -139,20 +162,26 @@ class XenditPaymentController extends Controller
                 ], 500);
             }
 
-            DB::table('payment_portal_logs')->insert([
+            // Store payment in pending_payments table
+            DB::table('pending_payments')->insert([
+                'account_no' => $accountNo,
                 'reference_no' => $referenceNo,
-                'account_id' => $account->id,
-                'total_amount' => $amount,
-                'date_time' => now(),
-                'checkout_id' => $paymentId,
-                'status' => 'Pending',
-                'transaction_status' => 'PENDING',
-                'type' => 'Online',
+                'amount' => $amount,
+                'status' => 'PENDING',
+                'payment_date' => now(),
+                'provider' => 'XENDIT',
+                'plan' => $account->desired_plan ?? '',
+                'payment_id' => $paymentId,
+                'payment_method_id' => null,
+                'json_payload' => json_encode($payload),
                 'payment_url' => $paymentUrl,
-                'json_payload' => json_encode($payload)
+                'callback_payload' => null,
+                'reconnect_status' => null,
+                'last_attempt_at' => null,
+                'updated_at' => now()
             ]);
 
-            Log::info('Payment created', [
+            Log::info('Payment created successfully', [
                 'reference_no' => $referenceNo,
                 'account_no' => $accountNo,
                 'amount' => $amount,
@@ -164,7 +193,8 @@ class XenditPaymentController extends Controller
                 'reference_no' => $referenceNo,
                 'payment_url' => $paymentUrl,
                 'payment_id' => $paymentId,
-                'amount' => $amount
+                'amount' => $amount,
+                'account_balance' => floatval($account->account_balance)
             ]);
 
         } catch (Exception $e) {
@@ -182,28 +212,50 @@ class XenditPaymentController extends Controller
 
     public function handleWebhook(Request $request)
     {
+        $incomingToken = '';
+        
+        $incomingToken = $request->header('X-Callback-Token');
+        
+        if (empty($incomingToken) && isset($_SERVER['HTTP_X_CALLBACK_TOKEN'])) {
+            $incomingToken = $_SERVER['HTTP_X_CALLBACK_TOKEN'];
+        }
+        
+        if (empty($incomingToken)) {
+            $headers = array_change_key_case($request->headers->all(), CASE_LOWER);
+            $incomingToken = $headers['x-callback-token'][0] ?? '';
+        }
+
+        Log::info('Process Webhook', [
+            'DEBUG' => "Server found ['$incomingToken'] vs Configured ['{$this->xenditCallbackToken}']"
+        ]);
+
+        if ($this->xenditCallbackToken && $incomingToken !== $this->xenditCallbackToken) {
+            Log::warning('Process Webhook: SECURITY ALERT', [
+                'message' => 'Invalid Token',
+                'ip' => $request->ip()
+            ]);
+            return response('Forbidden', 403);
+        }
+
+        if (function_exists('fastcgi_finish_request')) {
+            response()->json(['message' => 'OK'], 200)->send();
+            fastcgi_finish_request();
+        }
+
         try {
-            $incomingToken = $request->header('X-Callback-Token');
-
-            if ($incomingToken !== $this->xenditCallbackToken) {
-                Log::warning('Invalid webhook token', [
-                    'ip' => $request->ip()
-                ]);
-                return response()->json(['message' => 'Forbidden'], 403);
-            }
-
             $payload = $request->all();
             $rawPayload = json_encode($payload);
-            $referenceNo = $payload['external_id'] ?? null;
+            
+            $ref = $payload['external_id'] ?? $payload['requestReferenceNumber'] ?? '';
             $status = strtoupper($payload['status'] ?? '');
 
-            if (!$referenceNo) {
+            if (!$ref) {
+                Log::info('Process Webhook: No reference number, ignoring');
                 return response()->json(['message' => 'OK'], 200);
             }
 
-            Log::info('Webhook received', [
-                'reference_no' => $referenceNo,
-                'status' => $status
+            Log::info('Process Webhook', [
+                'message' => "Received Ref: $ref | Status: $status"
             ]);
 
             $newStatus = 'PENDING';
@@ -211,32 +263,44 @@ class XenditPaymentController extends Controller
 
             if (in_array($status, ['PAID', 'COMPLETED', 'SETTLED'])) {
                 $isPaid = true;
+            }
+            if ($status === 'PAYMENT_SUCCESS') {
+                $isPaid = true;
+            }
+
+            if ($isPaid) {
                 $newStatus = 'QUEUED';
-            } elseif (in_array($status, ['EXPIRED', 'FAILED'])) {
+            } elseif (in_array($status, ['EXPIRED', 'FAILED', 'PAYMENT_FAILED'])) {
                 $newStatus = 'FAILED';
             }
 
             if ($newStatus !== 'PENDING') {
-                DB::table('payment_portal_logs')
-                    ->where('reference_no', $referenceNo)
-                    ->where('transaction_status', '!=', 'PAID')
+                $rowsUpdated = DB::table('pending_payments')
+                    ->where('reference_no', $ref)
+                    ->where('status', '!=', 'PAID')
                     ->update([
-                        'transaction_status' => $newStatus,
-                        'status' => $isPaid ? 'Pending' : 'Failed',
-                        'callback_payload' => $rawPayload
+                        'status' => $newStatus,
+                        'callback_payload' => $rawPayload,
+                        'updated_at' => now()
                     ]);
 
-                Log::info('Payment status updated', [
-                    'reference_no' => $referenceNo,
-                    'new_status' => $newStatus
-                ]);
+                if ($rowsUpdated > 0) {
+                    Log::info('Process Webhook', [
+                        'message' => "Updated Ref $ref to $newStatus"
+                    ]);
+                } else {
+                    Log::info('Process Webhook', [
+                        'message' => "No update for Ref $ref (already PAID or not found)"
+                    ]);
+                }
             }
 
             return response()->json(['message' => 'OK'], 200);
 
         } catch (Exception $e) {
-            Log::error('Webhook processing failed', [
-                'error' => $e->getMessage()
+            Log::error('Process Webhook: Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json(['message' => 'OK'], 200);
@@ -255,7 +319,7 @@ class XenditPaymentController extends Controller
                 ], 400);
             }
 
-            $payment = DB::table('payment_portal_logs')
+            $payment = DB::table('pending_payments')
                 ->where('reference_no', $referenceNo)
                 ->first();
 
@@ -270,10 +334,9 @@ class XenditPaymentController extends Controller
                 'status' => 'success',
                 'payment' => [
                     'reference_no' => $payment->reference_no,
-                    'amount' => $payment->total_amount,
+                    'amount' => $payment->amount,
                     'status' => $payment->status,
-                    'transaction_status' => $payment->transaction_status,
-                    'date_time' => $payment->date_time
+                    'payment_date' => $payment->payment_date
                 ]
             ]);
 

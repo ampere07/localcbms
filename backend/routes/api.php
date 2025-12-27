@@ -2682,3 +2682,6 @@ Route::prefix('payments')->group(function () {
     Route::post('/webhook', [\App\Http\Controllers\Api\XenditPaymentController::class, 'handleWebhook']);
     Route::post('/status', [\App\Http\Controllers\Api\XenditPaymentController::class, 'checkPaymentStatus']);
 });
+
+// Public webhook endpoint (no auth required)
+Route::post('/xendit-webhook', [\App\Http\Controllers\Api\XenditPaymentController::class, 'handleWebhook']);

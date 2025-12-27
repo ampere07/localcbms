@@ -46,6 +46,18 @@ class Kernel extends ConsoleKernel
                  ->everyFiveMinutes()
                  ->withoutOverlapping()
                  ->runInBackground();
+
+        // Process pending payments every 2 minutes
+        $schedule->command('payments:process')
+                 ->everyTwoMinutes()
+                 ->withoutOverlapping()
+                 ->runInBackground()
+                 ->onSuccess(function () {
+                     \Illuminate\Support\Facades\Log::info('Payment processing completed successfully');
+                 })
+                 ->onFailure(function () {
+                     \Illuminate\Support\Facades\Log::error('Payment processing failed');
+                 });
     }
 
     /**

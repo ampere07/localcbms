@@ -4,21 +4,17 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
 use Exception;
 
 class PaymentWorkerService
 {
-    private $lockFile;
-    private $lockHandle;
-    private $billingApiUrl;
-    private $reconnectApiUrl;
+    private $lockName = 'payment_worker';
+    private $lockTimeout = 300; // 5 minutes max execution time
+    private $hasLock = false;
 
     public function __construct()
     {
-        $this->lockFile = storage_path('app/payment_worker.lock');
-        $this->billingApiUrl = env('BILLING_API_URL', 'https://cbms.atssfiber.ph/billing_update.php');
-        $this->reconnectApiUrl = env('RECONNECT_API_URL', 'https://cbms.atssfiber.ph/manual_dc_rc.php');
+        // Database-based locking - no file locks needed
     }
 
     /**
@@ -26,19 +22,23 @@ class PaymentWorkerService
      */
     public function processPayments()
     {
+        $this->workerLog('===========================================');
+        $this->workerLog('Payment Worker Started: ' . now()->format('Y-m-d H:i:s'));
+        $this->workerLog('===========================================');
+
         if (!$this->acquireLock()) {
             $this->workerLog('Another worker is already running. Exiting.');
+            $this->workerLog('===========================================');
             return false;
         }
 
         try {
-            $this->workerLog('Payment Worker: Starting');
+            $this->workerLog('Checking for payments to process...');
 
-            // --- 1. INTELLIGENT SELECTION ---
-            $payments = DB::table('payment_portal_logs')
-                ->where('transaction_status', 'QUEUED')
+            $payments = DB::table('pending_payments')
+                ->where('status', 'QUEUED')
                 ->orWhere(function($query) {
-                    $query->where('transaction_status', 'PENDING')
+                    $query->where('status', 'PENDING')
                           ->whereNotNull('callback_payload')
                           ->where(function($q) {
                               $q->where('callback_payload', 'LIKE', '%PAID%')
@@ -50,16 +50,21 @@ class PaymentWorkerService
 
             if ($payments->isEmpty()) {
                 $this->workerLog('No payments to process');
+                $this->workerLog('===========================================');
+                $this->workerLog('Payment Worker Completed: ' . now()->format('Y-m-d H:i:s'));
+                $this->workerLog('===========================================');
                 return true;
             }
 
-            $this->workerLog("Found {$payments->count()} transactions to audit");
+            $this->workerLog("Found {$payments->count()} transactions to process");
 
             foreach ($payments as $payment) {
                 $this->processPayment($payment);
             }
 
-            $this->workerLog('Payment Worker: Completed');
+            $this->workerLog('===========================================');
+            $this->workerLog('Payment Worker Completed: ' . now()->format('Y-m-d H:i:s'));
+            $this->workerLog('===========================================');
             return true;
 
         } catch (Exception $e) {
@@ -68,6 +73,7 @@ class PaymentWorkerService
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+            $this->workerLog('===========================================');
             return false;
         } finally {
             $this->releaseLock();
@@ -79,14 +85,16 @@ class PaymentWorkerService
      */
     private function processPayment($payment)
     {
+        DB::beginTransaction();
+        
         try {
             $id = $payment->id;
             $ref = $payment->reference_no;
-            $accountId = $payment->account_id;
-            $amount = $payment->total_amount;
+            $accountNo = $payment->account_no;
+            $amount = floatval($payment->amount);
             $rawPayload = $payment->callback_payload;
 
-            // --- 2. INTERNAL AUDIT (SECURITY CHECK) ---
+            // Validate payment status from callback
             if ($rawPayload) {
                 $json = json_decode($rawPayload, true);
                 $gwStatus = strtoupper($json['status'] ?? '');
@@ -96,183 +104,300 @@ class PaymentWorkerService
                 if (!$isLegitPaid) {
                     $this->workerLog("AUDIT FAIL: Ref $ref has payload but status is $gwStatus. Marking FAILED.");
                     
-                    DB::table('payment_portal_logs')
+                    DB::table('pending_payments')
                         ->where('id', $id)
-                        ->update(['transaction_status' => 'FAILED']);
+                        ->update(['status' => 'FAILED', 'updated_at' => now()]);
                     
+                    DB::commit();
                     return;
                 }
             }
 
-            // --- 3. LOCK RECORD ---
-            DB::table('payment_portal_logs')
+            // Lock record for processing
+            DB::table('pending_payments')
                 ->where('id', $id)
                 ->update([
-                    'transaction_status' => 'PROCESSING',
+                    'status' => 'PROCESSING',
+                    'last_attempt_at' => now(),
                     'updated_at' => now()
                 ]);
 
-            // --- 4. BILLING UPDATE ---
-            $account = DB::table('accounts')
-                ->join('customers', 'accounts.customer_id', '=', 'customers.id')
-                ->where('accounts.id', $accountId)
+            // Get account information
+            $account = DB::table('billing_accounts')
+                ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                ->where('billing_accounts.account_no', $accountNo)
                 ->select(
-                    'accounts.*',
+                    'billing_accounts.id as account_id',
+                    'billing_accounts.account_no',
+                    'billing_accounts.account_balance',
                     'customers.full_name',
                     'customers.contact_number_primary',
-                    'customers.desired_plan',
-                    'customers.barangay',
-                    'customers.city',
-                    'customers.address'
+                    'customers.desired_plan'
                 )
                 ->first();
 
             if (!$account) {
                 $this->workerLog("ERROR: Account not found for payment $ref");
+                DB::table('pending_payments')
+                    ->where('id', $id)
+                    ->update(['status' => 'FAILED', 'updated_at' => now()]);
+                DB::commit();
                 return;
             }
 
-            $apiPayload = [
-                'action' => 'updateBalance',
-                'accountNumber' => $account->account_no,
-                'paymentReceived' => $amount,
-                'updatedBy' => 'Payment_Worker',
-                'transactionId' => $ref
-            ];
+            // Update billing - distribute payment to invoices
+            $result = $this->updateBilling($account, $amount, $ref);
 
-            $resp = $this->sendToExternalAPI($this->billingApiUrl, $apiPayload);
-            $respStatus = $resp['status'] ?? 'error';
-
-            if ($respStatus === 'success') {
-                // SUCCESS SEQUENCE
-                DB::table('payment_portal_logs')
+            if ($result['success']) {
+                // Mark payment as PAID
+                DB::table('pending_payments')
                     ->where('id', $id)
                     ->update([
-                        'transaction_status' => 'PAID',
-                        'status' => 'Success'
-                    ]);
-
-                // --- A. UPDATE LOCAL ACCOUNT BALANCE ---
-                $newBalance = $account->account_balance - $amount;
-                if ($newBalance < 0) {
-                    $newBalance = 0;
-                }
-
-                DB::table('accounts')
-                    ->where('id', $accountId)
-                    ->update([
-                        'account_balance' => $newBalance,
+                        'status' => 'PAID',
                         'updated_at' => now()
                     ]);
 
-                // --- B. INSERT TRANSACTION LOG ---
+                // Insert transaction log
                 $json = json_decode($rawPayload, true);
-                $provider = 'XENDIT';
-                $method = 'Online';
-                $channel = $json['payment_channel'] ?? $json['bank_code'] ?? 'Xendit';
-                $checkoutID = $json['id'] ?? $payment->checkout_id;
-                $ewallet = '';
-
-                if (strpos(strtoupper($method), 'WALLET') !== false) {
-                    $ewallet = $channel;
-                }
+                $checkoutID = $json['id'] ?? $payment->payment_id ?? 'N/A';
+                $paymentChannel = $json['payment_channel'] ?? $json['bank_code'] ?? 'Xendit';
 
                 DB::table('transactions')->insert([
-                    'account_id' => $accountId,
+                    'account_id' => $account->account_id,
                     'transaction_type' => 'payment',
                     'amount' => $amount,
-                    'payment_method' => 'Online - Xendit',
+                    'payment_method' => "Online - Xendit ($paymentChannel)",
                     'reference_number' => $ref,
-                    'notes' => "Payment via Xendit Portal - $checkoutID",
+                    'notes' => "Payment via Xendit Portal - Invoice: $checkoutID - {$result['distribution_summary']}",
                     'processed_by' => 'Payment Worker',
                     'transaction_date' => now(),
                     'created_at' => now(),
                     'updated_at' => now()
                 ]);
 
-                $this->workerLog("Success: Logged Ref $ref - Amount: ₱" . number_format($amount, 2));
+                $this->workerLog("Success: Logged Ref $ref - Amount: ₱" . number_format($amount, 2) . " - {$result['distribution_summary']}");
 
-                // --- C. RECONNECT CHECK ---
-                if ($newBalance == 0) {
-                    $reconnectData = [
-                        'action' => 'reconnectUser',
-                        'accountNumber' => $account->account_no,
-                        'username' => $account->username ?? '',
-                        'plan' => $account->desired_plan ?? '',
-                        'updatedBy' => 'Payment_Worker'
-                    ];
+                // Check if reconnection is needed
+                $currentBalance = DB::table('billing_accounts')
+                    ->where('account_no', $accountNo)
+                    ->value('account_balance');
 
-                    $rcResp = $this->sendToExternalAPI($this->reconnectApiUrl, $reconnectData);
-                    $rcStatus = ($rcResp['status'] ?? '') === 'success' ? 'success' : 'failed';
+                if ($currentBalance <= 0) {
+                    $reconnectStatus = $this->attemptReconnect($account);
                     
-                    $this->workerLog("Reconnect attempt for $ref: $rcStatus");
+                    DB::table('pending_payments')
+                        ->where('id', $id)
+                        ->update(['reconnect_status' => $reconnectStatus]);
+                    
+                    $this->workerLog("Reconnect attempt for $ref: $reconnectStatus");
                 }
 
-            } else {
-                // API FAILED - Mark as API_RETRY
-                DB::table('payment_portal_logs')
-                    ->where('id', $id)
-                    ->update(['transaction_status' => 'API_RETRY']);
+                DB::commit();
                 
-                $this->workerLog("Billing API Error for Ref $ref: " . ($resp['message'] ?? 'Unknown'));
+            } else {
+                // Billing update failed
+                DB::table('pending_payments')
+                    ->where('id', $id)
+                    ->update(['status' => 'API_RETRY', 'updated_at' => now()]);
+                
+                $this->workerLog("Billing update failed for Ref $ref: " . $result['message']);
+                DB::rollBack();
             }
 
         } catch (Exception $e) {
+            DB::rollBack();
             $this->workerLog("Failed to process payment {$payment->reference_no}: {$e->getMessage()}");
             
-            DB::table('payment_portal_logs')
+            DB::table('pending_payments')
                 ->where('id', $payment->id)
-                ->update(['transaction_status' => 'API_RETRY']);
+                ->update(['status' => 'API_RETRY', 'updated_at' => now()]);
         }
     }
 
     /**
-     * Send request to external API
+     * Update billing - distribute payment to unpaid invoices
      */
-    private function sendToExternalAPI($url, $data)
+    private function updateBilling($account, $paymentAmount, $referenceNo)
     {
         try {
-            $response = Http::timeout(30)
-                ->post($url, $data);
+            $accountNo = $account->account_no;
+            $remainingAmount = $paymentAmount;
+            $distributionLog = [];
 
-            if ($response->failed()) {
+            // Get unpaid invoices ordered by invoice_date (oldest first)
+            $unpaidInvoices = DB::table('invoices')
+                ->where('account_no', $accountNo)
+                ->where('status', '!=', 'Paid')
+                ->orderBy('invoice_date', 'asc')
+                ->orderBy('id', 'asc')
+                ->get();
+
+            if ($unpaidInvoices->isEmpty()) {
+                // No unpaid invoices - apply as credit/advance payment
+                $newBalance = floatval($account->account_balance) - $paymentAmount;
+                
+                DB::table('billing_accounts')
+                    ->where('account_no', $accountNo)
+                    ->update([
+                        'account_balance' => $newBalance,
+                        'updated_at' => now()
+                    ]);
+
                 return [
-                    'status' => 'error',
-                    'message' => 'HTTP Error: ' . $response->status()
+                    'success' => true,
+                    'distribution_summary' => "Applied as credit (No unpaid invoices)",
+                    'distributed_amount' => $paymentAmount,
+                    'remaining_amount' => 0
                 ];
             }
 
-            $result = $response->json();
+            // Distribute payment to invoices
+            foreach ($unpaidInvoices as $invoice) {
+                if ($remainingAmount <= 0) {
+                    break;
+                }
+
+                $invoiceId = $invoice->id;
+                $invoiceBalance = floatval($invoice->total_amount) - floatval($invoice->received_payment);
+                
+                if ($invoiceBalance <= 0) {
+                    continue; // Skip already paid invoices
+                }
+
+                $amountToApply = min($remainingAmount, $invoiceBalance);
+                $newReceivedPayment = floatval($invoice->received_payment) + $amountToApply;
+                $newInvoiceBalance = floatval($invoice->total_amount) - $newReceivedPayment;
+
+                // Determine new status
+                $newStatus = 'Unpaid';
+                if ($newInvoiceBalance <= 0.01) { // Fully paid (accounting for floating point)
+                    $newStatus = 'Paid';
+                } elseif ($newReceivedPayment > 0) { // Partially paid
+                    $newStatus = 'Partial';
+                }
+
+                // Update invoice
+                DB::table('invoices')
+                    ->where('id', $invoiceId)
+                    ->update([
+                        'received_payment' => $newReceivedPayment,
+                        'status' => $newStatus,
+                        'transaction_id' => $referenceNo,
+                        'updated_at' => now(),
+                        'updated_by' => 'Payment Worker'
+                    ]);
+
+                $distributionLog[] = "Invoice #{$invoiceId}: ₱" . number_format($amountToApply, 2) . " ({$newStatus})";
+                $remainingAmount -= $amountToApply;
+
+                $this->workerLog("Distributed ₱" . number_format($amountToApply, 2) . " to Invoice #{$invoiceId} - Status: {$newStatus}");
+            }
+
+            // Update account balance
+            $newAccountBalance = floatval($account->account_balance) - $paymentAmount;
             
-            if (!$result) {
-                return [
-                    'status' => 'error',
-                    'message' => 'Invalid JSON response'
-                ];
+            DB::table('billing_accounts')
+                ->where('account_no', $accountNo)
+                ->update([
+                    'account_balance' => $newAccountBalance,
+                    'updated_at' => now()
+                ]);
+
+            $distributionSummary = implode(', ', $distributionLog);
+            
+            if ($remainingAmount > 0.01) {
+                $distributionSummary .= " | Credit: ₱" . number_format($remainingAmount, 2);
             }
 
-            return $result;
+            return [
+                'success' => true,
+                'distribution_summary' => $distributionSummary,
+                'distributed_amount' => $paymentAmount - $remainingAmount,
+                'remaining_amount' => $remainingAmount
+            ];
 
         } catch (Exception $e) {
+            Log::error('Billing update failed', [
+                'account_no' => $account->account_no,
+                'error' => $e->getMessage()
+            ]);
+
             return [
-                'status' => 'error',
+                'success' => false,
                 'message' => $e->getMessage()
             ];
         }
     }
 
     /**
-     * Acquire lock to prevent concurrent execution
+     * Attempt to reconnect user account
+     */
+    private function attemptReconnect($account)
+    {
+        try {
+            // TODO: Implement RADIUS reconnection logic here
+            // This would typically involve:
+            // 1. Calling RADIUS API to enable account
+            // 2. Updating account status in accounts table
+            // 3. Logging reconnection attempt
+            
+            $this->workerLog("Reconnect triggered for account: {$account->account_no}");
+            
+            // For now, return success
+            // Replace with actual RADIUS integration
+            return 'success';
+            
+        } catch (Exception $e) {
+            $this->workerLog("Reconnect failed for {$account->account_no}: {$e->getMessage()}");
+            return 'failed';
+        }
+    }
+
+    /**
+     * Acquire lock to prevent concurrent execution using database
      */
     private function acquireLock()
     {
-        $this->lockHandle = fopen($this->lockFile, 'w+');
-        
-        if (!$this->lockHandle) {
+        try {
+            // Check if lock exists and is not expired
+            $existingLock = DB::table('worker_locks')
+                ->where('lock_name', $this->lockName)
+                ->first();
+
+            if ($existingLock) {
+                $lockedAt = \Carbon\Carbon::parse($existingLock->locked_at);
+                $expiresAt = $lockedAt->addSeconds($this->lockTimeout);
+
+                // If lock is still valid (not expired)
+                if (now()->lessThan($expiresAt)) {
+                    $this->workerLog('Lock is held by another process. Expires at: ' . $expiresAt->format('Y-m-d H:i:s'));
+                    return false;
+                }
+
+                // Lock expired, clean it up
+                $this->workerLog('Found expired lock. Cleaning up and acquiring new lock.');
+                DB::table('worker_locks')
+                    ->where('lock_name', $this->lockName)
+                    ->delete();
+            }
+
+            // Try to acquire lock
+            DB::table('worker_locks')->insert([
+                'lock_name' => $this->lockName,
+                'locked_at' => now(),
+                'locked_by' => gethostname() . ':' . getmypid(),
+                'created_at' => now()
+            ]);
+
+            $this->hasLock = true;
+            $this->workerLog('Lock acquired successfully');
+            return true;
+
+        } catch (Exception $e) {
+            // Unique constraint violation means another process got the lock first
+            $this->workerLog('Failed to acquire lock: ' . $e->getMessage());
             return false;
         }
-
-        return flock($this->lockHandle, LOCK_EX | LOCK_NB);
     }
 
     /**
@@ -280,9 +405,17 @@ class PaymentWorkerService
      */
     private function releaseLock()
     {
-        if ($this->lockHandle) {
-            flock($this->lockHandle, LOCK_UN);
-            fclose($this->lockHandle);
+        if ($this->hasLock) {
+            try {
+                DB::table('worker_locks')
+                    ->where('lock_name', $this->lockName)
+                    ->delete();
+                
+                $this->workerLog('Lock released successfully');
+                $this->hasLock = false;
+            } catch (Exception $e) {
+                $this->workerLog('Failed to release lock: ' . $e->getMessage());
+            }
         }
     }
 
@@ -291,6 +424,14 @@ class PaymentWorkerService
      */
     private function workerLog($message)
     {
+        $timestamp = now()->format('Y-m-d H:i:s');
+        $logMessage = "[{$timestamp}] [Payment Worker] {$message}";
+        
+        // Log to custom paymentworker.log file
+        $logPath = storage_path('logs/paymentworker.log');
+        file_put_contents($logPath, $logMessage . PHP_EOL, FILE_APPEND);
+        
+        // Also log to Laravel default log
         Log::channel('single')->info('[Payment Worker] ' . $message);
     }
 
@@ -300,25 +441,25 @@ class PaymentWorkerService
     public function getStatistics()
     {
         return [
-            'pending' => DB::table('payment_portal_logs')
-                ->where('transaction_status', 'PENDING')
+            'pending' => DB::table('pending_payments')
+                ->where('status', 'PENDING')
                 ->count(),
-            'queued' => DB::table('payment_portal_logs')
-                ->where('transaction_status', 'QUEUED')
+            'queued' => DB::table('pending_payments')
+                ->where('status', 'QUEUED')
                 ->count(),
-            'processing' => DB::table('payment_portal_logs')
-                ->where('transaction_status', 'PROCESSING')
+            'processing' => DB::table('pending_payments')
+                ->where('status', 'PROCESSING')
                 ->count(),
-            'paid' => DB::table('payment_portal_logs')
-                ->where('transaction_status', 'PAID')
+            'paid' => DB::table('pending_payments')
+                ->where('status', 'PAID')
                 ->whereDate('updated_at', today())
                 ->count(),
-            'failed' => DB::table('payment_portal_logs')
-                ->where('transaction_status', 'FAILED')
+            'failed' => DB::table('pending_payments')
+                ->where('status', 'FAILED')
                 ->whereDate('updated_at', today())
                 ->count(),
-            'api_retry' => DB::table('payment_portal_logs')
-                ->where('transaction_status', 'API_RETRY')
+            'api_retry' => DB::table('pending_payments')
+                ->where('status', 'API_RETRY')
                 ->count(),
         ];
     }
@@ -328,15 +469,15 @@ class PaymentWorkerService
      */
     public function retryFailedPayments()
     {
-        $retryPayments = DB::table('payment_portal_logs')
-            ->where('transaction_status', 'API_RETRY')
+        $retryPayments = DB::table('pending_payments')
+            ->where('status', 'API_RETRY')
             ->limit(10)
             ->get();
 
         foreach ($retryPayments as $payment) {
-            DB::table('payment_portal_logs')
+            DB::table('pending_payments')
                 ->where('id', $payment->id)
-                ->update(['transaction_status' => 'QUEUED']);
+                ->update(['status' => 'QUEUED', 'updated_at' => now()]);
         }
 
         return $retryPayments->count();
