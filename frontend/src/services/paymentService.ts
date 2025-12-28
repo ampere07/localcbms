@@ -10,6 +10,14 @@ const getApiBaseUrl = (): string => {
 
 const API_BASE_URL = getApiBaseUrl();
 
+export interface PendingPayment {
+  reference_no: string;
+  payment_url: string;
+  amount: number;
+  status: string;
+  payment_date: string;
+}
+
 export interface PaymentResponse {
   status: string;
   reference_no?: string;
@@ -18,6 +26,7 @@ export interface PaymentResponse {
   amount?: number;
   account_balance?: number;
   message?: string;
+  pending_payment?: PendingPayment;
 }
 
 export interface PaymentStatusResponse {
@@ -33,9 +42,36 @@ export interface PaymentStatusResponse {
 }
 
 export const paymentService = {
+  checkPendingPayment: async (accountNo: string): Promise<PendingPayment | null> => {
+    try {
+      const authData = localStorage.getItem('authData');
+      let token = '';
+      
+      if (authData) {
+        const parsed = JSON.parse(authData);
+        token = parsed.token || '';
+      }
+
+      const response = await axios.post<{ status: string; pending_payment?: PendingPayment }>(
+        `${API_BASE_URL}/payments/check-pending`,
+        { account_no: accountNo },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+          }
+        }
+      );
+
+      return response.data.pending_payment || null;
+    } catch (error: any) {
+      console.error('Check pending payment error:', error.response?.data || error.message);
+      return null;
+    }
+  },
+
   createPayment: async (accountNo: string, amount: number): Promise<PaymentResponse> => {
     try {
-      // Debug logging
       console.log('Payment Service - Creating payment:', { accountNo, amount });
       
       if (!accountNo || accountNo.trim() === '') {

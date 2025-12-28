@@ -11,10 +11,11 @@ class PaymentWorkerService
     private $lockName = 'payment_worker';
     private $lockTimeout = 300; // 5 minutes max execution time
     private $hasLock = false;
+    private $radiusReconnectionService;
 
     public function __construct()
     {
-        // Database-based locking - no file locks needed
+        $this->radiusReconnectionService = new RadiusReconnectionService();
     }
 
     /**
@@ -335,21 +336,17 @@ class PaymentWorkerService
     private function attemptReconnect($account)
     {
         try {
-            // TODO: Implement RADIUS reconnection logic here
-            // This would typically involve:
-            // 1. Calling RADIUS API to enable account
-            // 2. Updating account status in accounts table
-            // 3. Logging reconnection attempt
-            
             $this->workerLog("Reconnect triggered for account: {$account->account_no}");
             
-            // For now, return success
-            // Replace with actual RADIUS integration
-            return 'success';
+            $result = $this->radiusReconnectionService->attemptReconnect($account->account_no);
+            
+            $this->workerLog("Reconnect result for {$account->account_no}: {$result}");
+            
+            return $result;
             
         } catch (Exception $e) {
             $this->workerLog("Reconnect failed for {$account->account_no}: {$e->getMessage()}");
-            return 'failed';
+            return 'exception';
         }
     }
 

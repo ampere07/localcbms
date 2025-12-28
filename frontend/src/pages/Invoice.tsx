@@ -3,7 +3,7 @@ import { Search, X } from 'lucide-react';
 import InvoiceDetails from '../components/InvoiceDetails';
 import { invoiceService, InvoiceRecord } from '../services/invoiceService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
-import { paymentService } from '../services/paymentService';
+import { paymentService, PendingPayment } from '../services/paymentService';
 
 interface InvoiceRecordUI {
   id: string;
@@ -73,6 +73,9 @@ const Invoice: React.FC = () => {
   const [fullName, setFullName] = useState<string>('');
   const [showPaymentLinkModal, setShowPaymentLinkModal] = useState<boolean>(false);
   const [paymentLinkData, setPaymentLinkData] = useState<{referenceNo: string; amount: number; paymentUrl: string} | null>(null);
+  const [showPendingPaymentModal, setShowPendingPaymentModal] = useState<boolean>(false);
+  const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   const allColumns = [
     { key: 'id', label: 'ID', width: 'min-w-20' },
@@ -259,9 +262,27 @@ const Invoice: React.FC = () => {
     await fetchInvoiceData();
   };
 
-  const handlePayNow = () => {
-    setPaymentAmount(accountBalance > 0 ? accountBalance : 100);
-    setShowPaymentVerifyModal(true);
+  const handlePayNow = async () => {
+    setErrorMessage('');
+    setIsPaymentProcessing(true);
+
+    try {
+      const pending = await paymentService.checkPendingPayment(accountNo);
+      
+      if (pending && pending.payment_url) {
+        setPendingPayment(pending);
+        setShowPendingPaymentModal(true);
+      } else {
+        setPaymentAmount(accountBalance > 0 ? accountBalance : 100);
+        setShowPaymentVerifyModal(true);
+      }
+    } catch (error: any) {
+      console.error('Error checking pending payment:', error);
+      setPaymentAmount(accountBalance > 0 ? accountBalance : 100);
+      setShowPaymentVerifyModal(true);
+    } finally {
+      setIsPaymentProcessing(false);
+    }
   };
 
   const handleCloseVerifyModal = () => {
@@ -271,6 +292,7 @@ const Invoice: React.FC = () => {
 
   const handleProceedToCheckout = async () => {
     if (paymentAmount < 1) {
+      setErrorMessage('Payment amount must be at least ₱1.00');
       return;
     }
 
@@ -279,6 +301,7 @@ const Invoice: React.FC = () => {
     }
 
     setIsPaymentProcessing(true);
+    setErrorMessage('');
 
     try {
       const response = await paymentService.createPayment(accountNo, paymentAmount);
@@ -296,7 +319,7 @@ const Invoice: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Payment error:', error);
-      setShowPaymentVerifyModal(false);
+      setErrorMessage(error.message || 'Failed to create payment. Please try again.');
     } finally {
       setIsPaymentProcessing(false);
     }
@@ -313,6 +336,19 @@ const Invoice: React.FC = () => {
   const handleCancelPaymentLink = () => {
     setShowPaymentLinkModal(false);
     setPaymentLinkData(null);
+  };
+
+  const handleResumePendingPayment = () => {
+    if (pendingPayment && pendingPayment.payment_url) {
+      window.open(pendingPayment.payment_url, '_blank');
+      setShowPendingPaymentModal(false);
+      setPendingPayment(null);
+    }
+  };
+
+  const handleCancelPendingPayment = () => {
+    setShowPendingPaymentModal(false);
+    setPendingPayment(null);
   };
 
   useEffect(() => {
@@ -698,6 +734,14 @@ const Invoice: React.FC = () => {
                 </div>
               </div>
 
+              {errorMessage && (
+                <div className={`p-3 rounded mb-4 ${
+                  isDarkMode ? 'bg-red-900/20 border border-red-800' : 'bg-red-50 border border-red-200'
+                }`}>
+                  <p className="text-red-500 text-sm text-center">{errorMessage}</p>
+                </div>
+              )}
+
               <div className="mb-4">
                 <label className="block font-bold mb-2">Payment Amount</label>
                 <input
@@ -769,6 +813,63 @@ const Invoice: React.FC = () => {
                   ) : (
                     'PROCEED TO CHECKOUT →'
                   )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPendingPaymentModal && pendingPayment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div 
+            className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
+          >
+            <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h3 className="text-xl font-bold text-center">Transaction In Progress</h3>
+            </div>
+
+            <div className="p-6">
+              <div className={`p-4 rounded mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                <p className="text-center mb-4">
+                  You have a pending payment (<b>{pendingPayment.reference_no}</b>).
+                  <br />The link is still active.
+                </p>
+                <div className="flex justify-between mt-4">
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
+                  <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#ea580c' }}>
+                    ₱{pendingPayment.amount.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancelPendingPayment}
+                  className={`flex-1 px-4 py-3 rounded font-bold transition-colors ${
+                    isDarkMode
+                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleResumePendingPayment}
+                  className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors"
+                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.accent) {
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = colorPalette.primary;
+                    }
+                  }}
+                >
+                  Pay Now →
                 </button>
               </div>
             </div>

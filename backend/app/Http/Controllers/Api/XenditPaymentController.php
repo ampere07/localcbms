@@ -67,21 +67,8 @@ class XenditPaymentController extends Controller
                 ], 404);
             }
 
-            // Check for duplicate pending payments
-            $dupCheck = DB::table('pending_payments')
-                ->where('account_no', $accountNo)
-                ->where('status', 'PENDING')
-                ->where('payment_date', '>', now()->subMinutes(5))
-                ->first();
-
-            if ($dupCheck) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'You have a pending payment. Please wait a few minutes.',
-                    'reference_no' => $dupCheck->reference_no,
-                    'payment_url' => $dupCheck->payment_url
-                ], 400);
-            }
+            // Note: Duplicate check now handled by frontend via check-pending endpoint
+            // This allows better UX with resume option
 
             // Generate unique reference number
             $randomSuffix = bin2hex(random_bytes(10));
@@ -304,6 +291,63 @@ class XenditPaymentController extends Controller
             ]);
 
             return response()->json(['message' => 'OK'], 200);
+        }
+    }
+
+    public function checkPendingPayment(Request $request)
+    {
+        try {
+            $accountNo = $request->input('account_no');
+
+            if (!$accountNo) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Account number is required'
+                ], 400);
+            }
+
+            // Check for pending payments within the last 5 minutes
+            $pendingPayment = DB::table('pending_payments')
+                ->where('account_no', $accountNo)
+                ->where('status', 'PENDING')
+                ->where('payment_date', '>', now()->subMinutes(5))
+                ->orderBy('payment_date', 'desc')
+                ->first();
+
+            if ($pendingPayment) {
+                Log::info('Pending payment found', [
+                    'account_no' => $accountNo,
+                    'reference_no' => $pendingPayment->reference_no,
+                    'amount' => $pendingPayment->amount
+                ]);
+
+                return response()->json([
+                    'status' => 'success',
+                    'pending_payment' => [
+                        'reference_no' => $pendingPayment->reference_no,
+                        'amount' => floatval($pendingPayment->amount),
+                        'status' => $pendingPayment->status,
+                        'payment_date' => $pendingPayment->payment_date,
+                        'payment_url' => $pendingPayment->payment_url
+                    ]
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'pending_payment' => null
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Check pending payment failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to check pending payment'
+            ], 500);
         }
     }
 
