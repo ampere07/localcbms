@@ -15,6 +15,7 @@ use App\Models\LCPNAP;
 use App\Models\Plan;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\OnlineStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -492,6 +493,12 @@ class JobOrderController extends Controller
                 'usage_type_id' => $jobOrder->usage_type_id,
                 'created_by' => $defaultUserId,
                 'updated_by' => $defaultUserId,
+            ]);
+
+            OnlineStatus::create([
+                'account_id' => $billingAccount->id,
+                'account_no' => $accountNumber,
+                'username' => $usernameForTechnical,
             ]);
 
             $jobOrder->update([

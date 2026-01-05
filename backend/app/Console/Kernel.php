@@ -16,22 +16,23 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         // ===================================================================
-        // BILLING GENERATION
+        // BILLING GENERATION (DEDICATED CRON JOB)
         // ===================================================================
         
         // Generate daily billings at 1:00 AM every day
         // Uses: EnhancedBillingGenerationServiceWithNotifications
         // Dependencies: BillingNotificationService, EmailQueueService, 
         //               GoogleDrivePdfGenerationService, ItexmoSmsService
-        $schedule->command('billing:generate-daily')
+        // Logs: storage/logs/billing/billinggeneration.log
+        $schedule->command('cron:generate-daily-billings')
                  ->dailyAt('01:00')
                  ->withoutOverlapping()
                  ->runInBackground()
                  ->onSuccess(function () {
-                     \Illuminate\Support\Facades\Log::info('Scheduled billing generation completed successfully');
+                     \Illuminate\Support\Facades\Log::info('Billing generation cron completed successfully');
                  })
                  ->onFailure(function () {
-                     \Illuminate\Support\Facades\Log::error('Scheduled billing generation failed');
+                     \Illuminate\Support\Facades\Log::error('Billing generation cron failed');
                  });
 
         // ===================================================================
@@ -67,27 +68,57 @@ class Kernel extends ConsoleKernel
                  });
 
         // ===================================================================
-        // EMAIL QUEUE PROCESSING
+        // EMAIL QUEUE PROCESSING (DEDICATED CRON JOBS)
         // ===================================================================
 
-        // Process email queue every minute (primary processing)
-        // Uses: EmailQueueService
+        // Process pending emails every minute
+        // Uses: EmailQueueService via dedicated cron command
         // Dependencies: ResendEmailService
-        $schedule->command('email:process-queue --batch=50')
+        // Processes up to 50 emails per run
+        $schedule->command('cron:process-email-queue')
                  ->everyMinute()
                  ->withoutOverlapping()
                  ->runInBackground()
                  ->onSuccess(function () {
-                     \Illuminate\Support\Facades\Log::info('Email queue processed successfully');
+                     \Illuminate\Support\Facades\Log::info('Email queue cron completed successfully');
+                 })
+                 ->onFailure(function () {
+                     \Illuminate\Support\Facades\Log::error('Email queue cron failed');
                  });
 
         // Retry failed emails every 5 minutes
-        // Uses: EmailQueueService
+        // Uses: EmailQueueService via dedicated cron command
         // Dependencies: ResendEmailService
-        $schedule->command('email:process-queue --retry --max-attempts=3')
+        // Retries up to 20 failed emails with max 3 attempts
+        $schedule->command('cron:retry-failed-emails')
                  ->everyFiveMinutes()
                  ->withoutOverlapping()
-                 ->runInBackground();
+                 ->runInBackground()
+                 ->onSuccess(function () {
+                     \Illuminate\Support\Facades\Log::info('Failed emails retry cron completed successfully');
+                 })
+                 ->onFailure(function () {
+                     \Illuminate\Support\Facades\Log::error('Failed emails retry cron failed');
+                 });
+
+        // ===================================================================
+        // RADIUS STATUS SYNC
+        // ===================================================================
+
+        // Sync RADIUS user status and sessions every 2 minutes
+        // Uses: RadiusStatusSyncService
+        // Dependencies: RadiusConfig, BillingAccounts, TechnicalDetails, OnlineStatus
+        // Logs: storage/logs/radiussync/radiussync.log
+        $schedule->command('cron:sync-radius-status')
+                 ->everyTwoMinutes()
+                 ->withoutOverlapping()
+                 ->runInBackground()
+                 ->onSuccess(function () {
+                     \Illuminate\Support\Facades\Log::info('RADIUS status sync completed successfully');
+                 })
+                 ->onFailure(function () {
+                     \Illuminate\Support\Facades\Log::error('RADIUS status sync failed');
+                 });
 
         // ===================================================================
         // PAYMENT PROCESSING
