@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
 import EditLcpModal from '../modals/EditLcpModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import apiClient from '../config/api';
 
 interface LcpItem {
   id: number;
@@ -12,6 +13,13 @@ interface LcpItem {
 
 interface LcpFormData {
   name: string;
+}
+
+interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  errors?: Record<string, string[]>;
 }
 
 const LcpList: React.FC = () => {
@@ -25,8 +33,6 @@ const LcpList: React.FC = () => {
   
   const [deletingItems, setDeletingItems] = useState<Set<number>>(new Set());
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.100.10:8000/api';
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -66,18 +72,8 @@ const LcpList: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/lcp`, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
+      const response = await apiClient.get<ApiResponse<LcpItem[]>>('/lcp');
+      const data = response.data;
       
       if (data.success) {
         setLcpItems(data.data || []);
@@ -106,17 +102,10 @@ const LcpList: React.FC = () => {
     });
     
     try {
-      const response = await fetch(`${API_BASE_URL}/lcp/${item.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await apiClient.delete<ApiResponse>(`/lcp/${item.id}`);
+      const data = response.data;
       
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
+      if (data.success) {
         await loadLcpItems();
       } else {
         alert('❌ Failed to delete LCP: ' + (data.message || 'Unknown error'));
@@ -146,24 +135,15 @@ const LcpList: React.FC = () => {
 
   const handleSave = async (formData: LcpFormData) => {
     try {
-      const url = editingItem 
-        ? `${API_BASE_URL}/lcp/${editingItem.id}`
-        : `${API_BASE_URL}/lcp`;
+      const payload = { name: formData.name.trim() };
       
-      const method = editingItem ? 'PUT' : 'POST';
+      const response = editingItem
+        ? await apiClient.put<ApiResponse>(`/lcp/${editingItem.id}`, payload)
+        : await apiClient.post<ApiResponse>('/lcp', payload);
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name: formData.name.trim() }),
-      });
-
-      const data = await response.json();
+      const data = response.data;
       
-      if (response.ok && data.success) {
+      if (data.success) {
         await loadLcpItems();
       } else {
         if (data.errors) {

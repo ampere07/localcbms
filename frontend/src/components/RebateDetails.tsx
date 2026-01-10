@@ -5,6 +5,7 @@ import {
 import LoadingModal from './LoadingModal';
 import * as massRebateService from '../services/massRebateService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import apiClient from '../config/api';
 
 interface RebateUsage {
   id: number;
@@ -29,6 +30,12 @@ interface Rebate {
 interface RebateDetailsProps {
   rebate: Rebate;
   onClose: () => void;
+}
+
+interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
 }
 
 const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose }) => {
@@ -108,8 +115,8 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose }) => {
   const fetchRebateUsages = async () => {
     try {
       setUsagesLoading(true);
-      const response = await fetch(`http://localhost:8000/api/rebates-usage?rebates_id=${rebate.id}`);
-      const data = await response.json();
+      const response = await apiClient.get<ApiResponse<RebateUsage[]>>(`/rebates-usage?rebates_id=${rebate.id}`);
+      const data = response.data;
       
       if (data.success) {
         setRebateUsages(data.data || []);

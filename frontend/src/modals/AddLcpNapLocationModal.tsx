@@ -6,6 +6,7 @@ import { locationDetailService, LocationDetail } from '../services/locationDetai
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 import { GOOGLE_MAPS_API_KEY } from '../config/maps';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import apiClient from '../config/api';
 
 interface AddLcpNapLocationModalProps {
   isOpen: boolean;
@@ -26,6 +27,13 @@ interface NAP {
 interface Region {
   id: number;
   name: string;
+}
+
+interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
 }
 
 const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
@@ -93,8 +101,6 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markerRef = useRef<google.maps.Marker | null>(null);
-
-  const API_BASE_URL = 'http://192.168.100.10:8000/api';
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -280,26 +286,16 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
   const loadDropdownData = async () => {
     try {
       const [lcpResponse, napResponse, regionsData, citiesData, barangaysData, locationsData] = await Promise.all([
-        fetch(`${API_BASE_URL}/lcp`, {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-        }),
-        fetch(`${API_BASE_URL}/nap`, {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-        }),
+        apiClient.get<ApiResponse<LCP[]>>('/lcp'),
+        apiClient.get<ApiResponse<NAP[]>>('/nap'),
         getRegions(),
         getCities(),
         barangayService.getAll(),
         locationDetailService.getAll()
       ]);
 
-      const lcpData = await lcpResponse.json();
-      const napData = await napResponse.json();
+      const lcpData = lcpResponse.data;
+      const napData = napResponse.data;
 
       if (lcpData.success) {
         setLcpList(lcpData.data || []);
@@ -461,56 +457,19 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
         }
       });
 
-      console.log('Sending POST request to:', `${API_BASE_URL}/lcpnap`);
+      console.log('Sending POST request to: /lcpnap');
       
-      const xhr = new XMLHttpRequest();
-      
-      const uploadPromise = new Promise<Response>((resolve, reject) => {
-        xhr.addEventListener('load', () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve(new Response(xhr.responseText, {
-              status: xhr.status,
-              statusText: xhr.statusText,
-              headers: new Headers({
-                'content-type': xhr.getResponseHeader('content-type') || 'application/json'
-              })
-            }));
-          } else {
-            reject(new Error(`HTTP error! status: ${xhr.status}`));
-          }
-        });
-        
-        xhr.addEventListener('error', () => reject(new Error('Network error')));
-        xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
-        
-        xhr.open('POST', `${API_BASE_URL}/lcpnap`);
-        xhr.send(submitData);
+      const response = await apiClient.post<ApiResponse>('/lcpnap', submitData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
       
-      const response = await uploadPromise;
+      const data = response.data;
+      console.log('Response data:', data);
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-      let data;
-      const contentType = response.headers.get('content-type');
-      console.log('Content-Type:', contentType);
-      
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
-        console.log('Response data:', data);
-      } else {
-        const textResponse = await response.text();
-        console.log('Non-JSON response:', textResponse);
-        throw new Error(`Server returned non-JSON response: ${textResponse.substring(0, 200)}`);
-      }
-
-      if (!response.ok || !data.success) {
-        console.error('Request failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          data: data
-        });
+      if (!data.success) {
+        console.error('Request failed:', data);
         throw new Error(data.message || data.error || 'Failed to save LCPNAP');
       }
 

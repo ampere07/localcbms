@@ -1,14 +1,4 @@
-import axios from 'axios';
-
-const getApiBaseUrl = (): string => {
-  const baseUrl = process.env.REACT_APP_API_BASE_URL;
-  if (!baseUrl) {
-    throw new Error("REACT_APP_API_BASE_URL is not defined");
-  }
-  return baseUrl;
-};
-
-const API_BASE_URL = getApiBaseUrl();
+import apiClient from '../config/api';
 
 export interface CustomerDetailData {
   id: number;
@@ -68,26 +58,10 @@ interface CustomerDetailApiResponse {
   message?: string;
 }
 
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  },
-});
-
-axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
 export const getCustomerDetail = async (accountNo: string): Promise<CustomerDetailData | null> => {
   try {
     console.log('Fetching customer detail for account:', accountNo);
-    const response = await axiosInstance.get<CustomerDetailApiResponse>(`/customer-detail/${accountNo}`);
+    const response = await apiClient.get<CustomerDetailApiResponse>(`/customer-detail/${accountNo}`);
     
     console.log('Customer detail API response:', response.data);
     

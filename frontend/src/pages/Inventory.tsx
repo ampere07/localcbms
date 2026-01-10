@@ -3,6 +3,7 @@ import { AlertTriangle, Plus, Search, Package, X } from 'lucide-react';
 import InventoryFormModal from '../modals/InventoryFormModal';
 import InventoryDetails from '../components/InventoryDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import apiClient from '../config/api';
 
 interface InventoryItem {
   item_name: string;
@@ -37,7 +38,11 @@ interface InventoryFormData {
   totalStockIn: number;
 }
 
-const API_BASE_URL = 'http://192.168.100.10:8000/api';
+interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+}
 
 const Inventory: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
@@ -53,7 +58,6 @@ const Inventory: React.FC = () => {
   const [dbCategories, setDbCategories] = useState<{ id: number; name: string }[]>([]);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
-  // Fetch inventory data and categories from API
   useEffect(() => {
     const fetchColorPalette = async () => {
       try {
@@ -89,7 +93,6 @@ const Inventory: React.FC = () => {
     fetchCategories();
   }, []);
 
-  // Calculate and update category counts whenever items or db categories change
   useEffect(() => {
     if (dbCategories.length > 0) {
       const categoriesWithCount: Category[] = [
@@ -120,8 +123,8 @@ const Inventory: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`${API_BASE_URL}/inventory`);
-      const data = await response.json();
+      const response = await apiClient.get<ApiResponse<InventoryItem[]>>('/inventory');
+      const data = response.data;
       
       if (data.success) {
         setInventoryItems(data.data || []);
@@ -139,8 +142,8 @@ const Inventory: React.FC = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/inventory-categories`);
-      const data = await response.json();
+      const response = await apiClient.get<ApiResponse<{ id: number; name: string }[]>>('/inventory-categories');
+      const data = response.data;
       
       if (data.success) {
         setDbCategories(data.data || []);
@@ -152,7 +155,6 @@ const Inventory: React.FC = () => {
     }
   };
 
-  // Filter items based on selected category and search query
   const filteredItems = selectedCategory === '' ? [] : inventoryItems.filter(item => {
     const itemCategory = (item.category || '').toLowerCase().replace(/\s+/g, '-');
     const matchesCategory = selectedCategory === 'all' || itemCategory === selectedCategory;
@@ -192,11 +194,8 @@ const Inventory: React.FC = () => {
 
   const handleDeleteItem = async (item: InventoryItem) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/inventory/${encodeURIComponent(item.item_name)}`, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json();
+      const response = await apiClient.delete<ApiResponse>(`/inventory/${encodeURIComponent(item.item_name)}`);
+      const data = response.data;
       
       if (data.success) {
         alert('Inventory item deleted successfully!');
@@ -219,28 +218,21 @@ const Inventory: React.FC = () => {
       console.log('Saving inventory item:', formData);
       
       const isEditing = editingItem !== null;
-      const url = isEditing 
-        ? `${API_BASE_URL}/inventory/${encodeURIComponent(editingItem.item_name)}`
-        : `${API_BASE_URL}/inventory`;
-      const method = isEditing ? 'PUT' : 'POST';
+      const payload = {
+        item_name: formData.itemName,
+        item_description: formData.itemDescription,
+        supplier: formData.supplier,
+        quantity_alert: formData.quantityAlert,
+        category: formData.category,
+        item_id: null,
+        image: '',
+      };
       
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          item_name: formData.itemName,
-          item_description: formData.itemDescription,
-          supplier: formData.supplier,
-          quantity_alert: formData.quantityAlert,
-          category: formData.category,
-          item_id: null,
-          image: '',
-        }),
-      });
+      const response = isEditing
+        ? await apiClient.put<ApiResponse>(`/inventory/${encodeURIComponent(editingItem.item_name)}`, payload)
+        : await apiClient.post<ApiResponse>('/inventory', payload);
 
-      const data = await response.json();
+      const data = response.data;
       
       if (data.success) {
         const message = isEditing ? 'Inventory item updated successfully!' : 'Inventory item added successfully!';
@@ -315,11 +307,11 @@ const Inventory: React.FC = () => {
     <div className={`${
       isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
     } h-full flex flex-col md:flex-row overflow-hidden`}>
-      {/* Category Sidebar - Desktop / Bottom Navbar - Mobile */}
-      <div className={`md:w-64 md:border-r border-t md:border-t-0 flex-shrink-0 flex flex-col order-2 md:order-1 ${
+      {/* Category Sidebar - Desktop Only */}
+      <div className={`hidden md:flex md:w-64 md:border-r flex-shrink-0 flex-col order-1 ${
         isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
       }`}>
-        <div className={`p-4 border-b flex-shrink-0 hidden md:block ${
+        <div className={`p-4 border-b flex-shrink-0 ${
           isDarkMode ? 'border-gray-700' : 'border-gray-200'
         }`}>
           <h2 className={`text-lg font-semibold flex items-center ${
@@ -330,13 +322,13 @@ const Inventory: React.FC = () => {
           </h2>
         </div>
         
-        <div className="flex-1 overflow-y-auto md:block overflow-x-auto">
-          <div className="flex md:flex-col md:space-y-0 space-x-2 md:space-x-0 p-2 md:p-0">
+        <div className="flex-1 overflow-y-auto">
+          <div className="flex flex-col">
             {categories.map((category) => (
               <button
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
-                className={`md:w-full flex-shrink-0 flex flex-col md:flex-row items-center md:justify-between px-4 py-3 text-sm transition-colors rounded-md md:rounded-none ${
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
                   isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
                 }`}
                 style={selectedCategory === category.id ? {
@@ -351,7 +343,7 @@ const Inventory: React.FC = () => {
               >
                 <span className="uppercase font-medium text-xs md:text-sm whitespace-nowrap">{category.name}</span>
                 <span
-                  className="px-2 py-1 rounded-full text-xs mt-1 md:mt-0"
+                  className="px-2 py-1 rounded-full text-xs"
                   style={selectedCategory === category.id ? {
                     backgroundColor: colorPalette?.primary || '#ea580c',
                     color: 'white'
@@ -369,7 +361,7 @@ const Inventory: React.FC = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className={`flex-1 overflow-hidden order-1 md:order-2 ${
+      <div className={`flex-1 overflow-hidden order-2 pb-16 md:pb-0 ${
         isDarkMode ? 'bg-gray-900' : 'bg-white'
       }`}>
         <div className="flex flex-col h-full">
@@ -533,11 +525,47 @@ const Inventory: React.FC = () => {
         </div>
       </div>
 
+      {/* Mobile Bottom Bar */}
+      <div className={`md:hidden fixed bottom-0 left-0 right-0 border-t z-40 ${
+        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
+        <div className="flex overflow-x-auto hide-scrollbar">
+          {categories.map((category) => (
+            <button
+              key={category.id}
+              onClick={() => setSelectedCategory(category.id)}
+              className={`flex-shrink-0 flex flex-col items-center justify-center px-4 py-2 text-xs transition-colors ${
+                selectedCategory === category.id
+                  ? ''
+                  : 'text-gray-300'
+              }`}
+              style={selectedCategory === category.id ? {
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                color: colorPalette?.primary || '#fb923c'
+              } : {}}
+            >
+              <Package className="h-5 w-5 mb-1" />
+              <span className="capitalize whitespace-nowrap">{category.name}</span>
+              {category.count > 0 && (
+                <span className="mt-1 px-2 py-0.5 rounded-full text-xs"
+                  style={selectedCategory === category.id ? {
+                    backgroundColor: colorPalette?.primary || '#ea580c',
+                    color: 'white'
+                  } : {
+                    backgroundColor: '#374151',
+                    color: '#d1d5db'
+                  }}>
+                  {category.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Inventory Details Panel */}
       {selectedItem && (
-        <div className={`w-full max-w-2xl border-l flex-shrink-0 relative ${
-          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-        }`}>
+        <div className="flex-shrink-0 overflow-hidden order-3">
           <InventoryDetails
             item={selectedItem}
             inventoryLogs={[]}
@@ -553,6 +581,16 @@ const Inventory: React.FC = () => {
           />
         </div>
       )}
+
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .hide-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
 
       {/* Inventory Form Modal */}
       <InventoryFormModal

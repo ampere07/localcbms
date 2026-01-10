@@ -123,23 +123,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
 
 
       case 'staggered-payment':
-        console.log('Loading StaggeredPayment component');
         return <StaggeredPayment />;
-
       case 'mass-rebate':
-        console.log('Loading MassRebate component');
         return <MassRebate />;
       case 'sms-blast':
-        console.log('Loading SMS Blast component');
         return <SMSBlast />;
       case 'sms-blast-logs':
-        console.log('Loading SMS Blast Logs component');
         return <SMSBlastLogs />;
       case 'disconnected-logs':
-        console.log('Loading Disconnected Logs component');
         return <DisconnectionLogs />;
       case 'reconnection-logs':
-        console.log('Loading Reconnection Logs component');
         return <ReconnectionLogs />;
       case 'user-management':
         return <UserManagement />;

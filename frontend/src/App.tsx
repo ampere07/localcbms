@@ -28,29 +28,21 @@ function App() {
           // Load user's dark mode preference from database
           // User ID is at root level, not under user property
           const userId = userData.id;
-          console.log('[App] User ID:', userId);
           
           if (userId) {
             try {
-              console.log('[App] Fetching dark mode preference...');
               const response = await userSettingsService.getDarkMode(userId);
-              console.log('[App] Dark mode response:', response);
               
               if (response.success && response.data) {
                 const darkmodeValue = response.data.darkmode;
                 const isDark = darkmodeValue === 'active';
                 
-                console.log('[App] Darkmode value from DB:', darkmodeValue);
-                console.log('[App] Setting theme to:', isDark ? 'dark' : 'light');
-                
                 localStorage.setItem('theme', isDark ? 'dark' : 'light');
                 
                 if (isDark) {
                   document.documentElement.classList.add('dark');
-                  console.log('[App] Added dark class to document');
                 } else {
                   document.documentElement.classList.remove('dark');
-                  console.log('[App] Removed dark class from document');
                 }
               }
             } catch (error) {

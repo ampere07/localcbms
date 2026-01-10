@@ -3,6 +3,7 @@ import { Loader2, MapPin } from 'lucide-react';
 import AddLcpNapLocationModal from '../modals/AddLcpNapLocationModal';
 import { GOOGLE_MAPS_API_KEY } from '../config/maps';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import apiClient from '../config/api';
 
 interface LocationMarker {
   id: number;
@@ -37,6 +38,12 @@ interface LcpNapItem {
   count: number;
 }
 
+interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+}
+
 
 
 const LcpNapLocation: React.FC = () => {
@@ -56,8 +63,6 @@ const LcpNapLocation: React.FC = () => {
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
-
-  const API_BASE_URL = 'http://192.168.100.10:8000/api';
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -234,21 +239,11 @@ const LcpNapLocation: React.FC = () => {
   const loadLocations = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/lcp-nap-locations`, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
+      const response = await apiClient.get<ApiResponse<any[]>>('/lcp-nap-locations');
+      const data = response.data;
       
       if (data.success && data.data) {
-        const validMarkers = data.data
+        const locationData = data.data
           .map((item: any) => {
             const coords = parseCoordinates(item.coordinates);
             if (!coords) return null;
@@ -271,14 +266,14 @@ const LcpNapLocation: React.FC = () => {
               image2_url: item.image2_url,
               modified_by: item.modified_by,
               modified_date: item.modified_date
-            };
+            } as LocationMarker;
           })
-          .filter((marker: LocationMarker | null): marker is LocationMarker => marker !== null);
+          .filter((marker): marker is LocationMarker => marker !== null);
         
-        setMarkers(validMarkers);
+        setMarkers(locationData);
         
         if (mapInstanceRef.current) {
-          updateMapMarkers(validMarkers);
+          updateMapMarkers(locationData);
         }
       }
     } catch (error) {
