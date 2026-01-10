@@ -295,9 +295,20 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             <ArrowRightFromLine size={16} />
           </button>
           <button 
-            className={`px-3 py-1 rounded-sm flex items-center ${
-              isDarkMode ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'
-            }`}
+            className="px-3 py-1 rounded-sm flex items-center text-white"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
             onClick={handleScheduleVisit}
             disabled={loading}
           >
@@ -326,7 +337,12 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           onClick={() => handleStatusChange('No Facility')}
           disabled={loading}
         >
-          <div className={isDarkMode ? 'bg-orange-600 p-2 rounded-full' : 'bg-orange-500 p-2 rounded-full'}>
+          <div 
+            className="p-2 rounded-full"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+          >
             <div className="text-white">
               <Ban size={18} />
             </div>
@@ -343,7 +359,12 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           onClick={() => handleStatusChange('Cancelled')}
           disabled={loading}
         >
-          <div className={isDarkMode ? 'bg-orange-600 p-2 rounded-full' : 'bg-orange-500 p-2 rounded-full'}>
+          <div 
+            className="p-2 rounded-full"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+          >
             <div className="text-white">
               <XCircle size={18} />
             </div>
@@ -360,7 +381,12 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           onClick={() => handleStatusChange('No Slot')}
           disabled={loading}
         >
-          <div className={isDarkMode ? 'bg-orange-600 p-2 rounded-full' : 'bg-orange-500 p-2 rounded-full'}>
+          <div 
+            className="p-2 rounded-full"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+          >
             <div className="text-white">
               <RotateCw size={18} />
             </div>
@@ -377,7 +403,12 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           onClick={() => handleStatusChange('Duplicate')}
           disabled={loading}
         >
-          <div className="bg-orange-600 p-2 rounded-full">
+          <div 
+            className="p-2 rounded-full"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+          >
             <div className="text-white">
               <Square size={18} />
             </div>
@@ -388,11 +419,18 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         </button>
         
         <button 
-          className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
+          className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${
+            isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
+          }`}
           onClick={() => handleStatusChange('In Progress')}
           disabled={loading}
         >
-          <div className="bg-orange-600 p-2 rounded-full">
+          <div 
+            className="p-2 rounded-full"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+          >
             <div className="text-white">
               <CheckCircle size={18} />
             </div>
