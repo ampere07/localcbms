@@ -4,6 +4,18 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// Apply theme immediately before React renders to prevent flash
+const applyInitialTheme = () => {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'dark') {
+    document.documentElement.classList.add('dark');
+  } else if (savedTheme === 'light') {
+    document.documentElement.classList.remove('dark');
+  }
+};
+
+applyInitialTheme();
+
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );

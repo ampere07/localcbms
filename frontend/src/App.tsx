@@ -6,10 +6,12 @@ import { UserData } from './types/api';
 import { initializeCsrf } from './config/api';
 import { userSettingsService } from './services/userSettingsService';
 import PaymentResultModal from './components/PaymentResultModal';
+import SplashScreen from './components/SplashScreen';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showPaymentResult, setShowPaymentResult] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [paymentRef, setPaymentRef] = useState('');
@@ -83,8 +85,56 @@ function App() {
   }, []);
 
   const handleLogin = async (user: UserData) => {
+    // Show loading screen while applying theme
+    setIsLoggingIn(true);
+    
     // Store user data in localStorage
     localStorage.setItem('authData', JSON.stringify(user));
+    
+    // Load user's dark mode preference immediately after login
+    const userId = user.id;
+    
+    if (userId) {
+      try {
+        const response = await userSettingsService.getDarkMode(userId);
+        
+        if (response.success && response.data) {
+          const darkmodeValue = response.data.darkmode;
+          const isDark = darkmodeValue === 'active';
+          
+          // Disable all CSS transitions temporarily
+          document.body.classList.add('disable-transitions');
+          
+          // Save to localStorage first
+          localStorage.setItem('theme', isDark ? 'dark' : 'light');
+          
+          // Force remove both classes first to ensure clean state
+          document.documentElement.classList.remove('dark');
+          
+          // Wait a tick for the DOM to update
+          await new Promise(resolve => setTimeout(resolve, 50));
+          
+          // Then apply the correct class
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+          }
+          
+          // Re-enable transitions after theme is applied
+          await new Promise(resolve => setTimeout(resolve, 100));
+          document.body.classList.remove('disable-transitions');
+        }
+      } catch (error) {
+        console.error('[App] Failed to load dark mode preference on login:', error);
+        // Default to light mode if API fails
+        localStorage.setItem('theme', 'light');
+        document.documentElement.classList.remove('dark');
+      }
+    }
+    
+    // Longer delay to ensure theme is fully applied and DOM is updated before showing dashboard
+    await new Promise(resolve => setTimeout(resolve, 600));
+    
+    setIsLoggingIn(false);
     setIsLoggedIn(true);
   };
 
@@ -94,21 +144,9 @@ function App() {
     setIsLoggedIn(false);
   };
 
-  // Show loading state while checking authentication
-  if (isLoading) {
-    return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        backgroundColor: '#282c34',
-        color: '#61dafb',
-        fontSize: '18px'
-      }}>
-        Loading...
-      </div>
-    );
+  // Show loading state while checking authentication or logging in
+  if (isLoading || isLoggingIn) {
+    return <SplashScreen />;
   }
 
   if (isLoggedIn) {
