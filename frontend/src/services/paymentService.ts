@@ -42,6 +42,34 @@ export interface PaymentStatusResponse {
 }
 
 export const paymentService = {
+  getAccountBalance: async (accountNo: string): Promise<number> => {
+    try {
+      const authData = localStorage.getItem('authData');
+      let token = '';
+      
+      if (authData) {
+        const parsed = JSON.parse(authData);
+        token = parsed.token || '';
+      }
+
+      const response = await axios.post<{ status: string; account_balance?: number }>(
+        `${API_BASE_URL}/payments/account-balance`,
+        { account_no: accountNo },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+          }
+        }
+      );
+
+      return response.data.account_balance || 0;
+    } catch (error: any) {
+      console.error('Get account balance error:', error.response?.data || error.message);
+      return 0;
+    }
+  },
+
   checkPendingPayment: async (accountNo: string): Promise<PendingPayment | null> => {
     try {
       const authData = localStorage.getItem('authData');

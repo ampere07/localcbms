@@ -74,9 +74,9 @@ class XenditPaymentController extends Controller
             $randomSuffix = bin2hex(random_bytes(10));
             $referenceNo = $accountNo . '-' . $randomSuffix;
 
-            // Create redirect URLs
-            $redirectSuccess = $this->portalLink . '/payment-success?ref=' . $referenceNo;
-            $redirectFail = $this->portalLink . '/payment-failed?ref=' . $referenceNo;
+            // Create redirect URLs - redirect back to portal with success/failure indicators
+            $redirectSuccess = $this->portalLink . '/?payment=success&ref=' . $referenceNo;
+            $redirectFail = $this->portalLink . '/?payment=failed&ref=' . $referenceNo;
 
             // Parse customer name
             $fullNameParts = explode(' ', trim($account->full_name ?? 'Customer'));
@@ -199,8 +199,10 @@ class XenditPaymentController extends Controller
 
     public function handleWebhook(Request $request)
     {
+        // Get callback token from request
         $incomingToken = '';
         
+        // Try multiple methods to get the token
         $incomingToken = $request->header('X-Callback-Token');
         
         if (empty($incomingToken) && isset($_SERVER['HTTP_X_CALLBACK_TOKEN'])) {
@@ -212,18 +214,29 @@ class XenditPaymentController extends Controller
             $incomingToken = $headers['x-callback-token'][0] ?? '';
         }
 
-        Log::info('Process Webhook', [
-            'DEBUG' => "Server found ['$incomingToken'] vs Configured ['{$this->xenditCallbackToken}']"
+        // Enhanced logging for debugging
+        Log::info('Xendit Webhook Received', [
+            'incoming_token' => $incomingToken,
+            'incoming_token_length' => strlen($incomingToken),
+            'configured_token' => $this->xenditCallbackToken,
+            'configured_token_length' => strlen($this->xenditCallbackToken ?? ''),
+            'tokens_match' => $incomingToken === $this->xenditCallbackToken,
+            'ip_address' => $request->ip(),
+            'request_method' => $request->method(),
+            'request_uri' => $request->getRequestUri()
         ]);
 
+        // Validate callback token
         if ($this->xenditCallbackToken && $incomingToken !== $this->xenditCallbackToken) {
-            Log::warning('Process Webhook: SECURITY ALERT', [
-                'message' => 'Invalid Token',
+            Log::warning('Xendit Webhook: Invalid Token', [
+                'incoming_token' => substr($incomingToken, 0, 10) . '...',
+                'expected_token' => substr($this->xenditCallbackToken, 0, 10) . '...',
                 'ip' => $request->ip()
             ]);
             return response('Forbidden', 403);
         }
 
+        // Process webhook asynchronously if possible
         if (function_exists('fastcgi_finish_request')) {
             response()->json(['message' => 'OK'], 200)->send();
             fastcgi_finish_request();
@@ -237,14 +250,17 @@ class XenditPaymentController extends Controller
             $status = strtoupper($payload['status'] ?? '');
 
             if (!$ref) {
-                Log::info('Process Webhook: No reference number, ignoring');
+                Log::info('Xendit Webhook: No reference number in payload');
                 return response()->json(['message' => 'OK'], 200);
             }
 
-            Log::info('Process Webhook', [
-                'message' => "Received Ref: $ref | Status: $status"
+            Log::info('Xendit Webhook: Processing Payment', [
+                'reference_no' => $ref,
+                'status' => $status,
+                'payload' => $payload
             ]);
 
+            // Determine new status
             $newStatus = 'PENDING';
             $isPaid = false;
 
@@ -261,6 +277,7 @@ class XenditPaymentController extends Controller
                 $newStatus = 'FAILED';
             }
 
+            // Update payment status
             if ($newStatus !== 'PENDING') {
                 $rowsUpdated = DB::table('pending_payments')
                     ->where('reference_no', $ref)
@@ -272,12 +289,14 @@ class XenditPaymentController extends Controller
                     ]);
 
                 if ($rowsUpdated > 0) {
-                    Log::info('Process Webhook', [
-                        'message' => "Updated Ref $ref to $newStatus"
+                    Log::info('Xendit Webhook: Payment Updated', [
+                        'reference_no' => $ref,
+                        'new_status' => $newStatus
                     ]);
                 } else {
-                    Log::info('Process Webhook', [
-                        'message' => "No update for Ref $ref (already PAID or not found)"
+                    Log::info('Xendit Webhook: No Update Needed', [
+                        'reference_no' => $ref,
+                        'reason' => 'Already processed or not found'
                     ]);
                 }
             }
@@ -285,7 +304,7 @@ class XenditPaymentController extends Controller
             return response()->json(['message' => 'OK'], 200);
 
         } catch (Exception $e) {
-            Log::error('Process Webhook: Error', [
+            Log::error('Xendit Webhook: Processing Error', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -392,6 +411,48 @@ class XenditPaymentController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to check payment status'
+            ], 500);
+        }
+    }
+
+    public function getAccountBalance(Request $request)
+    {
+        try {
+            $accountNo = $request->input('account_no');
+
+            if (!$accountNo) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Account number is required'
+                ], 400);
+            }
+
+            // Get account balance from billing_accounts table
+            $account = DB::table('billing_accounts')
+                ->where('account_no', $accountNo)
+                ->select('account_balance')
+                ->first();
+
+            if (!$account) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Account not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'account_balance' => floatval($account->account_balance)
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Get account balance failed', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to get account balance'
             ], 500);
         }
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
 import StaggeredListDetails from '../components/StaggeredListDetails';
+import StaggeredInstallationFormModal from '../modals/StaggeredInstallationFormModal';
 import { staggeredInstallationService } from '../services/staggeredInstallationService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
@@ -60,6 +61,7 @@ const StaggeredPayment: React.FC = () => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [isStaggeredFormModalOpen, setIsStaggeredFormModalOpen] = useState<boolean>(false);
 
   const formatCurrency = (amount: number | string) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -235,6 +237,24 @@ const StaggeredPayment: React.FC = () => {
     sidebarStartWidthRef.current = sidebarWidth;
   };
 
+  const handleOpenStaggeredFormModal = () => {
+    setIsStaggeredFormModalOpen(true);
+  };
+
+  const handleCloseStaggeredFormModal = () => {
+    setIsStaggeredFormModalOpen(false);
+  };
+
+  const handleSaveStaggered = async (formData: any) => {
+    try {
+      // The form modal handles the save internally, just refresh the list
+      await handleRefresh();
+      handleCloseStaggeredFormModal();
+    } catch (error) {
+      console.error('Error saving staggered installation:', error);
+    }
+  };
+
   return (
     <div className={`h-full flex overflow-hidden ${
       isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
@@ -252,7 +272,7 @@ const StaggeredPayment: React.FC = () => {
             <div>
               <button 
                 className="flex items-center space-x-1 text-white px-3 py-1 rounded text-sm transition-colors"
-                onClick={() => alert('Add new staggered payment')}
+                onClick={handleOpenStaggeredFormModal}
                 style={{
                   backgroundColor: colorPalette?.primary || '#ea580c'
                 }}
@@ -509,6 +529,13 @@ const StaggeredPayment: React.FC = () => {
           />
         </div>
       )}
+
+      {/* Staggered Installation Form Modal */}
+      <StaggeredInstallationFormModal
+        isOpen={isStaggeredFormModalOpen}
+        onClose={handleCloseStaggeredFormModal}
+        onSave={handleSaveStaggered}
+      />
     </div>
   );
 };

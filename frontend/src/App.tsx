@@ -5,12 +5,29 @@ import Dashboard from './pages/Dashboard';
 import { UserData } from './types/api';
 import { initializeCsrf } from './config/api';
 import { userSettingsService } from './services/userSettingsService';
+import PaymentResultModal from './components/PaymentResultModal';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showPaymentResult, setShowPaymentResult] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentRef, setPaymentRef] = useState('');
 
   useEffect(() => {
+    // Check for payment result in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    const refNo = urlParams.get('ref');
+    
+    if (paymentStatus && refNo) {
+      setPaymentSuccess(paymentStatus === 'success');
+      setPaymentRef(refNo);
+      setShowPaymentResult(true);
+      
+      // Clean up URL without reloading
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
     // Initialize CSRF cookie and check auth status
     const initialize = async () => {
       try {
@@ -95,7 +112,18 @@ function App() {
   }
 
   if (isLoggedIn) {
-    return <Dashboard onLogout={handleLogout} />;
+    return (
+      <>
+        <Dashboard onLogout={handleLogout} />
+        <PaymentResultModal
+          isOpen={showPaymentResult}
+          onClose={() => setShowPaymentResult(false)}
+          success={paymentSuccess}
+          referenceNo={paymentRef}
+          isDarkMode={document.documentElement.classList.contains('dark')}
+        />
+      </>
+    );
   }
 
   return <Login onLogin={handleLogin} />;

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Calendar, ChevronDown } from 'lucide-react';
 import { staggeredInstallationService } from '../services/staggeredInstallationService';
 import { userService } from '../services/userService';
+import { getBillingRecords } from '../services/billingService';
 import LoadingModal from '../components/LoadingModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
@@ -98,6 +99,28 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [users, setUsers] = useState<Array<{ id: number; email: string }>>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [billingAccounts, setBillingAccounts] = useState<any[]>([]);
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+  const [accountSearchQuery, setAccountSearchQuery] = useState('');
+  const accountDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (accountDropdownRef.current && !accountDropdownRef.current.contains(event.target as Node)) {
+        setIsAccountDropdownOpen(false);
+        setAccountSearchQuery('');
+      }
+    };
+
+    if (isAccountDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isAccountDropdownOpen]);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -168,9 +191,19 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
       }
     };
 
+    const fetchBillingAccounts = async () => {
+      try {
+        const accounts = await getBillingRecords();
+        setBillingAccounts(accounts);
+      } catch (error) {
+        console.error('Failed to fetch billing accounts:', error);
+      }
+    };
+
     if (isOpen) {
       fetchUsers();
       getCurrentUser();
+      fetchBillingAccounts();
     }
   }, [isOpen]);
 
@@ -295,6 +328,55 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
     onClose();
   };
 
+  // Filter billing accounts based on search query
+  const filteredBillingAccounts = billingAccounts.filter((account) => {
+    const fullName = [
+      account.firstName || '',
+      account.middleInitial || '',
+      account.lastName || ''
+    ].filter(Boolean).join(' ');
+    
+    const addressParts = [
+      account.address || '',
+      account.location || '',
+      account.barangay || '',
+      account.city || '',
+      account.region || ''
+    ].filter(Boolean).join(', ');
+    
+    const accountNumber = account.accountNo || account.account_no || '';
+    const searchText = `${accountNumber} ${fullName || account.customerName} ${addressParts}`.toLowerCase();
+    
+    return searchText.includes(accountSearchQuery.toLowerCase());
+  });
+
+  // Get selected account display text
+  const getSelectedAccountText = () => {
+    if (!formData.accountNo) return 'Select Account';
+    
+    const account = billingAccounts.find(
+      (acc) => (acc.accountNo || acc.account_no) === formData.accountNo
+    );
+    
+    if (!account) return formData.accountNo;
+    
+    const fullName = [
+      account.firstName || '',
+      account.middleInitial || '',
+      account.lastName || ''
+    ].filter(Boolean).join(' ');
+    
+    const addressParts = [
+      account.address || '',
+      account.location || '',
+      account.barangay || '',
+      account.city || '',
+      account.region || ''
+    ].filter(Boolean).join(', ');
+    
+    return `${formData.accountNo} | ${fullName || account.customerName} | ${addressParts}`;
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -369,21 +451,126 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
             }`}>
               Account No.<span className="text-red-500">*</span>
             </label>
-            <div className="relative">
-              <select
-                value={formData.accountNo}
-                onChange={(e) => handleInputChange('accountNo', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                  isDarkMode ? 'bg-gray-800 text-red-400' : 'bg-white text-red-600'
-                } ${errors.accountNo ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+            <div className="relative" ref={accountDropdownRef}>
+              {/* Custom Searchable Dropdown */}
+              <div
+                className={`w-full px-3 py-2 border rounded cursor-pointer ${
+                  errors.accountNo ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                } ${
+                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                }`}
+                onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
               >
-                <option value={customerData?.accountNo || ''}>
-                  {customerData?.accountNo || ''} | {customerData?.fullName || ''} | {customerData?.address || ''}
-                </option>
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
+                <div className="flex items-center justify-between">
+                  <span className={`truncate ${
+                    !formData.accountNo ? (isDarkMode ? 'text-gray-400' : 'text-gray-500') : ''
+                  }`}>
+                    {getSelectedAccountText()}
+                  </span>
+                  <ChevronDown className={`flex-shrink-0 ml-2 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
+                </div>
+              </div>
+              
+              {/* Dropdown Menu */}
+              {isAccountDropdownOpen && (
+                <div className={`absolute z-50 w-full mt-1 border rounded shadow-lg max-h-80 overflow-hidden ${
+                  isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                }`}>
+                  {/* Search Input */}
+                  <div className={`p-2 border-b ${
+                    isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                  }`}>
+                    <input
+                      type="text"
+                      placeholder="Search accounts..."
+                      value={accountSearchQuery}
+                      onChange={(e) => setAccountSearchQuery(e.target.value)}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                        isDarkMode
+                          ? 'bg-gray-900 border-gray-600 text-white placeholder-gray-400'
+                          : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                      }`}
+                      onClick={(e) => e.stopPropagation()}
+                      autoFocus
+                    />
+                  </div>
+                  
+                  {/* Options List */}
+                  <div className="max-h-64 overflow-y-auto">
+                    {filteredBillingAccounts.length > 0 ? (
+                      filteredBillingAccounts.map((account) => {
+                        const fullName = [
+                          account.firstName || '',
+                          account.middleInitial || '',
+                          account.lastName || ''
+                        ].filter(Boolean).join(' ');
+                        
+                        const addressParts = [
+                          account.address || '',
+                          account.location || '',
+                          account.barangay || '',
+                          account.city || '',
+                          account.region || ''
+                        ].filter(Boolean).join(', ');
+                        
+                        const accountNumber = account.accountNo || account.account_no || '';
+                        const displayText = `${accountNumber} | ${fullName || account.customerName} | ${addressParts}`;
+                        
+                        return (
+                          <div
+                            key={account.id}
+                            className={`px-3 py-2 cursor-pointer ${
+                              isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                            } ${
+                              formData.accountNo === accountNumber
+                                ? (isDarkMode ? 'bg-gray-700' : 'bg-gray-100')
+                                : ''
+                            }`}
+                            onClick={() => {
+                              handleInputChange('accountNo', accountNumber);
+                              setIsAccountDropdownOpen(false);
+                              setAccountSearchQuery('');
+                              // Update other fields based on selected account
+                              setFormData(prev => ({
+                                ...prev,
+                                accountNo: accountNumber,
+                                fullName: fullName || account.customerName || '',
+                                contactNo: account.contactNo || account.contact_no || '',
+                                emailAddress: account.emailAddress || account.email_address || '',
+                                address: addressParts,
+                                plan: account.plan || '',
+                                barangay: account.barangay || '',
+                                city: account.city || ''
+                              }));
+                            }}
+                            title={displayText}
+                          >
+                            <div className="text-sm">
+                              <span className="text-red-400 font-medium">{accountNumber}</span>
+                              <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+                                {' | '}{fullName || account.customerName}
+                              </span>
+                            </div>
+                            <div className={`text-xs truncate ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                            }`}>
+                              {addressParts}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className={`px-3 py-4 text-center text-sm ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`}>
+                        No accounts found
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             {errors.accountNo && <p className="text-red-500 text-xs mt-1">{errors.accountNo}</p>}
           </div>

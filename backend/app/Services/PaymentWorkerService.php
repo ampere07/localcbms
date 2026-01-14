@@ -131,7 +131,7 @@ class PaymentWorkerService
                     'billing_accounts.id as account_id',
                     'billing_accounts.account_no',
                     'billing_accounts.account_balance',
-                    'customers.full_name',
+                    DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name"),
                     'customers.contact_number_primary',
                     'customers.desired_plan'
                 )
@@ -164,14 +164,18 @@ class PaymentWorkerService
                 $paymentChannel = $json['payment_channel'] ?? $json['bank_code'] ?? 'Xendit';
 
                 DB::table('transactions')->insert([
-                    'account_id' => $account->account_id,
-                    'transaction_type' => 'payment',
-                    'amount' => $amount,
+                    'account_no' => $accountNo,
+                    'transaction_type' => 'Recurring Fee',
+                    'received_payment' => $amount,
                     'payment_method' => "Online - Xendit ($paymentChannel)",
-                    'reference_number' => $ref,
-                    'notes' => "Payment via Xendit Portal - Invoice: $checkoutID - {$result['distribution_summary']}",
-                    'processed_by' => 'Payment Worker',
-                    'transaction_date' => now(),
+                    'reference_no' => $ref,
+                    'or_no' => $ref,
+                    'remarks' => "Payment via Xendit Portal - Invoice: $checkoutID - {$result['distribution_summary']}",
+                    'status' => 'Approved',
+                    'payment_date' => now(),
+                    'date_processed' => now(),
+                    'created_by_user' => 'Payment Worker',
+                    'updated_by_user' => 'Payment Worker',
                     'created_at' => now(),
                     'updated_at' => now()
                 ]);

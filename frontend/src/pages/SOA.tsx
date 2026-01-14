@@ -259,13 +259,17 @@ const SOA: React.FC = () => {
     setIsPaymentProcessing(true);
 
     try {
+      // Fetch current account balance from database
+      const currentBalance = await paymentService.getAccountBalance(accountNo);
+      setAccountBalance(currentBalance);
+      
       const pending = await paymentService.checkPendingPayment(accountNo);
       
       if (pending && pending.payment_url) {
         setPendingPayment(pending);
         setShowPendingPaymentModal(true);
       } else {
-        setPaymentAmount(accountBalance > 0 ? accountBalance : 100);
+        setPaymentAmount(currentBalance > 0 ? currentBalance : 100);
         setShowPaymentVerifyModal(true);
       }
     } catch (error: any) {
@@ -765,11 +769,26 @@ const SOA: React.FC = () => {
               <div className="mb-4">
                 <label className="block font-bold mb-2">Payment Amount</label>
                 <input
-                  type="number"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
-                  min="1"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
+                  value={paymentAmount || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Allow empty, numbers, and decimal point
+                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                      setPaymentAmount(value === '' ? 0 : parseFloat(value) || 0);
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // Format to 2 decimal places on blur if there's a value
+                    const value = parseFloat(e.target.value);
+                    if (!isNaN(value) && value > 0) {
+                      setPaymentAmount(parseFloat(value.toFixed(2)));
+                    } else {
+                      setPaymentAmount(0);
+                    }
+                  }}
+                  placeholder="100"
                   className={`w-full px-4 py-3 rounded text-lg font-bold ${
                     isDarkMode 
                       ? 'bg-gray-800 border-gray-700 text-white' 

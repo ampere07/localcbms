@@ -9,6 +9,11 @@ class HandleCorsManually
 {
     public function handle(Request $request, Closure $next)
     {
+        // Skip CORS for webhook endpoints (they don't need CORS)
+        if ($request->is('api/xendit-webhook') || $request->is('api/payments/webhook')) {
+            return $next($request);
+        }
+        
         // Get the origin from the request
         $origin = $request->header('Origin');
         
@@ -19,7 +24,9 @@ class HandleCorsManually
             'http://127.0.0.1:3000',
             'http://127.0.0.1:8000',
             'http://192.168.100.10:8000',
-            'http://192.168.100.10:3000'
+            'http://192.168.100.10:3000',
+            'https://sync.atssfiber.ph',
+            'https://backend.atssfiber.ph'
         ];
 
         // Handle preflight OPTIONS request

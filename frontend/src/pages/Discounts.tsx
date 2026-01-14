@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, ChevronRight, Tag } from 'lucide-react';
 import DiscountDetails from '../components/DiscountDetails';
+import DiscountFormModal from '../modals/DiscountFormModal';
 import * as discountService from '../services/discountService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
@@ -120,6 +121,7 @@ const Discounts: React.FC = () => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [isDiscountFormModalOpen, setIsDiscountFormModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -289,6 +291,24 @@ const Discounts: React.FC = () => {
     sidebarStartWidthRef.current = sidebarWidth;
   };
 
+  const handleOpenDiscountFormModal = () => {
+    setIsDiscountFormModalOpen(true);
+  };
+
+  const handleCloseDiscountFormModal = () => {
+    setIsDiscountFormModalOpen(false);
+  };
+
+  const handleSaveDiscount = async (formData: any) => {
+    try {
+      // The form modal handles the save internally, just refresh the list
+      await handleRefresh();
+      handleCloseDiscountFormModal();
+    } catch (error) {
+      console.error('Error saving discount:', error);
+    }
+  };
+
   return (
     <div className={`h-full flex flex-col md:flex-row overflow-hidden ${
       isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
@@ -306,7 +326,7 @@ const Discounts: React.FC = () => {
             <div>
               <button 
                 className="flex items-center space-x-1 text-white px-3 py-1 rounded text-sm transition-colors"
-                onClick={() => alert('Add new discount')}
+                onClick={handleOpenDiscountFormModal}
                 style={{
                   backgroundColor: colorPalette?.primary || '#ea580c'
                 }}
@@ -493,6 +513,13 @@ const Discounts: React.FC = () => {
           />
         </div>
       )}
+
+      {/* Discount Form Modal */}
+      <DiscountFormModal
+        isOpen={isDiscountFormModalOpen}
+        onClose={handleCloseDiscountFormModal}
+        onSave={handleSaveDiscount}
+      />
     </div>
   );
 };

@@ -2682,6 +2682,30 @@ Route::prefix('payments')->group(function () {
     Route::post('/webhook', [\App\Http\Controllers\Api\XenditPaymentController::class, 'handleWebhook']);
     Route::post('/status', [\App\Http\Controllers\Api\XenditPaymentController::class, 'checkPaymentStatus']);
     Route::post('/check-pending', [\App\Http\Controllers\Api\XenditPaymentController::class, 'checkPendingPayment']);
+    Route::post('/account-balance', [\App\Http\Controllers\Api\XenditPaymentController::class, 'getAccountBalance']);
+    
+    // Test endpoint to verify webhook configuration
+    Route::get('/webhook-info', function() {
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Xendit webhook endpoint is configured',
+            'webhook_url' => 'https://backend.atssfiber.ph/api/payments/webhook',
+            'method' => 'POST',
+            'required_header' => 'X-Callback-Token',
+            'callback_token_configured' => !empty(env('XENDIT_CALLBACK_TOKEN')),
+            'callback_token_length' => strlen(env('XENDIT_CALLBACK_TOKEN') ?? ''),
+            'timestamp' => now()->toDateTimeString()
+        ]);
+    });
+});
+
+Route::get('/xendit-webhook', function() {
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Xendit webhook endpoint is active',
+        'method' => 'This endpoint accepts POST requests from Xendit',
+        'timestamp' => now()->toDateTimeString()
+    ]);
 });
 
 // Public webhook endpoint (no auth required)
