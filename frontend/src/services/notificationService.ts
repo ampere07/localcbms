@@ -39,10 +39,10 @@ export const notificationService = {
       return await requestCache.get(
         `notifications_${limit}`,
         async () => {
-          const response = await apiClient.get<NotificationResponse>(`/notifications/recent-applications?limit=${limit}`);
+          const response = await apiClient.get<NotificationResponse>(`/notifications/recent-applications?limit=${limit}&t=${Date.now()}`);
           return response.data.data || [];
         },
-        5000
+        2000
       );
     } catch (error) {
       if (isAxiosError(error)) {
@@ -63,10 +63,10 @@ export const notificationService = {
       return await requestCache.get(
         'unread_count',
         async () => {
-          const response = await apiClient.get<UnreadCountResponse>('/notifications/unread-count');
+          const response = await apiClient.get<UnreadCountResponse>(`/notifications/unread-count?t=${Date.now()}`);
           return response.data.count || 0;
         },
-        5000
+        2000
       );
     } catch (error) {
       if (isAxiosError(error)) {

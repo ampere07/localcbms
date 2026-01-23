@@ -304,6 +304,12 @@ const ApplicationManagement: React.FC = () => {
       return matchesLocation && matchesSearch;
     });
 
+    filtered.sort((a, b) => {
+      const idA = parseInt(a.id) || 0;
+      const idB = parseInt(b.id) || 0;
+      return idB - idA;
+    });
+
     if (sortColumn) {
       filtered = [...filtered].sort((a, b) => {
         let aValue: any = '';

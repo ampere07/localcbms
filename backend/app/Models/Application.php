@@ -51,14 +51,21 @@ class Application extends Model
     
     protected $casts = [
         'id' => 'integer',
-        'timestamp' => 'datetime',
+        'timestamp' => 'datetime:Y-m-d H:i:s',
         'terms_agreed' => 'boolean',
         'referrer_account_id' => 'integer',
         'created_by_user_id' => 'integer',
         'updated_by_user_id' => 'integer',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'created_at' => 'datetime:Y-m-d H:i:s',
+        'updated_at' => 'datetime:Y-m-d H:i:s'
     ];
+
+    protected $dateFormat = 'Y-m-d H:i:s';
+
+    public function getDateFormat()
+    {
+        return 'Y-m-d H:i:s';
+    }
     
     public function getFullNameAttribute()
     {

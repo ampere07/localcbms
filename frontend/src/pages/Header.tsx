@@ -17,9 +17,34 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
   const [loading, setLoading] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
+  const previousCountRef = useRef(0);
+  const previousNotificationIdsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     mountedRef.current = true;
+    
+    if ('Notification' in window) {
+      console.log('[Notification] API available, current permission:', Notification.permission);
+      
+      if (Notification.permission === 'default') {
+        console.log('[Notification] Requesting permission...');
+        Notification.requestPermission().then(permission => {
+          console.log('[Notification] Permission result:', permission);
+          if (permission === 'granted') {
+            console.log('[Notification] Permission GRANTED - notifications will work');
+          } else {
+            console.warn('[Notification] Permission DENIED - notifications will not work');
+          }
+        });
+      } else if (Notification.permission === 'granted') {
+        console.log('[Notification] Permission already GRANTED');
+      } else {
+        console.warn('[Notification] Permission DENIED');
+      }
+    } else {
+      console.error('[Notification] API not supported in this browser');
+    }
+    
     return () => {
       mountedRef.current = false;
     };
@@ -69,22 +94,68 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
     return () => observer.disconnect();
   }, []);
 
+  const showBrowserNotification = (notification: AppNotification) => {
+    console.log('[Browser Notification] Attempting to show notification:', notification);
+    
+    if (!('Notification' in window)) {
+      console.error('[Browser Notification] Browser does not support notifications');
+      return;
+    }
+
+    if (Notification.permission !== 'granted') {
+      console.warn('[Browser Notification] Permission not granted. Current permission:', Notification.permission);
+      return;
+    }
+
+    try {
+      const browserNotification = new Notification('🔔 New Customer Application', {
+        body: `${notification.customer_name}\nPlan: ${notification.plan_name}`,
+        icon: logoUrl || '/logo192.png',
+        badge: '/logo192.png',
+        tag: `application-${notification.id}`,
+        requireInteraction: false,
+        silent: false,
+        timestamp: Date.now()
+      });
+
+      browserNotification.onclick = () => {
+        console.log('[Browser Notification] Notification clicked');
+        window.focus();
+        browserNotification.close();
+      };
+
+      console.log('[Browser Notification] Notification created successfully for:', notification.customer_name);
+    } catch (error) {
+      console.error('[Browser Notification] Failed to create notification:', error);
+    }
+  };
+
   useEffect(() => {
     const fetchInitialData = async () => {
       if (!mountedRef.current) return;
       
+      console.log('[Fetch] Fetching initial notification data...');
+      
       try {
-        const count = await notificationService.getUnreadCount();
-        if (mountedRef.current) {
-          setUnreadCount(count);
-        }
-        
         const data = await notificationService.getRecentApplications(10);
+        const count = await notificationService.getUnreadCount();
+        
+        console.log('[Fetch] Initial data received:', {
+          notificationCount: data.length,
+          unreadCount: count,
+          notifications: data
+        });
+        
         if (mountedRef.current) {
+          previousCountRef.current = count;
+          setUnreadCount(count);
           setNotifications(data);
+          previousNotificationIdsRef.current = new Set(data.map(n => n.id));
+          
+          console.log('[Fetch] State updated with initial data');
         }
       } catch (error) {
-        console.error('Failed to fetch initial notifications:', error);
+        console.error('[Fetch] Failed to fetch initial notifications:', error);
       }
     };
 
@@ -93,23 +164,51 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
     const interval = setInterval(async () => {
       if (!mountedRef.current) return;
       
+      console.log('[Polling] Checking for new notifications...');
+      
       try {
-        const count = await notificationService.getUnreadCount();
-        if (mountedRef.current) {
-          setUnreadCount(count);
-        }
-        
         const data = await notificationService.getRecentApplications(10);
+        const count = await notificationService.getUnreadCount();
+        
+        console.log('[Polling] Data received:', {
+          notificationCount: data.length,
+          unreadCount: count,
+          previousIds: Array.from(previousNotificationIdsRef.current)
+        });
+        
         if (mountedRef.current) {
+          const currentIds = new Set(data.map(n => n.id));
+          const newNotifications = data.filter(n => !previousNotificationIdsRef.current.has(n.id));
+          
+          if (newNotifications.length > 0) {
+            console.log('[Polling] NEW NOTIFICATIONS DETECTED:', newNotifications.length);
+            console.log('[Polling] New notification details:', newNotifications);
+            
+            newNotifications.forEach((notification, index) => {
+              console.log(`[Polling] Triggering browser notification ${index + 1}/${newNotifications.length}`);
+              showBrowserNotification(notification);
+            });
+          } else {
+            console.log('[Polling] No new notifications');
+          }
+          
+          previousNotificationIdsRef.current = currentIds;
+          previousCountRef.current = count;
+          setUnreadCount(count);
           setNotifications(data);
         }
       } catch (error) {
-        console.error('Failed to fetch notifications:', error);
+        console.error('[Polling] Failed to fetch notifications:', error);
       }
     }, 30000);
 
-    return () => clearInterval(interval);
-  }, []);
+    console.log('[Polling] Interval started - checking every 30 seconds');
+
+    return () => {
+      console.log('[Polling] Interval cleared');
+      clearInterval(interval);
+    };
+  }, [logoUrl]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -138,17 +237,22 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
   };
 
   const toggleNotifications = async () => {
+    console.log('[UI] Toggling notifications modal');
     setShowNotifications(!showNotifications);
     
     if (!showNotifications) {
       setLoading(true);
+      console.log('[UI] Loading notifications for modal...');
+      
       try {
         const data = await notificationService.getRecentApplications(10);
+        console.log('[UI] Notifications loaded for modal:', data);
+        
         if (mountedRef.current) {
           setNotifications(data);
         }
       } catch (error) {
-        console.error('Failed to fetch notifications:', error);
+        console.error('[UI] Failed to fetch notifications for modal:', error);
       } finally {
         if (mountedRef.current) {
           setLoading(false);
@@ -235,7 +339,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
                 <h3 className={`font-semibold ${
                   isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>
-                  Recent Applications
+                  Recent Applications ({notifications.length})
                 </h3>
               </div>
               <div className="max-h-96 overflow-y-auto">

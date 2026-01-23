@@ -2647,6 +2647,7 @@ Route::prefix('system-config')->group(function () {
 Route::prefix('notifications')->group(function () {
     Route::get('/recent-applications', [\App\Http\Controllers\NotificationController::class, 'getRecentApplications']);
     Route::get('/unread-count', [\App\Http\Controllers\NotificationController::class, 'getUnreadCount']);
+    Route::get('/debug-timezone', [\App\Http\Controllers\NotificationController::class, 'debugTimezone']);
 });
 
 Route::post('/debug/verify-password', function(Request $request) {
