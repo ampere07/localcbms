@@ -626,7 +626,7 @@ const ApplicationManagement: React.FC = () => {
     if (columnKey === 'status') {
       const status = application.status || '-';
       return (
-        <span className={`text-xs px-2 py-1 ${
+        <span className={`text-xs px-2 py-1 font-bold uppercase ${
           status.toLowerCase() === 'schedule' ? 'text-green-400' :
           status.toLowerCase() === 'no facility' ? 'text-red-400' :
           status.toLowerCase() === 'cancelled' ? 'text-red-500' :
@@ -664,26 +664,6 @@ const ApplicationManagement: React.FC = () => {
             <h2 className={`text-lg font-semibold ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>Applications</h2>
-            <button 
-              onClick={() => setIsAddModalOpen(true)}
-              className="text-white px-3 py-1 rounded text-sm flex items-center space-x-1 transition-colors"
-              style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
-              }}
-              onMouseEnter={(e) => {
-                if (colorPalette?.accent) {
-                  e.currentTarget.style.backgroundColor = colorPalette.accent;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (colorPalette?.primary) {
-                  e.currentTarget.style.backgroundColor = colorPalette.primary;
-                }
-              }}
-              aria-label="Add new application"
-            >
-              <span>Form</span>
-            </button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -1078,7 +1058,7 @@ const ApplicationManagement: React.FC = () => {
                           </div>
                           <div className="flex flex-col items-end space-y-1 ml-4 flex-shrink-0">
                             {application.status && (
-                              <div className={`text-xs px-2 py-1 ${
+                              <div className={`text-xs px-2 py-1 font-bold uppercase ${
                                 application.status.toLowerCase() === 'schedule' ? 'text-green-400' :
                                 application.status.toLowerCase() === 'no facility' ? 'text-red-400' :
                                 application.status.toLowerCase() === 'cancelled' ? 'text-red-500' :

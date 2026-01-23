@@ -87,6 +87,7 @@ const JobOrderPage: React.FC = () => {
   const [cities, setCities] = useState<City[]>([]);
   const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string>('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
@@ -260,6 +261,12 @@ const JobOrderPage: React.FC = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchData();
+    setTimeout(() => setIsRefreshing(false), 500);
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -322,7 +329,13 @@ const JobOrderPage: React.FC = () => {
     return matchesLocation && matchesSearch;
   });
 
-  const sortedJobOrders = [...filteredJobOrders].sort((a, b) => {
+  const presortedJobOrders = [...filteredJobOrders].sort((a, b) => {
+    const idA = parseInt(String(a.id)) || 0;
+    const idB = parseInt(String(b.id)) || 0;
+    return idB - idA;
+  });
+
+  const sortedJobOrders = [...presortedJobOrders].sort((a, b) => {
     if (!sortColumn) return 0;
 
     let aValue: any = '';
@@ -411,7 +424,7 @@ const JobOrderPage: React.FC = () => {
     }
     
     return (
-      <span className={`${textColor} capitalize`}>
+      <span className={`${textColor} font-bold uppercase`}>
         {status === 'inprogress' ? 'In Progress' : status}
       </span>
     );
@@ -1277,24 +1290,25 @@ const JobOrderPage: React.FC = () => {
                   )}
                 </div>
                 <button
-                  onClick={() => window.location.reload()}
-                  className="text-white px-3 py-2 rounded text-sm flex items-center transition-colors"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="text-white px-3 py-2 rounded text-sm flex items-center transition-colors disabled:bg-gray-600"
                   style={{
-                    backgroundColor: colorPalette?.primary || '#ea580c'
+                    backgroundColor: isRefreshing ? '#4b5563' : (colorPalette?.primary || '#ea580c')
                   }}
                   onMouseEnter={(e) => {
-                    if (colorPalette?.accent) {
+                    if (!isRefreshing && colorPalette?.accent) {
                       e.currentTarget.style.backgroundColor = colorPalette.accent;
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (colorPalette?.primary) {
+                    if (!isRefreshing && colorPalette?.primary) {
                       e.currentTarget.style.backgroundColor = colorPalette.primary;
                     }
                   }}
                   aria-label="Refresh"
                 >
-                  <RefreshCw className="h-5 w-5" />
+                  <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
                 </button>
               </div>
             </div>

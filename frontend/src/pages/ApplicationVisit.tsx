@@ -336,7 +336,13 @@ const ApplicationVisit: React.FC = () => {
     return matchesLocation && matchesSearch;
   });
 
-  const sortedVisits = [...filteredVisits].sort((a, b) => {
+  const presortedVisits = [...filteredVisits].sort((a, b) => {
+    const idA = parseInt(a.id) || 0;
+    const idB = parseInt(b.id) || 0;
+    return idB - idA;
+  });
+
+  const sortedVisits = [...presortedVisits].sort((a, b) => {
     if (!sortColumn) return 0;
 
     let aValue: any = '';
@@ -523,7 +529,7 @@ const ApplicationVisit: React.FC = () => {
     }
     
     return (
-      <span className={`${textColor} capitalize`}>
+      <span className={`${textColor} font-bold uppercase`}>
         {status}
       </span>
     );

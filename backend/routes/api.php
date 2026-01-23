@@ -2711,3 +2711,12 @@ Route::get('/xendit-webhook', function() {
 
 // Public webhook endpoint (no auth required)
 Route::post('/xendit-webhook', [\App\Http\Controllers\Api\XenditPaymentController::class, 'handleWebhook']);
+
+// Job Order Notification routes
+Route::prefix('job-order-notifications')->group(function () {
+    Route::post('/', [\App\Http\Controllers\JobOrderNotificationController::class, 'createJobOrderDoneNotification']);
+    Route::get('/recent', [\App\Http\Controllers\JobOrderNotificationController::class, 'getRecentJobOrderNotifications']);
+    Route::get('/unread-count', [\App\Http\Controllers\JobOrderNotificationController::class, 'getUnreadCount']);
+    Route::put('/{id}/read', [\App\Http\Controllers\JobOrderNotificationController::class, 'markAsRead']);
+    Route::put('/mark-all-read', [\App\Http\Controllers\JobOrderNotificationController::class, 'markAllAsRead']);
+});

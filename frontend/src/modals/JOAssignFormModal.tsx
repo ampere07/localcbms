@@ -101,7 +101,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     remarks: '',
     installationFee: 0.00,
     contractTemplate: '0',
-    billingDay: '30',
+    billingDay: '',
     isLastDayOfMonth: false,
     onsiteStatus: 'In Progress',
     assignedEmail: '',

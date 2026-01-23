@@ -53,6 +53,10 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
   const [showEditStatusModal, setShowEditStatusModal] = useState(false);
   const [currentVisitData, setCurrentVisitData] = useState(applicationVisit);
   const [userRole, setUserRole] = useState<string>('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string>('');
+  const [showInlineConfirmation, setShowInlineConfirmation] = useState(false);
+  const [pendingStatusUpdate, setPendingStatusUpdate] = useState<string | null>(null);
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
@@ -196,6 +200,26 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
     return currentVisitData.full_name || `${currentVisitData.first_name || ''} ${currentVisitData.middle_initial || ''} ${currentVisitData.last_name || ''}`.trim();
   };
 
+  const handleStatusClick = (newStatus: string | null) => {
+    setPendingStatusUpdate(newStatus);
+    setShowInlineConfirmation(true);
+  };
+
+  const handleConfirmStatusUpdate = async () => {
+    setShowInlineConfirmation(false);
+    const newStatus = pendingStatusUpdate;
+    setPendingStatusUpdate(null);
+    
+    if (newStatus === undefined) return;
+    
+    await handleStatusUpdate(newStatus);
+  };
+
+  const handleCancelStatusUpdate = () => {
+    setShowInlineConfirmation(false);
+    setPendingStatusUpdate(null);
+  };
+
   const handleStatusUpdate = async (newStatus: string | null) => {
     try {
       setLoading(true);
@@ -221,7 +245,8 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
       setCurrentVisitData({ ...currentVisitData, visit_status: newStatus || '' });
       
       const statusMessage = newStatus ? `Status updated to ${newStatus}` : 'Status cleared successfully';
-      alert(statusMessage);
+      setSuccessMessage(statusMessage);
+      setShowSuccessModal(true);
       
       if (onUpdate) {
         onUpdate();
@@ -324,7 +349,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
               }}
-              onClick={() => handleStatusUpdate(null)}
+              onClick={() => handleStatusClick(null)}
               disabled={loading}
               title="Clear status and reset to default"
             >
@@ -353,7 +378,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             
             <button 
               className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
-              onClick={() => handleStatusUpdate('Failed')}
+              onClick={() => handleStatusClick('Failed')}
               disabled={loading}
               title="Mark visit as failed"
             >
@@ -382,7 +407,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             
             <button 
               className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
-              onClick={() => handleStatusUpdate('In Progress')}
+              onClick={() => handleStatusClick('In Progress')}
               disabled={loading}
               title="Mark visit as in progress"
             >
@@ -412,6 +437,73 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
         </div>
       )}
       
+      {showInlineConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border ${
+            isDarkMode
+              ? 'bg-gray-800 border-gray-700'
+              : 'bg-white border-gray-300'
+          }`}>
+            <div className="flex items-center mb-4">
+              <div 
+                className="p-2 rounded-full mr-3"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+              >
+                {pendingStatusUpdate === null ? (
+                  <Eraser className="text-white" size={20} />
+                ) : pendingStatusUpdate === 'Failed' ? (
+                  <XOctagon className="text-white" size={20} />
+                ) : (
+                  <RotateCw className="text-white" size={20} />
+                )}
+              </div>
+              <h3 className={`text-xl font-semibold ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Confirm Status Change</h3>
+            </div>
+            <p className={`mb-6 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
+              {pendingStatusUpdate === null 
+                ? 'Are you sure you want to clear the visit status?'
+                : `Are you sure you want to mark this visit as "${pendingStatusUpdate}"?`
+              }
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={handleCancelStatusUpdate}
+                className={`px-4 py-2 rounded transition-colors ${
+                  isDarkMode 
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmStatusUpdate}
+                className="px-4 py-2 text-white rounded transition-colors"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className={`p-3 m-3 rounded ${
           isDarkMode 
@@ -863,6 +955,16 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
           image2_url: currentVisitData.image2_url || '',
           image3_url: currentVisitData.image3_url || ''
         }}
+      />
+
+      <ConfirmationModal
+        isOpen={showSuccessModal}
+        title="Success"
+        message={successMessage}
+        confirmText="OK"
+        cancelText="Close"
+        onConfirm={() => setShowSuccessModal(false)}
+        onCancel={() => setShowSuccessModal(false)}
       />
     </div>
   );

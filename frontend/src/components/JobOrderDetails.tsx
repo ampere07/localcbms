@@ -10,6 +10,7 @@ import JobOrderDoneFormModal from '../modals/JobOrderDoneFormModal';
 import JobOrderDoneFormTechModal from '../modals/JobOrderDoneFormTechModal';
 import JobOrderEditFormModal from '../modals/JobOrderEditFormModal';
 import ApprovalConfirmationModal from '../modals/ApprovalConfirmationModal';
+import ConfirmationModal from '../modals/MoveToJoModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, onRefresh, isMobile = false }) => {
@@ -23,6 +24,8 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
   const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
   const [userRole, setUserRole] = useState<string>('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string>('');
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
@@ -242,7 +245,8 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         Assigned_Email: formData.assignedEmail
       });
       
-      alert('Job Order updated successfully!');
+      setSuccessMessage('Job Order updated successfully!');
+      setShowSuccessModal(true);
       setIsDoneModalOpen(false);
     } catch (err: any) {
       setError(`Failed to update job order: ${err.message}`);
@@ -300,7 +304,8 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         Status_Remarks: formData.statusRemarks
       });
       
-      alert('Job Order updated successfully!');
+      setSuccessMessage('Job Order updated successfully!');
+      setShowSuccessModal(true);
       setIsEditModalOpen(false);
     } catch (err: any) {
       setError(`Failed to update job order: ${err.message}`);
@@ -335,7 +340,8 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           message += `\n\nCustomer Login Credentials:\nUsername: ${accountNumber}\nPassword: ${contactNumber}`;
         }
         
-        alert(message);
+        setSuccessMessage(message);
+        setShowSuccessModal(true);
         setIsApprovalModalOpen(false);
         if (onRefresh) {
           onRefresh();
@@ -375,7 +381,8 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       
       jobOrder.Onsite_Status = newStatus;
       
-      alert(`Status updated to ${newStatus}`);
+      setSuccessMessage(`Status updated to ${newStatus}`);
+      setShowSuccessModal(true);
     } catch (err: any) {
       setError(`Failed to update status: ${err.message}`);
       console.error('Status update error:', err);
@@ -1192,6 +1199,16 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         onClose={() => setIsApprovalModalOpen(false)}
         onConfirm={handleApproveConfirm}
         loading={loading}
+      />
+
+      <ConfirmationModal
+        isOpen={showSuccessModal}
+        title="Success"
+        message={successMessage}
+        confirmText="OK"
+        cancelText="Close"
+        onConfirm={() => setShowSuccessModal(false)}
+        onCancel={() => setShowSuccessModal(false)}
       />
     </div>
   );

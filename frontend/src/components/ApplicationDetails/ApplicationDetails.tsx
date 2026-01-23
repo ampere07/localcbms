@@ -39,6 +39,8 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   const [showStatusConfirmation, setShowStatusConfirmation] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string>('');
   const [showVisitExistsConfirmation, setShowVisitExistsConfirmation] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string>('');
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
@@ -166,7 +168,8 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         onApplicationUpdate();
       }
       
-      alert(`Status updated to ${pendingStatus}`);
+      setSuccessMessage(`Status updated to ${pendingStatus}`);
+      setShowSuccessModal(true);
     } catch (err: any) {
       setError(`Failed to update status: ${err.message}`);
       console.error('Status update error:', err);
@@ -281,19 +284,28 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         </div>
         
         <div className="flex items-center space-x-3">
-          <button className={`p-1 rounded-sm border flex items-center justify-center ${
-            isDarkMode ? 'bg-gray-800 hover:bg-gray-700 text-white border-gray-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300'
-          }`}>
-            <Newspaper size={16} />
-          </button>
           <button 
-            className={`p-1 rounded-sm border flex items-center justify-center ${
-              isDarkMode ? 'bg-gray-800 hover:bg-gray-700 text-white border-gray-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300'
-            }`}
+            className="px-3 py-1 rounded-sm flex items-center text-white"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
             onClick={handleMoveToJO}
+            disabled={loading}
           >
-            <ArrowRightFromLine size={16} />
+            <span>Move To JO</span>
           </button>
+
+          
           <button 
             className="px-3 py-1 rounded-sm flex items-center text-white"
             style={{
@@ -729,9 +741,12 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             <div className={`flex border-b py-2 ${
               isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
-              <div className={`w-40 text-sm whitespace-nowrap ${
+              <div className={`w-40 text-sm ${
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Secondary Government Valid ID</div>
+              }`}>
+                <div>Secondary Government</div>
+                <div>Valid ID</div>
+              </div>
               <div className={`flex-1 flex items-center justify-between min-w-0 ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
@@ -953,6 +968,16 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           id: detailedApplication?.id || application.id,
           secondaryNumber: detailedApplication?.mobile_alt || ''
         }}
+      />
+
+      <ConfirmationModal
+        isOpen={showSuccessModal}
+        title="Success"
+        message={successMessage}
+        confirmText="OK"
+        cancelText="Close"
+        onConfirm={() => setShowSuccessModal(false)}
+        onCancel={() => setShowSuccessModal(false)}
       />
     </div>
   );

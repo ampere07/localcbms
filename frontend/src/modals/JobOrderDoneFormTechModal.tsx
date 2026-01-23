@@ -19,6 +19,7 @@ import { updateApplication } from '../services/applicationService';
 import apiClient from '../config/api';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import LocationPicker from '../components/LocationPicker';
 
 interface Region {
   id: number;
@@ -2212,25 +2213,14 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 )}
               </div>
 
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Address Coordinates<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <input type="text" value={formData.addressCoordinates} onChange={(e) => handleInputChange('addressCoordinates', e.target.value)} placeholder="14.466580, 121.201807" className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 pr-10 ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.addressCoordinates ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} />
-                  <MapPin className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-                </div>
-                {errors.addressCoordinates && (
-                  <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
-                  </div>
-                )}
-              </div>
+              <LocationPicker
+                value={formData.addressCoordinates}
+                onChange={(coordinates) => handleInputChange('addressCoordinates', coordinates)}
+                isDarkMode={isDarkMode}
+                label="Address Coordinates"
+                required={true}
+                error={errors.addressCoordinates}
+              />
             </>
           )}
 

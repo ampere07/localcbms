@@ -359,6 +359,12 @@ const ServiceOrder: React.FC = () => {
       return matchesLocation && matchesSearch;
     });
 
+    filtered.sort((a, b) => {
+      const idA = parseInt(a.id) || 0;
+      const idB = parseInt(b.id) || 0;
+      return idB - idA;
+    });
+
     if (sortColumn) {
       filtered = [...filtered].sort((a, b) => {
         let aValue: any = '';
@@ -479,7 +485,7 @@ const ServiceOrder: React.FC = () => {
     }
     
     return (
-      <span className={`${textColor} capitalize`}>
+      <span className={`${textColor} font-bold uppercase`}>
         {status === 'in-progress' ? 'In Progress' : status}
       </span>
     );
