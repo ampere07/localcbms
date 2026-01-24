@@ -493,20 +493,10 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             <div className={`w-40 text-sm ${
               isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Contact Number:</div>
-            <div className={`flex-1 flex items-center ${
+            <div className={`flex-1 ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
               {detailedApplication?.mobile_number || application.mobile_number || 'Not provided'}
-              {(detailedApplication?.mobile_number || application.mobile_number) && (
-                <>
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <Phone size={16} />
-                  </button>
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <MessageSquare size={16} />
-                  </button>
-                </>
-              )}
             </div>
           </div>
         );
@@ -519,20 +509,10 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             <div className={`w-40 text-sm ${
               isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Second Contact Number:</div>
-            <div className={`flex-1 flex items-center ${
+            <div className={`flex-1 ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
               {detailedApplication?.secondary_mobile_number || 'Not provided'}
-              {detailedApplication?.secondary_mobile_number && (
-                <>
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <Phone size={16} />
-                  </button>
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <MessageSquare size={16} />
-                  </button>
-                </>
-              )}
             </div>
           </div>
         );
@@ -545,15 +525,10 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             <div className={`w-40 text-sm ${
               isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Email Address:</div>
-            <div className={`flex-1 flex items-center ${
+            <div className={`flex-1 ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
               {detailedApplication?.email_address || application.email_address || 'Not provided'}
-              {(detailedApplication?.email_address || application.email_address) && (
-                <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                  <Mail size={16} />
-                </button>
-              )}
             </div>
           </div>
         );
@@ -622,15 +597,10 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             <div className={`w-40 text-sm ${
               isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Desired Plan:</div>
-            <div className={`flex-1 flex items-center ${
+            <div className={`flex-1 ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
               {detailedApplication?.desired_plan || 'Not specified'}
-              {detailedApplication?.desired_plan && (
-                <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                  <Info size={16} />
-                </button>
-              )}
             </div>
           </div>
         );
@@ -964,7 +934,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             onClick={handleMoveToJO}
             disabled={loading}
           >
-            <span>Move To JO</span>
+            <span>Move to JO</span>
           </button>
           <button 
             className="px-3 py-1 rounded-sm flex items-center text-white"
@@ -1074,9 +1044,6 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             )}
           </div>
           
-          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowLeft size={16} /></button>
-          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowRight size={16} /></button>
-          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><Maximize2 size={16} /></button>
           <button 
             onClick={onClose}
             className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}

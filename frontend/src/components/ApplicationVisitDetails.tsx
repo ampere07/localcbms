@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  ArrowLeft, ArrowRight, Maximize2, X, Phone, MessageSquare, Info, 
-  ExternalLink, Mail, Edit, Trash2, ArrowRightToLine, Eraser, XOctagon, RotateCw, Settings
+  X, ExternalLink, Edit, XOctagon, RotateCw, Settings
 } from 'lucide-react';
 import { getApplication } from '../services/applicationService';
 import { updateApplicationVisit } from '../services/applicationVisitService';
@@ -435,20 +434,10 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             <div className={`w-40 text-sm ${
               isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Contact Number:</div>
-            <div className={`flex-1 flex items-center ${
+            <div className={`flex-1 ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
               {applicationDetails?.mobile_number || 'Not provided'}
-              {applicationDetails?.mobile_number && (
-                <>
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <Phone size={16} />
-                  </button>
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <MessageSquare size={16} />
-                  </button>
-                </>
-              )}
             </div>
           </div>
         );
@@ -461,20 +450,10 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             <div className={`w-40 text-sm ${
               isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Second Contact Number:</div>
-            <div className={`flex-1 flex items-center ${
+            <div className={`flex-1 ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
               {applicationDetails?.secondary_mobile_number || 'Not provided'}
-              {applicationDetails?.secondary_mobile_number && (
-                <>
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <Phone size={16} />
-                  </button>
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <MessageSquare size={16} />
-                  </button>
-                </>
-              )}
             </div>
           </div>
         );
@@ -487,15 +466,10 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             <div className={`w-40 text-sm ${
               isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Email Address:</div>
-            <div className={`flex-1 flex items-center ${
+            <div className={`flex-1 ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
               {applicationDetails?.email_address || 'Not provided'}
-              {applicationDetails?.email_address && (
-                <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                  <Mail size={16} />
-                </button>
-              )}
             </div>
           </div>
         );
@@ -522,15 +496,10 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             <div className={`w-40 text-sm ${
               isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Chosen Plan:</div>
-            <div className={`flex-1 flex items-center ${
+            <div className={`flex-1 ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
               {applicationDetails?.desired_plan || 'Not specified'}
-              {applicationDetails?.desired_plan && (
-                <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                  <Info size={16} />
-                </button>
-              )}
             </div>
           </div>
         );
@@ -653,15 +622,10 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             <div className={`w-40 text-sm ${
               isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Assigned Email:</div>
-            <div className={`flex-1 flex items-center ${
+            <div className={`flex-1 ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
               {currentVisitData.assigned_email || 'Not assigned'}
-              {currentVisitData.assigned_email && (
-                <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                  <Mail size={16} />
-                </button>
-              )}
             </div>
           </div>
         );
@@ -867,18 +831,24 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
         
         <div className="flex items-center space-x-3">
           {userRole !== 'technician' && userRole === 'administrator' && (
-            <>
-              <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}>
-                <Trash2 size={16} />
-              </button>
-              <button 
-                className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
-                onClick={handleMoveToJO}
-                title="Move to Job Order"
-              >
-                <ArrowRightToLine size={16} />
-              </button>
-            </>
+            <button 
+              className="text-white px-3 py-1 rounded-sm flex items-center transition-colors"
+              style={{
+                backgroundColor: colorPalette?.primary || '#ea580c'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+              }}
+              onClick={handleMoveToJO}
+              title="Move to Job Order"
+            >
+              <span>Move to JO</span>
+            </button>
           )}
           <button 
             className="text-white px-3 py-1 rounded-sm flex items-center transition-colors"
@@ -987,9 +957,6 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             )}
           </div>
           
-          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowLeft size={16} /></button>
-          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowRight size={16} /></button>
-          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><Maximize2 size={16} /></button>
           <button 
             onClick={onClose}
             className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
@@ -1005,44 +972,6 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
           isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-200'
         }`}>
           <div className="flex items-center justify-center px-4 space-x-4 md:space-x-8">
-            <button 
-              className="flex flex-col items-center text-center p-2 rounded-md transition-colors"
-              style={{
-                backgroundColor: isDarkMode ? 'transparent' : 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = isDarkMode ? '#1f2937' : '#e5e7eb';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-              onClick={() => handleStatusClick(null)}
-              disabled={loading}
-              title="Clear status and reset to default"
-            >
-              <div 
-                className="p-2 rounded-full transition-colors"
-                style={{
-                  backgroundColor: loading ? (isDarkMode ? '#4b5563' : '#9ca3af') : (colorPalette?.primary || '#ea580c')
-                }}
-                onMouseEnter={(e) => {
-                  if (!loading && colorPalette?.accent) {
-                    e.currentTarget.style.backgroundColor = colorPalette.accent;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!loading) {
-                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
-                  }
-                }}
-              >
-                <Eraser className="text-white" size={18} />
-              </div>
-              <span className={`text-xs mt-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Clear Status</span>
-            </button>
-            
             <button 
               className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
               onClick={() => handleStatusClick('Failed')}
@@ -1118,9 +1047,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
                   backgroundColor: colorPalette?.primary || '#ea580c'
                 }}
               >
-                {pendingStatusUpdate === null ? (
-                  <Eraser className="text-white" size={20} />
-                ) : pendingStatusUpdate === 'Failed' ? (
+                {pendingStatusUpdate === 'Failed' ? (
                   <XOctagon className="text-white" size={20} />
                 ) : (
                   <RotateCw className="text-white" size={20} />
@@ -1133,9 +1060,9 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             <p className={`mb-6 ${
               isDarkMode ? 'text-gray-300' : 'text-gray-700'
             }`}>
-              {pendingStatusUpdate === null 
-                ? 'Are you sure you want to clear the visit status?'
-                : `Are you sure you want to mark this visit as "${pendingStatusUpdate}"?`
+              {pendingStatusUpdate === 'Failed'
+                ? 'Are you sure you want to mark this visit as "Failed"?'
+                : 'Are you sure you want to mark this visit as "In Progress"?'
               }
             </p>
             <div className="flex justify-end space-x-3">

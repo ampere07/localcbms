@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  ArrowLeft, ArrowRight, Maximize2, X, ExternalLink, Mail, Edit, Info, FileCheck, Settings 
+  X, ExternalLink, Edit, FileCheck, Settings 
 } from 'lucide-react';
 import ServiceOrderEditModal from '../modals/ServiceOrderEditModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -328,22 +328,17 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
     }
   };
 
-  const renderField = (label: string, value: any, hasInfo: boolean = false) => (
+  const renderField = (label: string, value: any) => (
     <div className={`flex py-2 ${
       isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
     }`}>
       <div className={`w-40 text-sm ${
         isDarkMode ? 'text-gray-400' : 'text-gray-600'
       }`}>{label}</div>
-      <div className={`flex-1 flex items-center ${
+      <div className={`flex-1 ${
         isDarkMode ? 'text-white' : 'text-gray-900'
       }`}>
         {value || '-'}
-        {hasInfo && (
-          <button className={isDarkMode ? 'ml-2 text-gray-400 hover:text-white' : 'ml-2 text-gray-600 hover:text-gray-900'}>
-            <Info size={16} />
-          </button>
-        )}
       </div>
     </div>
   );
@@ -409,9 +404,9 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'emailAddress':
         return renderField('Email Address', serviceOrder.emailAddress);
       case 'plan':
-        return renderField('Plan', serviceOrder.plan, true);
+        return renderField('Plan', serviceOrder.plan);
       case 'affiliate':
-        return renderField('Affiliate', serviceOrder.affiliate, true);
+        return renderField('Affiliate', serviceOrder.affiliate);
       case 'username':
         return renderField('Username', serviceOrder.username);
       case 'connectionType':
@@ -419,15 +414,15 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'routerModemSN':
         return renderField('Router/Modem SN', serviceOrder.routerModemSN);
       case 'lcp':
-        return renderField('LCP', serviceOrder.lcp, true);
+        return renderField('LCP', serviceOrder.lcp);
       case 'nap':
-        return renderField('NAP', serviceOrder.nap, true);
+        return renderField('NAP', serviceOrder.nap);
       case 'port':
-        return renderField('PORT', serviceOrder.port, true);
+        return renderField('PORT', serviceOrder.port);
       case 'vlan':
-        return renderField('VLAN', serviceOrder.vlan, true);
+        return renderField('VLAN', serviceOrder.vlan);
       case 'concern':
-        return renderField('Concern', serviceOrder.concern, true);
+        return renderField('Concern', serviceOrder.concern);
       case 'concernRemarks':
         return renderField('Concern Remarks', serviceOrder.concernRemarks);
       case 'visitStatus':
@@ -446,41 +441,23 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
           </div>
         );
       case 'visitBy':
-        return renderField('Visit By', serviceOrder.visitBy, true);
+        return renderField('Visit By', serviceOrder.visitBy);
       case 'visitWith':
-        return renderField('Visit With', serviceOrder.visitWith, true);
+        return renderField('Visit With', serviceOrder.visitWith);
       case 'visitWithOther':
-        return renderField('Visit With Other', serviceOrder.visitWithOther, true);
+        return renderField('Visit With Other', serviceOrder.visitWithOther);
       case 'visitRemarks':
         return renderField('Visit Remarks', serviceOrder.visitRemarks);
       case 'modifiedBy':
-        return renderField('Modified By', serviceOrder.modifiedBy, true);
+        return renderField('Modified By', serviceOrder.modifiedBy);
       case 'modifiedDate':
         return renderField('Modified Date', serviceOrder.modifiedDate);
       case 'userEmail':
-        return (
-          <div className={`flex py-2 ${
-            isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>User Email</div>
-            <div className={`flex-1 flex items-center ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>
-              {serviceOrder.userEmail}
-              <button className={`ml-2 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                <Mail size={16} />
-              </button>
-            </div>
-          </div>
-        );
+        return renderField('User Email', serviceOrder.userEmail);
       case 'requestedBy':
-        return renderField('Requested by', serviceOrder.requestedBy, true);
+        return renderField('Requested by', serviceOrder.requestedBy);
       case 'assignedEmail':
-        return renderField('Assigned Email', serviceOrder.assignedEmail, true);
+        return renderField('Assigned Email', serviceOrder.assignedEmail);
       case 'supportRemarks':
         return renderField('Support Remarks', serviceOrder.supportRemarks);
       case 'supportStatus':

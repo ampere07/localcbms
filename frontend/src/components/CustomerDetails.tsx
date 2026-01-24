@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronRight, Plus, Trash2, OctagonX, HandCoins, Wrench, Edit, ChevronLeft, ChevronRight as ChevronRightNav, Maximize2, X, Paperclip, Calendar, ExternalLink, Settings } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2, Wrench, Edit, ChevronLeft, ChevronRight as ChevronRightNav, Maximize2, X, ExternalLink, Settings } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import TransactConfirmationModal from '../modals/TransactConfirmationModal';
 import TransactionFormModal from '../modals/TransactionFormModal';
 import StaggeredInstallationFormModal from '../modals/StaggeredInstallationFormModal';
@@ -9,6 +12,14 @@ import CustomerDetailsEditModal from '../modals/CustomerDetailsEditModal';
 import { BillingDetailRecord } from '../types/billing';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { customerDetailUpdateService } from '../services/customerDetailUpdateService';
+
+// Fix Leaflet default icon issue
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 interface OnlineStatusRecord {
   id: string;
@@ -350,22 +361,69 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           }`}>{billingRecord.referredBy}</span>
         </div>
       ) : null,
-      addressCoordinates: () => billingRecord.addressCoordinates ? (
-        <div className="space-y-2">
-          <span className={`text-sm ${
-            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-          }`}>Address Coordinates</span>
-          <div className={`w-full h-24 border rounded flex items-center justify-center ${
-            isDarkMode
-              ? 'bg-gray-800 border-gray-700'
-              : 'bg-gray-100 border-gray-300'
-          }`}>
+      addressCoordinates: () => {
+        if (!billingRecord.addressCoordinates) return null;
+        
+        // Parse coordinates - expecting format like "14.1234,121.5678" or "14.1234, 121.5678"
+        const coords = billingRecord.addressCoordinates.split(',').map(c => parseFloat(c.trim()));
+        
+        if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
+          return (
+            <div className="space-y-2">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Address Coordinates</span>
+              <div className={`w-full h-24 border rounded flex items-center justify-center ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-gray-100 border-gray-300'
+              }`}>
+                <span className={`text-sm ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                }`}>{billingRecord.addressCoordinates}</span>
+              </div>
+            </div>
+          );
+        }
+
+        const [lat, lng] = coords;
+
+        return (
+          <div className="space-y-2">
             <span className={`text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Address Coordinates</span>
+            <div className={`w-full h-64 border rounded overflow-hidden ${
+              isDarkMode
+                ? 'border-gray-700'
+                : 'border-gray-300'
+            }`}>
+              <MapContainer
+                center={[lat, lng]}
+                zoom={16}
+                style={{ height: '100%', width: '100%' }}
+                scrollWheelZoom={false}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <Marker position={[lat, lng]}>
+                  <Popup>
+                    {billingRecord.customerName}<br />
+                    {billingRecord.address}
+                  </Popup>
+                </Marker>
+              </MapContainer>
+            </div>
+            <div className={`text-xs ${
               isDarkMode ? 'text-gray-500' : 'text-gray-600'
-            }`}>{billingRecord.addressCoordinates}</span>
+            }`}>
+              Latitude: {lat}, Longitude: {lng}
+            </div>
           </div>
-        </div>
-      ) : null,
+        );
+      },
       houseFrontPicture: () => billingRecord.houseFrontPicture ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${
@@ -766,20 +824,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           {billingRecord.applicationId} | {billingRecord.customerName} | {billingRecord.address}
         </h1>
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <OctagonX size={18} />
-          </button>
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <HandCoins size={18} />
-          </button>
           <button 
             onClick={handleWrenchClick}
             className={`p-2 rounded transition-colors ${
@@ -799,6 +843,25 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             }`}
           >
             <Edit size={18} />
+          </button>
+          <button 
+            onClick={handleTransactClick}
+            className="px-3 py-1 rounded text-sm transition-colors text-white"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
+          >
+            Transact
           </button>
           <div className="relative">
             <button
@@ -927,46 +990,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             )}
           </div>
           <button 
-            onClick={handleTransactClick}
-            className="px-3 py-1 rounded text-sm transition-colors text-white"
-            style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
-            }}
-            onMouseEnter={(e) => {
-              if (colorPalette?.accent) {
-                e.currentTarget.style.backgroundColor = colorPalette.accent;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (colorPalette?.primary) {
-                e.currentTarget.style.backgroundColor = colorPalette.primary;
-              }
-            }}
-          >
-            Transact
-          </button>
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <ChevronLeft size={18} />
-          </button>
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <ChevronRightNav size={18} />
-          </button>
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <Maximize2 size={18} />
-          </button>
-          <button 
             onClick={handleClose}
             className={`p-2 rounded transition-colors ${
               isDarkMode
@@ -976,57 +999,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           >
             <X size={18} />
           </button>
-        </div>
-      </div>
-
-      <div className={`px-6 py-4 flex items-center space-x-4 border-b ${
-        isDarkMode ? 'border-gray-700' : 'border-gray-200'
-      }`}>
-        <div className="flex flex-col items-center space-y-2">
-          <button 
-            className="flex items-center justify-center w-10 h-10 text-white rounded-full transition-colors"
-            style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
-            }}
-            onMouseEnter={(e) => {
-              if (colorPalette?.accent) {
-                e.currentTarget.style.backgroundColor = colorPalette.accent;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (colorPalette?.primary) {
-                e.currentTarget.style.backgroundColor = colorPalette.primary;
-              }
-            }}
-          >
-            <Paperclip size={18} />
-          </button>
-          <span className={`text-xs ${
-            isDarkMode ? 'text-gray-300' : 'text-gray-600'
-          }`}>Attachment</span>
-        </div>
-        <div className="flex flex-col items-center space-y-2">
-          <button 
-            className="flex items-center justify-center w-10 h-10 text-white rounded-full transition-colors"
-            style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
-            }}
-            onMouseEnter={(e) => {
-              if (colorPalette?.accent) {
-                e.currentTarget.style.backgroundColor = colorPalette.accent;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (colorPalette?.primary) {
-                e.currentTarget.style.backgroundColor = colorPalette.primary;
-              }
-            }}
-          >
-            <Calendar size={18} />
-          </button>
-          <span className={`text-xs ${
-            isDarkMode ? 'text-gray-300' : 'text-gray-600'
-          }`}>Change Billing Date</span>
         </div>
       </div>
 
@@ -1191,88 +1163,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           isDarkMode ? 'border-gray-700' : 'border-gray-200'
         }`}>
           <button
-            onClick={() => toggleSection('onlineStatus')}
-            className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${
-              isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-            }`}
-          >
-            <div className="flex items-center space-x-2">
-              <span className={`font-medium ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Related Online Status</span>
-              <span className={`text-xs px-2 py-1 rounded ${
-                isDarkMode
-                  ? 'bg-gray-600 text-white'
-                  : 'bg-gray-300 text-gray-900'
-              }`}>{defaultOnlineStatus.length}</span>
-            </div>
-            {expandedSections.onlineStatus ? (
-              <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-            ) : (
-              <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-            )}
-          </button>
-
-          {expandedSections.onlineStatus && (
-            <div className="px-6 pb-4">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className={`border-b ${
-                      isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                    }`}>
-                      <th className={`text-left py-2 font-medium ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Status</th>
-                      <th className={`text-left py-2 font-medium ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Account No.</th>
-                      <th className={`text-left py-2 font-medium ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Username</th>
-                      <th className={`text-left py-2 font-medium ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Affiliate</th>
-                      <th className={`text-left py-2 font-medium ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>SPLYNX ID</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {defaultOnlineStatus.map((record) => (
-                      <tr key={record.id} className={`border-b ${
-                        isDarkMode ? 'border-gray-800' : 'border-gray-200'
-                      }`}>
-                        <td className="py-2 text-green-400">{record.status}</td>
-                        <td className="py-2 text-red-400">{record.accountNo}</td>
-                        <td className={`py-2 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>{record.username}</td>
-                        <td className={`py-2 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>{record.group}</td>
-                        <td className={`py-2 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>{record.splynxId}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex justify-end mt-4">
-                <button className={isDarkMode
-                  ? 'text-red-400 hover:text-red-300 text-sm'
-                  : 'text-red-600 hover:text-red-700 text-sm'
-                }>Expand</button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className={`border-b ${
-          isDarkMode ? 'border-gray-700' : 'border-gray-200'
-        }`}>
-          <button
             onClick={() => toggleSection('staggeredInstallations')}
             className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${
               isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
@@ -1310,47 +1200,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 >
                   Add
                 </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className={`border-b ${
-          isDarkMode ? 'border-gray-700' : 'border-gray-200'
-        }`}>
-          <button
-            onClick={() => toggleSection('advancedPayments')}
-            className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${
-              isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-            }`}
-          >
-            <div className="flex items-center space-x-2">
-              <span className={`font-medium ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Related Advanced Payments</span>
-              <span className={`text-xs px-2 py-1 rounded ${
-                isDarkMode
-                  ? 'bg-gray-600 text-white'
-                  : 'bg-gray-300 text-gray-900'
-              }`}>0</span>
-            </div>
-            {expandedSections.advancedPayments ? (
-              <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-            ) : (
-              <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-            )}
-          </button>
-
-          {expandedSections.advancedPayments && (
-            <div className="px-6 pb-4">
-              <div className={`text-center py-8 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>No items</div>
-              <div className="flex justify-end">
-                <button className={isDarkMode
-                  ? 'text-red-400 hover:text-red-300 text-sm'
-                  : 'text-red-600 hover:text-red-700 text-sm'
-                }>Add</button>
               </div>
             </div>
           )}
@@ -1402,13 +1251,10 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           )}
         </div>
         {[
-          { key: 'staggeredPayments', label: 'Related Staggered Payments' },
           { key: 'serviceOrders', label: 'Related Service Orders' },
           { key: 'reconnectionLogs', label: 'Related Reconnection Logs' },
           { key: 'disconnectedLogs', label: 'Related Disconnected Logs' },
           { key: 'detailsUpdateLogs', label: 'Related Details Update Logs' },
-          { key: 'inventoryLogs', label: 'Related Inventory Logs' },
-          { key: 'borrowedLogs', label: 'Related Borrowed Logs' },
           { key: 'planChangeLogs', label: 'Related Plan Change Logs' },
           { key: 'serviceChargeLogs', label: 'Related Service Charge Logs' },
           { key: 'changeDueLogs', label: 'Related Change Due Logs' },

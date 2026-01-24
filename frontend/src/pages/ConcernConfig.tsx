@@ -1,29 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, X, Check } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { concernService, Concern } from '../services/concernService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import EditConcernModal from '../modals/EditConcernModal';
+
+interface ConcernFormData {
+  name: string;
+}
 
 const ConcernConfig: React.FC = () => {
-  const [concerns, setConcerns] = useState<Concern[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [showAddModal, setShowAddModal] = useState<boolean>(false);
-  const [showEditModal, setShowEditModal] = useState<boolean>(false);
-  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
-  const [newConcernName, setNewConcernName] = useState<string>('');
-  const [editingConcern, setEditingConcern] = useState<Concern | null>(null);
-  const [deletingConcern, setDeletingConcern] = useState<Concern | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
-  const [error, setError] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [concerns, setConcerns] = useState<Concern[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Concern | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [deletingItems, setDeletingItems] = useState<Set<number>>(new Set());
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
-    const checkDarkMode = () => {
-      const theme = localStorage.getItem('theme');
-      setIsDarkMode(theme === 'dark' || theme === null);
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
     };
+    
+    fetchColorPalette();
+  }, []);
 
-    checkDarkMode();
-
+  useEffect(() => {
     const observer = new MutationObserver(() => {
-      checkDarkMode();
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme !== 'light');
     });
 
     observer.observe(document.documentElement, {
@@ -31,355 +43,263 @@ const ConcernConfig: React.FC = () => {
       attributeFilter: ['class']
     });
 
+    const theme = localStorage.getItem('theme');
+    setIsDarkMode(theme !== 'light');
+
     return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    fetchConcerns();
+    loadConcerns();
   }, []);
 
-  const fetchConcerns = async () => {
+  const loadConcerns = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      setLoading(true);
       const data = await concernService.getAllConcerns();
       setConcerns(data);
-    } catch (err) {
-      console.error('Error fetching concerns:', err);
-      setError('Failed to load concerns');
+    } catch (error) {
+      console.error('Error loading concerns:', error);
+      setError('Failed to load concerns. Please try again.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleAddConcern = async () => {
-    if (!newConcernName.trim()) {
-      setError('Concern name cannot be empty');
+  const handleDelete = async (item: Concern, event: React.MouseEvent) => {
+    event.stopPropagation();
+    
+    if (!window.confirm(`⚠️ PERMANENT DELETE WARNING ⚠️\n\nAre you sure you want to permanently delete "${item.concern_name}"?\n\nThis action CANNOT BE UNDONE!\n\nClick OK to permanently delete, or Cancel to keep the item.`)) {
       return;
     }
 
+    setDeletingItems(prev => {
+      const newSet = new Set(prev);
+      newSet.add(item.id);
+      return newSet;
+    });
+    
     try {
-      await concernService.createConcern(newConcernName);
-      setShowAddModal(false);
-      setNewConcernName('');
-      setError('');
-      fetchConcerns();
-    } catch (err) {
-      setError('Failed to add concern');
+      await concernService.deleteConcern(item.id);
+      await loadConcerns();
+    } catch (error) {
+      console.error('Error deleting concern:', error);
+      alert('Failed to delete concern: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setDeletingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(item.id);
+        return newSet;
+      });
     }
   };
 
-  const handleEditConcern = async () => {
-    if (!editingConcern || !editingConcern.concern_name.trim()) {
-      setError('Concern name cannot be empty');
-      return;
-    }
+  const handleEdit = (item: Concern, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setEditingItem(item);
+    setIsModalOpen(true);
+  };
 
+  const handleAddNew = () => {
+    setEditingItem(null);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async (formData: ConcernFormData) => {
     try {
-      await concernService.updateConcern(editingConcern.id, editingConcern.concern_name);
-      setShowEditModal(false);
-      setEditingConcern(null);
-      setError('');
-      fetchConcerns();
-    } catch (err) {
-      setError('Failed to update concern');
+      if (editingItem) {
+        await concernService.updateConcern(editingItem.id, formData.name.trim());
+      } else {
+        await concernService.createConcern(formData.name.trim());
+      }
+      await loadConcerns();
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      throw error;
     }
   };
 
-  const handleDeleteConcern = async () => {
-    if (!deletingConcern) return;
-
-    try {
-      await concernService.deleteConcern(deletingConcern.id);
-      setShowDeleteModal(false);
-      setDeletingConcern(null);
-      setError('');
-      fetchConcerns();
-    } catch (err) {
-      setError('Failed to delete concern');
-    }
-  };
-
-  const openEditModal = (concern: Concern) => {
-    setEditingConcern({ ...concern });
-    setShowEditModal(true);
-    setError('');
-  };
-
-  const openDeleteModal = (concern: Concern) => {
-    setDeletingConcern(concern);
-    setShowDeleteModal(true);
-    setError('');
-  };
+  const filteredConcerns = concerns.filter(item => {
+    if (!searchQuery) return true;
+    return item.concern_name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Concern Configuration
-          </h1>
-          <button
-            onClick={() => {
-              setShowAddModal(true);
-              setError('');
-            }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-              isDarkMode 
-                ? 'bg-orange-600 hover:bg-orange-700 text-white' 
-                : 'bg-orange-500 hover:bg-orange-600 text-white'
-            }`}
-          >
-            <Plus className="h-5 w-5" />
-            Add Concern
-          </button>
-        </div>
-
-        {error && (
-          <div className={`mb-4 p-4 rounded-lg ${
-            isDarkMode ? 'bg-red-900 text-red-200' : 'bg-red-100 text-red-800'
+    <div className={`${
+      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    } h-full flex overflow-hidden`}>
+      <div className={`${
+        isDarkMode ? 'bg-gray-900' : 'bg-white'
+      } overflow-hidden flex-1`}>
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className={`p-4 border-b flex-shrink-0 ${
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
           }`}>
-            {error}
+            <div className="flex items-center space-x-3">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Search Concerns"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${
+                    isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700' 
+                      : 'bg-gray-100 text-gray-900 border-gray-300'
+                  } border`}
+                  onFocus={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.borderColor = colorPalette.primary;
+                      e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} />
+              </div>
+              <button
+                onClick={handleAddNew}
+                className="text-white px-4 py-2 rounded text-sm transition-colors flex items-center space-x-1"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add</span>
+              </button>
+            </div>
           </div>
-        )}
-
-        {loading ? (
-          <div className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            Loading concerns...
-          </div>
-        ) : (
-          <div className={`rounded-lg shadow ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            <table className="w-full">
-              <thead className={isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}>
-                <tr>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    ID
-                  </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    Concern Name
-                  </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className={isDarkMode ? 'divide-y divide-gray-700' : 'divide-y divide-gray-200'}>
-                {concerns.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className={`px-6 py-4 text-center ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      No concerns found
-                    </td>
-                  </tr>
-                ) : (
-                  concerns.map((concern) => (
-                    <tr key={concern.id} className={isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
-                        {concern.id}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
-                        {concern.concern_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex gap-2">
+          
+          {/* Content */}
+          <div className="flex-1 overflow-hidden">
+            <div className="h-full overflow-y-auto">
+              {isLoading ? (
+                <div className={`px-4 py-12 text-center ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  <div className="animate-pulse flex flex-col items-center">
+                    <div className={`h-4 w-1/3 rounded mb-4 ${
+                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${
+                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}></div>
+                  </div>
+                  <p className="mt-4">Loading concerns...</p>
+                </div>
+              ) : error ? (
+                <div className={`px-4 py-12 text-center text-red-400`}>
+                  <p>{error}</p>
+                  <button 
+                    onClick={() => loadConcerns()}
+                    className="mt-4 px-4 py-2 rounded text-white transition-colors"
+                    style={{
+                      backgroundColor: colorPalette?.primary || '#ea580c'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (colorPalette?.primary) {
+                        e.currentTarget.style.backgroundColor = colorPalette.primary;
+                      }
+                    }}>
+                    Retry
+                  </button>
+                </div>
+              ) : filteredConcerns.length > 0 ? (
+                <div className="space-y-0">
+                  {filteredConcerns.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`px-4 py-3 cursor-pointer transition-colors border-b ${
+                        isDarkMode 
+                          ? 'hover:bg-gray-800 border-gray-800' 
+                          : 'hover:bg-gray-100 border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className={`font-medium text-sm mb-1 uppercase ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            {item.concern_name}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
                           <button
-                            onClick={() => openEditModal(concern)}
-                            className={`p-2 rounded transition-colors ${
+                            onClick={(e) => handleEdit(item, e)}
+                            className={`p-1.5 rounded transition-colors ${
                               isDarkMode 
-                                ? 'text-blue-400 hover:bg-blue-900' 
-                                : 'text-blue-600 hover:bg-blue-100'
+                                ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700' 
+                                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-200'
                             }`}
+                            title="Edit Concern"
                           >
-                            <Edit2 className="h-4 w-4" />
+                            <Edit2 size={16} />
                           </button>
                           <button
-                            onClick={() => openDeleteModal(concern)}
-                            className={`p-2 rounded transition-colors ${
+                            onClick={(e) => handleDelete(item, e)}
+                            disabled={deletingItems.has(item.id)}
+                            className={`p-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                               isDarkMode 
-                                ? 'text-red-400 hover:bg-red-900' 
-                                : 'text-red-600 hover:bg-red-100'
+                                ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700' 
+                                : 'text-gray-600 hover:text-red-600 hover:bg-gray-200'
                             }`}
+                            title={deletingItems.has(item.id) ? 'Deleting...' : 'Delete Concern'}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            {deletingItems.has(item.id) ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={16} />
+                            )}
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={`text-center py-12 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  No concerns found
+                </div>
+              )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`rounded-lg p-6 w-full max-w-md ${
-            isDarkMode ? 'bg-gray-800' : 'bg-white'
-          }`}>
-            <h2 className={`text-xl font-bold mb-4 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>
-              Add New Concern
-            </h2>
-            <div className="mb-4">
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Concern Name
-              </label>
-              <input
-                type="text"
-                value={newConcernName}
-                onChange={(e) => setNewConcernName(e.target.value)}
-                className={`w-full px-3 py-2 rounded-lg border ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-                placeholder="Enter concern name"
-              />
-            </div>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setNewConcernName('');
-                  setError('');
-                }}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  isDarkMode 
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                }`}
-              >
-                <X className="h-5 w-5" />
-              </button>
-              <button
-                onClick={handleAddConcern}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  isDarkMode 
-                    ? 'bg-orange-600 hover:bg-orange-700 text-white' 
-                    : 'bg-orange-500 hover:bg-orange-600 text-white'
-                }`}
-              >
-                <Check className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showEditModal && editingConcern && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`rounded-lg p-6 w-full max-w-md ${
-            isDarkMode ? 'bg-gray-800' : 'bg-white'
-          }`}>
-            <h2 className={`text-xl font-bold mb-4 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>
-              Edit Concern
-            </h2>
-            <div className="mb-4">
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Concern Name
-              </label>
-              <input
-                type="text"
-                value={editingConcern.concern_name}
-                onChange={(e) => setEditingConcern({ ...editingConcern, concern_name: e.target.value })}
-                className={`w-full px-3 py-2 rounded-lg border ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              />
-            </div>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingConcern(null);
-                  setError('');
-                }}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  isDarkMode 
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                }`}
-              >
-                <X className="h-5 w-5" />
-              </button>
-              <button
-                onClick={handleEditConcern}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  isDarkMode 
-                    ? 'bg-orange-600 hover:bg-orange-700 text-white' 
-                    : 'bg-orange-500 hover:bg-orange-600 text-white'
-                }`}
-              >
-                <Check className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showDeleteModal && deletingConcern && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`rounded-lg p-6 w-full max-w-md ${
-            isDarkMode ? 'bg-gray-800' : 'bg-white'
-          }`}>
-            <h2 className={`text-xl font-bold mb-4 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>
-              Delete Concern
-            </h2>
-            <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              Are you sure you want to delete "{deletingConcern.concern_name}"?
-            </p>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeletingConcern(null);
-                  setError('');
-                }}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  isDarkMode 
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                }`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteConcern}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  isDarkMode 
-                    ? 'bg-red-600 hover:bg-red-700 text-white' 
-                    : 'bg-red-500 hover:bg-red-600 text-white'
-                }`}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Edit/Add Concern Modal */}
+      <EditConcernModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingItem(null);
+        }}
+        onSave={handleSave}
+        concernItem={editingItem}
+      />
     </div>
   );
 };

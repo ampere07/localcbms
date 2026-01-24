@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mail, ExternalLink, Edit, ChevronLeft, ChevronRight, Maximize2, X, Info, Download } from 'lucide-react';
+import { ExternalLink, X, Info } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface InvoiceRecord {
@@ -142,13 +142,6 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
           {invoiceRecord.invoiceNo || '2508182' + invoiceRecord.id}
         </h1>
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <Download size={18} />
-          </button>
           <button 
             className="px-3 py-1 rounded text-sm transition-colors flex items-center space-x-1 text-white"
             style={{
@@ -165,28 +158,7 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
               }
             }}
           >
-            <span>Apply Stag...</span>
-          </button>
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <ChevronLeft size={18} />
-          </button>
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <ChevronRight size={18} />
-          </button>
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <Maximize2 size={18} />
+            <span>Apply Staggered</span>
           </button>
           <button className={`p-2 rounded transition-colors ${
             isDarkMode

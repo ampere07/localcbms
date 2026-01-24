@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  ArrowLeft, ArrowRight, Maximize2, X, Phone, MessageSquare, Info, 
-  ExternalLink, Mail, Edit, Settings
+  X, ExternalLink, Edit, Settings
 } from 'lucide-react';
 import { updateJobOrder, approveJobOrder } from '../services/jobOrderService';
 import { getBillingStatuses, BillingStatus } from '../services/lookupService';
@@ -601,18 +600,8 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Contact Number:</div>
-            <div className={`flex-1 flex items-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <div className={valueClass}>
               {jobOrder.Contact_Number || 'Not provided'}
-              {jobOrder.Contact_Number && (
-                <>
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <Phone size={16} />
-                  </button>
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <MessageSquare size={16} />
-                  </button>
-                </>
-              )}
             </div>
           </div>
         );
@@ -621,18 +610,8 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Second Contact Number:</div>
-            <div className={`flex-1 flex items-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <div className={valueClass}>
               {jobOrder.Second_Contact_Number || 'Not provided'}
-              {jobOrder.Second_Contact_Number && (
-                <>
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <Phone size={16} />
-                  </button>
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <MessageSquare size={16} />
-                  </button>
-                </>
-              )}
             </div>
           </div>
         );
@@ -641,13 +620,8 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Email Address:</div>
-            <div className={`flex-1 flex items-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <div className={valueClass}>
               {jobOrder.Email_Address || 'Not provided'}
-              {jobOrder.Email_Address && (
-                <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                  <Mail size={16} />
-                </button>
-              )}
             </div>
           </div>
         );
@@ -680,11 +654,8 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Choose Plan:</div>
-            <div className={`flex-1 flex items-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <div className={valueClass}>
               {jobOrder.Desired_Plan || jobOrder.Choose_Plan || 'Not specified'}
-              <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                <Info size={16} />
-              </button>
             </div>
           </div>
         );
@@ -1192,9 +1163,6 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             )}
           </div>
           
-          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowLeft size={16} /></button>
-          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowRight size={16} /></button>
-          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><Maximize2 size={16} /></button>
           <button 
             onClick={onClose}
             className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
