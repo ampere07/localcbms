@@ -1,4 +1,5 @@
 import React from 'react';
+import logo1 from '../assets/logo1.png';
 
 const SplashScreen: React.FC = () => {
   return (
@@ -16,8 +17,16 @@ const SplashScreen: React.FC = () => {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '16px'
+        gap: '20px'
       }}>
+        <img 
+          src={logo1} 
+          alt="Sync Logo" 
+          style={{
+            height: '80px',
+            marginBottom: '10px'
+          }}
+        />
         <div style={{
           width: '48px',
           height: '48px',

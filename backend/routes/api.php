@@ -24,6 +24,8 @@ use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\EmailQueueController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\BillingGenerationController;
+use App\Http\Controllers\ImageProxyController;
+use App\Http\Controllers\SettingsColorPaletteController;
 use App\Models\User;
 use App\Models\MassRebate;
 
@@ -141,6 +143,15 @@ Route::prefix('discounts')->group(function () {
     Route::put('/{id}', [\App\Http\Controllers\DiscountController::class, 'update']);
     Route::delete('/{id}', [\App\Http\Controllers\DiscountController::class, 'destroy']);
 });
+
+// Form UI Configuration - Public Route (no auth required)
+Route::get('/form-ui/config', [\App\Http\Controllers\FormUIController::class, 'getConfig']);
+
+// Color Palette - Public Route (no auth required)
+Route::get('/settings-color-palette/active', [SettingsColorPaletteController::class, 'getActive']);
+
+// Image Proxy - Public Route (no auth required)
+Route::get('/proxy/image', [ImageProxyController::class, 'proxyGoogleDriveImage']);
 
 // Service Charge Logs Routes
 Route::prefix('service-charges')->group(function () {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, RefreshCw } from 'lucide-react';
-import { systemConfigService } from '../services/systemConfigService';
 import { notificationService, type Notification as AppNotification } from '../services/notificationService';
+import logo1 from '../assets/logo1.png';
 
 interface HeaderProps {
   onToggleSidebar?: () => void;
@@ -10,7 +10,6 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -51,30 +50,6 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
   }, []);
 
   useEffect(() => {
-    const loadLogo = async () => {
-      try {
-        const url = await systemConfigService.getLogo();
-        if (mountedRef.current) {
-          setLogoUrl(url);
-        }
-      } catch (error) {
-        console.error('Failed to load logo:', error);
-      }
-    };
-
-    loadLogo();
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'logoUpdated') {
-        loadLogo();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
-  useEffect(() => {
     const checkDarkMode = () => {
       const theme = localStorage.getItem('theme');
       setIsDarkMode(theme === 'dark' || theme === null);
@@ -110,8 +85,8 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
     try {
       const browserNotification = new Notification('🔔 New Customer Application', {
         body: `${notification.customer_name}\nPlan: ${notification.plan_name}`,
-        icon: logoUrl || '/logo192.png',
-        badge: '/logo192.png',
+        icon: logo1,
+        badge: logo1,
         tag: `application-${notification.id}`,
         requireInteraction: false,
         silent: false,
@@ -208,7 +183,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
       console.log('[Polling] Interval cleared');
       clearInterval(interval);
     };
-  }, [logoUrl]);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -278,30 +253,18 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
           </svg>
         </button>
         
-        {logoUrl ? (
-          <div className="flex flex-col items-center">
-            <img 
-              src={logoUrl} 
-              alt="System Logo" 
-              className="h-10 object-contain"
-              onError={(e) => {
-                console.error('Failed to load header logo');
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-            <span className={`text-[10px] ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-500'
-            }`}>
-              powered by SYNC
-            </span>
-          </div>
-        ) : (
+        <div className="flex items-center space-x-3">
+          <img 
+            src={logo1} 
+            alt="Sync Logo" 
+            className="h-10 object-contain"
+          />
           <h1 className={`${
             isDarkMode ? 'text-white' : 'text-gray-900'
           } text-xl font-bold`}>
-            SYNC
+            Sync
           </h1>
-        )}
+        </div>
       </div>
       
       <div className="flex-1"></div>

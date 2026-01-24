@@ -44,6 +44,7 @@ import BillingConfig from './BillingConfig';
 import RadiusConfig from './RadiusConfig';
 import SmsConfig from './SmsConfig';
 import EmailTemplates from './EmailTemplates';
+import PPPoESetup from './PPPoESetup';
 import Support from './Support';
 
 interface DashboardProps {
@@ -120,6 +121,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         return <SmsConfig />;
       case 'email-templates':
         return <EmailTemplates />;
+      case 'pppoe-setup':
+        return <PPPoESetup />;
 
 
       case 'staggered-payment':

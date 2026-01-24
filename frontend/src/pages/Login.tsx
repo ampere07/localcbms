@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { login, forgotPassword } from '../services/api';
 import { UserData } from '../types/api';
+import { formUIService } from '../services/formUIService';
+import { settingsColorPaletteService } from '../services/settingsColorPaletteService';
 
 interface LoginProps {
   onLogin: (userData: UserData) => void;
@@ -14,6 +16,59 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotMessage, setForgotMessage] = useState('');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [primaryColor, setPrimaryColor] = useState<string>('#9333ea');
+
+  const convertGoogleDriveUrl = (url: string): string => {
+    if (!url) return '';
+    
+    console.log('[Logo] Original URL:', url);
+    
+    // Use backend proxy to avoid CORS issues
+    const apiUrl = process.env.REACT_APP_API_URL || 'https://backend.atssfiber.ph/api';
+    const proxyUrl = `${apiUrl}/proxy/image?url=${encodeURIComponent(url)}`;
+    
+    console.log('[Logo] Using proxy URL:', proxyUrl);
+    return proxyUrl;
+  };
+
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        console.log('[Logo] Fetching config from form_ui table...');
+        const config = await formUIService.getConfig();
+        console.log('[Logo] Config received:', config);
+        
+        if (config && config.logo_url) {
+          console.log('[Logo] Logo URL from database:', config.logo_url);
+          const directUrl = convertGoogleDriveUrl(config.logo_url);
+          setLogoUrl(directUrl);
+        } else {
+          console.log('[Logo] No logo_url in config');
+        }
+      } catch (error) {
+        console.error('[Logo] Error fetching logo:', error);
+      }
+    };
+    
+    const fetchColorPalette = async () => {
+      try {
+        console.log('[Color] Fetching active color palette...');
+        const activePalette = await settingsColorPaletteService.getActive();
+        console.log('[Color] Active palette:', activePalette);
+        
+        if (activePalette && activePalette.primary) {
+          console.log('[Color] Using primary color:', activePalette.primary);
+          setPrimaryColor(activePalette.primary);
+        }
+      } catch (error) {
+        console.error('[Color] Error fetching color palette:', error);
+      }
+    };
+    
+    fetchLogo();
+    fetchColorPalette();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,12 +81,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError('');
     
     try {
-      // Check if using demo credentials
       const demoEmail = process.env.REACT_APP_DEMO_EMAIL;
       const demoPassword = process.env.REACT_APP_DEMO_PASSWORD;
       
       if (identifier === demoEmail && password === demoPassword) {
-        // Mock successful login for demo credentials
         const mockUserData: UserData = {
           id: 1,
           username: 'admin',
@@ -43,7 +96,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         return;
       }
       
-      // Try actual API login with username or email
       const response = await login(identifier, password);
       if (response.status === 'success') {
         const userData: UserData = {
@@ -94,37 +146,64 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        backgroundColor: '#282c34',
+        backgroundColor: '#ffffff',
         padding: '20px'
       }}>
         <div style={{
-          backgroundColor: '#1e1e1e',
+          backgroundColor: '#ffffff',
           padding: '40px',
           borderRadius: '12px',
-          border: '1px solid #444',
+          border: '1px solid #e0e0e0',
           width: '100%',
           maxWidth: '400px',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+          boxShadow: '0 4px 20px rgba(147, 51, 234, 0.1)'
         }}>
-          <h2 style={{
-            color: '#61dafb',
+          <div style={{
             textAlign: 'center',
-            marginBottom: '30px',
-            fontSize: '24px'
+            marginBottom: '30px'
           }}>
+            {logoUrl && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                marginBottom: '20px'
+              }}>
+                <img 
+                  src={logoUrl} 
+                  alt="Logo" 
+                  style={{
+                    height: '80px',
+                    objectFit: 'contain'
+                  }}
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    console.error('[Logo] Failed to load image from:', logoUrl);
+                    console.error('[Logo] Make sure the Google Drive file is shared as "Anyone with the link"');
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+            <h2 style={{
+            color: primaryColor,
+            fontSize: '24px',
+            marginBottom: '10px'
+            }}>
             Reset Password
-          </h2>
+            </h2>
+          </div>
           
           {forgotMessage ? (
             <div>
               <div style={{
-                color: '#4CAF50',
+                color: '#16a34a',
                 textAlign: 'center',
                 marginBottom: '20px',
                 padding: '15px',
-                backgroundColor: '#1a4a3a',
+                backgroundColor: '#f0fdf4',
                 borderRadius: '8px',
-                border: '1px solid #4CAF50'
+                border: '1px solid #16a34a'
               }}>
                 {forgotMessage}
               </div>
@@ -138,12 +217,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 style={{
                   width: '100%',
                   padding: '12px',
-                  backgroundColor: '#61dafb',
-                  color: '#000',
+                  backgroundColor: primaryColor,
+                  color: '#ffffff',
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '16px',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  fontWeight: '600'
                 }}
               >
                 Back to Login
@@ -154,9 +234,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <div style={{ marginBottom: '20px' }}>
                 <label style={{
                   display: 'block',
-                  color: '#fff',
+                  color: '#6b7280',
                   marginBottom: '8px',
-                  fontSize: '14px'
+                  fontSize: '14px',
+                  fontWeight: '500'
                 }}>
                   Email Address
                 </label>
@@ -167,10 +248,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   style={{
                     width: '100%',
                     padding: '12px',
-                    backgroundColor: '#2a2a2a',
-                    border: '1px solid #444',
+                    backgroundColor: '#f9fafb',
+                    border: '1px solid #d1d5db',
                     borderRadius: '8px',
-                    color: '#fff',
+                    color: '#111827',
                     fontSize: '16px'
                   }}
                   placeholder="Enter your email address"
@@ -179,7 +260,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               
               {error && (
                 <div style={{
-                  color: '#f44336',
+                  color: '#dc2626',
                   marginBottom: '20px',
                   textAlign: 'center',
                   fontSize: '14px'
@@ -194,13 +275,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 style={{
                   width: '100%',
                   padding: '12px',
-                  backgroundColor: isLoading ? '#666' : '#4CAF50',
-                  color: '#fff',
+                  backgroundColor: isLoading ? '#d1d5db' : '#16a34a',
+                  color: '#ffffff',
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '16px',
                   cursor: isLoading ? 'not-allowed' : 'pointer',
-                  marginBottom: '15px'
+                  marginBottom: '15px',
+                  fontWeight: '600'
                 }}
               >
                 {isLoading ? 'Sending...' : 'Send Reset Instructions'}
@@ -216,11 +298,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   width: '100%',
                   padding: '12px',
                   backgroundColor: 'transparent',
-                  color: '#61dafb',
-                  border: '1px solid #61dafb',
+                  color: primaryColor,
+                  border: `1px solid ${primaryColor}`,
                   borderRadius: '8px',
                   fontSize: '16px',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  fontWeight: '600'
                 }}
               >
                 Back to Login
@@ -238,31 +321,55 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: '100vh',
-      backgroundColor: '#282c34',
+      backgroundColor: '#ffffff',
       padding: '20px'
     }}>
       <div style={{
-        backgroundColor: '#1e1e1e',
+        backgroundColor: '#ffffff',
         padding: '40px',
         borderRadius: '12px',
-        border: '1px solid #444',
+        border: '1px solid #e0e0e0',
         width: '100%',
         maxWidth: '400px',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+        boxShadow: '0 4px 20px rgba(147, 51, 234, 0.1)'
       }}>
         <div style={{
           textAlign: 'center',
           marginBottom: '30px'
         }}>
+          {logoUrl && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              marginBottom: '20px'
+            }}>
+              <img 
+                src={logoUrl} 
+                alt="Logo" 
+                style={{
+                  height: '80px',
+                  objectFit: 'contain'
+                }}
+                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  console.error('[Logo] Failed to load image from:', logoUrl);
+                  console.error('[Logo] Make sure the Google Drive file is shared as "Anyone with the link"');
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </div>
+          )}
           <h1 style={{
-            color: '#61dafb',
+            color: primaryColor,
             fontSize: '28px',
-            marginBottom: '10px'
+            marginBottom: '10px',
+            fontWeight: '700'
           }}>
-            Business Management
+            Powered by Sync
           </h1>
           <p style={{
-            color: '#aaa',
+            color: '#6b7280',
             fontSize: '16px'
           }}>
             Sign in to your account
@@ -273,9 +380,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <div style={{ marginBottom: '20px' }}>
             <label style={{
               display: 'block',
-              color: '#fff',
+              color: '#6b7280',
               marginBottom: '8px',
-              fontSize: '14px'
+              fontSize: '14px',
+              fontWeight: '500'
             }}>
               Email or Username
             </label>
@@ -286,10 +394,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               style={{
                 width: '100%',
                 padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
+                backgroundColor: '#f9fafb',
+                border: '1px solid #d1d5db',
                 borderRadius: '8px',
-                color: '#fff',
+                color: '#111827',
                 fontSize: '16px'
               }}
               placeholder="Enter your email or username"
@@ -299,9 +407,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <div style={{ marginBottom: '20px' }}>
             <label style={{
               display: 'block',
-              color: '#fff',
+              color: '#6b7280',
               marginBottom: '8px',
-              fontSize: '14px'
+              fontSize: '14px',
+              fontWeight: '500'
             }}>
               Password
             </label>
@@ -312,10 +421,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               style={{
                 width: '100%',
                 padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
+                backgroundColor: '#f9fafb',
+                border: '1px solid #d1d5db',
                 borderRadius: '8px',
-                color: '#fff',
+                color: '#111827',
                 fontSize: '16px'
               }}
               placeholder="Enter your password"
@@ -324,7 +433,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           
           {error && (
             <div style={{
-              color: '#f44336',
+              color: '#dc2626',
               marginBottom: '20px',
               textAlign: 'center',
               fontSize: '14px'
@@ -339,12 +448,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             style={{
               width: '100%',
               padding: '12px',
-              backgroundColor: isLoading ? '#666' : '#61dafb',
-              color: '#000',
+              backgroundColor: isLoading ? '#d1d5db' : primaryColor,
+              color: '#ffffff',
               border: 'none',
               borderRadius: '8px',
               fontSize: '16px',
-              fontWeight: 'bold',
+              fontWeight: '700',
               cursor: isLoading ? 'not-allowed' : 'pointer',
               marginBottom: '15px'
             }}
@@ -363,11 +472,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               }}
               style={{
                 backgroundColor: 'transparent',
-                color: '#61dafb',
+                color: primaryColor,
                 border: 'none',
                 fontSize: '14px',
                 cursor: 'pointer',
-                textDecoration: 'underline'
+                textDecoration: 'underline',
+                fontWeight: '500'
               }}
             >
               Forgot your password?
