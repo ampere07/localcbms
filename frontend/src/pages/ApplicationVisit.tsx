@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FileText, Search, ChevronDown, RefreshCw, ListFilter, ArrowUp, ArrowDown, Menu, X, ArrowLeft, Filter } from 'lucide-react';
 import ApplicationVisitDetails from '../components/ApplicationVisitDetails';
-import ApplicationVisitFunnelFilter from '../components/filters/ApplicationVisitFunnelFilter';
+import ApplicationVisitFunnelFilter, { FilterValues } from '../filter/ApplicationVisitFunnelFilter';
 import { getAllApplicationVisits } from '../services/applicationVisitService';
 import { getApplication } from '../services/applicationService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { applyFilters } from '../utils/filterUtils';
 
 interface ApplicationVisit {
   id: string;
@@ -93,7 +94,17 @@ const ApplicationVisit: React.FC = () => {
   const [displayMode, setDisplayMode] = useState<DisplayMode>('table');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(allColumns.map(col => col.key));
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    const saved = localStorage.getItem('applicationVisitVisibleColumns');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to load column visibility:', err);
+      }
+    }
+    return allColumns.map(col => col.key);
+  });
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
@@ -107,6 +118,7 @@ const ApplicationVisit: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [mobileView, setMobileView] = useState<'locations' | 'visits' | 'details'>('locations');
   const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
+  const [activeFilters, setActiveFilters] = useState<FilterValues>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -323,7 +335,8 @@ const ApplicationVisit: React.FC = () => {
     }
   });
 
-  const filteredVisits = applicationVisits.filter(visit => {
+  // Apply location and search filters first
+  let filteredVisits = applicationVisits.filter(visit => {
     const addressParts = visit.full_address.split(',');
     const city = addressParts.length > 3 ? addressParts[3].trim().toLowerCase() : '';
     const matchesLocation = selectedLocation === 'all' || city === selectedLocation;
@@ -335,6 +348,9 @@ const ApplicationVisit: React.FC = () => {
     
     return matchesLocation && matchesSearch;
   });
+
+  // Apply funnel filters
+  filteredVisits = applyFilters(filteredVisits, activeFilters);
 
   const presortedVisits = [...filteredVisits].sort((a, b) => {
     const idA = parseInt(a.id) || 0;
@@ -537,20 +553,23 @@ const ApplicationVisit: React.FC = () => {
 
   const handleToggleColumn = (columnKey: string) => {
     setVisibleColumns(prev => {
-      if (prev.includes(columnKey)) {
-        return prev.filter(key => key !== columnKey);
-      } else {
-        return [...prev, columnKey];
-      }
+      const newColumns = prev.includes(columnKey)
+        ? prev.filter(key => key !== columnKey)
+        : [...prev, columnKey];
+      localStorage.setItem('applicationVisitVisibleColumns', JSON.stringify(newColumns));
+      return newColumns;
     });
   };
 
   const handleSelectAllColumns = () => {
-    setVisibleColumns(allColumns.map(col => col.key));
+    const allKeys = allColumns.map(col => col.key);
+    setVisibleColumns(allKeys);
+    localStorage.setItem('applicationVisitVisibleColumns', JSON.stringify(allKeys));
   };
 
   const handleDeselectAllColumns = () => {
     setVisibleColumns([]);
+    localStorage.setItem('applicationVisitVisibleColumns', JSON.stringify([]));
   };
 
   const handleSort = (columnKey: string) => {
@@ -1511,9 +1530,10 @@ const ApplicationVisit: React.FC = () => {
         isOpen={isFunnelFilterOpen}
         onClose={() => setIsFunnelFilterOpen(false)}
         onApplyFilters={(filters) => {
-          console.log('Applied filters:', filters);
+          setActiveFilters(filters);
           setIsFunnelFilterOpen(false);
         }}
+        currentFilters={activeFilters}
       />
 
       <style>{`

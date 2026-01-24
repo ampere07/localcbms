@@ -80,7 +80,17 @@ const ApplicationManagement: React.FC = () => {
   const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(allColumns.map(col => col.key));
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    const saved = localStorage.getItem('applicationManagementVisibleColumns');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to load column visibility:', err);
+      }
+    }
+    return allColumns.map(col => col.key);
+  });
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
@@ -420,20 +430,23 @@ const ApplicationManagement: React.FC = () => {
 
   const handleToggleColumn = (columnKey: string) => {
     setVisibleColumns(prev => {
-      if (prev.includes(columnKey)) {
-        return prev.filter(key => key !== columnKey);
-      } else {
-        return [...prev, columnKey];
-      }
+      const newColumns = prev.includes(columnKey)
+        ? prev.filter(key => key !== columnKey)
+        : [...prev, columnKey];
+      localStorage.setItem('applicationManagementVisibleColumns', JSON.stringify(newColumns));
+      return newColumns;
     });
   };
 
   const handleSelectAllColumns = () => {
-    setVisibleColumns(allColumns.map(col => col.key));
+    const allKeys = allColumns.map(col => col.key);
+    setVisibleColumns(allKeys);
+    localStorage.setItem('applicationManagementVisibleColumns', JSON.stringify(allKeys));
   };
 
   const handleDeselectAllColumns = () => {
     setVisibleColumns([]);
+    localStorage.setItem('applicationManagementVisibleColumns', JSON.stringify([]));
   };
 
   const handleSort = (columnKey: string) => {

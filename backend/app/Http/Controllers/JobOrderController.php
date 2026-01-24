@@ -43,6 +43,14 @@ class JobOrderController extends Controller
                 $query->where('assigned_email', $assignedEmail);
             }
             
+            if ($request->has('user_role') && strtolower($request->query('user_role')) === 'technician') {
+                $sevenDaysAgo = now()->subDays(7);
+                $query->where('updated_at', '>=', $sevenDaysAgo);
+                \Log::info('Filtering job orders for technician role: only showing records from last 7 days', [
+                    'cutoff_date' => $sevenDaysAgo->toDateTimeString()
+                ]);
+            }
+            
             $jobOrders = $query->get();
 
             \Log::info('Found ' . $jobOrders->count() . ' job orders in database');
@@ -146,8 +154,7 @@ class JobOrderController extends Controller
             ], 500);
         }
     }
-
-    public function store(Request $request): JsonResponse
+    public function createRadiusAccount(Request $request, $id): JsonResponse
     {
         try {
             $validator = Validator::make($request->all(), [
@@ -223,6 +230,40 @@ class JobOrderController extends Controller
             ]);
 
             $jobOrder = JobOrder::findOrFail($id);
+            
+            $generateCredentials = $request->input('generate_credentials', false);
+            
+            if ($generateCredentials && empty($jobOrder->pppoe_username)) {
+                $application = $jobOrder->application;
+                
+                if ($application) {
+                    $pppoeService = new PppoeUsernameService();
+                    
+                    $customerData = [
+                        'first_name' => $application->first_name ?? '',
+                        'middle_initial' => $application->middle_initial ?? '',
+                        'last_name' => $application->last_name ?? '',
+                        'mobile_number' => $application->mobile_number ?? '',
+                        'tech_input_username' => $request->input('tech_input_username'),
+                        'custom_password' => $request->input('custom_password'),
+                    ];
+                    
+                    $username = $pppoeService->generateUniqueUsername($customerData, $id);
+                    $password = $pppoeService->generatePassword($customerData);
+                    
+                    $request->merge([
+                        'pppoe_username' => $username,
+                        'pppoe_password' => $password,
+                    ]);
+                    
+                    \Log::info('Auto-generated PPPoE credentials', [
+                        'job_order_id' => $id,
+                        'username' => $username,
+                        'username_length' => strlen($username),
+                        'password_length' => strlen($password),
+                    ]);
+                }
+            }
 
             $validator = Validator::make($request->all(), [
                 'application_id' => 'nullable|integer|exists:applications,id',
@@ -811,7 +852,7 @@ class JobOrderController extends Controller
         }
     }
 
-    public function createRadiusAccount(Request $request, $id): JsonResponse
+    public function uploadImages(Request $request, $id): JsonResponse
     {
         try {
             $jobOrder = JobOrder::with('application')->findOrFail($id);

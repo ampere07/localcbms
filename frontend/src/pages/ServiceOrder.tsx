@@ -115,6 +115,17 @@ const ServiceOrder: React.FC = () => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [activeFilters, setActiveFilters] = useState<any>(() => {
+    const saved = localStorage.getItem('serviceOrderFilters');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to load filters:', err);
+      }
+    }
+    return {};
+  });
 
   const formatDate = (dateStr?: string): string => {
     if (!dateStr) return 'Not scheduled';
@@ -346,6 +357,41 @@ const ServiceOrder: React.FC = () => {
     return items;
   }, [cities, serviceOrders]);
   
+  // Helper function to apply funnel filters
+  const applyFunnelFilters = (orders: ServiceOrder[], filters: any): ServiceOrder[] => {
+    if (!filters || Object.keys(filters).length === 0) return orders;
+
+    return orders.filter(order => {
+      return Object.entries(filters).every(([key, filter]: [string, any]) => {
+        const orderValue = (order as any)[key];
+        
+        if (filter.type === 'text') {
+          if (!filter.value) return true;
+          const value = String(orderValue || '').toLowerCase();
+          return value.includes(filter.value.toLowerCase());
+        }
+        
+        if (filter.type === 'number') {
+          const numValue = Number(orderValue);
+          if (isNaN(numValue)) return false;
+          if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
+          if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
+          return true;
+        }
+        
+        if (filter.type === 'date') {
+          if (!orderValue) return false;
+          const dateValue = new Date(orderValue).getTime();
+          if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
+          if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
+          return true;
+        }
+        
+        return true;
+      });
+    });
+  };
+
   const filteredServiceOrders = useMemo(() => {
     let filtered = serviceOrders.filter(serviceOrder => {
       const matchesLocation = selectedLocation === 'all' || 
@@ -358,6 +404,9 @@ const ServiceOrder: React.FC = () => {
       
       return matchesLocation && matchesSearch;
     });
+
+    // Apply funnel filters
+    filtered = applyFunnelFilters(filtered, activeFilters);
 
     filtered.sort((a, b) => {
       const idA = parseInt(a.id) || 0;
@@ -439,7 +488,7 @@ const ServiceOrder: React.FC = () => {
     }
 
     return filtered;
-  }, [serviceOrders, selectedLocation, searchQuery, sortColumn, sortDirection]);
+  }, [serviceOrders, selectedLocation, searchQuery, sortColumn, sortDirection, activeFilters]);
   
   const StatusText = ({ status, type }: { status?: string, type: 'support' | 'visit' }) => {
     if (!status) return <span className="text-gray-400">Unknown</span>;
@@ -1396,8 +1445,11 @@ const ServiceOrder: React.FC = () => {
         onClose={() => setIsFunnelFilterOpen(false)}
         onApplyFilters={(filters) => {
           console.log('Applied filters:', filters);
+          setActiveFilters(filters);
+          localStorage.setItem('serviceOrderFilters', JSON.stringify(filters));
           setIsFunnelFilterOpen(false);
         }}
+        currentFilters={activeFilters}
       />
     </div>
   );

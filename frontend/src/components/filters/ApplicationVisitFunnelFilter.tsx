@@ -6,9 +6,10 @@ interface ApplicationVisitFunnelFilterProps {
   isOpen: boolean;
   onClose: () => void;
   onApplyFilters: (filters: FilterValues) => void;
+  currentFilters?: FilterValues;
 }
 
-interface FilterValues {
+export interface FilterValues {
   [key: string]: {
     type: 'text' | 'number' | 'date';
     value?: string;
@@ -24,8 +25,9 @@ interface Column {
   dataType: 'varchar' | 'text' | 'int' | 'bigint' | 'decimal' | 'date' | 'datetime' | 'enum';
 }
 
+const STORAGE_KEY = 'applicationVisitFunnelFilters';
+
 const allColumns: Column[] = [
-  // Application Visits table
   { key: 'id', label: 'ID', table: 'application_visits', dataType: 'bigint' },
   { key: 'application_id', label: 'Application ID', table: 'application_visits', dataType: 'bigint' },
   { key: 'timestamp', label: 'Timestamp', table: 'application_visits', dataType: 'datetime' },
@@ -61,7 +63,8 @@ const allColumns: Column[] = [
 const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> = ({
   isOpen,
   onClose,
-  onApplyFilters
+  onApplyFilters,
+  currentFilters
 }) => {
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
@@ -88,6 +91,21 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
     fetchColorPalette();
   }, []);
 
+  useEffect(() => {
+    if (isOpen) {
+      const savedFilters = localStorage.getItem(STORAGE_KEY);
+      if (savedFilters) {
+        try {
+          setFilterValues(JSON.parse(savedFilters));
+        } catch (err) {
+          console.error('Failed to load saved filters:', err);
+        }
+      } else if (currentFilters) {
+        setFilterValues(currentFilters);
+      }
+    }
+  }, [isOpen, currentFilters]);
+
   const handleColumnClick = (column: Column) => {
     setSelectedColumn(column);
   };
@@ -97,6 +115,7 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
   };
 
   const handleApply = () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(filterValues));
     onApplyFilters(filterValues);
     onClose();
   };
@@ -104,6 +123,7 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
   const handleReset = () => {
     setFilterValues({});
     setSelectedColumn(null);
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   const isNumericType = (dataType: string) => {
@@ -144,6 +164,16 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
         [field]: value
       }
     }));
+  };
+
+  const getActiveFilterCount = () => {
+    return Object.keys(filterValues).filter(key => {
+      const filter = filterValues[key];
+      if (filter.type === 'text') {
+        return filter.value && filter.value.trim() !== '';
+      }
+      return filter.from !== undefined || filter.to !== undefined;
+    }).length;
   };
 
   const groupedColumns = {
@@ -248,7 +278,7 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
         </label>
         <input
           type="text"
-          value={currentValue?.value || ''}
+          value={typeof currentValue?.value === 'string' ? currentValue.value : ''}
           onChange={(e) => handleTextChange(selectedColumn.key, e.target.value)}
           placeholder={`Enter ${selectedColumn.label.toLowerCase()}`}
           className={`w-full px-3 py-2 rounded border ${
@@ -262,6 +292,8 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
   };
 
   if (!isOpen) return null;
+
+  const activeFilterCount = getActiveFilterCount();
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -293,11 +325,20 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
                         <ChevronLeft className="h-5 w-5" />
                       </button>
                     )}
-                    <h2 className={`text-lg font-semibold ${
-                      isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}>
-                      {selectedColumn ? selectedColumn.label : 'Filter'}
-                    </h2>
+                    <div>
+                      <h2 className={`text-lg font-semibold ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        {selectedColumn ? selectedColumn.label : 'Filter'}
+                      </h2>
+                      {!selectedColumn && activeFilterCount > 0 && (
+                        <p className={`text-xs mt-1 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                          {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} active
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={onClose}
@@ -324,24 +365,40 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
                         Application Visit Details
                       </h3>
                       <div className="flex flex-col gap-2 w-full">
-                        {groupedColumns.application_visits.map(column => (
-                          <div
-                            key={column.key}
-                            onClick={() => handleColumnClick(column)}
-                            className={`w-full p-3 cursor-pointer transition-all flex items-center justify-between border-b ${
-                              isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                            }`}
-                          >
-                            <span className={`text-sm font-medium ${
-                              isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>
-                              {column.label}
-                            </span>
-                            <ChevronRight className={`h-4 w-4 ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`} />
-                          </div>
-                        ))}
+                        {groupedColumns.application_visits.map(column => {
+                          const hasFilter = filterValues[column.key] && (
+                            filterValues[column.key].value || 
+                            filterValues[column.key].from !== undefined || 
+                            filterValues[column.key].to !== undefined
+                          );
+
+                          return (
+                            <div
+                              key={column.key}
+                              onClick={() => handleColumnClick(column)}
+                              className={`w-full p-3 cursor-pointer transition-all flex items-center justify-between border-b ${
+                                isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-2">
+                                <span className={`text-sm font-medium ${
+                                  isDarkMode ? 'text-white' : 'text-gray-900'
+                                }`}>
+                                  {column.label}
+                                </span>
+                                {hasFilter && (
+                                  <span 
+                                    className="w-2 h-2 rounded-full"
+                                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                                  />
+                                )}
+                              </div>
+                              <ChevronRight className={`h-4 w-4 ${
+                                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`} />
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -360,7 +417,7 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
                         : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                     }`}
                   >
-                    Clear
+                    Clear All
                   </button>
                   <button
                     onClick={handleApply}
@@ -375,7 +432,7 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
                       e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
                     }}
                   >
-                    Done
+                    Apply Filters
                   </button>
                 </div>
               </div>

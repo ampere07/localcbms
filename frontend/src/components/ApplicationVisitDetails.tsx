@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, ArrowRight, Maximize2, X, Phone, MessageSquare, Info, 
-  ExternalLink, Mail, Edit, Trash2, ArrowRightToLine, Eraser, XOctagon, RotateCw, Menu
+  ExternalLink, Mail, Edit, Trash2, ArrowRightToLine, Eraser, XOctagon, RotateCw, Settings
 } from 'lucide-react';
 import { getApplication } from '../services/applicationService';
 import { updateApplicationVisit } from '../services/applicationVisitService';
@@ -63,6 +63,58 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
   const startWidthRef = useRef<number>(0);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [showFieldSettings, setShowFieldSettings] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const FIELD_VISIBILITY_KEY = 'applicationVisitDetailsFieldVisibility';
+  const FIELD_ORDER_KEY = 'applicationVisitDetailsFieldOrder';
+
+  const defaultFields = [
+    'timestamp',
+    'referredBy',
+    'fullName',
+    'contactNumber',
+    'secondContactNumber',
+    'emailAddress',
+    'address',
+    'chosenPlan',
+    'landmark',
+    'visitBy',
+    'visitWith',
+    'visitWithOther',
+    'visitType',
+    'visitStatus',
+    'visitNotes',
+    'assignedEmail',
+    'applicationStatus',
+    'modifiedBy',
+    'modifiedDate',
+    'houseFrontPicture',
+    'image1',
+    'image2',
+    'image3'
+  ];
+
+  const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem(FIELD_VISIBILITY_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
+  });
+
+  const [fieldOrder, setFieldOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem(FIELD_ORDER_KEY);
+    return saved ? JSON.parse(saved) : defaultFields;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(FIELD_VISIBILITY_KEY, JSON.stringify(fieldVisibility));
+  }, [fieldVisibility]);
+
+  useEffect(() => {
+    localStorage.setItem(FIELD_ORDER_KEY, JSON.stringify(fieldOrder));
+  }, [fieldOrder]);
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -259,6 +311,521 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
     }
   };
 
+  const getFieldLabel = (fieldKey: string): string => {
+    const labels: Record<string, string> = {
+      timestamp: 'Timestamp',
+      referredBy: 'Referred By',
+      fullName: 'Full Name',
+      contactNumber: 'Contact Number',
+      secondContactNumber: 'Second Contact Number',
+      emailAddress: 'Email Address',
+      address: 'Address',
+      chosenPlan: 'Chosen Plan',
+      landmark: 'Landmark',
+      visitBy: 'Visit By',
+      visitWith: 'Visit With',
+      visitWithOther: 'Visit With (Other)',
+      visitType: 'Visit Type',
+      visitStatus: 'Visit Status',
+      visitNotes: 'Visit Notes',
+      assignedEmail: 'Assigned Email',
+      applicationStatus: 'Application Status',
+      modifiedBy: 'Modified By',
+      modifiedDate: 'Modified Date',
+      houseFrontPicture: 'House Front Picture',
+      image1: 'Image 1',
+      image2: 'Image 2',
+      image3: 'Image 3'
+    };
+    return labels[fieldKey] || fieldKey;
+  };
+
+  const toggleFieldVisibility = (field: string) => {
+    setFieldVisibility((prev: Record<string, boolean>) => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  const selectAllFields = () => {
+    const allVisible: Record<string, boolean> = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
+    setFieldVisibility(allVisible);
+  };
+
+  const deselectAllFields = () => {
+    const allHidden: Record<string, boolean> = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: false }), {});
+    setFieldVisibility(allHidden);
+  };
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (dropIndex: number) => {
+    if (draggedIndex === null) return;
+    const newOrder = [...fieldOrder];
+    const [removed] = newOrder.splice(draggedIndex, 1);
+    newOrder.splice(dropIndex, 0, removed);
+    setFieldOrder(newOrder);
+    setDraggedIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  const resetFieldSettings = () => {
+    const allVisible: Record<string, boolean> = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
+    setFieldVisibility(allVisible);
+    setFieldOrder(defaultFields);
+  };
+
+  const renderFieldContent = (fieldKey: string) => {
+    if (!fieldVisibility[fieldKey]) return null;
+
+    switch (fieldKey) {
+      case 'timestamp':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Timestamp:</div>
+            <div className={`flex-1 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{formatDate(currentVisitData.created_at) || 'Not available'}</div>
+          </div>
+        );
+
+      case 'referredBy':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Referred By:</div>
+            <div className={`flex-1 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{currentVisitData.referred_by || 'Not specified'}</div>
+          </div>
+        );
+
+      case 'fullName':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Full Name:</div>
+            <div className={`flex-1 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{getFullName()}</div>
+          </div>
+        );
+
+      case 'contactNumber':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Contact Number:</div>
+            <div className={`flex-1 flex items-center ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              {applicationDetails?.mobile_number || 'Not provided'}
+              {applicationDetails?.mobile_number && (
+                <>
+                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
+                    <Phone size={16} />
+                  </button>
+                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
+                    <MessageSquare size={16} />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'secondContactNumber':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Second Contact Number:</div>
+            <div className={`flex-1 flex items-center ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              {applicationDetails?.secondary_mobile_number || 'Not provided'}
+              {applicationDetails?.secondary_mobile_number && (
+                <>
+                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
+                    <Phone size={16} />
+                  </button>
+                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
+                    <MessageSquare size={16} />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'emailAddress':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Email Address:</div>
+            <div className={`flex-1 flex items-center ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              {applicationDetails?.email_address || 'Not provided'}
+              {applicationDetails?.email_address && (
+                <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
+                  <Mail size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'address':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Address:</div>
+            <div className={`flex-1 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{currentVisitData.full_address || 'Not provided'}</div>
+          </div>
+        );
+
+      case 'chosenPlan':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Chosen Plan:</div>
+            <div className={`flex-1 flex items-center ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              {applicationDetails?.desired_plan || 'Not specified'}
+              {applicationDetails?.desired_plan && (
+                <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
+                  <Info size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'landmark':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Landmark:</div>
+            <div className={`flex-1 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{applicationDetails?.landmark || 'Not provided'}</div>
+          </div>
+        );
+
+      case 'visitBy':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Visit By:</div>
+            <div className={`flex-1 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{currentVisitData.visit_by || 'Not assigned'}</div>
+          </div>
+        );
+
+      case 'visitWith':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Visit With:</div>
+            <div className={`flex-1 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              {currentVisitData.visit_with || 'None'}
+            </div>
+          </div>
+        );
+
+      case 'visitWithOther':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Visit With (Other):</div>
+            <div className={`flex-1 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              {currentVisitData.visit_with_other || 'None'}
+            </div>
+          </div>
+        );
+
+      case 'visitType':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Visit Type:</div>
+            <div className={`flex-1 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Initial Visit</div>
+          </div>
+        );
+
+      case 'visitStatus':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Visit Status:</div>
+            <div className={`flex-1 capitalize ${
+              currentVisitData.visit_status?.toLowerCase() === 'completed' ? 'text-green-500' :
+              currentVisitData.visit_status?.toLowerCase() === 'failed' ? 'text-red-500' :
+              currentVisitData.visit_status?.toLowerCase() === 'in progress' ? 'text-blue-500' :
+              'text-orange-500'
+            }`}>
+              {currentVisitData.visit_status || 'Scheduled'}
+            </div>
+          </div>
+        );
+
+      case 'visitNotes':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Visit Notes:</div>
+            <div className={`flex-1 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{currentVisitData.visit_remarks || 'No notes'}</div>
+          </div>
+        );
+
+      case 'assignedEmail':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Assigned Email:</div>
+            <div className={`flex-1 flex items-center ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              {currentVisitData.assigned_email || 'Not assigned'}
+              {currentVisitData.assigned_email && (
+                <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
+                  <Mail size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'applicationStatus':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Application Status:</div>
+            <div className={`flex-1 capitalize ${
+              currentVisitData.application_status?.toLowerCase() === 'approved' ? 'text-green-500' : 'text-yellow-500'
+            }`}>
+              {currentVisitData.application_status || applicationDetails?.status || 'Pending'}
+            </div>
+          </div>
+        );
+
+      case 'modifiedBy':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Modified By:</div>
+            <div className={`flex-1 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{currentVisitData.updated_by_user_email || 'System'}</div>
+          </div>
+        );
+
+      case 'modifiedDate':
+        return (
+          <div className={`flex border-b pb-4 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Modified Date:</div>
+            <div className={`flex-1 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              {formatDate(currentVisitData.updated_at) || 'Not modified'}
+            </div>
+          </div>
+        );
+
+      case 'houseFrontPicture':
+        return (
+          <div className={`flex border-b py-2 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>House Front Picture</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              <span className="truncate mr-2">
+                {currentVisitData.house_front_picture_url || 'No image available'}
+              </span>
+              {currentVisitData.house_front_picture_url && (
+                <button 
+                  className={`flex-shrink-0 ${
+                    isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                  onClick={() => window.open(currentVisitData.house_front_picture_url)}
+                >
+                  <ExternalLink size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'image1':
+        return (
+          <div className={`flex border-b py-2 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Image 1</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              <span className="truncate mr-2">
+                {currentVisitData.image1_url || 'No image available'}
+              </span>
+              {currentVisitData.image1_url && (
+                <button 
+                  className={`flex-shrink-0 ${
+                    isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                  onClick={() => window.open(currentVisitData.image1_url)}
+                >
+                  <ExternalLink size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'image2':
+        return (
+          <div className={`flex border-b py-2 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Image 2</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              <span className="truncate mr-2">
+                {currentVisitData.image2_url || 'No image available'}
+              </span>
+              {currentVisitData.image2_url && (
+                <button 
+                  className={`flex-shrink-0 ${
+                    isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                  onClick={() => window.open(currentVisitData.image2_url)}
+                >
+                  <ExternalLink size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'image3':
+        return (
+          <div className={`flex border-b py-2 ${
+            isDarkMode ? 'border-gray-800' : 'border-gray-200'
+          }`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Image 3</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
+              <span className="truncate mr-2">
+                {currentVisitData.image3_url || 'No image available'}
+              </span>
+              {currentVisitData.image3_url && (
+                <button 
+                  className={`flex-shrink-0 ${
+                    isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                  onClick={() => window.open(currentVisitData.image3_url)}
+                >
+                  <ExternalLink size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <div 
       className={`h-full flex flex-col overflow-hidden ${!isMobile ? 'md:border-l' : ''} relative w-full md:w-auto ${
@@ -320,6 +887,94 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             <Edit size={16} className="mr-1" />
             <span className="hidden md:inline">Visit Status</span>
           </button>
+          
+          <div className="relative">
+            <button
+              onClick={() => setShowFieldSettings(!showFieldSettings)}
+              className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
+              title="Field Settings"
+            >
+              <Settings size={16} />
+            </button>
+            {showFieldSettings && (
+              <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-200'
+              }`}>
+                <div className={`px-4 py-3 border-b flex items-center justify-between ${
+                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
+                  <h3 className={`font-semibold ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Field Visibility & Order</h3>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={selectAllFields}
+                      className="text-blue-600 hover:text-blue-700 text-xs"
+                    >
+                      Show All
+                    </button>
+                    <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
+                    <button
+                      onClick={deselectAllFields}
+                      className="text-blue-600 hover:text-blue-700 text-xs"
+                    >
+                      Hide All
+                    </button>
+                    <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
+                    <button
+                      onClick={resetFieldSettings}
+                      className="text-blue-600 hover:text-blue-700 text-xs"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+                <div className="p-2">
+                  <div className={`text-xs mb-2 px-2 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
+                    Drag to reorder fields
+                  </div>
+                  {fieldOrder.map((fieldKey, index) => (
+                    <div
+                      key={fieldKey}
+                      draggable
+                      onDragStart={() => handleDragStart(index)}
+                      onDragOver={handleDragOver}
+                      onDrop={() => handleDrop(index)}
+                      onDragEnd={handleDragEnd}
+                      className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-move transition-colors ${
+                        isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                      } ${
+                        draggedIndex === index
+                          ? isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
+                          : ''
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={fieldVisibility[fieldKey]}
+                        onChange={() => toggleFieldVisibility(fieldKey)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className={`text-xs ${
+                        isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                      }`}>☰</span>
+                      <span className={`text-sm ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
+                        {getFieldLabel(fieldKey)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
           <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowLeft size={16} /></button>
           <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowRight size={16} /></button>
           <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><Maximize2 size={16} /></button>
@@ -519,372 +1174,11 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
           isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
         }`}>
           <div className="space-y-4">
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Timestamp:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{formatDate(currentVisitData.created_at) || 'Not available'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Referred By:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{currentVisitData.referred_by || 'Not specified'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Full Name:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{getFullName()}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Contact Number:</div>
-              <div className={`flex-1 flex items-center ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {applicationDetails?.mobile_number || 'Not provided'}
-                {applicationDetails?.mobile_number && (
-                  <>
-                    <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                      <Phone size={16} />
-                    </button>
-                    <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                      <MessageSquare size={16} />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Second Contact Number:</div>
-              <div className={`flex-1 flex items-center ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {applicationDetails?.secondary_mobile_number || 'Not provided'}
-                {applicationDetails?.secondary_mobile_number && (
-                  <>
-                    <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                      <Phone size={16} />
-                    </button>
-                    <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                      <MessageSquare size={16} />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Email Address:</div>
-              <div className={`flex-1 flex items-center ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {applicationDetails?.email_address || 'Not provided'}
-                {applicationDetails?.email_address && (
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <Mail size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Address:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{currentVisitData.full_address || 'Not provided'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Chosen Plan:</div>
-              <div className={`flex-1 flex items-center ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {applicationDetails?.desired_plan || 'Not specified'}
-                {applicationDetails?.desired_plan && (
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <Info size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Landmark:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{applicationDetails?.landmark || 'Not provided'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Visit By:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{currentVisitData.visit_by || 'Not assigned'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Visit With:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {currentVisitData.visit_with || 'None'}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Visit With (Other):</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {currentVisitData.visit_with_other || 'None'}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Visit Type:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Initial Visit</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Visit Status:</div>
-              <div className={`flex-1 capitalize ${
-                currentVisitData.visit_status?.toLowerCase() === 'completed' ? 'text-green-500' :
-                currentVisitData.visit_status?.toLowerCase() === 'failed' ? 'text-red-500' :
-                currentVisitData.visit_status?.toLowerCase() === 'in progress' ? 'text-blue-500' :
-                'text-orange-500'
-              }`}>
-                {currentVisitData.visit_status || 'Scheduled'}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Visit Notes:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{currentVisitData.visit_remarks || 'No notes'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Assigned Email:</div>
-              <div className={`flex-1 flex items-center ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {currentVisitData.assigned_email || 'Not assigned'}
-                {currentVisitData.assigned_email && (
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <Mail size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Application Status:</div>
-              <div className={`flex-1 capitalize ${
-                currentVisitData.application_status?.toLowerCase() === 'approved' ? 'text-green-500' : 'text-yellow-500'
-              }`}>
-                {currentVisitData.application_status || applicationDetails?.status || 'Pending'}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Modified By:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{currentVisitData.updated_by_user_email || 'System'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Modified Date:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {formatDate(currentVisitData.updated_at) || 'Not modified'}
-              </div>
-            </div>
-            
-            <div className={`flex border-b py-2 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm whitespace-nowrap ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>House Front Picture</div>
-              <div className={`flex-1 flex items-center justify-between min-w-0 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                <span className="truncate mr-2">
-                  {currentVisitData.house_front_picture_url || 'No image available'}
-                </span>
-                {currentVisitData.house_front_picture_url && (
-                  <button 
-                    className={`flex-shrink-0 ${
-                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                    onClick={() => window.open(currentVisitData.house_front_picture_url)}
-                  >
-                    <ExternalLink size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b py-2 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm whitespace-nowrap ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Image 1</div>
-              <div className={`flex-1 flex items-center justify-between min-w-0 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                <span className="truncate mr-2">
-                  {currentVisitData.image1_url || 'No image available'}
-                </span>
-                {currentVisitData.image1_url && (
-                  <button 
-                    className={`flex-shrink-0 ${
-                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                    onClick={() => window.open(currentVisitData.image1_url)}
-                  >
-                    <ExternalLink size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b py-2 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm whitespace-nowrap ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Image 2</div>
-              <div className={`flex-1 flex items-center justify-between min-w-0 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                <span className="truncate mr-2">
-                  {currentVisitData.image2_url || 'No image available'}
-                </span>
-                {currentVisitData.image2_url && (
-                  <button 
-                    className={`flex-shrink-0 ${
-                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                    onClick={() => window.open(currentVisitData.image2_url)}
-                  >
-                    <ExternalLink size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b py-2 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm whitespace-nowrap ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Image 3</div>
-              <div className={`flex-1 flex items-center justify-between min-w-0 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                <span className="truncate mr-2">
-                  {currentVisitData.image3_url || 'No image available'}
-                </span>
-                {currentVisitData.image3_url && (
-                  <button 
-                    className={`flex-shrink-0 ${
-                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                    onClick={() => window.open(currentVisitData.image3_url)}
-                  >
-                    <ExternalLink size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
+            {fieldOrder.map((fieldKey) => (
+              <React.Fragment key={fieldKey}>
+                {renderFieldContent(fieldKey)}
+              </React.Fragment>
+            ))}
           </div>
         </div>
       </div>

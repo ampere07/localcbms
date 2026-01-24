@@ -149,7 +149,17 @@ const Customer: React.FC = () => {
   const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(allColumns.map(col => col.key));
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    const saved = localStorage.getItem('customerTableVisibleColumns');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to load column visibility:', err);
+      }
+    }
+    return allColumns.map(col => col.key);
+  });
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
@@ -162,6 +172,17 @@ const Customer: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
+  const [activeFilters, setActiveFilters] = useState<any>(() => {
+    const saved = localStorage.getItem('customerFilters');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to load filters:', err);
+      }
+    }
+    return {};
+  });
   const dropdownRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -282,6 +303,41 @@ const Customer: React.FC = () => {
     return items;
   }, [cities, billingRecords]);
 
+  // Helper function to apply funnel filters
+  const applyFunnelFilters = (records: BillingRecord[], filters: any): BillingRecord[] => {
+    if (!filters || Object.keys(filters).length === 0) return records;
+
+    return records.filter(record => {
+      return Object.entries(filters).every(([key, filter]: [string, any]) => {
+        const recordValue = (record as any)[key];
+        
+        if (filter.type === 'text') {
+          if (!filter.value) return true;
+          const value = String(recordValue || '').toLowerCase();
+          return value.includes(filter.value.toLowerCase());
+        }
+        
+        if (filter.type === 'number') {
+          const numValue = Number(recordValue);
+          if (isNaN(numValue)) return false;
+          if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
+          if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
+          return true;
+        }
+        
+        if (filter.type === 'date') {
+          if (!recordValue) return false;
+          const dateValue = new Date(recordValue).getTime();
+          if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
+          if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
+          return true;
+        }
+        
+        return true;
+      });
+    });
+  };
+
   // Memoize filtered and sorted records for performance
   const filteredBillingRecords = useMemo(() => {
     let filtered = billingRecords.filter(record => {
@@ -295,6 +351,9 @@ const Customer: React.FC = () => {
       
       return matchesLocation && matchesSearch;
     });
+
+    // Apply funnel filters
+    filtered = applyFunnelFilters(filtered, activeFilters);
 
     if (sortColumn) {
       filtered = [...filtered].sort((a, b) => {
@@ -427,7 +486,7 @@ const Customer: React.FC = () => {
     }
 
     return filtered;
-  }, [billingRecords, selectedLocation, searchQuery, sortColumn, sortDirection]);
+  }, [billingRecords, selectedLocation, searchQuery, sortColumn, sortDirection, activeFilters]);
 
   const handleRecordClick = async (record: BillingRecord) => {
     try {
@@ -682,20 +741,23 @@ const Customer: React.FC = () => {
 
   const handleToggleColumn = (columnKey: string) => {
     setVisibleColumns(prev => {
-      if (prev.includes(columnKey)) {
-        return prev.filter(key => key !== columnKey);
-      } else {
-        return [...prev, columnKey];
-      }
+      const newColumns = prev.includes(columnKey)
+        ? prev.filter(key => key !== columnKey)
+        : [...prev, columnKey];
+      localStorage.setItem('customerTableVisibleColumns', JSON.stringify(newColumns));
+      return newColumns;
     });
   };
 
   const handleSelectAllColumns = () => {
-    setVisibleColumns(allColumns.map(col => col.key));
+    const allKeys = allColumns.map(col => col.key);
+    setVisibleColumns(allKeys);
+    localStorage.setItem('customerTableVisibleColumns', JSON.stringify(allKeys));
   };
 
   const handleDeselectAllColumns = () => {
     setVisibleColumns([]);
+    localStorage.setItem('customerTableVisibleColumns', JSON.stringify([]));
   };
 
   const handleSort = (columnKey: string) => {
@@ -1345,8 +1407,11 @@ const Customer: React.FC = () => {
         onClose={() => setIsFunnelFilterOpen(false)}
         onApplyFilters={(filters) => {
           console.log('Applied filters:', filters);
+          setActiveFilters(filters);
+          localStorage.setItem('customerFilters', JSON.stringify(filters));
           setIsFunnelFilterOpen(false);
         }}
+        currentFilters={activeFilters}
       />
     </div>
   );

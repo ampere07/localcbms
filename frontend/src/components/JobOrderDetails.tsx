@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, ArrowRight, Maximize2, X, Phone, MessageSquare, Info, 
-  ExternalLink, Mail, Edit
+  ExternalLink, Mail, Edit, Settings
 } from 'lucide-react';
 import { updateJobOrder, approveJobOrder } from '../services/jobOrderService';
 import { getBillingStatuses, BillingStatus } from '../services/lookupService';
@@ -30,6 +30,76 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
+  const [showFieldSettings, setShowFieldSettings] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const FIELD_VISIBILITY_KEY = 'jobOrderDetailsFieldVisibility';
+  const FIELD_ORDER_KEY = 'jobOrderDetailsFieldOrder';
+
+  const defaultFields = [
+    'timestamp',
+    'jobOrderNumber',
+    'referredBy',
+    'fullName',
+    'contactNumber',
+    'secondContactNumber',
+    'emailAddress',
+    'fullAddress',
+    'billingStatus',
+    'billingDay',
+    'choosePlan',
+    'statusRemarks',
+    'remarks',
+    'installationLandmark',
+    'connectionType',
+    'modemRouterSn',
+    'routerModel',
+    'affiliateName',
+    'lcpnap',
+    'port',
+    'vlan',
+    'username',
+    'ipAddress',
+    'usageType',
+    'dateInstalled',
+    'visitBy',
+    'visitWith',
+    'visitWithOther',
+    'onsiteStatus',
+    'contractTemplate',
+    'contractLink',
+    'modifiedBy',
+    'modifiedDate',
+    'assignedEmail',
+    'setupImage',
+    'speedtestImage',
+    'signedContractImage',
+    'boxReadingImage',
+    'routerReadingImage',
+    'portLabelImage',
+    'houseFrontPicture'
+  ];
+
+  const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem(FIELD_VISIBILITY_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
+  });
+
+  const [fieldOrder, setFieldOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem(FIELD_ORDER_KEY);
+    return saved ? JSON.parse(saved) : defaultFields;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(FIELD_VISIBILITY_KEY, JSON.stringify(fieldVisibility));
+  }, [fieldVisibility]);
+
+  useEffect(() => {
+    localStorage.setItem(FIELD_ORDER_KEY, JSON.stringify(fieldOrder));
+  }, [fieldOrder]);
   
   useEffect(() => {
     const checkDarkMode = () => {
@@ -60,7 +130,6 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     fetchColorPalette();
   }, []);
   
-  // Get user role from localStorage
   useEffect(() => {
     const authData = localStorage.getItem('authData');
     if (authData) {
@@ -73,7 +142,6 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     }
   }, []);
   
-  // Fetch billing statuses on mount
   useEffect(() => {
     const fetchBillingStatuses = async () => {
       try {
@@ -118,11 +186,9 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     startWidthRef.current = detailsWidth;
   };
   
-  // Get billing status name by ID
   const getBillingStatusName = (statusId?: number | null): string => {
     if (!statusId) return 'Not Set';
     
-    // If billing statuses haven't loaded yet, show a default based on common IDs
     if (billingStatuses.length === 0) {
       const defaultStatuses: { [key: number]: string } = {
         1: 'In Progress',
@@ -390,36 +456,594 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       setLoading(false);
     }
   };
+
+  const getFieldLabel = (fieldKey: string): string => {
+    const labels: Record<string, string> = {
+      timestamp: 'Timestamp',
+      jobOrderNumber: 'Job Order Number',
+      referredBy: 'Referred By',
+      fullName: 'Full Name',
+      contactNumber: 'Contact Number',
+      secondContactNumber: 'Second Contact Number',
+      emailAddress: 'Email Address',
+      fullAddress: 'Full Address',
+      billingStatus: 'Billing Status',
+      billingDay: 'Billing Day',
+      choosePlan: 'Choose Plan',
+      statusRemarks: 'Status Remarks',
+      remarks: 'Remarks',
+      installationLandmark: 'Installation Landmark',
+      connectionType: 'Connection Type',
+      modemRouterSn: 'Modem/Router SN',
+      routerModel: 'Router Model',
+      affiliateName: 'Affiliate Name',
+      lcpnap: 'LCPNAP',
+      port: 'PORT',
+      vlan: 'VLAN',
+      username: 'Username',
+      ipAddress: 'IP Address',
+      usageType: 'Usage Type',
+      dateInstalled: 'Date Installed',
+      visitBy: 'Visit By',
+      visitWith: 'Visit With',
+      visitWithOther: 'Visit With Other',
+      onsiteStatus: 'Onsite Status',
+      contractTemplate: 'Contract Template',
+      contractLink: 'Contract Link',
+      modifiedBy: 'Modified By',
+      modifiedDate: 'Modified Date',
+      assignedEmail: 'Assigned Email',
+      setupImage: 'Setup Image',
+      speedtestImage: 'Speedtest Image',
+      signedContractImage: 'Signed Contract Image',
+      boxReadingImage: 'Box Reading Image',
+      routerReadingImage: 'Router Reading Image',
+      portLabelImage: 'Port Label Image',
+      houseFrontPicture: 'House Front Picture'
+    };
+    return labels[fieldKey] || fieldKey;
+  };
+
+  const toggleFieldVisibility = (field: string) => {
+    setFieldVisibility((prev: Record<string, boolean>) => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  const selectAllFields = () => {
+    const allVisible: Record<string, boolean> = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
+    setFieldVisibility(allVisible);
+  };
+
+  const deselectAllFields = () => {
+    const allHidden: Record<string, boolean> = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: false }), {});
+    setFieldVisibility(allHidden);
+  };
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (dropIndex: number) => {
+    if (draggedIndex === null) return;
+    const newOrder = [...fieldOrder];
+    const [removed] = newOrder.splice(draggedIndex, 1);
+    newOrder.splice(dropIndex, 0, removed);
+    setFieldOrder(newOrder);
+    setDraggedIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  const resetFieldSettings = () => {
+    const allVisible: Record<string, boolean> = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
+    setFieldVisibility(allVisible);
+    setFieldOrder(defaultFields);
+  };
+
+  const renderFieldContent = (fieldKey: string) => {
+    if (!fieldVisibility[fieldKey]) return null;
+
+    const baseFieldClass = `flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`;
+    const labelClass = `w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`;
+    const valueClass = `flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`;
+
+    switch (fieldKey) {
+      case 'timestamp':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Timestamp:</div>
+            <div className={valueClass}>{formatDate(jobOrder.Create_DateTime || jobOrder.created_at)}</div>
+          </div>
+        );
+
+      case 'jobOrderNumber':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Job Order #:</div>
+            <div className={valueClass}>{jobOrder.id || 'N/A'}</div>
+          </div>
+        );
+
+      case 'referredBy':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Referred By:</div>
+            <div className={valueClass}>{jobOrder.Referred_By || 'None'}</div>
+          </div>
+        );
+
+      case 'fullName':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Full Name:</div>
+            <div className={valueClass}>{getClientFullName()}</div>
+          </div>
+        );
+
+      case 'contactNumber':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Contact Number:</div>
+            <div className={`flex-1 flex items-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              {jobOrder.Contact_Number || 'Not provided'}
+              {jobOrder.Contact_Number && (
+                <>
+                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
+                    <Phone size={16} />
+                  </button>
+                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
+                    <MessageSquare size={16} />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'secondContactNumber':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Second Contact Number:</div>
+            <div className={`flex-1 flex items-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              {jobOrder.Second_Contact_Number || 'Not provided'}
+              {jobOrder.Second_Contact_Number && (
+                <>
+                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
+                    <Phone size={16} />
+                  </button>
+                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
+                    <MessageSquare size={16} />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'emailAddress':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Email Address:</div>
+            <div className={`flex-1 flex items-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              {jobOrder.Email_Address || 'Not provided'}
+              {jobOrder.Email_Address && (
+                <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
+                  <Mail size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'fullAddress':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Full Address:</div>
+            <div className={valueClass}>{getClientFullAddress()}</div>
+          </div>
+        );
+
+      case 'billingStatus':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Billing Status:</div>
+            <div className={valueClass}>{getBillingStatusName(jobOrder.billing_status_id || jobOrder.Billing_Status_ID)}</div>
+          </div>
+        );
+
+      case 'billingDay':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Billing Day:</div>
+            <div className={valueClass}>{getBillingDayDisplay(jobOrder.Billing_Day || jobOrder.billing_day)}</div>
+          </div>
+        );
+
+      case 'choosePlan':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Choose Plan:</div>
+            <div className={`flex-1 flex items-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              {jobOrder.Desired_Plan || jobOrder.Choose_Plan || 'Not specified'}
+              <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
+                <Info size={16} />
+              </button>
+            </div>
+          </div>
+        );
+
+      case 'statusRemarks':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Status Remarks:</div>
+            <div className={valueClass}>{jobOrder.Status_Remarks || 'No remarks'}</div>
+          </div>
+        );
+
+      case 'remarks':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Remarks:</div>
+            <div className={valueClass}>{jobOrder.Remarks || 'No remarks'}</div>
+          </div>
+        );
+
+      case 'installationLandmark':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Installation Landmark:</div>
+            <div className={valueClass}>{jobOrder.Installation_Landmark || 'Not provided'}</div>
+          </div>
+        );
+
+      case 'connectionType':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Connection Type:</div>
+            <div className={valueClass}>{jobOrder.Connection_Type || 'Not specified'}</div>
+          </div>
+        );
+
+      case 'modemRouterSn':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Modem/Router SN:</div>
+            <div className={valueClass}>{jobOrder.Modem_Router_SN || jobOrder.modem_router_sn || jobOrder.Modem_SN || jobOrder.modem_sn || 'Not specified'}</div>
+          </div>
+        );
+
+      case 'routerModel':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Router Model:</div>
+            <div className={valueClass}>{jobOrder.Router_Model || jobOrder.router_model || 'Not specified'}</div>
+          </div>
+        );
+
+      case 'affiliateName':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Affiliate Name:</div>
+            <div className={valueClass}>{jobOrder.group_name || jobOrder.Group_Name || 'Not specified'}</div>
+          </div>
+        );
+
+      case 'lcpnap':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>LCPNAP:</div>
+            <div className={valueClass}>{jobOrder.LCPNAP || jobOrder.lcpnap || 'Not specified'}</div>
+          </div>
+        );
+
+      case 'port':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>PORT:</div>
+            <div className={valueClass}>{jobOrder.PORT || jobOrder.Port || jobOrder.port || 'Not specified'}</div>
+          </div>
+        );
+
+      case 'vlan':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>VLAN:</div>
+            <div className={valueClass}>{jobOrder.VLAN || jobOrder.vlan || 'Not specified'}</div>
+          </div>
+        );
+
+      case 'username':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Username:</div>
+            <div className={valueClass}>{jobOrder.Username || jobOrder.username || 'Not provided'}</div>
+          </div>
+        );
+
+      case 'ipAddress':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>IP Address:</div>
+            <div className={valueClass}>{jobOrder.IP_Address || jobOrder.ip_address || jobOrder.IP || jobOrder.ip || 'Not specified'}</div>
+          </div>
+        );
+
+      case 'usageType':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Usage Type:</div>
+            <div className={valueClass}>{jobOrder.Usage_Type || jobOrder.usage_type || 'Not specified'}</div>
+          </div>
+        );
+
+      case 'dateInstalled':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Date Installed:</div>
+            <div className={valueClass}>
+              {jobOrder.Date_Installed || jobOrder.date_installed 
+                ? formatDate(jobOrder.Date_Installed || jobOrder.date_installed) 
+                : 'Not installed yet'}
+            </div>
+          </div>
+        );
+
+      case 'visitBy':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Visit By:</div>
+            <div className={valueClass}>{jobOrder.Visit_By || jobOrder.visit_by || 'Not assigned'}</div>
+          </div>
+        );
+
+      case 'visitWith':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Visit With:</div>
+            <div className={valueClass}>{jobOrder.Visit_With || jobOrder.visit_with || 'None'}</div>
+          </div>
+        );
+
+      case 'visitWithOther':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Visit With Other:</div>
+            <div className={valueClass}>{jobOrder.Visit_With_Other || jobOrder.visit_with_other || 'None'}</div>
+          </div>
+        );
+
+      case 'onsiteStatus':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Onsite Status:</div>
+            <div className={`${getStatusColor(jobOrder.Onsite_Status, 'onsite')} flex-1 capitalize`}>
+              {jobOrder.Onsite_Status === 'inprogress' ? 'In Progress' : (jobOrder.Onsite_Status || 'Not set')}
+            </div>
+          </div>
+        );
+
+      case 'contractTemplate':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Contract Template:</div>
+            <div className={valueClass}>{jobOrder.Contract_Template || 'Standard'}</div>
+          </div>
+        );
+
+      case 'contractLink':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Contract Link:</div>
+            <div className={`flex-1 truncate flex items-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              {jobOrder.Contract_Link || 'Not available'}
+              {jobOrder.Contract_Link && (
+                <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
+                  <ExternalLink size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'modifiedBy':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Modified By:</div>
+            <div className={valueClass}>{jobOrder.Modified_By || 'System'}</div>
+          </div>
+        );
+
+      case 'modifiedDate':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Modified Date:</div>
+            <div className={valueClass}>{formatDate(jobOrder.Modified_Date)}</div>
+          </div>
+        );
+
+      case 'assignedEmail':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Assigned Email:</div>
+            <div className={valueClass}>{jobOrder.Assigned_Email || 'Not assigned'}</div>
+          </div>
+        );
+
+      case 'setupImage':
+        return (
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Setup Image</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span className="truncate mr-2">
+                {jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url || 'No image available'}
+              </span>
+              {(jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url) && (
+                <button 
+                  className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
+                  onClick={() => window.open(jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url || '')}
+                >
+                  <ExternalLink size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'speedtestImage':
+        return (
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Speedtest Image</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span className="truncate mr-2">
+                {jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image || 'No image available'}
+              </span>
+              {(jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image) && (
+                <button 
+                  className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
+                  onClick={() => window.open(jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image || '')}
+                >
+                  <ExternalLink size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'signedContractImage':
+        return (
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Signed Contract Image</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span className="truncate mr-2">
+                {jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL || 'No image available'}
+              </span>
+              {(jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL) && (
+                <button 
+                  className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
+                  onClick={() => window.open(jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL || '')}
+                >
+                  <ExternalLink size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'boxReadingImage':
+        return (
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Box Reading Image</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span className="truncate mr-2">
+                {jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL || 'No image available'}
+              </span>
+              {(jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL) && (
+                <button 
+                  className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
+                  onClick={() => window.open(jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL || '')}
+                >
+                  <ExternalLink size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'routerReadingImage':
+        return (
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Router Reading Image</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span className="truncate mr-2">
+                {jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL || 'No image available'}
+              </span>
+              {(jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL) && (
+                <button 
+                  className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
+                  onClick={() => window.open(jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL || '')}
+                >
+                  <ExternalLink size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'portLabelImage':
+        return (
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Port Label Image</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span className="truncate mr-2">
+                {jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL || 'No image available'}
+              </span>
+              {(jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL) && (
+                <button 
+                  className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
+                  onClick={() => window.open(jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL || '')}
+                >
+                  <ExternalLink size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'houseFrontPicture':
+        return (
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>House Front Picture</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span className="truncate mr-2">
+                {jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture || 'No image available'}
+              </span>
+              {(jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture) && (
+                <button 
+                  className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
+                  onClick={() => window.open(jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture || '')}
+                >
+                  <ExternalLink size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
   
   return (
     <div 
-      className={`h-full flex flex-col overflow-hidden relative ${
-        !isMobile ? (isDarkMode ? 'border-l border-white border-opacity-30' : 'border-l border-gray-300') : ''
-      } ${
-        isDarkMode ? 'bg-gray-950' : 'bg-white'
-      }`} 
-      style={!isMobile ? { width: `${detailsWidth}px` } : undefined}
+      className={`h-full flex flex-col overflow-hidden ${!isMobile ? 'md:border-l' : ''} relative w-full md:w-auto ${
+        isDarkMode ? 'bg-gray-950 border-white border-opacity-30' : 'bg-gray-50 border-gray-300'
+      }`}
+      style={!isMobile && window.innerWidth >= 768 ? { width: `${detailsWidth}px` } : undefined}
     >
       {!isMobile && (
         <div
-          className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${
+          className={`hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${
             isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
           }`}
           onMouseDown={handleMouseDownResize}
         />
       )}
       <div className={`p-3 flex items-center justify-between border-b ${
-        isDarkMode
-          ? 'bg-gray-800 border-gray-700'
-          : 'bg-gray-100 border-gray-200'
+        isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
       }`}>
         <div className="flex items-center flex-1 min-w-0">
-          <h2 className={`font-medium truncate ${
-            isMobile ? 'max-w-[200px] text-sm' : 'max-w-md'
-          } ${
+          <h2 className={`font-medium truncate ${isMobile ? 'max-w-[200px] text-sm' : ''} ${
             isDarkMode ? 'text-white' : 'text-gray-900'
           }`}>{getClientFullName()}</h2>
-          {loading && <div className="ml-3 animate-pulse text-orange-500 text-sm flex-shrink-0">Loading...</div>}
+          {loading && <div className={`ml-3 animate-pulse text-sm flex-shrink-0 ${
+            isDarkMode ? 'text-orange-500' : 'text-orange-600'
+          }`}>Loading...</div>}
         </div>
         
         <div className="flex items-center space-x-3">
@@ -451,7 +1075,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             </button>
           )}
           <button 
-            className="px-3 py-1 rounded-sm flex items-center text-white"
+            className="text-white px-3 py-1 rounded-sm flex items-center transition-colors"
             style={{
               backgroundColor: colorPalette?.primary || '#ea580c'
             }}
@@ -466,8 +1090,96 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             onClick={handleDoneClick}
             disabled={loading}
           >
-            <span>Done</span>
+            <span className="hidden md:inline">Done</span>
           </button>
+          
+          <div className="relative">
+            <button
+              onClick={() => setShowFieldSettings(!showFieldSettings)}
+              className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
+              title="Field Settings"
+            >
+              <Settings size={16} />
+            </button>
+            {showFieldSettings && (
+              <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-200'
+              }`}>
+                <div className={`px-4 py-3 border-b flex items-center justify-between ${
+                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
+                  <h3 className={`font-semibold ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Field Visibility & Order</h3>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={selectAllFields}
+                      className="text-blue-600 hover:text-blue-700 text-xs"
+                    >
+                      Show All
+                    </button>
+                    <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
+                    <button
+                      onClick={deselectAllFields}
+                      className="text-blue-600 hover:text-blue-700 text-xs"
+                    >
+                      Hide All
+                    </button>
+                    <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
+                    <button
+                      onClick={resetFieldSettings}
+                      className="text-blue-600 hover:text-blue-700 text-xs"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+                <div className="p-2">
+                  <div className={`text-xs mb-2 px-2 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
+                    Drag to reorder fields
+                  </div>
+                  {fieldOrder.map((fieldKey, index) => (
+                    <div
+                      key={fieldKey}
+                      draggable
+                      onDragStart={() => handleDragStart(index)}
+                      onDragOver={handleDragOver}
+                      onDrop={() => handleDrop(index)}
+                      onDragEnd={handleDragEnd}
+                      className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-move transition-colors ${
+                        isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                      } ${
+                        draggedIndex === index
+                          ? isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
+                          : ''
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={fieldVisibility[fieldKey]}
+                        onChange={() => toggleFieldVisibility(fieldKey)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className={`text-xs ${
+                        isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                      }`}>☰</span>
+                      <span className={`text-sm ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
+                        {getFieldLabel(fieldKey)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
           <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowLeft size={16} /></button>
           <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowRight size={16} /></button>
           <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><Maximize2 size={16} /></button>
@@ -483,9 +1195,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       
       {userRole !== 'technician' && (
         <div className={`py-3 border-b ${
-          isDarkMode
-            ? 'bg-gray-900 border-gray-700'
-            : 'bg-gray-100 border-gray-200'
+          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-200'
         }`}>
           <div className="flex items-center justify-center px-4">
             <button 
@@ -496,14 +1206,22 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
               }`}
             >
               <div 
-                className="p-2 rounded-full"
+                className="p-2 rounded-full transition-colors"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: loading ? (isDarkMode ? '#4b5563' : '#9ca3af') : (colorPalette?.primary || '#ea580c')
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading && colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  }
                 }}
               >
-                <div className="text-white">
-                  <Edit size={18} />
-                </div>
+                <Edit className="text-white" size={18} />
               </div>
               <span className={`text-xs mt-1 ${
                 isDarkMode ? 'text-gray-300' : 'text-gray-700'
@@ -512,12 +1230,12 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           </div>
         </div>
       )}
-      
+
       {error && (
-        <div className={`border p-3 m-3 rounded ${
-          isDarkMode
-            ? 'bg-red-900 bg-opacity-20 border-red-700 text-red-400'
-            : 'bg-red-100 border-red-300 text-red-900'
+        <div className={`p-3 m-3 rounded ${
+          isDarkMode 
+            ? 'bg-red-900 bg-opacity-20 border border-red-700 text-red-400'
+            : 'bg-red-100 border border-red-300 text-red-700'
         }`}>
           {error}
         </div>
@@ -525,650 +1243,14 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       
       <div className="flex-1 overflow-y-auto">
         <div className={`max-w-2xl mx-auto py-6 px-4 ${
-          isDarkMode ? 'bg-gray-950' : 'bg-white'
+          isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
         }`}>
           <div className="space-y-4">
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Timestamp:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{formatDate(jobOrder.Timestamp)}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Billing Status:</div>
-              <div className={`${getStatusColor(getBillingStatusName(jobOrder.Billing_Status_ID || jobOrder.billing_status_id), 'billing')} flex-1 capitalize`}>
-                {getBillingStatusName(jobOrder.Billing_Status_ID || jobOrder.billing_status_id)}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Billing Day:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {getBillingDayDisplay(jobOrder.Billing_Day ?? jobOrder.billing_day)}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Installation Fee:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{formatPrice(jobOrder.Installation_Fee)}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Referred By:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Referred_By || 'None'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Full Name of Client:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{getClientFullName()}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Full Address of Client:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{getClientFullAddress()}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Contact Number:</div>
-              <div className={`flex-1 flex items-center ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {jobOrder.Mobile_Number || jobOrder.Contact_Number || 'Not provided'}
-                {(jobOrder.Mobile_Number || jobOrder.Contact_Number) && (
-                  <>
-                    <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                      <Phone size={16} />
-                    </button>
-                    <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                      <MessageSquare size={16} />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Second Contact Number:</div>
-              <div className={`flex-1 flex items-center ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {jobOrder.Secondary_Mobile_Number || 'Not provided'}
-                {jobOrder.Secondary_Mobile_Number && (
-                  <>
-                    <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                      <Phone size={16} />
-                    </button>
-                    <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                      <MessageSquare size={16} />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Email Address:</div>
-              <div className={`flex-1 flex items-center ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {jobOrder.Email_Address || jobOrder.Applicant_Email_Address || 'Not provided'}
-                {(jobOrder.Email_Address || jobOrder.Applicant_Email_Address) && (
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <Mail size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Location:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Location || 'Not specified'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Barangay:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Barangay || 'Not specified'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>City:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.City || 'Not specified'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Region:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Region || 'Not specified'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Choose Plan:</div>
-              <div className={`flex-1 flex items-center ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {jobOrder.Desired_Plan || jobOrder.Choose_Plan || 'Not specified'}
-                <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                  <Info size={16} />
-                </button>
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Status Remarks:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Status_Remarks || 'No remarks'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Remarks:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Remarks || 'No remarks'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Installation Landmark:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Installation_Landmark || 'Not provided'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Connection Type:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Connection_Type || 'Not specified'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Modem/Router SN:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Modem_Router_SN || jobOrder.modem_router_sn || jobOrder.Modem_SN || jobOrder.modem_sn || 'Not specified'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Router Model:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Router_Model || jobOrder.router_model || 'Not specified'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Affiliate Name:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.group_name || jobOrder.Group_Name || 'Not specified'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>LCPNAP:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.LCPNAP || jobOrder.lcpnap || 'Not specified'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>PORT:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.PORT || jobOrder.Port || jobOrder.port || 'Not specified'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>VLAN:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.VLAN || jobOrder.vlan || 'Not specified'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Username:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Username || jobOrder.username || 'Not provided'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>IP Address:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.IP_Address || jobOrder.ip_address || jobOrder.IP || jobOrder.ip || 'Not specified'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Usage Type:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Usage_Type || jobOrder.usage_type || 'Not specified'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Date Installed:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {jobOrder.Date_Installed || jobOrder.date_installed 
-                  ? formatDate(jobOrder.Date_Installed || jobOrder.date_installed) 
-                  : 'Not installed yet'}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Visit By:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Visit_By || jobOrder.visit_by || 'Not assigned'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Visit With:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Visit_With || jobOrder.visit_with || 'None'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Visit With Other:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Visit_With_Other || jobOrder.visit_with_other || 'None'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Onsite Status:</div>
-              <div className={`${getStatusColor(jobOrder.Onsite_Status, 'onsite')} flex-1 capitalize`}>
-                {jobOrder.Onsite_Status === 'inprogress' ? 'In Progress' : (jobOrder.Onsite_Status || 'Not set')}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Contract Template:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Contract_Template || 'Standard'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Contract Link:</div>
-              <div className={`flex-1 truncate flex items-center ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {jobOrder.Contract_Link || 'Not available'}
-                {jobOrder.Contract_Link && (
-                  <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                    <ExternalLink size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Modified By:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Modified_By || 'System'}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Modified Date:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{formatDate(jobOrder.Modified_Date)}</div>
-            </div>
-            
-            <div className={`flex border-b pb-4 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Assigned Email:</div>
-              <div className={`flex-1 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{jobOrder.Assigned_Email || 'Not assigned'}</div>
-            </div>
-            
-            <div className={`flex border-b py-2 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm whitespace-nowrap ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Setup Image</div>
-              <div className={`flex-1 flex items-center justify-between min-w-0 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                <span className="truncate mr-2">
-                  {jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url || 'No image available'}
-                </span>
-                {(jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url) && (
-                  <button 
-                    className={`flex-shrink-0 ${
-                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                    onClick={() => window.open(jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url || '')}
-                  >
-                    <ExternalLink size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b py-2 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm whitespace-nowrap ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Speedtest Image</div>
-              <div className={`flex-1 flex items-center justify-between min-w-0 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                <span className="truncate mr-2">
-                  {jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image || 'No image available'}
-                </span>
-                {(jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image) && (
-                  <button 
-                    className={`flex-shrink-0 ${
-                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                    onClick={() => window.open(jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image || '')}
-                  >
-                    <ExternalLink size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b py-2 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm whitespace-nowrap ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Signed Contract Image</div>
-              <div className={`flex-1 flex items-center justify-between min-w-0 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                <span className="truncate mr-2">
-                  {jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL || 'No image available'}
-                </span>
-                {(jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL) && (
-                  <button 
-                    className={`flex-shrink-0 ${
-                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                    onClick={() => window.open(jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL || '')}
-                  >
-                    <ExternalLink size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b py-2 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm whitespace-nowrap ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Box Reading Image</div>
-              <div className={`flex-1 flex items-center justify-between min-w-0 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                <span className="truncate mr-2">
-                  {jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL || 'No image available'}
-                </span>
-                {(jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL) && (
-                  <button 
-                    className={`flex-shrink-0 ${
-                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                    onClick={() => window.open(jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL || '')}
-                  >
-                    <ExternalLink size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b py-2 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm whitespace-nowrap ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Router Reading Image</div>
-              <div className={`flex-1 flex items-center justify-between min-w-0 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                <span className="truncate mr-2">
-                  {jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL || 'No image available'}
-                </span>
-                {(jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL) && (
-                  <button 
-                    className={`flex-shrink-0 ${
-                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                    onClick={() => window.open(jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL || '')}
-                  >
-                    <ExternalLink size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b py-2 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm whitespace-nowrap ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Port Label Image</div>
-              <div className={`flex-1 flex items-center justify-between min-w-0 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                <span className="truncate mr-2">
-                  {jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL || 'No image available'}
-                </span>
-                {(jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL) && (
-                  <button 
-                    className={`flex-shrink-0 ${
-                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                    onClick={() => window.open(jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL || '')}
-                  >
-                    <ExternalLink size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div className={`flex border-b py-2 ${
-              isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-              <div className={`w-40 text-sm whitespace-nowrap ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>House Front Picture</div>
-              <div className={`flex-1 flex items-center justify-between min-w-0 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                <span className="truncate mr-2">
-                  {jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture || 'No image available'}
-                </span>
-                {(jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture) && (
-                  <button 
-                    className={`flex-shrink-0 ${
-                      isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                    onClick={() => window.open(jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture || '')}
-                  >
-                    <ExternalLink size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
+            {fieldOrder.map((fieldKey) => (
+              <React.Fragment key={fieldKey}>
+                {renderFieldContent(fieldKey)}
+              </React.Fragment>
+            ))}
           </div>
         </div>
       </div>

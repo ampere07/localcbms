@@ -21,8 +21,9 @@ import {
   List,
   RefreshCw,
   Settings,
-  Eye,
-  EyeOff
+  Save,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 
 ChartJS.register(
@@ -98,7 +99,6 @@ const LiveMonitor: React.FC = () => {
     const theme = localStorage.getItem('theme');
     setIsDarkMode(theme === 'dark' || theme === null);
     
-    // Initialize widget states
     const initialStates: Record<string, WidgetState> = {};
     Object.keys(WIDGETS).forEach(id => {
       initialStates[id] = {
@@ -111,28 +111,31 @@ const LiveMonitor: React.FC = () => {
     });
     setWidgetStates(initialStates);
 
-    fetchAllWidgets();
-    refreshInterval.current = setInterval(fetchAllWidgets, 15000);
+    fetchAllWidgets(initialStates);
+    refreshInterval.current = setInterval(() => fetchAllWidgets(), 15000);
 
     return () => {
       if (refreshInterval.current) clearInterval(refreshInterval.current);
     };
   }, []);
 
-  const fetchAllWidgets = async () => {
+  const fetchAllWidgets = async (states?: Record<string, WidgetState>) => {
     const timestamp = new Date().toLocaleTimeString();
     setLastUpdate(timestamp);
 
+    const currentStates = states || widgetStates;
+
     for (const [id, config] of Object.entries(WIDGETS)) {
-      if (!widgetStates[id]?.visible && Object.keys(widgetStates).length > 0) continue;
+      const state = currentStates[id];
+      if (state && !state.visible) continue;
 
       try {
         const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
-        const state = widgetStates[id] || { scope: 'overall', year: new Date().getFullYear().toString(), bgy: 'All' };
+        const widgetState = state || { scope: 'overall', year: new Date().getFullYear().toString(), bgy: 'All' };
         
-        let params = `param=${config.param}&scope=${state.scope}`;
-        if (state.year) params += `&year=${state.year}`;
-        if (state.bgy) params += `&bgy=${state.bgy}`;
+        let params = `param=${config.param}&scope=${widgetState.scope}`;
+        if (widgetState.year) params += `&year=${widgetState.year}`;
+        if (widgetState.bgy) params += `&bgy=${widgetState.bgy}`;
 
         const response = await fetch(`${baseUrl}/monitor/${config.api}?${params}`);
         const data = await response.json();
@@ -390,7 +393,7 @@ const LiveMonitor: React.FC = () => {
             </button>
 
             <button
-              onClick={fetchAllWidgets}
+              onClick={() => fetchAllWidgets()}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white text-sm flex items-center gap-2"
             >
               <RefreshCw size={16} />

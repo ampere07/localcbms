@@ -1640,6 +1640,11 @@ Route::prefix('service_orders')->group(function () {
 // Customer Detail Management - Dedicated endpoint for customer details view
 Route::get('/customer-detail/{accountNo}', [\App\Http\Controllers\CustomerDetailController::class, 'show']);
 
+// Customer Detail Update Routes - Update customer, billing, and technical details
+Route::put('/customer-detail/{accountNo}/customer', [\App\Http\Controllers\CustomerDetailUpdateController::class, 'updateCustomerDetails']);
+Route::put('/customer-detail/{accountNo}/billing', [\App\Http\Controllers\CustomerDetailUpdateController::class, 'updateBillingDetails']);
+Route::put('/customer-detail/{accountNo}/technical', [\App\Http\Controllers\CustomerDetailUpdateController::class, 'updateTechnicalDetails']);
+
 // Customer Management Routes
 Route::prefix('customers')->group(function () {
     Route::get('/', [\App\Http\Controllers\CustomerController::class, 'index']);
@@ -2798,6 +2803,67 @@ Route::prefix('pppoe')->group(function () {
     Route::get('/patterns/{id}', [PPPoEController::class, 'getPattern']);
     Route::put('/patterns/{id}', [PPPoEController::class, 'updatePattern']);
     Route::delete('/patterns/{id}', [PPPoEController::class, 'deletePattern']);
+    
+    Route::post('/test-save', function(Request $request) {
+        try {
+            \Log::info('PPPoE Test Save', ['data' => $request->all()]);
+            
+            $validated = $request->validate([
+                'pattern_name' => 'required|string|max:255',
+                'pattern_type' => 'required|in:username,password',
+                'sequence' => 'required|array|min:1',
+                'created_by' => 'nullable|string|max:255',
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Validation passed',
+                'data' => $validated
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
+    });
+});
+
+
+Route::get('/pppoe/generate-credentials', function(Request $request) {
+    try {
+        $pppoeService = new \App\Services\PppoeUsernameService();
+        
+        $customerData = [
+            'first_name' => $request->input('first_name', 'John'),
+            'middle_initial' => $request->input('middle_initial', 'D'),
+            'last_name' => $request->input('last_name', 'Doe'),
+            'mobile_number' => $request->input('mobile_number', '09123456789'),
+            'tech_input_username' => $request->input('tech_input_username'),
+            'custom_password' => $request->input('custom_password'),
+        ];
+        
+        $username = $pppoeService->generateUsername($customerData);
+        $password = $pppoeService->generatePassword($customerData);
+        
+        return response()->json([
+            'success' => true,
+            'username' => $username,
+            'password' => $password,
+            'customer_data' => $customerData,
+            'patterns' => [
+                'username_pattern' => \App\Models\PPPoEUsernamePattern::getUsernamePattern(),
+                'password_pattern' => \App\Models\PPPoEUsernamePattern::getPasswordPattern(),
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
 });
 
 // Debug endpoint for monitor routes
@@ -2832,4 +2898,8 @@ Route::prefix('monitor')->group(function () {
     Route::match(['GET', 'OPTIONS'], '/jo_refer_rank', [App\Http\Controllers\LiveMonitorController::class, 'joReferRank']);
     Route::match(['GET', 'OPTIONS'], '/invoice_overall', [App\Http\Controllers\LiveMonitorController::class, 'invoiceOverall']);
     Route::match(['GET', 'OPTIONS'], '/app_map', [App\Http\Controllers\LiveMonitorController::class, 'appMap']);
+    
+    Route::match(['GET', 'OPTIONS'], '/templates', [App\Http\Controllers\LiveMonitorController::class, 'getTemplates']);
+    Route::match(['POST', 'OPTIONS'], '/templates', [App\Http\Controllers\LiveMonitorController::class, 'saveTemplate']);
+    Route::match(['DELETE', 'OPTIONS'], '/templates/{id}', [App\Http\Controllers\LiveMonitorController::class, 'deleteTemplate']);
 });

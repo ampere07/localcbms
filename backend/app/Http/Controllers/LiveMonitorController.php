@@ -517,4 +517,93 @@ class LiveMonitorController extends Controller
             $request->input('bgy', 'All')
         );
     }
+
+    public function getTemplates(Request $request)
+    {
+        try {
+            $templates = DB::table('dashboard_templates')
+                ->select('id', 'template_name', 'layout_data', 'style_data', 'created_at', 'updated_at')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $formatted = $templates->map(function($template) {
+                return [
+                    'id' => $template->id,
+                    'name' => $template->template_name,
+                    'states' => json_decode($template->layout_data, true),
+                    'timestamp' => $template->created_at
+                ];
+            });
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $formatted
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function saveTemplate(Request $request)
+    {
+        try {
+            $request->validate([
+                'template_name' => 'required|string|max:255',
+                'layout_data' => 'required'
+            ]);
+
+            $id = DB::table('dashboard_templates')->insertGetId([
+                'template_name' => $request->input('template_name'),
+                'layout_data' => json_encode($request->input('layout_data')),
+                'style_data' => json_encode($request->input('style_data', [])),
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Template saved successfully',
+                'data' => [
+                    'id' => $id,
+                    'name' => $request->input('template_name'),
+                    'states' => $request->input('layout_data'),
+                    'timestamp' => now()->toISOString()
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function deleteTemplate(Request $request, $id)
+    {
+        try {
+            $deleted = DB::table('dashboard_templates')
+                ->where('id', $id)
+                ->delete();
+
+            if ($deleted) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Template deleted successfully'
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Template not found'
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

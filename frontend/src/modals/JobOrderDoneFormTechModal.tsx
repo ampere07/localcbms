@@ -840,6 +840,10 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
   }, [jobOrderData, isOpen]);
 
   const handleInputChange = (field: keyof JobOrderDoneFormData, value: string | File | null) => {
+    if (field === 'addressCoordinates') {
+      console.log('[INPUT DEBUG] Address Coordinates changed to:', value);
+    }
+    
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       if (field === 'lcpnap') {
@@ -1106,9 +1110,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         jobOrderUpdateData.modem_router_sn = updatedFormData.modemSN;
         jobOrderUpdateData.ip_address = updatedFormData.ip;
         jobOrderUpdateData.onsite_remarks = updatedFormData.onsiteRemarks;
-        jobOrderUpdateData.address_coordinates = updatedFormData.addressCoordinates;
+        jobOrderUpdateData.address_coordinates = updatedFormData.addressCoordinates || '';
         jobOrderUpdateData.onsite_status = 'Done';
         jobOrderUpdateData.group_name = updatedFormData.groupName;
+        
+        console.log('[SAVE DEBUG] Address Coordinates:', updatedFormData.addressCoordinates);
         
         
 
@@ -1266,6 +1272,8 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         jobOrderUpdateData.group_name = updatedFormData.groupName;
       }
 
+      console.log('[SAVE DEBUG] Final jobOrderUpdateData before API call:', JSON.stringify(jobOrderUpdateData, null, 2));
+      
       const jobOrderResponse = await updateJobOrder(jobOrderId, jobOrderUpdateData);
       
       if (!jobOrderResponse.success) {

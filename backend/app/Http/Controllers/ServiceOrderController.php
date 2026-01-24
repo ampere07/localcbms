@@ -19,11 +19,25 @@ class ServiceOrderController extends Controller
             
             $query = "SELECT * FROM service_orders";
             $params = [];
+            $whereClauses = [];
             
             if ($request->has('assigned_email')) {
                 Log::info('Filtering by assigned_email: ' . $request->assigned_email);
-                $query .= " WHERE assigned_email = ?";
+                $whereClauses[] = "assigned_email = ?";
                 $params[] = $request->assigned_email;
+            }
+            
+            if ($request->has('user_role') && strtolower($request->query('user_role')) === 'technician') {
+                $sevenDaysAgo = now()->subDays(7)->format('Y-m-d H:i:s');
+                $whereClauses[] = "updated_at >= ?";
+                $params[] = $sevenDaysAgo;
+                Log::info('Filtering service orders for technician role: only showing records from last 7 days', [
+                    'cutoff_date' => $sevenDaysAgo
+                ]);
+            }
+            
+            if (!empty($whereClauses)) {
+                $query .= " WHERE " . implode(' AND ', $whereClauses);
             }
             
             $query .= " ORDER BY created_at DESC";

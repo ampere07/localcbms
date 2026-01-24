@@ -6,9 +6,10 @@ interface CustomerFunnelFilterProps {
   isOpen: boolean;
   onClose: () => void;
   onApplyFilters: (filters: FilterValues) => void;
+  currentFilters?: FilterValues;
 }
 
-interface FilterValues {
+export interface FilterValues {
   [key: string]: {
     type: 'text' | 'number' | 'date';
     value?: string;
@@ -23,6 +24,8 @@ interface Column {
   table: string;
   dataType: 'varchar' | 'text' | 'int' | 'bigint' | 'decimal' | 'date' | 'datetime' | 'enum';
 }
+
+const STORAGE_KEY = 'customerFunnelFilters';
 
 const allColumns: Column[] = [
   // Customers table
@@ -86,12 +89,28 @@ const allColumns: Column[] = [
 const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
   isOpen,
   onClose,
-  onApplyFilters
+  onApplyFilters,
+  currentFilters
 }) => {
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [selectedColumn, setSelectedColumn] = useState<Column | null>(null);
   const [filterValues, setFilterValues] = useState<FilterValues>({});
+
+  useEffect(() => {
+    if (isOpen) {
+      const savedFilters = localStorage.getItem(STORAGE_KEY);
+      if (savedFilters) {
+        try {
+          setFilterValues(JSON.parse(savedFilters));
+        } catch (err) {
+          console.error('Failed to load saved filters:', err);
+        }
+      } else if (currentFilters) {
+        setFilterValues(currentFilters);
+      }
+    }
+  }, [isOpen, currentFilters]);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -122,6 +141,7 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
   };
 
   const handleApply = () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(filterValues));
     onApplyFilters(filterValues);
     onClose();
   };
@@ -129,6 +149,7 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
   const handleReset = () => {
     setFilterValues({});
     setSelectedColumn(null);
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   const isNumericType = (dataType: string) => {

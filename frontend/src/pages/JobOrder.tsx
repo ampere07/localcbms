@@ -115,6 +115,17 @@ const JobOrderPage: React.FC = () => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [activeFilters, setActiveFilters] = useState<any>(() => {
+    const saved = localStorage.getItem('jobOrderFilters');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to load filters:', err);
+      }
+    }
+    return {};
+  });
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -241,7 +252,7 @@ const JobOrderPage: React.FC = () => {
       const response = await getJobOrders(assignedEmail);
       
       if (response.success && Array.isArray(response.data)) {
-        const processedOrders: JobOrder[] = response.data.map((order, index) => {
+        let processedOrders: JobOrder[] = response.data.map((order, index) => {
           const id = order.id || order.JobOrder_ID || String(index);
           
           return {
@@ -249,6 +260,26 @@ const JobOrderPage: React.FC = () => {
             id: id
           };
         });
+        
+        if (authData) {
+          try {
+            const userData = JSON.parse(authData);
+            if (userData.role && userData.role.toLowerCase() === 'technician') {
+              const sevenDaysAgo = new Date();
+              sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+              
+              processedOrders = processedOrders.filter(order => {
+                const updatedAt = order.updated_at || order.Updated_At;
+                if (!updatedAt) return true;
+                
+                const orderDate = new Date(updatedAt);
+                return orderDate >= sevenDaysAgo;
+              });
+            }
+          } catch (error) {
+            console.error('Error parsing auth data for date filtering:', error);
+          }
+        }
         
         setJobOrders(processedOrders);
       } else {
@@ -313,7 +344,42 @@ const JobOrderPage: React.FC = () => {
     });
   });
   
-  const filteredJobOrders = jobOrders.filter(jobOrder => {
+  // Helper function to apply funnel filters
+  const applyFunnelFilters = (orders: JobOrder[], filters: any): JobOrder[] => {
+    if (!filters || Object.keys(filters).length === 0) return orders;
+
+    return orders.filter(order => {
+      return Object.entries(filters).every(([key, filter]: [string, any]) => {
+        const orderValue = (order as any)[key] || (order as any)[key.toLowerCase()] || (order as any)[key.charAt(0).toUpperCase() + key.slice(1).replace(/_./g, (match) => match.charAt(1).toUpperCase())];
+        
+        if (filter.type === 'text') {
+          if (!filter.value) return true;
+          const value = String(orderValue || '').toLowerCase();
+          return value.includes(filter.value.toLowerCase());
+        }
+        
+        if (filter.type === 'number') {
+          const numValue = Number(orderValue);
+          if (isNaN(numValue)) return false;
+          if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
+          if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
+          return true;
+        }
+        
+        if (filter.type === 'date') {
+          if (!orderValue) return false;
+          const dateValue = new Date(orderValue).getTime();
+          if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
+          if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
+          return true;
+        }
+        
+        return true;
+      });
+    });
+  };
+
+  let filteredJobOrders = jobOrders.filter(jobOrder => {
     const jobLocation = ((jobOrder.City || jobOrder.city) || '').toLowerCase();
     
     const matchesLocation = selectedLocation === 'all' || 
@@ -328,6 +394,9 @@ const JobOrderPage: React.FC = () => {
     
     return matchesLocation && matchesSearch;
   });
+
+  // Apply funnel filters
+  filteredJobOrders = applyFunnelFilters(filteredJobOrders, activeFilters);
 
   const presortedJobOrders = [...filteredJobOrders].sort((a, b) => {
     const idA = parseInt(String(a.id)) || 0;
@@ -1509,8 +1578,11 @@ const JobOrderPage: React.FC = () => {
         onClose={() => setIsFunnelFilterOpen(false)}
         onApplyFilters={(filters) => {
           console.log('Applied filters:', filters);
+          setActiveFilters(filters);
+          localStorage.setItem('jobOrderFilters', JSON.stringify(filters));
           setIsFunnelFilterOpen(false);
         }}
+        currentFilters={activeFilters}
       />
     </div>
   );
