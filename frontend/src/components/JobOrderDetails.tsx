@@ -259,13 +259,17 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     if (type === 'onsite') {
       switch (status.toLowerCase()) {
         case 'done':
-          return 'text-green-500';
+        case 'completed':
+          return 'text-green-400';
         case 'reschedule':
-          return 'text-blue-500';
+          return 'text-blue-400';
         case 'inprogress':
         case 'in progress':
-          return 'text-yellow-500';
+          return 'text-blue-400';
+        case 'pending':
+          return 'text-orange-400';
         case 'failed':
+        case 'cancelled':
           return 'text-red-500';
         default:
           return 'text-gray-400';
@@ -273,9 +277,17 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     } else {
       switch (status.toLowerCase()) {
         case 'done':
-          return 'text-green-500';
+        case 'active':
+        case 'completed':
+          return 'text-green-400';
         case 'pending':
-          return 'text-yellow-500';
+        case 'in progress':
+          return 'text-orange-400';
+        case 'suspended':
+        case 'overdue':
+          return 'text-red-500';
+        case 'cancelled':
+          return 'text-red-500';
         default:
           return 'text-gray-400';
       }

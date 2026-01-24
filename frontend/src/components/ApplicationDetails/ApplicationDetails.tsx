@@ -301,16 +301,21 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
     if (!status) return 'text-gray-400';
     
     switch (status.toLowerCase()) {
-      case 'approved':
+      case 'schedule':
+      case 'completed':
+        return 'text-green-400';
       case 'in progress':
-        return 'text-green-500';
+        return 'text-blue-400';
       case 'pending':
-        return 'text-yellow-500';
+        return 'text-orange-400';
       case 'cancelled':
-      case 'no facility':
         return 'text-red-500';
+      case 'no facility':
+        return 'text-red-400';
       case 'no slot':
-        return 'text-blue-500';
+        return 'text-purple-400';
+      case 'duplicate':
+        return 'text-pink-400';
       default:
         return 'text-gray-400';
     }

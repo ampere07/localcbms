@@ -451,16 +451,21 @@ const JobOrderPage: React.FC = () => {
     if (type === 'onsite') {
       switch (status.toLowerCase()) {
         case 'done':
-          textColor = 'text-green-500';
+        case 'completed':
+          textColor = 'text-green-400';
           break;
         case 'reschedule':
-          textColor = 'text-blue-500';
+          textColor = 'text-blue-400';
           break;
         case 'inprogress':
         case 'in progress':
-          textColor = 'text-yellow-500';
+          textColor = 'text-blue-400';
+          break;
+        case 'pending':
+          textColor = 'text-orange-400';
           break;
         case 'failed':
+        case 'cancelled':
           textColor = 'text-red-500';
           break;
         default:
@@ -469,10 +474,20 @@ const JobOrderPage: React.FC = () => {
     } else {
       switch (status.toLowerCase()) {
         case 'done':
-          textColor = 'text-green-500';
+        case 'active':
+        case 'completed':
+          textColor = 'text-green-400';
           break;
         case 'pending':
-          textColor = 'text-yellow-500';
+        case 'in progress':
+          textColor = 'text-orange-400';
+          break;
+        case 'suspended':
+        case 'overdue':
+          textColor = 'text-red-500';
+          break;
+        case 'cancelled':
+          textColor = 'text-red-500';
           break;
         default:
           textColor = 'text-gray-400';

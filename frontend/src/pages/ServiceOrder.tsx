@@ -498,16 +498,18 @@ const ServiceOrder: React.FC = () => {
     if (type === 'support') {
       switch (status.toLowerCase()) {
         case 'resolved':
-          textColor = 'text-green-500';
+        case 'completed':
+          textColor = 'text-green-400';
           break;
         case 'in-progress':
         case 'in progress':
-          textColor = 'text-yellow-500';
+          textColor = 'text-blue-400';
           break;
         case 'pending':
-          textColor = 'text-blue-500';
+          textColor = 'text-orange-400';
           break;
         case 'closed':
+        case 'cancelled':
           textColor = 'text-gray-400';
           break;
         default:
@@ -516,16 +518,18 @@ const ServiceOrder: React.FC = () => {
     } else {
       switch (status.toLowerCase()) {
         case 'completed':
-          textColor = 'text-green-500';
+          textColor = 'text-green-400';
           break;
         case 'scheduled':
         case 'reschedule':
-          textColor = 'text-yellow-500';
+        case 'in progress':
+          textColor = 'text-blue-400';
           break;
         case 'pending':
-          textColor = 'text-blue-500';
+          textColor = 'text-orange-400';
           break;
         case 'cancelled':
+        case 'failed':
           textColor = 'text-red-500';
           break;
         default:

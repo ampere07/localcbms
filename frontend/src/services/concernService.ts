@@ -42,5 +42,39 @@ export const concernService = {
       console.error('Error fetching concern:', error);
       return null;
     }
+  },
+
+  createConcern: async (concernName: string): Promise<Concern | null> => {
+    try {
+      const response = await apiClient.post<ApiResponse<Concern>>('/concerns', {
+        concern_name: concernName
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error creating concern:', error);
+      throw error;
+    }
+  },
+
+  updateConcern: async (id: number, concernName: string): Promise<Concern | null> => {
+    try {
+      const response = await apiClient.put<ApiResponse<Concern>>(`/concerns/${id}`, {
+        concern_name: concernName
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error updating concern:', error);
+      throw error;
+    }
+  },
+
+  deleteConcern: async (id: number): Promise<boolean> => {
+    try {
+      await apiClient.delete(`/concerns/${id}`);
+      return true;
+    } catch (error) {
+      console.error('Error deleting concern:', error);
+      throw error;
+    }
   }
 };

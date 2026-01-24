@@ -47,6 +47,7 @@ import EmailTemplates from './EmailTemplates';
 import PPPoESetup from './PPPoESetup';
 import Support from './Support';
 import LiveMonitor from './LiveMonitor';
+import ConcernConfig from './ConcernConfig';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -126,6 +127,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         return <EmailTemplates />;
       case 'pppoe-setup':
         return <PPPoESetup />;
+      case 'concern-config':
+        return <ConcernConfig />;
 
 
       case 'staggered-payment':

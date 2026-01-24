@@ -508,13 +508,13 @@ const ApplicationVisit: React.FC = () => {
     if (type === 'visit') {
       switch (status.toLowerCase()) {
         case 'completed':
-          textColor = 'text-green-500';
+          textColor = 'text-green-400';
           break;
         case 'scheduled':
-          textColor = 'text-yellow-500';
+          textColor = 'text-green-400';
           break;
         case 'pending':
-          textColor = 'text-blue-500';
+          textColor = 'text-orange-400';
           break;
         case 'cancelled':
           textColor = 'text-red-500';
@@ -526,18 +526,30 @@ const ApplicationVisit: React.FC = () => {
       switch (status.toLowerCase()) {
         case 'approved':
         case 'done':
-          textColor = 'text-green-500';
+        case 'schedule':
+        case 'completed':
+          textColor = 'text-green-400';
           break;
         case 'pending':
-          textColor = 'text-yellow-500';
+          textColor = 'text-orange-400';
           break;
         case 'under review':
-        case 'scheduled':
-          textColor = 'text-blue-500';
+        case 'in progress':
+          textColor = 'text-blue-400';
           break;
         case 'rejected':
         case 'failed':
+        case 'cancelled':
           textColor = 'text-red-500';
+          break;
+        case 'no facility':
+          textColor = 'text-red-400';
+          break;
+        case 'no slot':
+          textColor = 'text-purple-400';
+          break;
+        case 'duplicate':
+          textColor = 'text-pink-400';
           break;
         default:
           textColor = 'text-gray-400';

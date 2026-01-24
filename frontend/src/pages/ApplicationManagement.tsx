@@ -643,8 +643,8 @@ const ApplicationManagement: React.FC = () => {
           status.toLowerCase() === 'schedule' ? 'text-green-400' :
           status.toLowerCase() === 'no facility' ? 'text-red-400' :
           status.toLowerCase() === 'cancelled' ? 'text-red-500' :
-          status.toLowerCase() === 'no slot' ? 'text-yellow-400' :
-          status.toLowerCase() === 'duplicate' ? 'text-yellow-500' :
+          status.toLowerCase() === 'no slot' ? 'text-purple-400' :
+          status.toLowerCase() === 'duplicate' ? 'text-pink-400' :
           status.toLowerCase() === 'in progress' ? 'text-blue-400' :
           status.toLowerCase() === 'completed' ? 'text-green-400' :
           status.toLowerCase() === 'pending' ? 'text-orange-400' :
@@ -1075,8 +1075,8 @@ const ApplicationManagement: React.FC = () => {
                                 application.status.toLowerCase() === 'schedule' ? 'text-green-400' :
                                 application.status.toLowerCase() === 'no facility' ? 'text-red-400' :
                                 application.status.toLowerCase() === 'cancelled' ? 'text-red-500' :
-                                application.status.toLowerCase() === 'no slot' ? 'text-yellow-400' :
-                                application.status.toLowerCase() === 'duplicate' ? 'text-yellow-500' :
+                                application.status.toLowerCase() === 'no slot' ? 'text-purple-400' :
+                                application.status.toLowerCase() === 'duplicate' ? 'text-pink-400' :
                                 application.status.toLowerCase() === 'in progress' ? 'text-blue-400' :
                                 application.status.toLowerCase() === 'completed' ? 'text-green-400' :
                                 application.status.toLowerCase() === 'pending' ? 'text-orange-400' :

@@ -290,6 +290,44 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
     setFieldOrder(defaultFields);
   };
 
+  const getStatusColor = (status: string | undefined, type: 'support' | 'visit'): string => {
+    if (!status) return 'text-gray-400';
+    
+    if (type === 'support') {
+      switch (status.toLowerCase()) {
+        case 'resolved':
+        case 'completed':
+          return 'text-green-400';
+        case 'in-progress':
+        case 'in progress':
+          return 'text-blue-400';
+        case 'pending':
+          return 'text-orange-400';
+        case 'closed':
+        case 'cancelled':
+          return 'text-gray-400';
+        default:
+          return 'text-gray-400';
+      }
+    } else {
+      switch (status.toLowerCase()) {
+        case 'completed':
+          return 'text-green-400';
+        case 'scheduled':
+        case 'reschedule':
+        case 'in progress':
+          return 'text-blue-400';
+        case 'pending':
+          return 'text-orange-400';
+        case 'cancelled':
+        case 'failed':
+          return 'text-red-500';
+        default:
+          return 'text-gray-400';
+      }
+    }
+  };
+
   const renderField = (label: string, value: any, hasInfo: boolean = false) => (
     <div className={`flex py-2 ${
       isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
@@ -393,7 +431,20 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'concernRemarks':
         return renderField('Concern Remarks', serviceOrder.concernRemarks);
       case 'visitStatus':
-        return renderField('Visit Status', serviceOrder.visitStatus);
+        return (
+          <div className={`flex py-2 ${
+            isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Visit Status</div>
+            <div className={`flex-1 font-bold uppercase ${
+              getStatusColor(serviceOrder.visitStatus, 'visit')
+            }`}>
+              {serviceOrder.visitStatus || '-'}
+            </div>
+          </div>
+        );
       case 'visitBy':
         return renderField('Visit By', serviceOrder.visitBy, true);
       case 'visitWith':
@@ -433,7 +484,20 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'supportRemarks':
         return renderField('Support Remarks', serviceOrder.supportRemarks);
       case 'supportStatus':
-        return renderField('Support Status', serviceOrder.supportStatus);
+        return (
+          <div className={`flex py-2 ${
+            isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+          }`}>
+            <div className={`w-40 text-sm ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Support Status</div>
+            <div className={`flex-1 font-bold uppercase ${
+              getStatusColor(serviceOrder.supportStatus, 'support')
+            }`}>
+              {serviceOrder.supportStatus || '-'}
+            </div>
+          </div>
+        );
       case 'repairCategory':
         return renderField('Repair Category', serviceOrder.repairCategory);
       case 'priorityLevel':

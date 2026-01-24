@@ -618,10 +618,13 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Visit Status:</div>
             <div className={`flex-1 capitalize ${
-              currentVisitData.visit_status?.toLowerCase() === 'completed' ? 'text-green-500' :
+              currentVisitData.visit_status?.toLowerCase() === 'completed' ? 'text-green-400' :
               currentVisitData.visit_status?.toLowerCase() === 'failed' ? 'text-red-500' :
-              currentVisitData.visit_status?.toLowerCase() === 'in progress' ? 'text-blue-500' :
-              'text-orange-500'
+              currentVisitData.visit_status?.toLowerCase() === 'in progress' ? 'text-blue-400' :
+              currentVisitData.visit_status?.toLowerCase() === 'scheduled' ? 'text-green-400' :
+              currentVisitData.visit_status?.toLowerCase() === 'pending' ? 'text-orange-400' :
+              currentVisitData.visit_status?.toLowerCase() === 'cancelled' ? 'text-red-500' :
+              'text-orange-400'
             }`}>
               {currentVisitData.visit_status || 'Scheduled'}
             </div>
@@ -672,7 +675,16 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Application Status:</div>
             <div className={`flex-1 capitalize ${
-              currentVisitData.application_status?.toLowerCase() === 'approved' ? 'text-green-500' : 'text-yellow-500'
+              currentVisitData.application_status?.toLowerCase() === 'approved' ? 'text-green-400' :
+              currentVisitData.application_status?.toLowerCase() === 'schedule' ? 'text-green-400' :
+              currentVisitData.application_status?.toLowerCase() === 'completed' ? 'text-green-400' :
+              currentVisitData.application_status?.toLowerCase() === 'pending' ? 'text-orange-400' :
+              currentVisitData.application_status?.toLowerCase() === 'in progress' ? 'text-blue-400' :
+              currentVisitData.application_status?.toLowerCase() === 'cancelled' ? 'text-red-500' :
+              currentVisitData.application_status?.toLowerCase() === 'no facility' ? 'text-red-400' :
+              currentVisitData.application_status?.toLowerCase() === 'no slot' ? 'text-purple-400' :
+              currentVisitData.application_status?.toLowerCase() === 'duplicate' ? 'text-pink-400' :
+              'text-orange-400'
             }`}>
               {currentVisitData.application_status || applicationDetails?.status || 'Pending'}
             </div>
