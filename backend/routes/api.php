@@ -2799,3 +2799,37 @@ Route::prefix('pppoe')->group(function () {
     Route::put('/patterns/{id}', [PPPoEController::class, 'updatePattern']);
     Route::delete('/patterns/{id}', [PPPoEController::class, 'deletePattern']);
 });
+
+// Debug endpoint for monitor routes
+Route::get('/monitor/debug', function() {
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Monitor routes are working',
+        'timestamp' => now(),
+        'routes' => [
+            'billing_status' => '/api/monitor/billing_status',
+            'online_status' => '/api/monitor/online_status',
+            'app_status' => '/api/monitor/app_status'
+        ]
+    ]);
+});
+
+// Live Monitor Routes - All methods explicitly defined
+Route::prefix('monitor')->group(function () {
+    Route::match(['GET', 'OPTIONS'], '/billing_status', [App\Http\Controllers\LiveMonitorController::class, 'billingStatus']);
+    Route::match(['GET', 'OPTIONS'], '/online_status', [App\Http\Controllers\LiveMonitorController::class, 'onlineStatus']);
+    Route::match(['GET', 'OPTIONS'], '/app_status', [App\Http\Controllers\LiveMonitorController::class, 'appStatus']);
+    Route::match(['GET', 'OPTIONS'], '/so_status', [App\Http\Controllers\LiveMonitorController::class, 'soStatus']);
+    Route::match(['GET', 'OPTIONS'], '/jo_status', [App\Http\Controllers\LiveMonitorController::class, 'joStatus']);
+    Route::match(['GET', 'OPTIONS'], '/queue_mon', [App\Http\Controllers\LiveMonitorController::class, 'queueMon']);
+    Route::match(['GET', 'OPTIONS'], '/tech_mon_jo', [App\Http\Controllers\LiveMonitorController::class, 'techMonJo']);
+    Route::match(['GET', 'OPTIONS'], '/tech_mon_so', [App\Http\Controllers\LiveMonitorController::class, 'techMonSo']);
+    Route::match(['GET', 'OPTIONS'], '/expenses_mon', [App\Http\Controllers\LiveMonitorController::class, 'expensesMon']);
+    Route::match(['GET', 'OPTIONS'], '/pay_method_mon', [App\Http\Controllers\LiveMonitorController::class, 'payMethodMon']);
+    Route::match(['GET', 'OPTIONS'], '/invoice_mon', [App\Http\Controllers\LiveMonitorController::class, 'invoiceMon']);
+    Route::match(['GET', 'OPTIONS'], '/transactions_mon', [App\Http\Controllers\LiveMonitorController::class, 'transactionsMon']);
+    Route::match(['GET', 'OPTIONS'], '/portal_mon', [App\Http\Controllers\LiveMonitorController::class, 'portalMon']);
+    Route::match(['GET', 'OPTIONS'], '/jo_refer_rank', [App\Http\Controllers\LiveMonitorController::class, 'joReferRank']);
+    Route::match(['GET', 'OPTIONS'], '/invoice_overall', [App\Http\Controllers\LiveMonitorController::class, 'invoiceOverall']);
+    Route::match(['GET', 'OPTIONS'], '/app_map', [App\Http\Controllers\LiveMonitorController::class, 'appMap']);
+});

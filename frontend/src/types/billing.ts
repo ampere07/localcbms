@@ -38,10 +38,10 @@ export interface BillingRecord {
   barangay?: string;
   city?: string;
   region?: string;
+  usageType?: string;
 }
 
 export interface BillingDetailRecord extends BillingRecord {
-  usageType?: string;
   referredBy?: string;
   referralContactNo?: string;
   groupName?: string;

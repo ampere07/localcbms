@@ -25,7 +25,7 @@ class TechnicalDetail extends Model
         'port',
         'vlan',
         'lcpnap',
-        'usage_type_id',
+        'usage_type',
         'created_by',
         'updated_by',
     ];

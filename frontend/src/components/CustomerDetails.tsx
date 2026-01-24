@@ -399,98 +399,116 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             }`}>{billingRecord.customerName}</span>
           </div>
 
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Email Address</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.emailAddress || billingRecord.email || ''}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Contact Number</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.contactNumber || ''}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Second Contact Number</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.secondContactNumber || ''}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Address</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.address?.split(',')[0] || ''}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Barangay</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.barangay || ''}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>City</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.city || ''}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Region</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.region || ''}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Referred By</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.referredBy || ''}</span>
-          </div>
-
-          <div className="space-y-2">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Address Coordinates</span>
-            <div className={`w-full h-24 border rounded flex items-center justify-center ${
-              isDarkMode
-                ? 'bg-gray-800 border-gray-700'
-                : 'bg-gray-100 border-gray-300'
-            }`}>
+          {(billingRecord.emailAddress || billingRecord.email) && (
+            <div className="flex justify-between items-center">
               <span className={`text-sm ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>{billingRecord.addressCoordinates || 'Map View'}</span>
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Email Address</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.emailAddress || billingRecord.email}</span>
             </div>
-          </div>
+          )}
 
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>House Front Picture</span>
-            {billingRecord.houseFrontPicture ? (
+          {billingRecord.contactNumber && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Contact Number</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.contactNumber}</span>
+            </div>
+          )}
+
+          {billingRecord.secondContactNumber && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Second Contact Number</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.secondContactNumber}</span>
+            </div>
+          )}
+
+          {billingRecord.address?.split(',')[0] && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Address</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.address.split(',')[0]}</span>
+            </div>
+          )}
+
+          {billingRecord.barangay && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Barangay</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.barangay}</span>
+            </div>
+          )}
+
+          {billingRecord.city && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>City</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.city}</span>
+            </div>
+          )}
+
+          {billingRecord.region && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Region</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.region}</span>
+            </div>
+          )}
+
+          {billingRecord.referredBy && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Referred By</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.referredBy}</span>
+            </div>
+          )}
+
+          {billingRecord.addressCoordinates && (
+            <div className="space-y-2">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Address Coordinates</span>
+              <div className={`w-full h-24 border rounded flex items-center justify-center ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-gray-100 border-gray-300'
+              }`}>
+                <span className={`text-sm ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                }`}>{billingRecord.addressCoordinates}</span>
+              </div>
+            </div>
+          )}
+
+          {billingRecord.houseFrontPicture && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>House Front Picture</span>
               <button 
                 onClick={() => window.open(billingRecord.houseFrontPicture, '_blank')}
                 className={isDarkMode
@@ -501,12 +519,8 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 <span className="text-sm truncate max-w-xs">{billingRecord.houseFrontPicture}</span>
                 <ExternalLink size={14} />
               </button>
-            ) : (
-              <span className={`font-medium ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>No image</span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -514,109 +528,131 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             isDarkMode ? 'text-white' : 'text-gray-900'
           }`}>Technical Details</h3>
           
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Usage Type</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.usageType || ''}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Date Installed</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.dateInstalled || ''}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>PPPOE Username</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.username || ''}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Connection Type</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.connectionType || ''}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Router Model</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.routerModel || ''}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Router Serial Number</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.routerModemSN || ''}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Online Status</span>
-            <div className="flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${
-                billingRecord.onlineStatus === 'Online' ? 'bg-green-400' : 'bg-red-400'
-              }`}></div>
+          {billingRecord.usageType && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Usage Type</span>
               <span className={`font-medium ${
-                billingRecord.onlineStatus === 'Online' ? 'text-green-400' : 'text-red-400'
-              }`}>{billingRecord.onlineStatus}</span>
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.usageType}</span>
             </div>
-          </div>
+          )}
 
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Mikrotik ID</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.mikrotikId || ''}</span>
-          </div>
+          {billingRecord.dateInstalled && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Date Installed</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.dateInstalled}</span>
+            </div>
+          )}
 
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>LCP NAP PORT</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.lcpnap || ''}</span>
-          </div>
+          {billingRecord.username && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>PPPOE Username</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.username}</span>
+            </div>
+          )}
 
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>VLAN</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.vlan || ''}</span>
-          </div>
+          {billingRecord.connectionType && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Connection Type</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.connectionType}</span>
+            </div>
+          )}
 
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>SESSION IP</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.sessionIp || billingRecord.sessionIP || ''}</span>
-          </div>
+          {billingRecord.routerModel && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Router Model</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.routerModel}</span>
+            </div>
+          )}
+
+          {billingRecord.routerModemSN && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Router Serial Number</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.routerModemSN}</span>
+            </div>
+          )}
+
+          {billingRecord.onlineStatus && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Online Status</span>
+              <div className="flex items-center space-x-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  billingRecord.onlineStatus === 'Online' ? 'bg-green-400' : 'bg-red-400'
+                }`}></div>
+                <span className={`font-medium ${
+                  billingRecord.onlineStatus === 'Online' ? 'text-green-400' : 'text-red-400'
+                }`}>{billingRecord.onlineStatus}</span>
+              </div>
+            </div>
+          )}
+
+          {billingRecord.mikrotikId && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Mikrotik ID</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.mikrotikId}</span>
+            </div>
+          )}
+
+          {billingRecord.lcpnap && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>LCP NAP PORT</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.lcpnap}</span>
+            </div>
+          )}
+
+          {billingRecord.vlan && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>VLAN</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.vlan}</span>
+            </div>
+          )}
+
+          {(billingRecord.sessionIp || billingRecord.sessionIP) && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>SESSION IP</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.sessionIp || billingRecord.sessionIP}</span>
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -651,14 +687,16 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             }`}>{billingRecord.billingDay === 0 ? 'Every end of month' : (billingRecord.billingDay || '-')}</span>
           </div>
 
-          <div className="flex justify-between items-center">
-            <span className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Plan</span>
-            <span className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.plan || ''}</span>
-          </div>
+          {billingRecord.plan && (
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Plan</span>
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.plan}</span>
+            </div>
+          )}
 
           <div className="flex justify-between items-center">
             <span className={`text-sm ${

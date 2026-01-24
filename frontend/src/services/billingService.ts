@@ -60,7 +60,8 @@ export const getBillingRecords = async (): Promise<BillingRecord[]> => {
         modifiedDate: item.Modified_Date || '',
         barangay: item.Barangay || '',
         city: item.City || '',
-        region: item.Region || ''
+        region: item.Region || '',
+        usageType: item.Usage_Type || item.usage_type || ''
       }));
     }
     
@@ -114,13 +115,13 @@ export const getBillingRecordDetails = async (id: string): Promise<BillingDetail
         modifiedDate: item.Modified_Date || '',
         barangay: item.Barangay || '',
         city: item.City || '',
-        region: item.Region || ''
+        region: item.Region || '',
+        usageType: item.Usage_Type || item.usage_type || ''
       };
       
       const detailRecord: BillingDetailRecord = {
         ...basicRecord,
         lcpnapport: item.LCPNAPPORT || '',
-        usageType: item.Usage_Type_ID ? `Type ${item.Usage_Type_ID}` : '',
         referredBy: item.Referred_By || '',
         referrersAccountNumber: '',
         group: item.Group_ID ? `Group ${item.Group_ID}` : '',

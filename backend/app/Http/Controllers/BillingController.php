@@ -59,7 +59,7 @@ class BillingController extends Controller
                         'PORT' => $technicalDetail ? $technicalDetail->port : null,
                         'VLAN' => $technicalDetail ? $technicalDetail->vlan : null,
                         'LCPNAP' => $technicalDetail ? $technicalDetail->lcpnap : null,
-                        'Usage_Type_ID' => $technicalDetail ? $technicalDetail->usage_type_id : null,
+                        'Usage_Type' => $technicalDetail ? $technicalDetail->usage_type : null,
                         
                         'Status' => $billingAccount->billing_status_id == 2 ? 'Active' : 'Inactive',
                         'Modified_By' => $customer ? $customer->updated_by : null,
@@ -140,7 +140,7 @@ class BillingController extends Controller
                 'PORT' => $technicalDetail ? $technicalDetail->port : null,
                 'VLAN' => $technicalDetail ? $technicalDetail->vlan : null,
                 'LCPNAP' => $technicalDetail ? $technicalDetail->lcpnap : null,
-                'Usage_Type_ID' => $technicalDetail ? $technicalDetail->usage_type_id : null,
+                'Usage_Type' => $technicalDetail ? $technicalDetail->usage_type : null,
                 
                 'Status' => $billingAccount->billing_status_id == 2 ? 'Active' : 'Inactive',
                 'Modified_By' => $customer ? $customer->updated_by : null,

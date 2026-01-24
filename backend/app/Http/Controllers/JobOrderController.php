@@ -277,6 +277,57 @@ class JobOrderController extends Controller
 
             $jobOrder->update($data);
 
+            // Update technical_details if account_id exists
+            if ($jobOrder->account_id) {
+                $technicalDetail = TechnicalDetail::where('account_id', $jobOrder->account_id)->first();
+                
+                if ($technicalDetail) {
+                    $technicalUpdateData = [];
+                    
+                    if (isset($data['usage_type'])) {
+                        $technicalUpdateData['usage_type'] = $data['usage_type'];
+                    }
+                    if (isset($data['connection_type'])) {
+                        $technicalUpdateData['connection_type'] = $data['connection_type'];
+                    }
+                    if (isset($data['router_model'])) {
+                        $technicalUpdateData['router_model'] = $data['router_model'];
+                    }
+                    if (isset($data['modem_router_sn'])) {
+                        $technicalUpdateData['router_modem_sn'] = $data['modem_router_sn'];
+                    }
+                    if (isset($data['ip_address'])) {
+                        $technicalUpdateData['ip_address'] = $data['ip_address'];
+                    }
+                    if (isset($data['lcpnap'])) {
+                        $technicalUpdateData['lcpnap'] = $data['lcpnap'];
+                        
+                        // Parse LCP and NAP from lcpnap value
+                        $lcpnapValue = $data['lcpnap'];
+                        if ($lcpnapValue && strpos($lcpnapValue, '/') !== false) {
+                            $parts = explode('/', $lcpnapValue);
+                            $technicalUpdateData['lcp'] = trim($parts[0]);
+                            $technicalUpdateData['nap'] = isset($parts[1]) ? trim($parts[1]) : null;
+                        }
+                    }
+                    if (isset($data['port'])) {
+                        $technicalUpdateData['port'] = $data['port'];
+                    }
+                    if (isset($data['vlan'])) {
+                        $technicalUpdateData['vlan'] = $data['vlan'];
+                    }
+                    
+                    if (!empty($technicalUpdateData)) {
+                        $technicalDetail->update($technicalUpdateData);
+                        
+                        \Log::info('TechnicalDetail Updated', [
+                            'account_id' => $jobOrder->account_id,
+                            'updated_fields' => array_keys($technicalUpdateData)
+                        ]);
+                    }
+                }
+            }
+
             \Log::info('JobOrder Updated Successfully', [
                 'id' => $id,
                 'updated_fields' => array_keys($data)
@@ -491,7 +542,7 @@ class JobOrderController extends Controller
                 'port' => $jobOrder->port,
                 'vlan' => $jobOrder->vlan,
                 'lcpnap' => $jobOrder->lcpnap,
-                'usage_type_id' => $jobOrder->usage_type_id,
+                'usage_type' => $jobOrder->usage_type,
                 'created_by' => $defaultUserId,
                 'updated_by' => $defaultUserId,
             ]);

@@ -46,6 +46,7 @@ import SmsConfig from './SmsConfig';
 import EmailTemplates from './EmailTemplates';
 import PPPoESetup from './PPPoESetup';
 import Support from './Support';
+import LiveMonitor from './LiveMonitor';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -101,6 +102,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const renderContent = () => {
     switch (activeSection) {
 
+      case 'live-monitor':
+        return <LiveMonitor />;
       case 'support':
         return <Support />;
       case 'soa':
