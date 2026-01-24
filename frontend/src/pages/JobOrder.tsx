@@ -242,17 +242,21 @@ const JobOrderPage: React.FC = () => {
       if (authData) {
         try {
           const userData = JSON.parse(authData);
+          console.log('User data:', userData);
           if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
             assignedEmail = userData.email;
           }
         } catch (error) {
+          console.error('Error parsing authData:', error);
         }
       }
       
+      console.log('Fetching job orders with assignedEmail:', assignedEmail);
       const response = await getJobOrders(assignedEmail);
+      console.log('Job orders response:', response);
       
       if (response.success && Array.isArray(response.data)) {
-        let processedOrders: JobOrder[] = response.data.map((order, index) => {
+        const processedOrders: JobOrder[] = response.data.map((order, index) => {
           const id = order.id || order.JobOrder_ID || String(index);
           
           return {
@@ -261,31 +265,14 @@ const JobOrderPage: React.FC = () => {
           };
         });
         
-        if (authData) {
-          try {
-            const userData = JSON.parse(authData);
-            if (userData.role && userData.role.toLowerCase() === 'technician') {
-              const sevenDaysAgo = new Date();
-              sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-              
-              processedOrders = processedOrders.filter(order => {
-                const updatedAt = order.updated_at || order.Updated_At;
-                if (!updatedAt) return true;
-                
-                const orderDate = new Date(updatedAt);
-                return orderDate >= sevenDaysAgo;
-              });
-            }
-          } catch (error) {
-            console.error('Error parsing auth data for date filtering:', error);
-          }
-        }
-        
+        console.log('Processed orders count:', processedOrders.length);
         setJobOrders(processedOrders);
       } else {
+        console.log('No data or unsuccessful response');
         setJobOrders([]);
       }
     } catch (err: any) {
+      console.error('Fetch data error:', err);
       setError(`Failed to load data: ${err.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
