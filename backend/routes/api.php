@@ -26,6 +26,7 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\BillingGenerationController;
 use App\Http\Controllers\ImageProxyController;
 use App\Http\Controllers\SettingsColorPaletteController;
+use App\Http\Controllers\PPPoEController;
 use App\Models\User;
 use App\Models\MassRebate;
 
@@ -2730,4 +2731,71 @@ Route::prefix('job-order-notifications')->group(function () {
     Route::get('/unread-count', [\App\Http\Controllers\JobOrderNotificationController::class, 'getUnreadCount']);
     Route::put('/{id}/read', [\App\Http\Controllers\JobOrderNotificationController::class, 'markAsRead']);
     Route::put('/mark-all-read', [\App\Http\Controllers\JobOrderNotificationController::class, 'markAllAsRead']);
+});
+
+// PPPoE Debug route
+Route::get('/pppoe/debug', function() {
+    try {
+        $tableExists = \Illuminate\Support\Facades\Schema::hasTable('pppoe_username_patterns');
+        
+        $result = [
+            'success' => true,
+            'table_exists' => $tableExists
+        ];
+        
+        if ($tableExists) {
+            $result['columns'] = \Illuminate\Support\Facades\Schema::getColumnListing('pppoe_username_patterns');
+            $result['count'] = \Illuminate\Support\Facades\DB::table('pppoe_username_patterns')->count();
+            $result['sample'] = \Illuminate\Support\Facades\DB::table('pppoe_username_patterns')->first();
+            
+            // Check column types
+            $columns = \Illuminate\Support\Facades\DB::select(
+                "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'pppoe_username_patterns'"
+            );
+            $result['column_types'] = $columns;
+        } else {
+            $result['message'] = 'Table does not exist. Run migration: php artisan migrate';
+        }
+        
+        return response()->json($result);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
+// PPPoE Fix Column Types
+Route::post('/pppoe/fix-columns', function() {
+    try {
+        \Illuminate\Support\Facades\DB::statement(
+            "ALTER TABLE pppoe_username_patterns MODIFY COLUMN created_by VARCHAR(255) DEFAULT 'system'"
+        );
+        \Illuminate\Support\Facades\DB::statement(
+            "ALTER TABLE pppoe_username_patterns MODIFY COLUMN updated_by VARCHAR(255) DEFAULT 'system'"
+        );
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Columns fixed successfully'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+// PPPoE Username Pattern routes
+Route::prefix('pppoe')->group(function () {
+    Route::get('/patterns', [PPPoEController::class, 'getPatterns']);
+    Route::post('/patterns', [PPPoEController::class, 'createPattern']);
+    Route::post('/patterns/save', [PPPoEController::class, 'savePattern']);
+    Route::get('/patterns/types', [PPPoEController::class, 'getAvailableTypes']);
+    Route::get('/patterns/{id}', [PPPoEController::class, 'getPattern']);
+    Route::put('/patterns/{id}', [PPPoEController::class, 'updatePattern']);
+    Route::delete('/patterns/{id}', [PPPoEController::class, 'deletePattern']);
 });

@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 
 use App\Services\GoogleDriveService;
+use App\Services\PppoeUsernameService;
 use App\Models\RadiusConfig;
 
 class JobOrderController extends Controller
@@ -791,9 +792,16 @@ class JobOrderController extends Controller
 
             $application = $jobOrder->application;
 
-            $lastName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $application->last_name ?? ''));
-            $mobileNumber = preg_replace('/[^0-9]/', '', $application->mobile_number ?? '');
-            $username = $lastName . $mobileNumber;
+            $pppoeService = new PppoeUsernameService();
+            
+            $customerData = [
+                'first_name' => $application->first_name ?? '',
+                'middle_initial' => $application->middle_initial ?? '',
+                'last_name' => $application->last_name ?? '',
+                'mobile_number' => $application->mobile_number ?? '',
+            ];
+            
+            $username = $pppoeService->generateUniqueUsername($customerData, $id);
 
             if (empty($username) || strlen($username) < 3) {
                 return response()->json([
@@ -814,21 +822,15 @@ class JobOrderController extends Controller
                 $planName = trim(explode(' - P', $planName)[0]);
             }
 
+            $password = $pppoeService->generatePassword($customerData);
+
             Log::info('RADIUS Account Creation - Input Data', [
                 'job_order_id' => $id,
-                'last_name' => $lastName,
-                'mobile_number' => $mobileNumber,
                 'generated_username' => $username,
+                'password_length' => strlen($password),
                 'original_plan' => $application->desired_plan,
                 'extracted_plan_name' => $planName,
             ]);
-
-            $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-            $password = '';
-            $charactersLength = strlen($characters);
-            for ($i = 0; $i < 12; $i++) {
-                $password .= $characters[random_int(0, $charactersLength - 1)];
-            }
 
             $modifiedUsername = str_replace(['|', 'ñ'], ['i', 'n'], $username);
 

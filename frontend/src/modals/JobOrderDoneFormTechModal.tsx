@@ -1110,13 +1110,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         jobOrderUpdateData.onsite_status = 'Done';
         jobOrderUpdateData.group_name = updatedFormData.groupName;
         
-        const lastName = (jobOrderData.Last_Name || jobOrderData.last_name || '').toLowerCase().replace(/\s+/g, '');
-        const mobileNumber = (jobOrderData.Mobile_Number || jobOrderData.mobile_number || '').replace(/[^0-9]/g, '');
         
-        if (lastName && mobileNumber) {
-          const generatedUsername = `${lastName}${mobileNumber}`;
-          jobOrderUpdateData.username = generatedUsername;
-        }
 
         const planNameForRadius = updatedFormData.choosePlan.includes(' - P') 
           ? updatedFormData.choosePlan.split(' - P')[0].trim()
