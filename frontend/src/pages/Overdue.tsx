@@ -1,38 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { overdueService, Overdue } from '../services/overdueService';
 
-interface DateItem {
-  date: string;
-  id: string;
-}
-
-interface OverdueRecord {
-  id: string;
-  invoiceDate: string;
-  dueDate: string;
-  accountNo: string;
-  fullName: string;
-  contactNumber: string;
-  emailAddress: string;
-  address: string;
-  plan: string;
-  invoiceNo?: string;
-  invoiceStatus: string;
-  invoiceBalance: number;
-  daysOverdue: number;
-}
-
-const Overdue: React.FC = () => {
+const OverduePage: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [overdueRecords, setOverdueRecords] = useState<OverdueRecord[]>([]);
+  const [overdueRecords, setOverdueRecords] = useState<Overdue[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
-  // Date navigation items
   const dateItems = [
     { date: 'All', id: '' },
   ];
@@ -70,37 +49,47 @@ const Overdue: React.FC = () => {
     fetchColorPalette();
   }, []);
 
-  // Fetch overdue data
   useEffect(() => {
-    const fetchOverdueData = async () => {
-      try {
-        setIsLoading(true);
-        
-        // In a real implementation, this would fetch from an API
-        // For now, we'll simulate loading
-        setTimeout(() => {
-          // For now, set empty array as per the screenshot showing "No items"
-          setOverdueRecords([]);
-          setError(null);
-          setIsLoading(false);
-        }, 1000);
-      } catch (err) {
-        console.error('Failed to fetch Overdue records:', err);
-        setError('Failed to load Overdue records. Please try again.');
-        setOverdueRecords([]);
-        setIsLoading(false);
-      }
-    };
-    
     fetchOverdueData();
   }, []);
 
-  const handleRefresh = async () => {
-    // In a real implementation, this would re-fetch from the API
-    setIsLoading(true);
-    setTimeout(() => {
+  const fetchOverdueData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await overdueService.getAll();
+      
+      if (response.success) {
+        setOverdueRecords(response.data || []);
+        setError(null);
+      } else {
+        setError('Failed to load Overdue records');
+        setOverdueRecords([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch Overdue records:', err);
+      setError('Failed to load Overdue records. Please try again.');
+      setOverdueRecords([]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
+  };
+
+  const handleRefresh = async () => {
+    await fetchOverdueData();
+  };
+
+  const filteredRecords = overdueRecords.filter(record => {
+    const matchesSearch = searchQuery === '' || 
+      record.account_no?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      record.full_name?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return matchesSearch;
+  });
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
   return (
@@ -169,10 +158,12 @@ const Overdue: React.FC = () => {
                         : 'bg-white text-gray-900 border border-gray-300'
                     }`}
                     style={{
-                      '--tw-ring-color': '#dc2626'
+                      '--tw-ring-color': colorPalette?.primary || '#ea580c'
                     } as React.CSSProperties}
                     onFocus={(e) => {
-                      e.currentTarget.style.borderColor = '#dc2626';
+                      if (colorPalette?.primary) {
+                        e.currentTarget.style.borderColor = colorPalette.primary;
+                      }
                     }}
                     onBlur={(e) => {
                       e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
@@ -237,10 +228,78 @@ const Overdue: React.FC = () => {
                     Retry
                   </button>
                 </div>
-              ) : overdueRecords.length > 0 ? (
-                <div className="p-4">
-                  {/* Table would go here if there were records */}
-                  <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>Overdue records would be displayed here</p>
+              ) : filteredRecords.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className={`min-w-full divide-y text-sm ${
+                    isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
+                  }`}>
+                    <thead className={`sticky top-0 ${
+                      isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                    }`}>
+                      <tr>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>ID</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Account No</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Customer Name</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Overdue Date</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Invoice ID</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Print Link</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${
+                      isDarkMode ? 'bg-gray-900 divide-gray-800' : 'bg-white divide-gray-200'
+                    }`}>
+                      {filteredRecords.map((record) => (
+                        <tr 
+                          key={record.id}
+                          className={`${
+                            isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>{record.id}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>{record.account_no || '-'}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>{record.full_name || '-'}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>{formatDate(record.overdue_date)}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>{record.invoice_id || '-'}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>
+                            {record.print_link ? (
+                              <a 
+                                href={record.print_link} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:text-blue-400"
+                              >
+                                View
+                              </a>
+                            ) : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
                 <div className={`h-full flex items-center justify-center ${
@@ -257,4 +316,4 @@ const Overdue: React.FC = () => {
   );
 };
 
-export default Overdue;
+export default OverduePage;

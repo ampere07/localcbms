@@ -221,27 +221,6 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
               <span>Approve</span>
             </button>
           )}
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <ChevronLeft size={18} />
-          </button>
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <ChevronRight size={18} />
-          </button>
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <Maximize2 size={18} />
-          </button>
           {onClose && (
             <button onClick={onClose} className={`p-2 rounded transition-colors ${
               isDarkMode

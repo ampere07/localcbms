@@ -151,7 +151,7 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
 
   useEffect(() => {
     if (formData.lcp_name && formData.nap_name) {
-      const generatedName = `${formData.lcp_name} to ${formData.nap_name}`;
+      const generatedName = `${formData.lcp_name} ${formData.nap_name}`;
       setFormData(prev => ({ ...prev, lcpnap_name: generatedName }));
     }
   }, [formData.lcp_name, formData.nap_name]);
@@ -952,7 +952,7 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
               {errors.lcpnap_name && <p className="text-red-500 text-xs mt-1">{errors.lcpnap_name}</p>}
               <p className={`text-xs mt-1 ${
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Format: LCP-XXX to NAP-XXX</p>
+              }`}>Format: LCP-XXX NAP-XXX</p>
             </div>
 
             <div>

@@ -1,39 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { dcNoticeService, DCNotice } from '../services/dcNoticeService';
 
-interface DateItem {
-  date: string;
-  id: string;
-}
-
-interface DCNoticeRecord {
-  id: string;
-  noticeDate: string;
-  dueDate: string;
-  accountNo: string;
-  fullName: string;
-  contactNumber: string;
-  emailAddress: string;
-  address: string;
-  plan: string;
-  noticeNo?: string;
-  noticeStatus: string;
-  outstandingBalance: number;
-  daysOutstanding: number;
-  disconnectionDate?: string;
-}
-
-const DCNotice: React.FC = () => {
+const DCNoticePage: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [dcNoticeRecords, setDCNoticeRecords] = useState<DCNoticeRecord[]>([]);
+  const [dcNoticeRecords, setDCNoticeRecords] = useState<DCNotice[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
-  // Date navigation items
   const dateItems = [
     { date: 'All', id: '' },
   ];
@@ -71,37 +49,47 @@ const DCNotice: React.FC = () => {
     fetchColorPalette();
   }, []);
 
-  // Fetch DC Notice data
   useEffect(() => {
-    const fetchDCNoticeData = async () => {
-      try {
-        setIsLoading(true);
-        
-        // In a real implementation, this would fetch from an API
-        // For now, we'll simulate loading
-        setTimeout(() => {
-          // For now, set empty array as per the screenshot showing "No items"
-          setDCNoticeRecords([]);
-          setError(null);
-          setIsLoading(false);
-        }, 1000);
-      } catch (err) {
-        console.error('Failed to fetch DC Notice records:', err);
-        setError('Failed to load DC Notice records. Please try again.');
-        setDCNoticeRecords([]);
-        setIsLoading(false);
-      }
-    };
-    
     fetchDCNoticeData();
   }, []);
 
-  const handleRefresh = async () => {
-    // In a real implementation, this would re-fetch from the API
-    setIsLoading(true);
-    setTimeout(() => {
+  const fetchDCNoticeData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await dcNoticeService.getAll();
+      
+      if (response.success) {
+        setDCNoticeRecords(response.data || []);
+        setError(null);
+      } else {
+        setError('Failed to load DC Notice records');
+        setDCNoticeRecords([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch DC Notice records:', err);
+      setError('Failed to load DC Notice records. Please try again.');
+      setDCNoticeRecords([]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
+  };
+
+  const handleRefresh = async () => {
+    await fetchDCNoticeData();
+  };
+
+  const filteredRecords = dcNoticeRecords.filter(record => {
+    const matchesSearch = searchQuery === '' || 
+      record.account_no?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      record.full_name?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return matchesSearch;
+  });
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
   return (
@@ -240,10 +228,78 @@ const DCNotice: React.FC = () => {
                     Retry
                   </button>
                 </div>
-              ) : dcNoticeRecords.length > 0 ? (
-                <div className="p-4">
-                  {/* Table would go here if there were records */}
-                  <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>DC Notice records would be displayed here</p>
+              ) : filteredRecords.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className={`min-w-full divide-y text-sm ${
+                    isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
+                  }`}>
+                    <thead className={`sticky top-0 ${
+                      isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                    }`}>
+                      <tr>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>ID</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Account No</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Customer Name</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>DC Notice Date</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Invoice ID</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Print Link</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${
+                      isDarkMode ? 'bg-gray-900 divide-gray-800' : 'bg-white divide-gray-200'
+                    }`}>
+                      {filteredRecords.map((record) => (
+                        <tr 
+                          key={record.id}
+                          className={`${
+                            isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>{record.id}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>{record.account_no || '-'}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>{record.full_name || '-'}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>{formatDate(record.dc_notice_date)}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>{record.invoice_id || '-'}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>
+                            {record.print_link ? (
+                              <a 
+                                href={record.print_link} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:text-blue-400"
+                              >
+                                View
+                              </a>
+                            ) : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
                 <div className={`h-full flex items-center justify-center ${
@@ -260,4 +316,4 @@ const DCNotice: React.FC = () => {
   );
 };
 
-export default DCNotice;
+export default DCNoticePage;

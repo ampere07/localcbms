@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, RefreshCw } from 'lucide-react';
 import { notificationService, type Notification as AppNotification } from '../services/notificationService';
-import logo1 from '../assets/logo1.png';
+import { formUIService } from '../services/formUIService';
 
 interface HeaderProps {
   onToggleSidebar?: () => void;
@@ -14,10 +14,32 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
   const previousCountRef = useRef(0);
   const previousNotificationIdsRef = useRef<Set<number>>(new Set());
+
+  const convertGoogleDriveUrl = (url: string): string => {
+    if (!url) return '';
+    const apiUrl = process.env.REACT_APP_API_URL || 'https://backend.atssfiber.ph/api';
+    return `${apiUrl}/proxy/image?url=${encodeURIComponent(url)}`;
+  };
+
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        const config = await formUIService.getConfig();
+        if (config && config.logo_url) {
+          const directUrl = convertGoogleDriveUrl(config.logo_url);
+          setLogoUrl(directUrl);
+        }
+      } catch (error) {
+        console.error('[Logo] Error fetching logo:', error);
+      }
+    };
+    fetchLogo();
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -73,20 +95,20 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
     console.log('[Browser Notification] Attempting to show notification:', notification);
     
     if (!('Notification' in window)) {
-      console.error('[Browser Notification] Browser does not support notifications');
-      return;
+    console.error('[Browser Notification] Browser does not support notifications');
+    return;
     }
 
     if (Notification.permission !== 'granted') {
-      console.warn('[Browser Notification] Permission not granted. Current permission:', Notification.permission);
-      return;
+    console.warn('[Browser Notification] Permission not granted. Current permission:', Notification.permission);
+    return;
     }
 
     try {
-      const browserNotification = new Notification('🔔 New Customer Application', {
-        body: `${notification.customer_name}\nPlan: ${notification.plan_name}`,
-        icon: logo1,
-        badge: logo1,
+    const browserNotification = new Notification('🔔 New Customer Application', {
+    body: `${notification.customer_name}\nPlan: ${notification.plan_name}`,
+    icon: logoUrl || undefined,
+    badge: logoUrl || undefined,
         tag: `application-${notification.id}`,
         requireInteraction: false,
         silent: false,
@@ -254,15 +276,23 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
         </button>
         
         <div className="flex items-center space-x-3">
-          <img 
-            src={logo1} 
-            alt="Sync Logo" 
-            className="h-10 object-contain"
-          />
+          {logoUrl && (
+            <img 
+              src={logoUrl} 
+              alt="Logo" 
+              className="h-10 object-contain"
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                console.error('[Logo] Failed to load image from:', logoUrl);
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          )}
           <h1 className={`${
             isDarkMode ? 'text-white' : 'text-gray-900'
           } text-xl font-bold`}>
-            Sync
+            Powered by Sync
           </h1>
         </div>
       </div>

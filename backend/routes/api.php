@@ -2866,6 +2866,26 @@ Route::get('/pppoe/generate-credentials', function(Request $request) {
     }
 });
 
+// DC Notice Management Routes
+Route::prefix('dc-notices')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\DCNoticeApiController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Api\DCNoticeApiController::class, 'store']);
+    Route::get('/statistics', [\App\Http\Controllers\Api\DCNoticeApiController::class, 'getStatistics']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\DCNoticeApiController::class, 'show']);
+    Route::put('/{id}', [\App\Http\Controllers\Api\DCNoticeApiController::class, 'update']);
+    Route::delete('/{id}', [\App\Http\Controllers\Api\DCNoticeApiController::class, 'destroy']);
+});
+
+// Overdue Management Routes
+Route::prefix('overdues')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\OverdueApiController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Api\OverdueApiController::class, 'store']);
+    Route::get('/statistics', [\App\Http\Controllers\Api\OverdueApiController::class, 'getStatistics']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\OverdueApiController::class, 'show']);
+    Route::put('/{id}', [\App\Http\Controllers\Api\OverdueApiController::class, 'update']);
+    Route::delete('/{id}', [\App\Http\Controllers\Api\OverdueApiController::class, 'destroy']);
+});
+
 // Debug endpoint for monitor routes
 Route::get('/monitor/debug', function() {
     return response()->json([

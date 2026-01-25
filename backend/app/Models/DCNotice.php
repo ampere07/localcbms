@@ -4,28 +4,28 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Overdue extends Model
+class DCNotice extends Model
 {
-    protected $table = 'overdue';
+    protected $table = 'dc_notice';
 
     protected $fillable = [
-        'account_no',
+        'account_id',
         'invoice_id',
-        'overdue_date',
+        'dc_notice_date',
         'print_link',
         'created_by_user_id',
         'updated_by_user_id',
     ];
 
     protected $casts = [
-        'overdue_date' => 'datetime',
+        'dc_notice_date' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
 
     public function account()
     {
-        return $this->belongsTo(BillingDetail::class, 'account_no', 'account_no');
+        return $this->belongsTo(BillingDetail::class, 'account_id', 'account_no');
     }
 
     public function invoice()

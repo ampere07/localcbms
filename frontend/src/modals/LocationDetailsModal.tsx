@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  X, Edit, Trash2, ArrowLeft, ArrowRight, Maximize2, 
+  X, Edit, Trash2,
   ChevronDown, ChevronUp
 } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -131,15 +131,6 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
               <Edit size={18} />
               <span>Edit</span>
             </button>
-            <button className={`p-1 rounded transition-colors ${
-              isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-            }`}><ArrowLeft size={20} /></button>
-            <button className={`p-1 rounded transition-colors ${
-              isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-            }`}><ArrowRight size={20} /></button>
-            <button className={`p-1 rounded transition-colors ${
-              isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-            }`}><Maximize2 size={20} /></button>
             <button 
               onClick={onClose}
               className={`p-1 rounded transition-colors ${

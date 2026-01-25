@@ -1037,13 +1037,6 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                   ? 'bg-gray-800 hover:bg-gray-700 text-white border-gray-700'
                   : 'bg-gray-200 hover:bg-gray-300 text-gray-900 border-gray-300'
               }`}>
-                <X size={16} />
-              </button>
-              <button className={`p-1 rounded-sm border flex items-center justify-center ${
-                isDarkMode
-                  ? 'bg-gray-800 hover:bg-gray-700 text-white border-gray-700'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900 border-gray-300'
-              }`}>
                 <ExternalLink size={16} />
               </button>
             </>

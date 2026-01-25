@@ -268,7 +268,7 @@ const StaggeredPayment: React.FC = () => {
           <div className="flex items-center justify-between mb-1">
             <h2 className={`text-lg font-semibold ${
               isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Staggered Payment</h2>
+            }`}>Staggered</h2>
             <div>
               <button 
                 className="flex items-center space-x-1 text-white px-3 py-1 rounded text-sm transition-colors"

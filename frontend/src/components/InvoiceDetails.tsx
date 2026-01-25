@@ -142,24 +142,6 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
           {invoiceRecord.invoiceNo || '2508182' + invoiceRecord.id}
         </h1>
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <button 
-            className="px-3 py-1 rounded text-sm transition-colors flex items-center space-x-1 text-white"
-            style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
-            }}
-            onMouseEnter={(e) => {
-              if (colorPalette?.accent) {
-                e.currentTarget.style.backgroundColor = colorPalette.accent;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (colorPalette?.primary) {
-                e.currentTarget.style.backgroundColor = colorPalette.primary;
-              }
-            }}
-          >
-            <span>Apply Staggered</span>
-          </button>
           <button className={`p-2 rounded transition-colors ${
             isDarkMode
               ? 'text-gray-400 hover:text-white hover:bg-gray-700'

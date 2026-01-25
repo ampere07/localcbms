@@ -101,6 +101,12 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord }) => {
     startWidthRef.current = detailsWidth;
   };
 
+  const handleOpenGDrive = () => {
+    if (soaRecord.printLink) {
+      window.open(soaRecord.printLink, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   return (
     <div className={`h-full flex flex-col border-l relative ${
       isDarkMode
@@ -135,11 +141,16 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord }) => {
           {soaRecord.accountNo} | {soaRecord.fullName} | {soaRecord.address.split(',')[0]}
         </h1>
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
+          <button 
+            onClick={handleOpenGDrive}
+            disabled={!soaRecord.printLink}
+            className={`p-2 rounded transition-colors ${
+              isDarkMode
+                ? 'text-gray-400 hover:text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed'
+            }`}
+            title={soaRecord.printLink ? 'Open SOA in Google Drive' : 'No Google Drive link available'}
+          >
             <ExternalLink size={18} />
           </button>
           <button className={`p-2 rounded transition-colors ${

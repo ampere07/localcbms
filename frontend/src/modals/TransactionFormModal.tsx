@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, ChevronDown, Minus, Plus, Camera } from 'lucide-react';
 import { transactionService } from '../services/transactionService';
+import { planService, Plan } from '../services/planService';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
@@ -37,6 +38,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
 
   const getCurrentDateTime = () => {
     const now = new Date();
@@ -95,6 +97,17 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   }, []);
 
   useEffect(() => {
+    const fetchPlans = async () => {
+      const fetchedPlans = await planService.getAllPlans();
+      setPlans(fetchedPlans);
+    };
+    
+    if (isOpen) {
+      fetchPlans();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     const fetchImageSizeSettings = async () => {
       if (isOpen) {
         try {
@@ -123,7 +136,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
         accountNo: billingRecord.applicationId || '',
         fullName: billingRecord.customerName || '',
         contactNo: billingRecord.contactNumber || '',
-        plan: billingRecord.plan || 'SwitchLite - P699',
+        plan: billingRecord.plan || '',
         accountBalance: billingRecord.accountBalance?.toString() || '0.00'
       }));
     }
@@ -472,10 +485,12 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                   isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                 }`}
               >
-                <option value="SwitchLite - P699">SwitchLite - P699</option>
-                <option value="SwitchConnect - P799">SwitchConnect - P799</option>
-                <option value="SwitchConnect - P999">SwitchConnect - P999</option>
-                <option value="SwitchConnect - P1299">SwitchConnect - P1299</option>
+                <option value="">Select Plan</option>
+                {plans.map((plan) => (
+                  <option key={plan.id} value={`${plan.name} - P${plan.price || 0}`}>
+                    {plan.name} - P{plan.price || 0}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
             </div>

@@ -268,9 +268,6 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose }) => {
                 <span>{loading ? 'Processing...' : 'Approve'}</span>
               </button>
             )}
-            <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowLeft size={16} /></button>
-            <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><ArrowRight size={16} /></button>
-            <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}><Maximize2 size={16} /></button>
             <button 
               onClick={onClose}
               className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
