@@ -1,30 +1,41 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, ArrowRight, Maximize2, X, Phone, MessageSquare, Info, 
-  ExternalLink, Mail, Edit, Trash2, Globe, RefreshCw, CheckCircle
+  ExternalLink, Mail, Edit, Trash2, Globe, RefreshCw, CheckCircle,
+  ChevronDown, ChevronRight
 } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { relatedDataService } from '../services/relatedDataService';
+import RelatedDataTable from './RelatedDataTable';
+import { relatedDataColumns } from '../config/relatedDataColumns';
 
 interface PaymentPortalDetailsProps {
   record: {
     id: string;
-    dateTime: string;
-    accountNo: string;
-    receivedPayment: number;
+    reference_no: string;
+    account_id: number | string;
+    total_amount: number;
+    date_time: string;
+    checkout_id: string;
     status: string;
-    referenceNo: string;
-    contactNo: string;
-    accountBalance: number;
-    checkoutId: string;
-    transactionStatus: string;
-    provider: string;
-    paymentMethod?: string;
+    transaction_status: string;
+    ewallet_type?: string;
+    payment_channel?: string;
+    type?: string;
+    payment_url?: string;
+    json_payload?: string;
+    callback_payload?: string;
+    created_at?: string;
+    updated_at?: string;
+    // Additional fields from join with accounts table
+    accountNo?: string;
     fullName?: string;
+    contactNo?: string;
+    accountBalance?: number;
+    provider?: string;
     city?: string;
     barangay?: string;
     plan?: string;
-    created_at: string;
-    updated_at: string;
     [key: string]: any;
   };
   onClose: () => void;
@@ -39,6 +50,11 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
+  
+  // Related invoices state
+  const [expandedInvoices, setExpandedInvoices] = useState(false);
+  const [relatedInvoices, setRelatedInvoices] = useState<any[]>([]);
+  const [invoicesCount, setInvoicesCount] = useState(0);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -69,6 +85,32 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
     
     fetchColorPalette();
   }, []);
+  
+  // Fetch related invoices when account number changes
+  useEffect(() => {
+    const fetchRelatedInvoices = async () => {
+      const accountNo = record.accountNo || record.account_id;
+      if (!accountNo) {
+        console.log('❌ No accountNo or account_id found in payment portal record');
+        return;
+      }
+      
+      console.log('🔍 Fetching related invoices for account:', accountNo);
+      
+      try {
+        const result = await relatedDataService.getRelatedInvoices(String(accountNo));
+        console.log('✅ Invoices fetched:', { count: result.count || 0, hasData: (result.data || []).length > 0 });
+        setRelatedInvoices(result.data || []);
+        setInvoicesCount(result.count || 0);
+      } catch (error) {
+        console.error('❌ Error fetching invoices:', error);
+        setRelatedInvoices([]);
+        setInvoicesCount(0);
+      }
+    };
+    
+    fetchRelatedInvoices();
+  }, [record.accountNo, record.account_id]);
 
   useEffect(() => {
     if (!isResizing) return;
@@ -133,7 +175,7 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
   };
 
   const getDisplayTitle = () => {
-    return `${record.accountNo} | ${record.fullName || 'Unknown'} | ${record.provider} Payment`;
+    return `${record.accountNo || record.account_id} | ${record.fullName || 'Unknown'} | ${record.provider || 'Payment'}`;
   };
 
   return (
@@ -206,7 +248,7 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
               <div className={`flex-1 font-mono ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
-                {record.referenceNo || `${record.accountNo}-049b6beb4b39a844f8f95b`}
+                {record.reference_no || 'N/A'}
               </div>
             </div>
             
@@ -217,7 +259,7 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Account No</div>
               <div className="text-red-400 flex-1 font-medium flex items-center">
-                {record.accountNo} | {record.fullName || 'Unknown'} | 0337 B San Roque St Cervo Cpd, {record.barangay || 'Bilibiran'}, {record.city || 'Binangonan'}, Rizal
+                {record.accountNo || record.account_id} | {record.fullName || 'Unknown'} | {record.address || 'Address not available'}
                 <button className={isDarkMode ? 'ml-2 text-gray-400 hover:text-white' : 'ml-2 text-gray-600 hover:text-gray-900'}>
                   <Info size={16} />
                 </button>
@@ -233,7 +275,7 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
               <div className={`flex-1 ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
-                {record.contactNo}
+                {record.contactNo || 'N/A'}
               </div>
             </div>
             
@@ -245,7 +287,7 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
               }`}>Account Balance</div>
               <div className={`flex-1 ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{formatCurrency(record.accountBalance)}</div>
+              }`}>{formatCurrency(record.accountBalance || 0)}</div>
             </div>
             
             <div className={`flex py-3 ${
@@ -253,10 +295,10 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
             }`}>
               <div className={`w-40 text-sm ${
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Received Payment</div>
+              }`}>Total Amount</div>
               <div className={`flex-1 ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{formatCurrency(record.receivedPayment)}</div>
+              }`}>{formatCurrency(record.total_amount || 0)}</div>
             </div>
             
             <div className={`flex py-3 ${
@@ -267,7 +309,7 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
               }`}>Date Time</div>
               <div className={`flex-1 ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{record.dateTime}</div>
+              }`}>{record.date_time || 'N/A'}</div>
             </div>
             
             <div className={`flex py-3 ${
@@ -278,7 +320,7 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
               }`}>Checkout ID</div>
               <div className={`flex-1 font-mono ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{record.checkoutId}</div>
+              }`}>{record.checkout_id || 'N/A'}</div>
             </div>
             
             <div className={`flex py-3 ${
@@ -288,7 +330,7 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Status</div>
               <div className={`flex-1 capitalize font-medium ${getStatusColor(record.status)}`}>
-                {record.status}
+                {record.status || 'N/A'}
               </div>
             </div>
             
@@ -298,8 +340,8 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
               <div className={`w-40 text-sm ${
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Transaction Status</div>
-              <div className={`flex-1 capitalize font-medium ${getStatusColor(record.transactionStatus)}`}>
-                {record.transactionStatus}
+              <div className={`flex-1 capitalize font-medium ${getStatusColor(record.transaction_status || '')}`}>
+                {record.transaction_status || 'N/A'}
               </div>
             </div>
             
@@ -308,15 +350,32 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
             }`}>
               <div className={`w-40 text-sm ${
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Provider</div>
-              <div className={`flex-1 flex items-center ${
+              }`}>E-Wallet Type</div>
+              <div className={`flex-1 ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {record.provider}
-                <button className={isDarkMode ? 'ml-2 text-gray-400 hover:text-white' : 'ml-2 text-gray-600 hover:text-gray-900'}>
-                  <Info size={16} />
-                </button>
-              </div>
+              }`}>{record.ewallet_type || 'N/A'}</div>
+            </div>
+            
+            <div className={`flex py-3 ${
+              isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Payment Channel</div>
+              <div className={`flex-1 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{record.payment_channel || 'N/A'}</div>
+            </div>
+            
+            <div className={`flex py-3 ${
+              isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+            }`}>
+              <div className={`w-40 text-sm ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Type</div>
+              <div className={`flex-1 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{record.type || 'N/A'}</div>
             </div>
             
             <div className={`flex py-3 ${
@@ -376,164 +435,41 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
         <div className={`mx-auto px-4 mt-4 ${
           isDarkMode ? 'bg-gray-950' : 'bg-white'
         }`}>
-          <div className={`pt-4 ${
-            isDarkMode ? 'border-t border-gray-800' : 'border-t border-gray-300'
+          <div className={`border-b ${
+            isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
-            <div className="flex items-center mb-4">
-              <h3 className={`font-medium ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Related Invoices</h3>
-              <span className={`ml-2 text-xs px-2 py-1 rounded ${
-                isDarkMode ? 'bg-gray-600 text-white' : 'bg-gray-300 text-gray-900'
-              }`}>1</span>
-            </div>
-            
-            <div className="overflow-x-scroll overflow-y-hidden">
-              <table className="w-max min-w-full text-sm border-separate border-spacing-0">
-                <thead>
-                  <tr className={`sticky top-0 z-10 ${
-                    isDarkMode
-                      ? 'border-b border-gray-700 bg-gray-800'
-                      : 'border-b border-gray-300 bg-gray-100'
-                  }`}>
-                    <th className={`text-left py-3 px-3 font-normal min-w-28 whitespace-nowrap ${
-                      isDarkMode
-                        ? 'text-gray-400 border-r border-gray-700 bg-gray-800'
-                        : 'text-gray-600 border-r border-gray-300 bg-gray-100'
-                    }`}>Invoice Status</th>
-                    {['Invoice Date', 'Due Date', 'Total Amount', 'Invoice Payment', 'Account No.', 'Invoice No.', 'Full Name', 'Contact Number', 'Email Address', 'Address', 'Plan', 'Provider', 'Remarks', 'Invoice Balance', 'Others and Basic Charges', 'Date Processed', 'Processed By', 'Payment Method', 'Reference', 'Reference No.', 'OR No.', 'Modified By', 'Modified Date', 'Transaction ID', 'Barangay', 'City', 'Related Staggered Payments', 'Related Collection Requests'].map((header, index) => (
-                      <th key={index} className={`text-left py-3 px-3 font-normal border-r min-w-28 whitespace-nowrap ${
-                        isDarkMode
-                          ? 'text-gray-400 border-gray-700 bg-gray-800'
-                          : 'text-gray-600 border-gray-300 bg-gray-100'
-                      }`}>{header}</th>
-                    ))}
-                    <th className={`text-left py-3 px-3 font-normal min-w-48 whitespace-nowrap ${
-                      isDarkMode
-                        ? 'text-gray-400 bg-gray-800'
-                        : 'text-gray-600 bg-gray-100'
-                    }`}>Related DC Notices</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className={isDarkMode ? 'border-b border-gray-800 hover:bg-gray-900' : 'border-b border-gray-300 hover:bg-gray-100'}>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'border-gray-800' : 'border-gray-300'
-                    }`}>
-                      <span className="text-green-500 font-medium">Paid</span>
-                    </td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>8/18/2025</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>8/30/2025</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>{formatCurrency(999.00)}</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>{formatCurrency(999.00)}</td>
-                    <td className={`py-4 px-3 text-red-400 border-r whitespace-nowrap ${
-                      isDarkMode ? 'border-gray-800' : 'border-gray-300'
-                    }`}>{record.accountNo}</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>INV-001</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>{record.fullName || 'Leopoldo III G De Jesus'}</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>{record.contactNo}</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>customer@email.com</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>0337 B San Roque St Cervo Cpd</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>{record.plan || 'SwitchNet - P999'}</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>{record.provider}</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>-</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>{formatCurrency(0.00)}</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>{formatCurrency(999.00)}</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>8/18/2025</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>System</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>Online</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>{record.referenceNo}</td>
-                    <td className={`py-4 px-3 font-mono border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>{record.referenceNo}</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>OR-001</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>Admin</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>8/18/2025 9:14:13 PM</td>
-                    <td className={`py-4 px-3 font-mono border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>{record.checkoutId}</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>{record.barangay || 'Bilibiran'}</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-white border-gray-800' : 'text-gray-900 border-gray-300'
-                    }`}>{record.city || 'Binangonan'}</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-gray-400 border-gray-800' : 'text-gray-600 border-gray-300'
-                    }`}>-</td>
-                    <td className={`py-4 px-3 border-r whitespace-nowrap ${
-                      isDarkMode ? 'text-gray-400 border-gray-800' : 'text-gray-600 border-gray-300'
-                    }`}>-</td>
-                    <td className={`py-4 px-3 whitespace-nowrap ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>-</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            
-            <div className="flex justify-end mt-4 mb-6">
-              <button 
-                className="text-sm font-medium"
-                style={{
-                  color: colorPalette?.primary || (isDarkMode ? '#f97316' : '#ea580c')
-                }}
-                onMouseEnter={(e) => {
-                  if (colorPalette?.accent) {
-                    e.currentTarget.style.color = colorPalette.accent;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (colorPalette?.primary) {
-                    e.currentTarget.style.color = colorPalette.primary;
-                  }
-                }}
-              >
-                Expand
-              </button>
-            </div>
+            <button
+              onClick={() => setExpandedInvoices(!expandedInvoices)}
+              className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${
+                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <span className={`font-medium ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Related Invoices</span>
+                <span className={`text-xs px-2 py-1 rounded ${
+                  isDarkMode
+                    ? 'bg-gray-600 text-white'
+                    : 'bg-gray-300 text-gray-900'
+                }`}>{invoicesCount}</span>
+              </div>
+              {expandedInvoices ? (
+                <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+              ) : (
+                <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+              )}
+            </button>
+
+            {expandedInvoices && (
+              <div className="px-6 pb-4">
+                <RelatedDataTable 
+                  data={relatedInvoices}
+                  columns={relatedDataColumns.invoices}
+                  isDarkMode={isDarkMode}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

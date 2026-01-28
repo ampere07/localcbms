@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, ArrowRight, Maximize2, X, Phone, MessageSquare, Info, 
-  ExternalLink, Mail, Edit, Trash2, Receipt, RefreshCw, CheckCircle
+  ExternalLink, Mail, Edit, Trash2, Receipt, RefreshCw, CheckCircle,
+  ChevronDown, ChevronRight
 } from 'lucide-react';
 import { transactionService } from '../services/transactionService';
+import { relatedDataService } from '../services/relatedDataService';
 import LoadingModal from './LoadingModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import RelatedDataTable from './RelatedDataTable';
+import { relatedDataColumns } from '../config/relatedDataColumns';
 
 interface Transaction {
   id: string;
@@ -56,6 +60,11 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
+  
+  // Related invoices state
+  const [expandedInvoices, setExpandedInvoices] = useState(false);
+  const [relatedInvoices, setRelatedInvoices] = useState<any[]>([]);
+  const [invoicesCount, setInvoicesCount] = useState(0);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -77,6 +86,32 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
     
     fetchColorPalette();
   }, []);
+  
+  // Fetch related invoices when account number changes
+  useEffect(() => {
+    const fetchRelatedInvoices = async () => {
+      if (!transaction.account_no) {
+        console.log('❌ No account_no found in transaction');
+        return;
+      }
+      
+      const accountNo = transaction.account_no;
+      console.log('🔍 Fetching related invoices for account:', accountNo);
+      
+      try {
+        const result = await relatedDataService.getRelatedInvoices(accountNo);
+        console.log('✅ Invoices fetched:', { count: result.count || 0, hasData: (result.data || []).length > 0 });
+        setRelatedInvoices(result.data || []);
+        setInvoicesCount(result.count || 0);
+      } catch (error) {
+        console.error('❌ Error fetching invoices:', error);
+        setRelatedInvoices([]);
+        setInvoicesCount(0);
+      }
+    };
+    
+    fetchRelatedInvoices();
+  }, [transaction.account_no]);
 
   useEffect(() => {
     if (!isResizing) return;
@@ -374,22 +409,41 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
         <div className={`mx-auto px-4 mt-4 ${
           isDarkMode ? 'bg-gray-950' : 'bg-white'
         }`}>
-          <div className={`pt-4 ${
-            isDarkMode ? 'border-t border-gray-800' : 'border-t border-gray-300'
+          <div className={`border-b ${
+            isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
-            <div className="flex items-center mb-4">
-              <h3 className={`font-medium ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Related Invoices</h3>
-              <span className={`ml-2 text-xs px-2 py-1 rounded ${
-                isDarkMode ? 'bg-gray-600 text-white' : 'bg-gray-300 text-gray-900'
-              }`}>0</span>
-            </div>
-            <div className={`text-center py-8 ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
-              No items
-            </div>
+            <button
+              onClick={() => setExpandedInvoices(!expandedInvoices)}
+              className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${
+                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <span className={`font-medium ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Related Invoices</span>
+                <span className={`text-xs px-2 py-1 rounded ${
+                  isDarkMode
+                    ? 'bg-gray-600 text-white'
+                    : 'bg-gray-300 text-gray-900'
+                }`}>{invoicesCount}</span>
+              </div>
+              {expandedInvoices ? (
+                <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+              ) : (
+                <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+              )}
+            </button>
+
+            {expandedInvoices && (
+              <div className="px-6 pb-4">
+                <RelatedDataTable 
+                  data={relatedInvoices}
+                  columns={relatedDataColumns.invoices}
+                  isDarkMode={isDarkMode}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -6,21 +6,32 @@ import { settingsColorPaletteService, ColorPalette } from '../services/settingsC
 // Interfaces for payment portal data
 interface PaymentPortalRecord {
   id: string;
-  dateTime: string;
-  accountNo: string;
-  receivedPayment: number;
+  reference_no: string;
+  account_id: number | string;
+  total_amount: number;
+  date_time: string;
+  checkout_id: string;
   status: string;
-  referenceNo: string;
-  contactNo: string;
-  accountBalance: number;
-  checkoutId: string;
-  transactionStatus: string;
-  provider: string;
-  paymentMethod?: string;
+  transaction_status: string;
+  ewallet_type?: string;
+  payment_channel?: string;
+  type?: string;
+  payment_url?: string;
+  json_payload?: string;
+  callback_payload?: string;
+  created_at?: string;
+  updated_at?: string;
+  // Additional fields from join with accounts table
+  accountNo?: string;
   fullName?: string;
+  contactNo?: string;
+  accountBalance?: number;
+  provider?: string;
   city?: string;
-  created_at: string;
-  updated_at: string;
+  barangay?: string;
+  plan?: string;
+  address?: string;
+  [key: string]: any;
 }
 
 interface LocationItem {
@@ -102,17 +113,19 @@ const PaymentPortal: React.FC = () => {
         const sampleRecords: PaymentPortalRecord[] = [
           {
             id: '1',
-            dateTime: '9/18/2025 4:33:57 PM',
+            date_time: '9/18/2025 4:33:57 PM',
+            account_id: '202306310',
             accountNo: '202306310',
-            receivedPayment: 999.00,
+            total_amount: 999.00,
             status: 'Completed',
-            referenceNo: '439769168',
+            reference_no: '439769168',
             contactNo: '9673080816',
             accountBalance: 0.00,
-            checkoutId: 'CHK001',
-            transactionStatus: 'Success',
+            checkout_id: 'CHK001',
+            transaction_status: 'Success',
             provider: 'GCash',
-            paymentMethod: 'E-Wallet',
+            ewallet_type: 'GCash',
+            payment_channel: 'E-Wallet',
             fullName: 'Jocelyn H Roncales',
             city: 'Binangonan',
             created_at: '2025-09-18T20:33:57Z',
@@ -120,17 +133,19 @@ const PaymentPortal: React.FC = () => {
           },
           {
             id: '2',
-            dateTime: '9/18/2025 4:33:17 PM',
+            date_time: '9/18/2025 4:33:17 PM',
+            account_id: '202307326',
             accountNo: '202307326',
-            receivedPayment: 999.00,
+            total_amount: 999.00,
             status: 'Completed',
-            referenceNo: '334905555',
+            reference_no: '334905555',
             contactNo: '9536424625',
             accountBalance: 0.00,
-            checkoutId: 'CHK002',
-            transactionStatus: 'Success',
+            checkout_id: 'CHK002',
+            transaction_status: 'Success',
             provider: 'PayMaya',
-            paymentMethod: 'E-Wallet',
+            ewallet_type: 'PayMaya',
+            payment_channel: 'E-Wallet',
             fullName: 'Remar A Colinayo',
             city: 'Binangonan',
             created_at: '2025-09-18T20:33:17Z',
@@ -138,17 +153,19 @@ const PaymentPortal: React.FC = () => {
           },
           {
             id: '3',
-            dateTime: '9/18/2025 4:25:27 PM',
+            date_time: '9/18/2025 4:25:27 PM',
+            account_id: '202304334',
             accountNo: '202304334',
-            receivedPayment: 1000.00,
+            total_amount: 1000.00,
             status: 'Pending',
-            referenceNo: '436947078',
+            reference_no: '436947078',
             contactNo: '9536424625',
             accountBalance: 1000.00,
-            checkoutId: 'CHK003',
-            transactionStatus: 'Processing',
+            checkout_id: 'CHK003',
+            transaction_status: 'Processing',
             provider: 'BankTransfer',
-            paymentMethod: 'Bank Transfer',
+            ewallet_type: 'Bank Transfer',
+            payment_channel: 'Bank Transfer',
             fullName: 'Sharon Ivy A Lobarbio',
             city: 'Angono',
             created_at: '2025-09-18T20:25:27Z',
@@ -206,8 +223,8 @@ const PaymentPortal: React.FC = () => {
     
     const matchesSearch = searchQuery === '' || 
                          record.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         record.accountNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         record.referenceNo.toLowerCase().includes(searchQuery.toLowerCase());
+                         (record.accountNo || record.account_id?.toString()).toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         record.reference_no?.toLowerCase().includes(searchQuery.toLowerCase());
     
     return matchesLocation && matchesSearch;
   });
@@ -480,46 +497,46 @@ const PaymentPortal: React.FC = () => {
                         <td className={`px-4 py-3 whitespace-nowrap ${
                           isDarkMode ? 'text-gray-300' : 'text-gray-700'
                         }`}>
-                          {record.dateTime}
+                          {record.date_time || 'N/A'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-red-400 font-medium">
-                          {record.accountNo}
+                          {record.accountNo || record.account_id}
                         </td>
                         <td className={`px-4 py-3 whitespace-nowrap font-medium ${
                           isDarkMode ? 'text-white' : 'text-gray-900'
                         }`}>
-                          {formatCurrency(record.receivedPayment)}
+                          {formatCurrency(record.total_amount || 0)}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <StatusText status={record.status} />
+                          <StatusText status={record.status || 'N/A'} />
                         </td>
                         <td className={`px-4 py-3 whitespace-nowrap ${
                           isDarkMode ? 'text-gray-300' : 'text-gray-700'
                         }`}>
-                          {record.referenceNo}
+                          {record.reference_no || 'N/A'}
                         </td>
                         <td className={`px-4 py-3 whitespace-nowrap ${
                           isDarkMode ? 'text-gray-300' : 'text-gray-700'
                         }`}>
-                          {record.contactNo}
+                          {record.contactNo || 'N/A'}
                         </td>
                         <td className={`px-4 py-3 whitespace-nowrap ${
                           isDarkMode ? 'text-gray-300' : 'text-gray-700'
                         }`}>
-                          {formatCurrency(record.accountBalance)}
+                          {formatCurrency(record.accountBalance || 0)}
                         </td>
                         <td className={`px-4 py-3 whitespace-nowrap ${
                           isDarkMode ? 'text-gray-300' : 'text-gray-700'
                         }`}>
-                          {record.checkoutId}
+                          {record.checkout_id || 'N/A'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <StatusText status={record.transactionStatus} />
+                          <StatusText status={record.transaction_status || 'N/A'} />
                         </td>
                         <td className={`px-4 py-3 whitespace-nowrap ${
                           isDarkMode ? 'text-gray-300' : 'text-gray-700'
                         }`}>
-                          {record.provider}
+                          {record.provider || 'N/A'}
                         </td>
                       </tr>
                     ))

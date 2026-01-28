@@ -26,6 +26,8 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\BillingGenerationController;
 use App\Http\Controllers\ImageProxyController;
 use App\Http\Controllers\SettingsColorPaletteController;
+use App\Http\Controllers\RelatedDataController;
+use App\Http\Controllers\InventoryRelatedDataController;
 use App\Http\Controllers\PPPoEController;
 use App\Models\User;
 use App\Models\MassRebate;
@@ -2923,3 +2925,24 @@ Route::prefix('monitor')->group(function () {
     Route::match(['POST', 'OPTIONS'], '/templates', [App\Http\Controllers\LiveMonitorController::class, 'saveTemplate']);
     Route::match(['DELETE', 'OPTIONS'], '/templates/{id}', [App\Http\Controllers\LiveMonitorController::class, 'deleteTemplate']);
 });
+
+Route::get('/invoices/by-account/{accountNo}', [RelatedDataController::class, 'getInvoicesByAccount']);
+Route::get('/payment-portal-logs/by-account/{accountNo}', [RelatedDataController::class, 'getPaymentPortalLogsByAccount']);
+Route::get('/transactions/by-account/{accountNo}', [RelatedDataController::class, 'getTransactionsByAccount']);
+Route::get('/staggered-installations/by-account/{accountNo}', [RelatedDataController::class, 'getStaggeredByAccount']);
+Route::get('/discounts/by-account/{accountNo}', [RelatedDataController::class, 'getDiscountsByAccount']);
+Route::get('/service-orders/by-account/{accountNo}', [RelatedDataController::class, 'getServiceOrdersByAccount']);
+Route::get('/reconnection-logs/by-account/{accountNo}', [RelatedDataController::class, 'getReconnectionLogsByAccount']);
+Route::get('/disconnected-logs/by-account/{accountNo}', [RelatedDataController::class, 'getDisconnectedLogsByAccount']);
+Route::get('/details-update-logs/by-account/{accountNo}', [RelatedDataController::class, 'getDetailsUpdateLogsByAccount']);
+Route::get('/plan-change-logs/by-account/{accountNo}', [RelatedDataController::class, 'getPlanChangeLogsByAccount']);
+Route::get('/service-charge-logs/by-account/{accountNo}', [RelatedDataController::class, 'getServiceChargeLogsByAccount']);
+Route::get('/change-due-logs/by-account/{accountNo}', [RelatedDataController::class, 'getChangeDueLogsByAccount']);
+Route::get('/security-deposits/by-account/{accountNo}', [RelatedDataController::class, 'getSecurityDepositsByAccount']);
+
+// Inventory Related Data Routes
+Route::get('/inventory-logs/by-item/{itemId}', [InventoryRelatedDataController::class, 'getInventoryLogsByItem']);
+Route::get('/borrowed-logs/by-item/{itemId}', [InventoryRelatedDataController::class, 'getBorrowedLogsByItem']);
+Route::get('/defective-logs/by-item/{itemId}', [InventoryRelatedDataController::class, 'getDefectiveLogsByItem']);
+Route::get('/job-orders/by-item/{itemId}', [InventoryRelatedDataController::class, 'getJobOrdersByItem']);
+Route::get('/service-orders/by-item/{itemId}', [InventoryRelatedDataController::class, 'getServiceOrdersByItem']);

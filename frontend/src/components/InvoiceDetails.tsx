@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ExternalLink, X, Info } from 'lucide-react';
+import { ExternalLink, X, Info, ChevronDown, ChevronRight } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { relatedDataService } from '../services/relatedDataService';
+import RelatedDataTable from './RelatedDataTable';
+import { relatedDataColumns } from '../config/relatedDataColumns';
 
 interface InvoiceRecord {
   id: string;
@@ -44,6 +47,11 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
+  
+  // Related staggered payments state
+  const [expandedStaggered, setExpandedStaggered] = useState(false);
+  const [relatedStaggered, setRelatedStaggered] = useState<any[]>([]);
+  const [staggeredCount, setStaggeredCount] = useState(0);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -74,6 +82,32 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
     
     fetchColorPalette();
   }, []);
+  
+  // Fetch related staggered payments when account number changes
+  useEffect(() => {
+    const fetchRelatedStaggered = async () => {
+      if (!invoiceRecord.accountNo) {
+        console.log('❌ No accountNo found in invoice record');
+        return;
+      }
+      
+      const accountNo = invoiceRecord.accountNo;
+      console.log('🔍 Fetching related staggered payments for account:', accountNo);
+      
+      try {
+        const result = await relatedDataService.getRelatedStaggered(accountNo);
+        console.log('✅ Staggered payments fetched:', { count: result.count || 0, hasData: (result.data || []).length > 0 });
+        setRelatedStaggered(result.data || []);
+        setStaggeredCount(result.count || 0);
+      } catch (error) {
+        console.error('❌ Error fetching staggered payments:', error);
+        setRelatedStaggered([]);
+        setStaggeredCount(0);
+      }
+    };
+    
+    fetchRelatedStaggered();
+  }, [invoiceRecord.accountNo]);
 
   useEffect(() => {
     if (!isResizing) return;
@@ -268,29 +302,41 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
       <div className={`mt-auto border-t ${
         isDarkMode ? 'border-gray-800' : 'border-gray-200'
       }`}>
-        <div className={`px-5 py-3 flex justify-between items-center border-b ${
-          isDarkMode
-            ? 'bg-gray-850 border-gray-700'
-            : 'bg-gray-100 border-gray-200'
+        <div className={`border-b ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
         }`}>
-          <div className="flex items-center">
-            <h2 className={`font-medium ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Related Staggered Payments</h2>
-            <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
-              isDarkMode
-                ? 'bg-gray-700 text-gray-300'
-                : 'bg-gray-300 text-gray-700'
-            }`}>
-              {invoiceRecord.staggeredPaymentsCount || 0}
-            </span>
-          </div>
-        </div>
-        {/* Empty State */}
-        <div className={`px-5 py-16 text-center ${
-          isDarkMode ? 'text-gray-500' : 'text-gray-400'
-        }`}>
-          No items
+          <button
+            onClick={() => setExpandedStaggered(!expandedStaggered)}
+            className={`w-full px-5 py-3 flex items-center justify-between text-left transition-colors ${
+              isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <span className={`font-medium ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Related Staggered Payments</span>
+              <span className={`text-xs px-2 py-1 rounded ${
+                isDarkMode
+                  ? 'bg-gray-600 text-white'
+                  : 'bg-gray-300 text-gray-900'
+              }`}>{staggeredCount}</span>
+            </div>
+            {expandedStaggered ? (
+              <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+            ) : (
+              <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+            )}
+          </button>
+
+          {expandedStaggered && (
+            <div className="px-5 pb-4">
+              <RelatedDataTable 
+                data={relatedStaggered}
+                columns={relatedDataColumns.staggered}
+                isDarkMode={isDarkMode}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

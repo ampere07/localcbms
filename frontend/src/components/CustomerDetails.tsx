@@ -9,9 +9,12 @@ import StaggeredInstallationFormModal from '../modals/StaggeredInstallationFormM
 import DiscountFormModal from '../modals/DiscountFormModal';
 import SORequestFormModal from '../modals/SORequestFormModal';
 import CustomerDetailsEditModal from '../modals/CustomerDetailsEditModal';
+import RelatedDataTable from './RelatedDataTable';
+import { relatedDataColumns } from '../config/relatedDataColumns';
 import { BillingDetailRecord } from '../types/billing';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { customerDetailUpdateService } from '../services/customerDetailUpdateService';
+import { relatedDataService } from '../services/relatedDataService';
 
 // Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -78,6 +81,41 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [showColumnVisibility, setShowColumnVisibility] = useState(false);
+  
+  // Related data states
+  const [relatedData, setRelatedData] = useState<Record<string, any[]>>({
+    invoices: [],
+    paymentPortalLogs: [],
+    transactions: [],
+    staggered: [],
+    discounts: [],
+    serviceOrders: [],
+    reconnectionLogs: [],
+    disconnectedLogs: [],
+    detailsUpdateLogs: [],
+    planChangeLogs: [],
+    serviceChargeLogs: [],
+    changeDueLogs: [],
+    securityDeposits: []
+  });
+  
+  const [relatedDataCounts, setRelatedDataCounts] = useState<Record<string, number>>({
+    invoices: 0,
+    paymentPortalLogs: 0,
+    transactions: 0,
+    staggered: 0,
+    discounts: 0,
+    serviceOrders: 0,
+    reconnectionLogs: 0,
+    disconnectedLogs: 0,
+    detailsUpdateLogs: 0,
+    planChangeLogs: 0,
+    serviceChargeLogs: 0,
+    changeDueLogs: 0,
+    securityDeposits: 0
+  });
+  
+  const [loadingData, setLoadingData] = useState<Record<string, boolean>>({});
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
 
@@ -177,6 +215,66 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   useEffect(() => {
     localStorage.setItem(FIELD_ORDER_KEY, JSON.stringify(fieldOrder));
   }, [fieldOrder]);
+  
+  // Fetch related data when account number changes
+  useEffect(() => {
+    const fetchRelatedData = async () => {
+      if (!billingRecord.applicationId) {
+        console.log('❌ No applicationId found in billingRecord');
+        return;
+      }
+      
+      const accountNo = billingRecord.applicationId;
+      console.log('🔍 Fetching related data for account:', accountNo);
+      
+      // Fetch all related data
+      const fetchPromises = [
+        { key: 'invoices', fn: relatedDataService.getRelatedInvoices },
+        { key: 'paymentPortalLogs', fn: relatedDataService.getRelatedPaymentPortalLogs },
+        { key: 'transactions', fn: relatedDataService.getRelatedTransactions },
+        { key: 'staggered', fn: relatedDataService.getRelatedStaggered },
+        { key: 'discounts', fn: relatedDataService.getRelatedDiscounts },
+        { key: 'serviceOrders', fn: relatedDataService.getRelatedServiceOrders },
+        { key: 'reconnectionLogs', fn: relatedDataService.getRelatedReconnectionLogs },
+        { key: 'disconnectedLogs', fn: relatedDataService.getRelatedDisconnectedLogs },
+        { key: 'detailsUpdateLogs', fn: relatedDataService.getRelatedDetailsUpdateLogs },
+        { key: 'planChangeLogs', fn: relatedDataService.getRelatedPlanChangeLogs },
+        { key: 'serviceChargeLogs', fn: relatedDataService.getRelatedServiceChargeLogs },
+        { key: 'changeDueLogs', fn: relatedDataService.getRelatedChangeDueLogs },
+        { key: 'securityDeposits', fn: relatedDataService.getRelatedSecurityDeposits }
+      ];
+      
+      const results = await Promise.all(
+        fetchPromises.map(async ({ key, fn }) => {
+          try {
+            console.log(`⏳ Fetching ${key}...`);
+            const result = await fn(accountNo);
+            console.log(`✅ ${key} fetched:`, { count: result.count || 0, hasData: (result.data || []).length > 0 });
+            return { key, data: result.data || [], count: result.count || 0 };
+          } catch (error) {
+            console.error(`❌ Error fetching ${key}:`, error);
+            return { key, data: [], count: 0 };
+          }
+        })
+      );
+      
+      const newRelatedData: Record<string, any[]> = {};
+      const newCounts: Record<string, number> = {};
+      
+      results.forEach(({ key, data, count }) => {
+        newRelatedData[key] = data;
+        newCounts[key] = count;
+      });
+      
+      console.log('📦 Setting related data:', newCounts);
+      console.log('📦 Data details:', newRelatedData);
+      
+      setRelatedData(newRelatedData);
+      setRelatedDataCounts(newCounts);
+    };
+    
+    fetchRelatedData();
+  }, [billingRecord.applicationId]);
 
   const toggleColumnVisibility = (column: string) => {
     setColumnVisibility((prev: Record<string, boolean>) => ({
@@ -1065,7 +1163,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 isDarkMode
                   ? 'bg-gray-600 text-white'
                   : 'bg-gray-300 text-gray-900'
-              }`}>0</span>
+              }`}>{relatedDataCounts.invoices}</span>
             </div>
             {expandedSections.invoices ? (
               <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
@@ -1076,9 +1174,54 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
           {expandedSections.invoices && (
             <div className="px-6 pb-4">
-              <div className={`text-center py-8 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>No items</div>
+              {relatedData.invoices.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className={`min-w-full divide-y ${
+                    isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
+                  }`}>
+                    <thead>
+                      <tr>
+                        <th className={`px-4 py-2 text-left text-xs font-medium ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Invoice ID</th>
+                        <th className={`px-4 py-2 text-left text-xs font-medium ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Amount</th>
+                        <th className={`px-4 py-2 text-left text-xs font-medium ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Status</th>
+                        <th className={`px-4 py-2 text-left text-xs font-medium ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${
+                      isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
+                    }`}>
+                      {relatedData.invoices.map((invoice: any, index: number) => (
+                        <tr key={index} className={isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'}>
+                          <td className={`px-4 py-2 text-sm ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>{invoice.id || invoice.invoice_id}</td>
+                          <td className={`px-4 py-2 text-sm ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>₱{invoice.amount || invoice.total_amount || '0.00'}</td>
+                          <td className={`px-4 py-2 text-sm ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>{invoice.status || 'N/A'}</td>
+                          <td className={`px-4 py-2 text-sm ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>{invoice.created_at || invoice.date || 'N/A'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className={`text-center py-8 ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                }`}>No items</div>
+              )}
             </div>
           )}
         </div>
@@ -1100,7 +1243,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 isDarkMode
                   ? 'bg-gray-600 text-white'
                   : 'bg-gray-300 text-gray-900'
-              }`}>0</span>
+              }`}>{relatedDataCounts.paymentPortalLogs}</span>
             </div>
             {expandedSections.paymentPortalLogs ? (
               <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
@@ -1111,9 +1254,54 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
           {expandedSections.paymentPortalLogs && (
             <div className="px-6 pb-4">
-              <div className={`text-center py-8 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>No items</div>
+              {relatedData.paymentPortalLogs.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className={`min-w-full divide-y ${
+                    isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
+                  }`}>
+                    <thead>
+                      <tr>
+                        <th className={`px-4 py-2 text-left text-xs font-medium ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Transaction ID</th>
+                        <th className={`px-4 py-2 text-left text-xs font-medium ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Amount</th>
+                        <th className={`px-4 py-2 text-left text-xs font-medium ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Status</th>
+                        <th className={`px-4 py-2 text-left text-xs font-medium ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${
+                      isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
+                    }`}>
+                      {relatedData.paymentPortalLogs.map((log: any, index: number) => (
+                        <tr key={index} className={isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'}>
+                          <td className={`px-4 py-2 text-sm ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>{log.transaction_id || log.id}</td>
+                          <td className={`px-4 py-2 text-sm ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>₱{log.amount || '0.00'}</td>
+                          <td className={`px-4 py-2 text-sm ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>{log.status || 'N/A'}</td>
+                          <td className={`px-4 py-2 text-sm ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>{log.created_at || log.date || 'N/A'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className={`text-center py-8 ${
+                  isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                }`}>No items</div>
+              )}
             </div>
           )}
         </div>
@@ -1135,7 +1323,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 isDarkMode
                   ? 'bg-gray-600 text-white'
                   : 'bg-gray-300 text-gray-900'
-              }`}>0</span>
+              }`}>{relatedDataCounts.transactions}</span>
             </div>
             {expandedSections.transactions ? (
               <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
@@ -1146,9 +1334,11 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
           {expandedSections.transactions && (
             <div className="px-6 pb-4">
-              <div className={`text-center py-8 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>No items</div>
+              <RelatedDataTable 
+                data={relatedData.transactions}
+                columns={relatedDataColumns.transactions}
+                isDarkMode={isDarkMode}
+              />
               <div className="flex justify-end">
                 <button className={isDarkMode
                   ? 'text-red-400 hover:text-red-300 text-sm'
@@ -1176,7 +1366,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 isDarkMode
                   ? 'bg-gray-600 text-white'
                   : 'bg-gray-300 text-gray-900'
-              }`}>0</span>
+              }`}>{relatedDataCounts.staggered}</span>
             </div>
             {expandedSections.staggeredInstallations ? (
               <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
@@ -1187,9 +1377,11 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
           {expandedSections.staggeredInstallations && (
             <div className="px-6 pb-4">
-              <div className={`text-center py-8 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>No items</div>
+              <RelatedDataTable 
+                data={relatedData.staggered}
+                columns={relatedDataColumns.staggered}
+                isDarkMode={isDarkMode}
+              />
               <div className="flex justify-end">
                 <button 
                   onClick={handleStaggeredInstallationAdd}
@@ -1222,7 +1414,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 isDarkMode
                   ? 'bg-gray-600 text-white'
                   : 'bg-gray-300 text-gray-900'
-              }`}>0</span>
+              }`}>{relatedDataCounts.discounts}</span>
             </div>
             {expandedSections.discounts ? (
               <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
@@ -1233,9 +1425,11 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
           {expandedSections.discounts && (
             <div className="px-6 pb-4">
-              <div className={`text-center py-8 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>No items</div>
+              <RelatedDataTable 
+                data={relatedData.discounts}
+                columns={relatedDataColumns.discounts}
+                isDarkMode={isDarkMode}
+              />
               <div className="flex justify-end">
                 <button 
                   onClick={handleDiscountAdd}
@@ -1251,14 +1445,14 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           )}
         </div>
         {[
-          { key: 'serviceOrders', label: 'Related Service Orders' },
-          { key: 'reconnectionLogs', label: 'Related Reconnection Logs' },
-          { key: 'disconnectedLogs', label: 'Related Disconnected Logs' },
-          { key: 'detailsUpdateLogs', label: 'Related Details Update Logs' },
-          { key: 'planChangeLogs', label: 'Related Plan Change Logs' },
-          { key: 'serviceChargeLogs', label: 'Related Service Charge Logs' },
-          { key: 'changeDueLogs', label: 'Related Change Due Logs' },
-          { key: 'securityDeposits', label: 'Related Security Deposits' }
+          { key: 'serviceOrders', label: 'Related Service Orders', dataKey: 'serviceOrders' },
+          { key: 'reconnectionLogs', label: 'Related Reconnection Logs', dataKey: 'reconnectionLogs' },
+          { key: 'disconnectedLogs', label: 'Related Disconnected Logs', dataKey: 'disconnectedLogs' },
+          { key: 'detailsUpdateLogs', label: 'Related Details Update Logs', dataKey: 'detailsUpdateLogs' },
+          { key: 'planChangeLogs', label: 'Related Plan Change Logs', dataKey: 'planChangeLogs' },
+          { key: 'serviceChargeLogs', label: 'Related Service Charge Logs', dataKey: 'serviceChargeLogs' },
+          { key: 'changeDueLogs', label: 'Related Change Due Logs', dataKey: 'changeDueLogs' },
+          { key: 'securityDeposits', label: 'Related Security Deposits', dataKey: 'securityDeposits' }
         ].map((section) => (
           <div key={section.key} className={`border-b ${
             isDarkMode ? 'border-gray-700' : 'border-gray-200'
@@ -1277,7 +1471,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                   isDarkMode
                     ? 'bg-gray-600 text-white'
                     : 'bg-gray-300 text-gray-900'
-                }`}>0</span>
+                    }`}>{relatedDataCounts[section.key]}</span>
               </div>
               {expandedSections[section.key] ? (
                 <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
@@ -1288,9 +1482,11 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
             {expandedSections[section.key] && (
               <div className="px-6 pb-4">
-                <div className={`text-center py-8 ${
-                  isDarkMode ? 'text-gray-500' : 'text-gray-600'
-                }`}>No items</div>
+                <RelatedDataTable 
+                  data={relatedData[section.key]}
+                  columns={relatedDataColumns[section.dataKey as keyof typeof relatedDataColumns]}
+                  isDarkMode={isDarkMode}
+                />
                 <div className="flex justify-end">
                   <button className={isDarkMode
                     ? 'text-red-400 hover:text-red-300 text-sm'
