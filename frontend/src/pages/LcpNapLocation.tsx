@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, MapPin } from 'lucide-react';
 import AddLcpNapLocationModal from '../modals/AddLcpNapLocationModal';
+import LcpNapLocationDetails from '../components/LcpNapLocationDetails';
 import { GOOGLE_MAPS_API_KEY } from '../config/maps';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import apiClient from '../config/api';
@@ -57,6 +58,7 @@ const LcpNapLocation: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const [isMapReady, setIsMapReady] = useState<boolean>(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<LocationMarker | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
@@ -342,55 +344,8 @@ const LcpNapLocation: React.FC = () => {
         title: location.lcpnap_name
       });
 
-      const popupContent = `
-        <div style="min-width: 200px; font-family: system-ui; color: #1f2937;">
-          <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600;">
-            ${location.lcpnap_name}
-          </h3>
-          <div style="font-size: 14px; color: #4b5563; line-height: 1.6;">
-            <div style="margin-bottom: 4px;">
-              <strong>LCP:</strong> ${location.lcp_name}
-            </div>
-            <div style="margin-bottom: 4px;">
-              <strong>NAP:</strong> ${location.nap_name}
-            </div>
-            ${location.street ? `
-              <div style="margin-bottom: 4px;">
-                <strong>Street:</strong> ${location.street}
-              </div>
-            ` : ''}
-            ${location.barangay ? `
-              <div style="margin-bottom: 4px;">
-                <strong>Barangay:</strong> ${location.barangay}
-              </div>
-            ` : ''}
-            ${location.city ? `
-              <div style="margin-bottom: 4px;">
-                <strong>City:</strong> ${location.city}
-              </div>
-            ` : ''}
-            ${location.region ? `
-              <div style="margin-bottom: 4px;">
-                <strong>Region:</strong> ${location.region}
-              </div>
-            ` : ''}
-            ${location.port_total ? `
-              <div style="margin-bottom: 4px;">
-                <strong>Port Total:</strong> ${location.port_total}
-              </div>
-            ` : ''}
-            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;">
-              ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}
-            </div>
-          </div>
-        </div>
-      `;
-
       marker.addListener('click', () => {
-        if (infoWindowRef.current) {
-          infoWindowRef.current.setContent(popupContent);
-          infoWindowRef.current.open(mapInstanceRef.current, marker);
-        }
+        setSelectedLocation(location);
       });
 
       markersRef.current.push(marker);
@@ -574,6 +529,15 @@ const LcpNapLocation: React.FC = () => {
         onClose={() => setShowAddModal(false)}
         onSave={handleSaveLocation}
       />
+
+      {selectedLocation && (
+        <div className="flex-shrink-0 overflow-hidden">
+          <LcpNapLocationDetails
+            location={selectedLocation}
+            onClose={() => setSelectedLocation(null)}
+          />
+        </div>
+      )}
     </div>
   );
 };

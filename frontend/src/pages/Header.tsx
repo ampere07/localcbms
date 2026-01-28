@@ -275,7 +275,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
           </svg>
         </button>
         
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-col items-center space-y-1">
           {logoUrl && (
             <img 
               src={logoUrl} 
@@ -291,7 +291,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
           )}
           <h1 className={`${
             isDarkMode ? 'text-white' : 'text-gray-900'
-          } text-xl font-bold`}>
+          } text-xs font-semibold`}>
             Powered by Sync
           </h1>
         </div>

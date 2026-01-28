@@ -362,7 +362,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           )}
           <h1 style={{
             color: primaryColor,
-            fontSize: '28px',
+            fontSize: '16px',
             marginBottom: '10px',
             fontWeight: '700'
           }}>
@@ -462,7 +462,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </button>
           
           <div style={{
-            textAlign: 'center'
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px'
           }}>
             <button
               type="button"
@@ -481,6 +484,23 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               }}
             >
               Forgot your password?
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                window.open('https://apply.atssfiber.ph', '_blank');
+              }}
+              style={{
+                backgroundColor: 'transparent',
+                color: primaryColor,
+                border: 'none',
+                fontSize: '14px',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                fontWeight: '500'
+              }}
+            >
+              Apply
             </button>
           </div>
         </form>

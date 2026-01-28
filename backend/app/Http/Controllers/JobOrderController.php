@@ -154,6 +154,87 @@ class JobOrderController extends Controller
             ], 500);
         }
     }
+    public function store(Request $request): JsonResponse
+    {
+        try {
+            \Log::info('JobOrder Store Request', [
+                'request_data' => $request->all()
+            ]);
+
+            $validator = Validator::make($request->all(), [
+                'application_id' => 'required|integer|exists:applications,id',
+                'timestamp' => 'nullable|date',
+                'installation_fee' => 'nullable|numeric|min:0',
+                'billing_day' => 'nullable|integer|min:0|max:31',
+                'billing_status_id' => 'nullable|integer|exists:billing_status,id',
+                'onsite_status' => 'nullable|string|max:255',
+                'assigned_email' => 'nullable|email|max:255',
+                'onsite_remarks' => 'nullable|string',
+                'status_remarks' => 'nullable|string|max:255',
+                'modem_router_sn' => 'nullable|string|max:255',
+                'username' => 'nullable|string|max:255',
+                'group_name' => 'nullable|string|max:255',
+                'installation_landmark' => 'nullable|string|max:255',
+                'created_by_user_email' => 'nullable|email|max:255',
+                'updated_by_user_email' => 'nullable|email|max:255',
+                'contract_link' => 'nullable|string|max:500',
+            ]);
+
+            if ($validator->fails()) {
+                \Log::error('JobOrder Store Validation Failed', [
+                    'errors' => $validator->errors()->toArray()
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $data = $request->all();
+            
+            // Set default values if not provided
+            if (!isset($data['billing_status_id'])) {
+                $data['billing_status_id'] = 1; // Default to pending/initial status
+            }
+            
+            if (!isset($data['onsite_status'])) {
+                $data['onsite_status'] = 'Pending';
+            }
+            
+            \Log::info('JobOrder Creating with data', [
+                'data' => $data
+            ]);
+            
+            $jobOrder = JobOrder::create($data);
+
+            $jobOrder->load('application');
+
+            \Log::info('JobOrder Created Successfully', [
+                'id' => $jobOrder->id,
+                'application_id' => $jobOrder->application_id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Job order created successfully',
+                'data' => $jobOrder,
+            ], 201);
+        } catch (\Exception $e) {
+            \Log::error('JobOrder Store Failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create job order',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function createRadiusAccount(Request $request, $id): JsonResponse
     {
         try {
