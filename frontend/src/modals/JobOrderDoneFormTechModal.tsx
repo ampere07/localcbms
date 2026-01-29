@@ -20,7 +20,7 @@ import apiClient from '../config/api';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import LocationPicker from '../components/LocationPicker';
-import { pppoeService, UsernamePattern } from '../services/pppoeServ  ice';
+import { pppoeService, UsernamePattern } from '../services/pppoeService';
 
 interface Region {
   id: number;
@@ -1192,63 +1192,59 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         
         console.log('[SAVE DEBUG] Address Coordinates:', updatedFormData.addressCoordinates);
         
-        // Check if username pattern has tech_input and update pppoe_username
-        if (usernamePattern && techInputValue.trim()) {
-          const hasTechInput = usernamePattern.sequence.some(item => item.type === 'tech_input');
-          if (hasTechInput) {
-            jobOrderUpdateData.pppoe_username = techInputValue.trim();
-            console.log('[SAVE DEBUG] Tech Input PPPoE Username:', techInputValue.trim());
-          }
-        }
+        const hasTechInput = usernamePattern && usernamePattern.sequence.some(item => item.type === 'tech_input');
         
-        
-
-        const planNameForRadius = updatedFormData.choosePlan.includes(' - P') 
-          ? updatedFormData.choosePlan.split(' - P')[0].trim()
-          : updatedFormData.choosePlan;
-        
-        try {
-          const radiusResponse = await apiClient.post<{
-            success: boolean;
-            message: string;
-            data?: {
-              username: string;
-              password: string;
-              group: string;
-              credentials_exist?: boolean;
-              radius_response?: any;
-            };
-          }>(`/job-orders/${jobOrderId}/create-radius-account`);
+        if (hasTechInput && techInputValue.trim()) {
+          jobOrderUpdateData.pppoe_username = techInputValue.trim();
+          console.log('[SAVE DEBUG] Tech Input PPPoE Username:', techInputValue.trim());
+        } else {
+          const planNameForRadius = updatedFormData.choosePlan.includes(' - P') 
+            ? updatedFormData.choosePlan.split(' - P')[0].trim()
+            : updatedFormData.choosePlan;
           
-          if (radiusResponse.data.success && radiusResponse.data.data) {
-            const { username, password, credentials_exist } = radiusResponse.data.data;
+          try {
+            const radiusResponse = await apiClient.post<{
+              success: boolean;
+              message: string;
+              data?: {
+                username: string;
+                password: string;
+                group: string;
+                credentials_exist?: boolean;
+                radius_response?: any;
+              };
+            }>(`/job-orders/${jobOrderId}/create-radius-account`);
             
-            if (credentials_exist) {
+            if (radiusResponse.data.success && radiusResponse.data.data) {
+              const { username, password, credentials_exist } = radiusResponse.data.data;
+              
+              if (credentials_exist) {
+                saveMessages.push({
+                  type: 'warning',
+                  text: `PPPoE credentials already exist: Username: ${username}, Password: ${password}, Plan: ${planNameForRadius}`
+                });
+              } else {
+                jobOrderUpdateData.pppoe_username = username;
+                jobOrderUpdateData.pppoe_password = password;
+                
+                saveMessages.push({
+                  type: 'success',
+                  text: `RADIUS Account Created: Username: ${username}, Password: ${password}, Plan: ${planNameForRadius}`
+                });
+              }
+            } else {
               saveMessages.push({
                 type: 'warning',
-                text: `PPPoE credentials already exist: Username: ${username}, Password: ${password}, Plan: ${planNameForRadius}`
-              });
-            } else {
-              jobOrderUpdateData.pppoe_username = username;
-              jobOrderUpdateData.pppoe_password = password;
-              
-              saveMessages.push({
-                type: 'success',
-                text: `RADIUS Account Created: Username: ${username}, Password: ${password}, Plan: ${planNameForRadius}`
+                text: `RADIUS account creation failed: ${radiusResponse.data.message}`
               });
             }
-          } else {
+          } catch (radiusError: any) {
+            const errorMsg = radiusError.response?.data?.message || radiusError.message || 'Unknown error';
             saveMessages.push({
               type: 'warning',
-              text: `RADIUS account creation failed: ${radiusResponse.data.message}`
+              text: `RADIUS account creation failed: ${errorMsg}`
             });
           }
-        } catch (radiusError: any) {
-          const errorMsg = radiusError.response?.data?.message || radiusError.message || 'Unknown error';
-          saveMessages.push({
-            type: 'warning',
-            text: `RADIUS account creation failed: ${errorMsg}`
-          });
         }
         
         const firstName = (jobOrderData?.First_Name || jobOrderData?.first_name || '').trim();
@@ -1578,7 +1574,6 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       setLoading(false);
       setShowLoadingModal(false);
       setLoadingPercentage(0);
-      showMessageModal('Success', saveMessages);
       onSave(updatedFormData);
       onClose();
     } catch (error: any) {
