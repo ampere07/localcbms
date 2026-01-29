@@ -196,6 +196,7 @@ const JobOrderPage: React.FC = () => {
   };
 
   const [userEmail, setUserEmail] = useState<string>('');
+  const [userRoleId, setUserRoleId] = useState<number | null>(null);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -221,6 +222,7 @@ const JobOrderPage: React.FC = () => {
         const userData = JSON.parse(authData);
         setUserRole(userData.role || '');
         setUserEmail(userData.email || '');
+        setUserRoleId(userData.role_id || null);
       } catch (error) {
       }
     }
@@ -265,8 +267,32 @@ const JobOrderPage: React.FC = () => {
           };
         });
         
-        console.log('Processed orders count:', processedOrders.length);
-        setJobOrders(processedOrders);
+        let filteredOrders = processedOrders;
+        
+        if (authData) {
+          try {
+            const userData = JSON.parse(authData);
+            const roleId = userData.role_id;
+            
+            if (roleId === 2) {
+              const sevenDaysAgo = new Date();
+              sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+              
+              filteredOrders = processedOrders.filter(order => {
+                const updatedAt = order.updated_at || order.Updated_At;
+                if (!updatedAt) return true;
+                
+                const updatedDate = new Date(updatedAt);
+                return updatedDate >= sevenDaysAgo;
+              });
+            }
+          } catch (error) {
+            console.error('Error filtering by role_id:', error);
+          }
+        }
+        
+        console.log('Processed orders count:', filteredOrders.length);
+        setJobOrders(filteredOrders);
       } else {
         console.log('No data or unsuccessful response');
         setJobOrders([]);
