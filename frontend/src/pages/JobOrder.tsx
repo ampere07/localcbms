@@ -285,8 +285,6 @@ const JobOrderPage: React.FC = () => {
                 const updatedDate = new Date(updatedAt);
                 return updatedDate >= sevenDaysAgo;
               });
-              
-              console.log('Filtered for role_id 2: Showing', filteredOrders.length, 'of', processedOrders.length, 'orders');
             }
           } catch (error) {
             console.error('Error filtering by role_id:', error);
