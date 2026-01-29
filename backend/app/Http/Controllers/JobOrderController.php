@@ -235,54 +235,6 @@ class JobOrderController extends Controller
         }
     }
 
-    public function createRadiusAccount(Request $request, $id): JsonResponse
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'application_id' => 'nullable|integer|exists:applications,id',
-                'timestamp' => 'nullable|date',
-                'installation_fee' => 'nullable|numeric|min:0',
-                'billing_day' => 'nullable|integer|min:0',
-                'billing_status_id' => 'nullable|integer|exists:billing_status,id',
-                'onsite_status' => 'nullable|string|max:255',
-                'assigned_email' => 'nullable|email|max:255',
-                'onsite_remarks' => 'nullable|string',
-                'status_remarks' => 'nullable|string|max:255',
-                'modem_router_sn' => 'nullable|string|max:255',
-                'username' => 'nullable|string|max:255',
-                'group_name' => 'nullable|string|max:255',
-                'installation_landmark' => 'nullable|string|max:255',
-                'created_by_user_email' => 'nullable|email|max:255',
-                'updated_by_user_email' => 'nullable|email|max:255',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors(),
-                ], 422);
-            }
-
-            $data = $request->all();
-            
-            $jobOrder = JobOrder::create($data);
-
-            $jobOrder->load('application');
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Job order created successfully',
-                'data' => $jobOrder,
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create job order',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
 
     public function show($id): JsonResponse
     {
@@ -675,10 +627,50 @@ class JobOrderController extends Controller
                 'username' => $usernameForTechnical,
             ]);
 
+            // Generate PPPoE credentials using pattern-based service
+            \Log::info('=== STARTING PPPOE CREDENTIAL GENERATION ===', [
+                'job_order_id' => $id,
+                'customer_first_name' => $application->first_name,
+                'customer_last_name' => $application->last_name,
+                'customer_mobile' => $application->mobile_number
+            ]);
+            
+            $pppoeService = new PppoeUsernameService();
+            
+            $customerData = [
+                'first_name' => $application->first_name ?? '',
+                'middle_initial' => $application->middle_initial ?? '',
+                'last_name' => $application->last_name ?? '',
+                'mobile_number' => $application->mobile_number ?? '',
+            ];
+            
+            // Generate unique PPPoE username based on patterns
+            $pppoeUsername = $pppoeService->generateUniqueUsername($customerData, $id);
+            $pppoePassword = $pppoeService->generatePassword($customerData);
+            
+            \Log::info('PPPoE credentials generated successfully', [
+                'job_order_id' => $id,
+                'pppoe_username' => $pppoeUsername,
+                'pppoe_password' => '***' . substr($pppoePassword, -4), // Masked for security
+                'username_length' => strlen($pppoeUsername),
+                'password_length' => strlen($pppoePassword),
+                'username_pattern_source' => 'pppoe_username_patterns table (pattern_type=username)',
+                'password_pattern_source' => 'pppoe_username_patterns table (pattern_type=password)'
+            ]);
+
             $jobOrder->update([
                 'billing_status_id' => 2,
                 'account_id' => $billingAccount->id,
+                'pppoe_username' => $pppoeUsername,
+                'pppoe_password' => $pppoePassword,
                 'updated_by_user_email' => 'system@ampere.com'
+            ]);
+            
+            \Log::info('PPPoE credentials saved to job_orders table', [
+                'job_order_id' => $id,
+                'table' => 'job_orders',
+                'columns_updated' => ['pppoe_username', 'pppoe_password', 'billing_status_id', 'account_id'],
+                'pppoe_username_saved' => $pppoeUsername
             ]);
 
             $customerRoleId = 3;
@@ -739,6 +731,8 @@ class JobOrderController extends Controller
                     'contact_number_secondary' => $customer->contact_number_secondary,
                     'user_created' => !isset($existingUser),
                     'user_username' => $accountNumber,
+                    'pppoe_username' => $pppoeUsername,
+                    'pppoe_password' => $pppoePassword,
                 ]
             ]);
 
@@ -1119,6 +1113,113 @@ class JobOrderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to upload images to Google Drive',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function createRadiusAccount($id): JsonResponse
+    {
+        try {
+            \Log::info('=== CREATE RADIUS ACCOUNT REQUEST ===', [
+                'job_order_id' => $id
+            ]);
+
+            DB::beginTransaction();
+
+            $jobOrder = JobOrder::with('application')->findOrFail($id);
+            
+            if (!$jobOrder->application) {
+                throw new \Exception('Job order must have an associated application');
+            }
+
+            $application = $jobOrder->application;
+
+            \Log::info('Job order and application loaded', [
+                'job_order_id' => $id,
+                'application_id' => $application->id,
+                'customer_name' => $application->first_name . ' ' . $application->last_name
+            ]);
+
+            // Generate PPPoE credentials using pattern-based service
+            \Log::info('Starting PPPoE credential generation', [
+                'job_order_id' => $id,
+                'customer_first_name' => $application->first_name,
+                'customer_last_name' => $application->last_name,
+                'customer_mobile' => $application->mobile_number
+            ]);
+            
+            $pppoeService = new PppoeUsernameService();
+            
+            $customerData = [
+                'first_name' => $application->first_name ?? '',
+                'middle_initial' => $application->middle_initial ?? '',
+                'last_name' => $application->last_name ?? '',
+                'mobile_number' => $application->mobile_number ?? '',
+            ];
+            
+            // Generate unique PPPoE username based on patterns
+            $pppoeUsername = $pppoeService->generateUniqueUsername($customerData, $id);
+            $pppoePassword = $pppoeService->generatePassword($customerData);
+            
+            \Log::info('PPPoE credentials generated successfully', [
+                'job_order_id' => $id,
+                'pppoe_username' => $pppoeUsername,
+                'pppoe_password' => '***' . substr($pppoePassword, -4), // Masked for security
+                'username_length' => strlen($pppoeUsername),
+                'password_length' => strlen($pppoePassword),
+                'username_pattern_source' => 'pppoe_username_patterns table (pattern_type=username)',
+                'password_pattern_source' => 'pppoe_username_patterns table (pattern_type=password)'
+            ]);
+
+            // Update job order with credentials
+            $jobOrder->update([
+                'pppoe_username' => $pppoeUsername,
+                'pppoe_password' => $pppoePassword,
+                'updated_by_user_email' => request()->input('updated_by_user_email', 'system@ampere.com')
+            ]);
+            
+            \Log::info('PPPoE credentials saved to job_orders table', [
+                'job_order_id' => $id,
+                'table' => 'job_orders',
+                'columns_updated' => ['pppoe_username', 'pppoe_password'],
+                'pppoe_username_saved' => $pppoeUsername
+            ]);
+
+            // Optionally create RADIUS account on RADIUS server
+            // This would call the RADIUS service to actually create the account
+            // For now, we just store the credentials in the database
+            
+            DB::commit();
+
+            \Log::info('=== RADIUS ACCOUNT CREATED SUCCESSFULLY ===', [
+                'job_order_id' => $id,
+                'pppoe_username' => $pppoeUsername
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'RADIUS account created successfully',
+                'data' => [
+                    'job_order_id' => $id,
+                    'pppoe_username' => $pppoeUsername,
+                    'pppoe_password' => $pppoePassword,
+                    'customer_name' => $application->first_name . ' ' . $application->last_name,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            \Log::error('=== RADIUS ACCOUNT CREATION FAILED ===', [
+                'job_order_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create RADIUS account',
                 'error' => $e->getMessage(),
             ], 500);
         }

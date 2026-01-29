@@ -20,6 +20,7 @@ import apiClient from '../config/api';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import LocationPicker from '../components/LocationPicker';
+import { pppoeService, UsernamePattern } from '../services/pppoeServ  ice';
 
 interface Region {
   id: number;
@@ -215,6 +216,8 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
   const [showLoadingModal, setShowLoadingModal] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
+  const [usernamePattern, setUsernamePattern] = useState<UsernamePattern | null>(null);
+  const [techInputValue, setTechInputValue] = useState<string>('');
 
   const convertGoogleDriveUrl = (url: string | null | undefined): string | null => {
     if (!url) return null;
@@ -332,6 +335,31 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
+    const fetchUsernamePattern = async () => {
+      if (isOpen) {
+        try {
+          const patterns = await pppoeService.getPatterns('username');
+          if (patterns && patterns.length > 0) {
+            const pattern = patterns[0];
+            setUsernamePattern(pattern);
+            
+            // Load existing pppoe_username if available
+            const existingUsername = jobOrderData?.pppoe_username || jobOrderData?.PPPoE_Username || '';
+            if (existingUsername && pattern.sequence.some(item => item.type === 'tech_input')) {
+              setTechInputValue(existingUsername);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch username pattern:', error);
+          setUsernamePattern(null);
+        }
+      }
+    };
+    
+    fetchUsernamePattern();
+  }, [isOpen, jobOrderData]);
+
+  useEffect(() => {
     if (!isOpen) return;
 
     if (jobOrderData) {
@@ -407,6 +435,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
   useEffect(() => {
     if (!isOpen) {
       setOrderItems([{ itemId: '', quantity: '' }]);
+      setTechInputValue('');
       Object.values(imagePreviews).forEach(url => {
         if (url && url.startsWith('blob:')) {
           URL.revokeObjectURL(url);
@@ -970,6 +999,13 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       if (!formData.routerModel.trim()) newErrors.routerModel = 'Router Model is required';
       if (!formData.modemSN.trim()) newErrors.modemSN = 'Modem SN is required';
       
+      // Check if tech_input is required for PPPoE username
+      if (usernamePattern && usernamePattern.sequence.some(item => item.type === 'tech_input')) {
+        if (!techInputValue.trim()) {
+          newErrors.techInput = 'PPPoE Username is required';
+        }
+      }
+      
       if (formData.connectionType === 'Antenna') {
         if (!formData.ip.trim()) newErrors.ip = 'IP is required';
         const hasPortLabelImageInDb = isValidImageUrl(jobOrderData?.port_label_image_url) || isValidImageUrl(jobOrderData?.Port_Label_Image_URL);
@@ -1043,6 +1079,12 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
   };
 
   const handleSave = async () => {
+    console.log('[SAVE START] ========================================');
+    console.log('[SAVE START] handleSave function called');
+    console.log('[SAVE START] jobOrderData:', jobOrderData);
+    console.log('[SAVE START] jobOrderData.id:', jobOrderData?.id);
+    console.log('[SAVE START] jobOrderData.JobOrder_ID:', jobOrderData?.JobOrder_ID);
+    
     const updatedFormData = {
       ...formData,
       modifiedBy: currentUserEmail,
@@ -1057,21 +1099,30 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       })
     };
     
+    console.log('[SAVE START] updatedFormData:', updatedFormData);
     setFormData(updatedFormData);
     
     if (!validateForm()) {
+      console.log('[SAVE VALIDATION] Form validation failed');
+      console.log('[SAVE VALIDATION] Errors:', errors);
       showMessageModal('Validation Error', [
         { type: 'error', text: 'Please fill in all required fields before saving.' }
       ]);
       return;
     }
+    
+    console.log('[SAVE VALIDATION] Form validation passed');
 
     if (!jobOrderData?.id && !jobOrderData?.JobOrder_ID) {
+      console.error('[SAVE ERROR] Cannot proceed - jobOrderData is missing ID');
+      console.error('[SAVE ERROR] jobOrderData:', jobOrderData);
       showMessageModal('Error', [
         { type: 'error', text: 'Cannot update job order: Missing ID' }
       ]);
       return;
     }
+    
+    console.log('[SAVE ID CHECK] Job order has ID, proceeding...');
 
     setLoading(true);
     setShowLoadingModal(true);
@@ -1090,6 +1141,31 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     
     try {
       const jobOrderId = jobOrderData.id || jobOrderData.JobOrder_ID;
+      
+      if (!jobOrderId) {
+        console.error('[SAVE ERROR] ========================================');
+        console.error('[SAVE ERROR] Missing job order ID');
+        console.error('[SAVE ERROR] jobOrderData_keys:', Object.keys(jobOrderData || {}));
+        console.error('[SAVE ERROR] jobOrderData_id:', jobOrderData?.id);
+        console.error('[SAVE ERROR] jobOrderData_JobOrder_ID:', jobOrderData?.JobOrder_ID);
+        console.error('[SAVE ERROR] ========================================');
+        
+        saveMessages.push({
+          type: 'error',
+          text: 'Cannot update: Missing job order ID'
+        });
+        
+        setLoading(false);
+        setShowLoadingModal(false);
+        showMessageModal('Error', saveMessages);
+        return;
+      }
+      
+      console.log('[SAVE ID CHECK] ========================================');
+      console.log('[SAVE ID CHECK] Job Order ID found:', jobOrderId);
+      console.log('[SAVE ID CHECK] typeof jobOrderId:', typeof jobOrderId);
+      console.log('[SAVE ID CHECK] This ID will be used to UPDATE existing record');
+      console.log('[SAVE ID CHECK] ========================================');
       
       const jobOrderUpdateData: any = {
         date_installed: updatedFormData.dateInstalled,
@@ -1115,6 +1191,15 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         jobOrderUpdateData.group_name = updatedFormData.groupName;
         
         console.log('[SAVE DEBUG] Address Coordinates:', updatedFormData.addressCoordinates);
+        
+        // Check if username pattern has tech_input and update pppoe_username
+        if (usernamePattern && techInputValue.trim()) {
+          const hasTechInput = usernamePattern.sequence.some(item => item.type === 'tech_input');
+          if (hasTechInput) {
+            jobOrderUpdateData.pppoe_username = techInputValue.trim();
+            console.log('[SAVE DEBUG] Tech Input PPPoE Username:', techInputValue.trim());
+          }
+        }
         
         
 
@@ -1272,13 +1357,33 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         jobOrderUpdateData.group_name = updatedFormData.groupName;
       }
 
-      console.log('[SAVE DEBUG] Final jobOrderUpdateData before API call:', JSON.stringify(jobOrderUpdateData, null, 2));
+      console.log('[API CALL] ========================================');
+      console.log('[API CALL] ABOUT TO CALL: updateJobOrder()');
+      console.log('[API CALL] Method: PUT');
+      console.log('[API CALL] Endpoint: /job-orders/' + jobOrderId);
+      console.log('[API CALL] Job Order ID:', jobOrderId);
+      console.log('[API CALL] typeof jobOrderId:', typeof jobOrderId);
+      console.log('[API CALL] Update Data Keys:', Object.keys(jobOrderUpdateData));
+      console.log('[API CALL] Full Update Data:', JSON.stringify(jobOrderUpdateData, null, 2));
+      console.log('[API CALL] IMPORTANT: This should UPDATE existing row, NOT create new row');
+      console.log('[API CALL] ========================================');
       
       const jobOrderResponse = await updateJobOrder(jobOrderId, jobOrderUpdateData);
       
+      console.log('[API RESPONSE] ========================================');
+      console.log('[API RESPONSE] updateJobOrder completed');
+      console.log('[API RESPONSE] Full response:', JSON.stringify(jobOrderResponse, null, 2));
+      console.log('[API RESPONSE] success:', jobOrderResponse?.success);
+      console.log('[API RESPONSE] message:', jobOrderResponse?.message);
+      console.log('[API RESPONSE] data:', jobOrderResponse?.data);
+      console.log('[API RESPONSE] ========================================');
+      
       if (!jobOrderResponse.success) {
+        console.error('[SAVE ERROR] updateJobOrder failed:', jobOrderResponse);
         throw new Error(jobOrderResponse.message || 'Job order update failed');
       }
+      
+      console.log('[SAVE SUCCESS] Job order updated successfully');
       
       saveMessages.push({
         type: 'success',
@@ -1358,45 +1463,104 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
 
         if (validItems.length > 0) {
           try {
+            // Get existing items from database
             const existingItemsResponse = await apiClient.get<{ success: boolean; data: any[] }>(`/job-order-items?job_order_id=${jobOrderId}`);
             
-            if (existingItemsResponse.data.success && existingItemsResponse.data.data.length > 0) {
+            if (existingItemsResponse.data.success && Array.isArray(existingItemsResponse.data.data)) {
               const existingItems = existingItemsResponse.data.data;
               
-              for (const item of existingItems) {
+              console.log('[SAVE ITEMS] Existing items from database:', existingItems);
+              
+              // Create a map of existing items by item_name for quick lookup
+              const existingItemsMap = new Map();
+              existingItems.forEach((item: any) => {
+                existingItemsMap.set(item.item_name, item);
+              });
+              
+              console.log('[SAVE ITEMS] Valid items to process:', validItems);
+              
+              // Track which items were processed for updates
+              const processedItemNames = new Set<string>();
+              
+              // Update or create items
+              for (const item of validItems) {
+                const existingItem = existingItemsMap.get(item.itemId);
+                processedItemNames.add(item.itemId);
+                
+                if (existingItem) {
+                  // Update existing item
+                  console.log(`[SAVE ITEMS] Updating item: ${item.itemId} (ID: ${existingItem.id})`);
+                  try {
+                    const updateResult = await apiClient.put(`/job-order-items/${existingItem.id}`, {
+                      quantity: parseInt(item.quantity)
+                    });
+                    console.log(`[SAVE ITEMS] Update successful for ${item.itemId}:`, updateResult.data);
+                  } catch (updateErr: any) {
+                    console.error('Failed to update item:', updateErr);
+                    saveMessages.push({
+                      type: 'warning',
+                      text: `Failed to update item ${item.itemId}: ${updateErr.message || 'Unknown error'}`
+                    });
+                  }
+                } else {
+                  // Create new item
+                  console.log(`[SAVE ITEMS] Creating new item: ${item.itemId}`);
+                  try {
+                    const createResult = await apiClient.post('/job-order-items', {
+                      job_order_id: parseInt(jobOrderId.toString()),
+                      item_name: item.itemId,
+                      quantity: parseInt(item.quantity)
+                    });
+                    console.log(`[SAVE ITEMS] Create successful for ${item.itemId}:`, createResult.data);
+                  } catch (createErr: any) {
+                    console.error('Failed to create item:', createErr);
+                    saveMessages.push({
+                      type: 'warning',
+                      text: `Failed to create item ${item.itemId}: ${createErr.message || 'Unknown error'}`
+                    });
+                  }
+                }
+              }
+              
+              // Delete items that are no longer in the form
+              console.log('[SAVE ITEMS] Checking for items to delete...');
+              for (const existingItem of existingItems) {
+                if (!processedItemNames.has(existingItem.item_name)) {
+                  console.log(`[SAVE ITEMS] Deleting removed item: ${existingItem.item_name} (ID: ${existingItem.id})`);
+                  try {
+                    await apiClient.delete(`/job-order-items/${existingItem.id}`);
+                    console.log(`[SAVE ITEMS] Delete successful for ${existingItem.item_name}`);
+                  } catch (deleteErr: any) {
+                    console.error('[SAVE ITEMS] Failed to delete item:', deleteErr);
+                  }
+                }
+              }
+              console.log('[SAVE ITEMS] All items processed successfully');
+            } else {
+              // No existing items, create all new items
+              for (const item of validItems) {
                 try {
-                  await apiClient.delete(`/job-order-items/${item.id}`);
-                } catch (deleteErr) {
+                  await apiClient.post('/job-order-items', {
+                    job_order_id: parseInt(jobOrderId.toString()),
+                    item_name: item.itemId,
+                    quantity: parseInt(item.quantity)
+                  });
+                } catch (createErr: any) {
+                  console.error('Failed to create item:', createErr);
+                  saveMessages.push({
+                    type: 'warning',
+                    text: `Failed to create item ${item.itemId}: ${createErr.message || 'Unknown error'}`
+                  });
                 }
               }
             }
-          } catch (deleteError: any) {
-          }
-
-          const jobOrderItems: JobOrderItem[] = validItems.map(item => {
-            return {
-              job_order_id: parseInt(jobOrderId.toString()),
-              item_name: item.itemId,
-              quantity: parseInt(item.quantity)
-            };
-          });
-          
-          try {
-            const itemsResponse = await createJobOrderItems(jobOrderItems);
-            
-            if (!itemsResponse.success) {
-              throw new Error(itemsResponse.message || 'Failed to create job order items');
-            }
           } catch (itemsError: any) {
             const errorMsg = itemsError.response?.data?.message || itemsError.message || 'Unknown error';
+            console.error('Items operation failed:', errorMsg);
             saveMessages.push({
-              type: 'error',
-              text: `Failed to save items: ${errorMsg}`
+              type: 'warning',
+              text: `Items operation warning: ${errorMsg}`
             });
-            setLoading(false);
-            setShowLoadingModal(false);
-            showMessageModal('Save Results', saveMessages);
-            return;
           }
         }
       }
@@ -1404,6 +1568,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       clearInterval(progressInterval);
       setLoadingPercentage(100);
       await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('[SAVE COMPLETE] ========================================');
+      console.log('[SAVE COMPLETE] All operations completed successfully');
+      console.log('[SAVE COMPLETE] Final save messages:', saveMessages);
+      console.log('[SAVE COMPLETE] ========================================');
       
       setErrors({});
       setLoading(false);
@@ -1415,6 +1584,14 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     } catch (error: any) {
       clearInterval(progressInterval);
       const errorMessage = error.response?.data?.message || error.message || 'Unknown error occurred';
+      
+      console.error('[SAVE ERROR] ========================================');
+      console.error('[SAVE ERROR] Save operation failed');
+      console.error('[SAVE ERROR] Error:', error);
+      console.error('[SAVE ERROR] Error message:', errorMessage);
+      console.error('[SAVE ERROR] Error response:', error.response);
+      console.error('[SAVE ERROR] ========================================');
+      
       setLoading(false);
       setShowLoadingModal(false);
       setLoadingPercentage(0);
@@ -1865,6 +2042,39 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                   </div>
                 )}
               </div>
+
+              {usernamePattern && usernamePattern.sequence.some(item => item.type === 'tech_input') && (
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>PPPoE Username<span className="text-red-500">*</span></label>
+                  <input 
+                    type="text" 
+                    value={techInputValue} 
+                    onChange={(e) => {
+                      setTechInputValue(e.target.value);
+                      if (errors.techInput) {
+                        setErrors(prev => ({ ...prev, techInput: '' }));
+                      }
+                    }} 
+                    placeholder="Enter PPPoE username"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
+                      isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    } ${errors.techInput ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} 
+                  />
+                  {errors.techInput && (
+                    <div className="flex items-center mt-1">
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                      <p className="text-orange-500 text-xs">{errors.techInput}</p>
+                    </div>
+                  )}
+                  {!techInputValue.trim() && !errors.techInput && (
+                    <p className={`text-xs mt-1 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>This will be used as the PPPoE username</p>
+                  )}
+                </div>
+              )}
 
               {formData.connectionType === 'Antenna' && (
                 <div>
