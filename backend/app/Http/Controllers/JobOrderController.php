@@ -262,7 +262,7 @@ class JobOrderController extends Controller
                 'request_data' => $request->all()
             ]);
 
-            $jobOrder = JobOrder::findOrFail($id);
+            $jobOrder = JobOrder::with('lcpnapLocation')->findOrFail($id);
             
             $generateCredentials = $request->input('generate_credentials', false);
             
@@ -282,7 +282,8 @@ class JobOrderController extends Controller
                         'middle_initial' => $application->middle_initial ?? '',
                         'last_name' => $application->last_name ?? '',
                         'mobile_number' => $application->mobile_number ?? '',
-                        'lcpnap' => $jobOrder->lcpnap ?? $request->input('lcpnap') ?? '',
+                        'lcp' => $jobOrder->lcpnapLocation->lcp ?? '',
+                        'nap' => $jobOrder->lcpnapLocation->nap ?? '',
                         'tech_input_username' => $request->input('pppoe_username'),
                         'custom_password' => $request->input('custom_password'),
                     ];
@@ -299,7 +300,8 @@ class JobOrderController extends Controller
                         'password_length' => strlen($password),
                         'password_merged' => $request->has('pppoe_password'),
                         'password_in_request' => $request->input('pppoe_password') ? 'YES' : 'NO',
-                        'lcpnap_value' => $jobOrder->lcpnap ?? 'NOT SET'
+                        'lcp_value' => $jobOrder->lcpnapLocation->lcp ?? 'NOT SET',
+                        'nap_value' => $jobOrder->lcpnapLocation->nap ?? 'NOT SET'
                     ]);
                 }
             } elseif (!$hasUsername && $hasPassword) {
@@ -314,7 +316,8 @@ class JobOrderController extends Controller
                         'middle_initial' => $application->middle_initial ?? '',
                         'last_name' => $application->last_name ?? '',
                         'mobile_number' => $application->mobile_number ?? '',
-                        'lcpnap' => $jobOrder->lcpnap ?? $request->input('lcpnap') ?? '',
+                        'lcp' => $jobOrder->lcpnapLocation->lcp ?? '',
+                        'nap' => $jobOrder->lcpnapLocation->nap ?? '',
                         'tech_input_username' => $request->input('tech_input_username'),
                         'custom_password' => $request->input('custom_password'),
                     ];
@@ -330,7 +333,8 @@ class JobOrderController extends Controller
                         'username' => $username,
                         'username_length' => strlen($username),
                         'password_from_radius' => true,
-                        'lcpnap_value' => $jobOrder->lcpnap ?? 'NOT SET'
+                        'lcp_value' => $jobOrder->lcpnapLocation->lcp ?? 'NOT SET',
+                        'nap_value' => $jobOrder->lcpnapLocation->nap ?? 'NOT SET'
                     ]);
                 }
             } elseif ($generateCredentials && empty($jobOrder->pppoe_username)) {
@@ -345,7 +349,8 @@ class JobOrderController extends Controller
                         'middle_initial' => $application->middle_initial ?? '',
                         'last_name' => $application->last_name ?? '',
                         'mobile_number' => $application->mobile_number ?? '',
-                        'lcpnap' => $jobOrder->lcpnap ?? $request->input('lcpnap') ?? '',
+                        'lcp' => $jobOrder->lcpnapLocation->lcp ?? '',
+                        'nap' => $jobOrder->lcpnapLocation->nap ?? '',
                         'tech_input_username' => $request->input('tech_input_username'),
                         'custom_password' => $request->input('custom_password'),
                     ];
@@ -363,7 +368,8 @@ class JobOrderController extends Controller
                         'username' => $username,
                         'username_length' => strlen($username),
                         'password_length' => strlen($password),
-                        'lcpnap_value' => $jobOrder->lcpnap ?? 'NOT SET'
+                        'lcp_value' => $jobOrder->lcpnapLocation->lcp ?? 'NOT SET',
+                        'nap_value' => $jobOrder->lcpnapLocation->nap ?? 'NOT SET'
                     ]);
                 }
             }
@@ -1216,7 +1222,7 @@ class JobOrderController extends Controller
 
             DB::beginTransaction();
 
-            $jobOrder = JobOrder::with('application')->findOrFail($id);
+            $jobOrder = JobOrder::with(['application', 'lcpnapLocation'])->findOrFail($id);
             
             if (!$jobOrder->application) {
                 throw new \Exception('Job order must have an associated application');
@@ -1245,7 +1251,8 @@ class JobOrderController extends Controller
                 'middle_initial' => $application->middle_initial ?? '',
                 'last_name' => $application->last_name ?? '',
                 'mobile_number' => $application->mobile_number ?? '',
-                'lcpnap' => $jobOrder->lcpnap ?? '',
+                'lcp' => $jobOrder->lcpnapLocation->lcp ?? '',
+                'nap' => $jobOrder->lcpnapLocation->nap ?? '',
             ];
             
             // Generate unique PPPoE username based on patterns
@@ -1258,7 +1265,8 @@ class JobOrderController extends Controller
                 'pppoe_password' => '***' . substr($pppoePassword, -4), // Masked for security
                 'username_length' => strlen($pppoeUsername),
                 'password_length' => strlen($pppoePassword),
-                'lcpnap_value' => $jobOrder->lcpnap ?? 'NOT SET',
+                'lcp_value' => $jobOrder->lcpnapLocation->lcp ?? 'NOT SET',
+                'nap_value' => $jobOrder->lcpnapLocation->nap ?? 'NOT SET',
                 'username_pattern_source' => 'pppoe_username_patterns table (pattern_type=username)',
                 'password_pattern_source' => 'pppoe_username_patterns table (pattern_type=password)'
             ]);
