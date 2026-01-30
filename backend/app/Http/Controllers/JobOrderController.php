@@ -266,7 +266,38 @@ class JobOrderController extends Controller
             
             $generateCredentials = $request->input('generate_credentials', false);
             
-            if ($generateCredentials && empty($jobOrder->pppoe_username)) {
+            // Auto-generate credentials if pppoe_username is provided but pppoe_password is empty
+            $hasUsername = $request->has('pppoe_username') && !empty($request->input('pppoe_username'));
+            $hasPassword = $request->has('pppoe_password') && !empty($request->input('pppoe_password'));
+            
+            if ($hasUsername && !$hasPassword) {
+                $application = $jobOrder->application;
+                
+                if ($application) {
+                    $pppoeService = new PppoeUsernameService();
+                    
+                    $customerData = [
+                        'first_name' => $application->first_name ?? '',
+                        'middle_initial' => $application->middle_initial ?? '',
+                        'last_name' => $application->last_name ?? '',
+                        'mobile_number' => $application->mobile_number ?? '',
+                        'tech_input_username' => $request->input('pppoe_username'),
+                        'custom_password' => $request->input('custom_password'),
+                    ];
+                    
+                    $password = $pppoeService->generatePassword($customerData);
+                    
+                    $request->merge([
+                        'pppoe_password' => $password,
+                    ]);
+                    
+                    \Log::info('Auto-generated PPPoE password for provided username', [
+                        'job_order_id' => $id,
+                        'username' => $request->input('pppoe_username'),
+                        'password_length' => strlen($password),
+                    ]);
+                }
+            } elseif ($generateCredentials && empty($jobOrder->pppoe_username)) {
                 $application = $jobOrder->application;
                 
                 if ($application) {
@@ -325,6 +356,7 @@ class JobOrderController extends Controller
                 'installation_landmark' => 'nullable|string|max:255',
                 'pppoe_username' => 'nullable|string|max:255',
                 'pppoe_password' => 'nullable|string|max:255',
+                'custom_password' => 'nullable|string|max:255',
                 'created_by_user_email' => 'nullable|email|max:255',
                 'updated_by_user_email' => 'nullable|email|max:255',
             ]);
@@ -647,6 +679,14 @@ class JobOrderController extends Controller
             // Generate unique PPPoE username based on patterns
             $pppoeUsername = $pppoeService->generateUniqueUsername($customerData, $id);
             $pppoePassword = $pppoeService->generatePassword($customerData);
+            
+            if (empty($pppoeUsername)) {
+                throw new \Exception('Failed to generate PPPoE username');
+            }
+            
+            if (empty($pppoePassword)) {
+                throw new \Exception('Failed to generate PPPoE password');
+            }
             
             \Log::info('PPPoE credentials generated successfully', [
                 'job_order_id' => $id,
@@ -1173,28 +1213,92 @@ class JobOrderController extends Controller
             ]);
 
             // Update job order with credentials
-            $jobOrder->update([
+            \Log::info('About to save PPPoE credentials', [
+                'pppoe_username' => $pppoeUsername,
+                'pppoe_password_length' => strlen($pppoePassword),
+                'pppoe_password_is_empty' => empty($pppoePassword),
+                'pppoe_password_preview' => substr($pppoePassword, 0, 3) . '***'
+            ]);
+            
+            $updateResult = $jobOrder->update([
                 'pppoe_username' => $pppoeUsername,
                 'pppoe_password' => $pppoePassword,
                 'updated_by_user_email' => request()->input('updated_by_user_email', 'system@ampere.com')
             ]);
             
+            // Refresh to verify what was saved
+            $jobOrder->refresh();
+            
             \Log::info('PPPoE credentials saved to job_orders table', [
                 'job_order_id' => $id,
+                'update_result' => $updateResult,
                 'table' => 'job_orders',
                 'columns_updated' => ['pppoe_username', 'pppoe_password'],
-                'pppoe_username_saved' => $pppoeUsername
+                'pppoe_username_saved' => $jobOrder->pppoe_username,
+                'pppoe_password_saved_length' => strlen($jobOrder->pppoe_password ?? ''),
+                'pppoe_password_is_null' => is_null($jobOrder->pppoe_password),
+                'pppoe_password_is_empty' => empty($jobOrder->pppoe_password),
+                'pppoe_password_preview' => $jobOrder->pppoe_password ? substr($jobOrder->pppoe_password, 0, 3) . '***' : 'NULL'
             ]);
 
-            // Optionally create RADIUS account on RADIUS server
-            // This would call the RADIUS service to actually create the account
-            // For now, we just store the credentials in the database
+            // Extract plan name from desired_plan
+            $desiredPlan = $application->desired_plan;
+            $plan = $desiredPlan;
             
+            if ($desiredPlan && strpos($desiredPlan, ' - ') !== false) {
+                $parts = explode(' - ', $desiredPlan);
+                $plan = trim($parts[0]);
+            }
+            
+            \Log::info('Extracted plan name', [
+                'desired_plan' => $desiredPlan,
+                'extracted_plan' => $plan
+            ]);
+
+            // Submit to MikroTik API
+            try {
+                $payload = [
+                    'name' => $pppoeUsername,
+                    'group' => $plan,
+                    'password' => $pppoePassword
+                ];
+
+                \Log::info('Submitting to MikroTik API', [
+                    'url' => 'https://103.121.65.24:8729/rest/user-manage/user',
+                    'payload' => [
+                        'name' => $pppoeUsername,
+                        'group' => $plan,
+                        'password' => '***'
+                    ]
+                ]);
+
+                $response = Http::withOptions([
+                    'verify' => false
+                ])->post('https://103.121.65.24:8729/rest/user-manage/user', $payload);
+
+                if ($response->successful()) {
+                    \Log::info('MikroTik API submission successful', [
+                        'status' => $response->status(),
+                        'response' => $response->json()
+                    ]);
+                } else {
+                    \Log::warning('MikroTik API submission failed', [
+                        'status' => $response->status(),
+                        'error' => $response->body()
+                    ]);
+                }
+            } catch (\Exception $mikrotikException) {
+                \Log::error('MikroTik API submission error', [
+                    'error' => $mikrotikException->getMessage()
+                ]);
+            }
+
             DB::commit();
 
             \Log::info('=== RADIUS ACCOUNT CREATED SUCCESSFULLY ===', [
                 'job_order_id' => $id,
-                'pppoe_username' => $pppoeUsername
+                'pppoe_username' => $jobOrder->pppoe_username,
+                'pppoe_password_saved' => !empty($jobOrder->pppoe_password)
             ]);
 
             return response()->json([
@@ -1202,9 +1306,13 @@ class JobOrderController extends Controller
                 'message' => 'RADIUS account created successfully',
                 'data' => [
                     'job_order_id' => $id,
-                    'pppoe_username' => $pppoeUsername,
-                    'pppoe_password' => $pppoePassword,
+                    'username' => $jobOrder->pppoe_username,
+                    'password' => $jobOrder->pppoe_password,
+                    'group' => $plan,
+                    'pppoe_username' => $jobOrder->pppoe_username,
+                    'pppoe_password' => $jobOrder->pppoe_password,
                     'customer_name' => $application->first_name . ' ' . $application->last_name,
+                    'plan' => $plan
                 ]
             ]);
 
