@@ -288,7 +288,8 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       href={imageUrl} 
                       target="_blank" 
                       rel="noopener noreferrer" 
-                      className="text-orange-500 text-xs mt-2 hover:underline z-20"
+                      className="text-xs mt-2 hover:underline z-20"
+                      style={{ color: colorPalette?.primary || '#ea580c' }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       View in Drive
@@ -311,8 +312,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         </div>
         {error && (
           <div className="flex items-center mt-1">
-            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-            <p className="text-orange-500 text-xs">This entry is required</p>
+            <div 
+              className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+              style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+            >!</div>
+            <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
           </div>
         )}
       </div>
@@ -1819,7 +1823,15 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`} size={20} />
             </div>
-            {errors.choosePlan && <p className="text-red-500 text-xs mt-1">{errors.choosePlan}</p>}
+            {errors.choosePlan && (
+              <div className="flex items-center mt-1">
+                <div 
+                  className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                >!</div>
+                <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.choosePlan}</p>
+              </div>
+            )}
           </div>
 
           <div>
@@ -1839,7 +1851,15 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`} size={20} />
             </div>
-            {errors.onsiteStatus && <p className="text-red-500 text-xs mt-1">{errors.onsiteStatus}</p>}
+            {errors.onsiteStatus && (
+              <div className="flex items-center mt-1">
+                <div 
+                  className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                >!</div>
+                <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.onsiteStatus}</p>
+              </div>
+            )}
           </div>
 
           <div>
@@ -1864,7 +1884,15 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`} size={20} />
             </div>
-            {errors.groupName && <p className="text-red-500 text-xs mt-1">{errors.groupName}</p>}
+            {errors.groupName && (
+              <div className="flex items-center mt-1">
+                <div 
+                  className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                >!</div>
+                <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.groupName}</p>
+              </div>
+            )}
           </div>
 
           <div>
@@ -1889,7 +1917,15 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`} size={20} />
             </div>
-            {errors.region && <p className="text-red-500 text-xs mt-1">{errors.region}</p>}
+            {errors.region && (
+              <div className="flex items-center mt-1">
+                <div 
+                  className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                >!</div>
+                <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.region}</p>
+              </div>
+            )}
           </div>
 
           <div>
@@ -1919,7 +1955,15 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`} size={20} />
             </div>
-            {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
+            {errors.city && (
+              <div className="flex items-center mt-1">
+                <div 
+                  className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                >!</div>
+                <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.city}</p>
+              </div>
+            )}
           </div>
 
           <div>
@@ -1949,7 +1993,15 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`} size={20} />
             </div>
-            {errors.barangay && <p className="text-red-500 text-xs mt-1">{errors.barangay}</p>}
+            {errors.barangay && (
+              <div className="flex items-center mt-1">
+                <div 
+                  className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                >!</div>
+                <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.barangay}</p>
+              </div>
+            )}
           </div>
 
           <div>
@@ -1979,7 +2031,15 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`} size={20} />
             </div>
-            {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
+            {errors.location && (
+              <div className="flex items-center mt-1">
+                <div 
+                  className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                >!</div>
+                <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.location}</p>
+              </div>
+            )}
           </div>
 
           {formData.onsiteStatus === 'Done' && (
@@ -1998,8 +2058,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 </div>
                 {errors.dateInstalled && (
                   <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
+                    <div 
+                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    >!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                   </div>
                 )}
               </div>
@@ -2028,8 +2091,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 </div>
                 {errors.usageType && (
                   <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
+                    <div 
+                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    >!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                   </div>
                 )}
               </div>
@@ -2039,26 +2105,53 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                   isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>Connection Type<span className="text-red-500">*</span></label>
                 <div className="grid grid-cols-3 gap-2">
-                  <button type="button" onClick={() => handleInputChange('connectionType', 'Antenna')} className={`py-2 px-4 rounded border transition-colors duration-200 ${
-                    formData.connectionType === 'Antenna' 
-                      ? 'bg-orange-600 border-orange-700 text-white' 
-                      : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
-                  }`}>Antenna</button>
-                  <button type="button" onClick={() => handleInputChange('connectionType', 'Fiber')} className={`py-2 px-4 rounded border transition-colors duration-200 ${
-                    formData.connectionType === 'Fiber' 
-                      ? 'bg-orange-600 border-orange-700 text-white' 
-                      : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
-                  }`}>Fiber</button>
-                  <button type="button" onClick={() => handleInputChange('connectionType', 'Local')} className={`py-2 px-4 rounded border transition-colors duration-200 ${
-                    formData.connectionType === 'Local' 
-                      ? 'bg-orange-600 border-orange-700 text-white' 
-                      : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
-                  }`}>Local</button>
+                  <button 
+                    type="button" 
+                    onClick={() => handleInputChange('connectionType', 'Antenna')} 
+                    className={`py-2 px-4 rounded border transition-colors duration-200 ${
+                      formData.connectionType === 'Antenna' 
+                        ? 'text-white' 
+                        : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
+                    }`}
+                    style={formData.connectionType === 'Antenna' ? {
+                      backgroundColor: colorPalette?.primary || '#ea580c',
+                      borderColor: colorPalette?.accent || '#dc2626'
+                    } : {}}
+                  >Antenna</button>
+                  <button 
+                    type="button" 
+                    onClick={() => handleInputChange('connectionType', 'Fiber')} 
+                    className={`py-2 px-4 rounded border transition-colors duration-200 ${
+                      formData.connectionType === 'Fiber' 
+                        ? 'text-white' 
+                        : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
+                    }`}
+                    style={formData.connectionType === 'Fiber' ? {
+                      backgroundColor: colorPalette?.primary || '#ea580c',
+                      borderColor: colorPalette?.accent || '#dc2626'
+                    } : {}}
+                  >Fiber</button>
+                  <button 
+                    type="button" 
+                    onClick={() => handleInputChange('connectionType', 'Local')} 
+                    className={`py-2 px-4 rounded border transition-colors duration-200 ${
+                      formData.connectionType === 'Local' 
+                        ? 'text-white' 
+                        : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
+                    }`}
+                    style={formData.connectionType === 'Local' ? {
+                      backgroundColor: colorPalette?.primary || '#ea580c',
+                      borderColor: colorPalette?.accent || '#dc2626'
+                    } : {}}
+                  >Local</button>
                 </div>
                 {errors.connectionType && (
                   <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
+                    <div 
+                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    >!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                   </div>
                 )}
               </div>
@@ -2085,8 +2178,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 </div>
                 {errors.routerModel && (
                   <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
+                    <div 
+                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    >!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                   </div>
                 )}
               </div>
@@ -2100,8 +2196,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 } ${errors.modemSN ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} />
                 {errors.modemSN && (
                   <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
+                    <div 
+                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    >!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                   </div>
                 )}
               </div>
@@ -2127,8 +2226,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                   />
                   {errors.techInput && (
                     <div className="flex items-center mt-1">
-                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                      <p className="text-orange-500 text-xs">{errors.techInput}</p>
+                      <div 
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.techInput}</p>
                     </div>
                   )}
                   {!techInputValue.trim() && !errors.techInput && (
@@ -2149,8 +2251,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                   } ${errors.ip ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} />
                   {errors.ip && (
                     <div className="flex items-center mt-1">
-                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                      <p className="text-orange-500 text-xs">This entry is required</p>
+                      <div 
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -2186,8 +2291,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                     </div>
                     {errors.lcpnap && (
                       <div className="flex items-center mt-1">
-                        <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                        <p className="text-orange-500 text-xs">This entry is required</p>
+                        <div 
+                          className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                          style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        >!</div>
+                        <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                       </div>
                     )}
                   </div>
@@ -2240,8 +2348,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                     </div>
                     {errors.port && (
                       <div className="flex items-center mt-1">
-                        <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                        <p className="text-orange-500 text-xs">This entry is required</p>
+                        <div 
+                          className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                          style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        >!</div>
+                        <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                       </div>
                     )}
                   </div>
@@ -2270,8 +2381,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                     </div>
                     {errors.vlan && (
                       <div className="flex items-center mt-1">
-                        <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                        <p className="text-orange-500 text-xs">This entry is required</p>
+                        <div 
+                          className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                          style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        >!</div>
+                        <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                       </div>
                     )}
                   </div>
@@ -2300,8 +2414,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 </div>
                 {errors.visit_by && (
                   <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
+                    <div 
+                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    >!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                   </div>
                 )}
               </div>
@@ -2329,8 +2446,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 </div>
                 {errors.visit_with && (
                   <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
+                    <div 
+                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    >!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                   </div>
                 )}
               </div>
@@ -2358,8 +2478,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 </div>
                 {errors.visit_with_other && (
                   <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
+                    <div 
+                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    >!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                   </div>
                 )}
               </div>
@@ -2373,8 +2496,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 } ${errors.onsiteRemarks ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} />
                 {errors.onsiteRemarks && (
                   <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
+                    <div 
+                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    >!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                   </div>
                 )}
               </div>
@@ -2458,7 +2584,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                           }`} size={20} />
                         </div>
                         {errors[`item_${index}`] && (
-                          <p className="text-orange-500 text-xs mt-1">{errors[`item_${index}`]}</p>
+                          <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors[`item_${index}`]}</p>
                         )}
                       </div>
                       
@@ -2475,7 +2601,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                             }`}
                           />
                           {errors[`quantity_${index}`] && (
-                            <p className="text-orange-500 text-xs mt-1">{errors[`quantity_${index}`]}</p>
+                            <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors[`quantity_${index}`]}</p>
                           )}
                         </div>
                       )}
@@ -2494,8 +2620,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 ))}
                 {errors.items && (
                   <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">{errors.items}</p>
+                    <div 
+                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    >!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.items}</p>
                   </div>
                 )}
               </div>
@@ -2535,8 +2664,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 </div>
                 {errors.visit_by && (
                   <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
+                    <div 
+                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    >!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                   </div>
                 )}
               </div>
@@ -2564,8 +2696,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 </div>
                 {errors.visit_with && (
                   <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
+                    <div 
+                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    >!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                   </div>
                 )}
               </div>
@@ -2593,8 +2728,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 </div>
                 {errors.visit_with_other && (
                   <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
+                    <div 
+                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    >!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                   </div>
                 )}
               </div>
@@ -2608,8 +2746,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 } ${errors.onsiteRemarks ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} />
                 {errors.onsiteRemarks && (
                   <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
+                    <div 
+                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    >!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                   </div>
                 )}
               </div>
@@ -2634,8 +2775,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 </div>
                 {errors.statusRemarks && (
                   <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
+                    <div 
+                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    >!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                   </div>
                 )}
               </div>
