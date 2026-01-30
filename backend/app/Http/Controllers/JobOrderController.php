@@ -262,7 +262,7 @@ class JobOrderController extends Controller
                 'request_data' => $request->all()
             ]);
 
-            $jobOrder = JobOrder::findOrFail($id);
+            $jobOrder = JobOrder::with('lcpnapLocation')->findOrFail($id);
             
             $generateCredentials = $request->input('generate_credentials', false);
             
@@ -271,6 +271,7 @@ class JobOrderController extends Controller
             $hasPassword = $request->has('pppoe_password') && !empty($request->input('pppoe_password'));
             
             if ($hasUsername && !$hasPassword) {
+                // Case 1: Username provided, password missing - generate password
                 $application = $jobOrder->application;
                 
                 if ($application) {
@@ -281,6 +282,8 @@ class JobOrderController extends Controller
                         'middle_initial' => $application->middle_initial ?? '',
                         'last_name' => $application->last_name ?? '',
                         'mobile_number' => $application->mobile_number ?? '',
+                        'lcp' => $jobOrder->lcpnapLocation->lcp ?? '',
+                        'nap' => $jobOrder->lcpnapLocation->nap ?? '',
                         'tech_input_username' => $request->input('pppoe_username'),
                         'custom_password' => $request->input('custom_password'),
                     ];
@@ -295,9 +298,14 @@ class JobOrderController extends Controller
                         'job_order_id' => $id,
                         'username' => $request->input('pppoe_username'),
                         'password_length' => strlen($password),
+                        'password_merged' => $request->has('pppoe_password'),
+                        'password_in_request' => $request->input('pppoe_password') ? 'YES' : 'NO',
+                        'lcp_value' => $jobOrder->lcpnapLocation->lcp ?? 'NOT SET',
+                        'nap_value' => $jobOrder->lcpnapLocation->nap ?? 'NOT SET'
                     ]);
                 }
-            } elseif ($generateCredentials && empty($jobOrder->pppoe_username)) {
+            } elseif (!$hasUsername && $hasPassword) {
+                // Case 2: Password provided (from RADIUS), username missing - generate username
                 $application = $jobOrder->application;
                 
                 if ($application) {
@@ -308,6 +316,41 @@ class JobOrderController extends Controller
                         'middle_initial' => $application->middle_initial ?? '',
                         'last_name' => $application->last_name ?? '',
                         'mobile_number' => $application->mobile_number ?? '',
+                        'lcp' => $jobOrder->lcpnapLocation->lcp ?? '',
+                        'nap' => $jobOrder->lcpnapLocation->nap ?? '',
+                        'tech_input_username' => $request->input('tech_input_username'),
+                        'custom_password' => $request->input('custom_password'),
+                    ];
+                    
+                    $username = $pppoeService->generateUniqueUsername($customerData, $id);
+                    
+                    $request->merge([
+                        'pppoe_username' => $username,
+                    ]);
+                    
+                    \Log::info('Auto-generated PPPoE username for provided password', [
+                        'job_order_id' => $id,
+                        'username' => $username,
+                        'username_length' => strlen($username),
+                        'password_from_radius' => true,
+                        'lcp_value' => $jobOrder->lcpnapLocation->lcp ?? 'NOT SET',
+                        'nap_value' => $jobOrder->lcpnapLocation->nap ?? 'NOT SET'
+                    ]);
+                }
+            } elseif ($generateCredentials && empty($jobOrder->pppoe_username)) {
+                // Case 3: No credentials provided - generate both
+                $application = $jobOrder->application;
+                
+                if ($application) {
+                    $pppoeService = new PppoeUsernameService();
+                    
+                    $customerData = [
+                        'first_name' => $application->first_name ?? '',
+                        'middle_initial' => $application->middle_initial ?? '',
+                        'last_name' => $application->last_name ?? '',
+                        'mobile_number' => $application->mobile_number ?? '',
+                        'lcp' => $jobOrder->lcpnapLocation->lcp ?? '',
+                        'nap' => $jobOrder->lcpnapLocation->nap ?? '',
                         'tech_input_username' => $request->input('tech_input_username'),
                         'custom_password' => $request->input('custom_password'),
                     ];
@@ -325,6 +368,8 @@ class JobOrderController extends Controller
                         'username' => $username,
                         'username_length' => strlen($username),
                         'password_length' => strlen($password),
+                        'lcp_value' => $jobOrder->lcpnapLocation->lcp ?? 'NOT SET',
+                        'nap_value' => $jobOrder->lcpnapLocation->nap ?? 'NOT SET'
                     ]);
                 }
             }
@@ -378,10 +423,20 @@ class JobOrderController extends Controller
             
             \Log::info('JobOrder Updating with data', [
                 'id' => $id,
-                'data' => $data
+                'data' => $data,
+                'has_pppoe_password_in_data' => isset($data['pppoe_password']),
+                'pppoe_password_value' => $data['pppoe_password'] ?? 'NOT SET',
+                'pppoe_password_length' => isset($data['pppoe_password']) ? strlen($data['pppoe_password']) : 0
             ]);
 
             $jobOrder->update($data);
+            
+            \Log::info('JobOrder After Update', [
+                'id' => $id,
+                'pppoe_password_in_model' => $jobOrder->pppoe_password ?? 'NULL',
+                'pppoe_password_length' => $jobOrder->pppoe_password ? strlen($jobOrder->pppoe_password) : 0,
+                'pppoe_username_in_model' => $jobOrder->pppoe_username ?? 'NULL'
+            ]);
 
             // Update technical_details if account_id exists
             if ($jobOrder->account_id) {
@@ -1167,7 +1222,7 @@ class JobOrderController extends Controller
 
             DB::beginTransaction();
 
-            $jobOrder = JobOrder::with('application')->findOrFail($id);
+            $jobOrder = JobOrder::with(['application', 'lcpnapLocation'])->findOrFail($id);
             
             if (!$jobOrder->application) {
                 throw new \Exception('Job order must have an associated application');
@@ -1196,6 +1251,8 @@ class JobOrderController extends Controller
                 'middle_initial' => $application->middle_initial ?? '',
                 'last_name' => $application->last_name ?? '',
                 'mobile_number' => $application->mobile_number ?? '',
+                'lcp' => $jobOrder->lcpnapLocation->lcp ?? '',
+                'nap' => $jobOrder->lcpnapLocation->nap ?? '',
             ];
             
             // Generate unique PPPoE username based on patterns
@@ -1208,6 +1265,8 @@ class JobOrderController extends Controller
                 'pppoe_password' => '***' . substr($pppoePassword, -4), // Masked for security
                 'username_length' => strlen($pppoeUsername),
                 'password_length' => strlen($pppoePassword),
+                'lcp_value' => $jobOrder->lcpnapLocation->lcp ?? 'NOT SET',
+                'nap_value' => $jobOrder->lcpnapLocation->nap ?? 'NOT SET',
                 'username_pattern_source' => 'pppoe_username_patterns table (pattern_type=username)',
                 'password_pattern_source' => 'pppoe_username_patterns table (pattern_type=password)'
             ]);
