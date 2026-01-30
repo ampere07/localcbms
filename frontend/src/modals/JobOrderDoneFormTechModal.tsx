@@ -1632,7 +1632,10 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${
           isDarkMode ? 'bg-gray-800' : 'bg-white'
         }`}>
-          <Loader2 className="w-20 h-20 text-orange-500 animate-spin" />
+          <Loader2 
+            className="w-20 h-20 animate-spin" 
+            style={{ color: colorPalette?.primary || '#ea580c' }}
+          />
           <div className="text-center">
             <p className={`text-4xl font-bold ${
               isDarkMode ? 'text-white' : 'text-gray-900'
@@ -1703,7 +1706,20 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
           }`}>
             <button
               onClick={() => setShowModal(false)}
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+              className="px-4 py-2 text-white rounded transition-colors"
+              style={{
+                backgroundColor: colorPalette?.primary || '#ea580c'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.backgroundColor = colorPalette.primary;
+                }
+              }}
             >
               Close
             </button>
@@ -1729,10 +1745,46 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
             }`}>{fullName}</h2>
           </div>
           <div className="flex items-center space-x-3">
-            <button onClick={onClose} className="px-4 py-2 border border-orange-600 text-orange-600 hover:bg-orange-600 hover:text-white rounded text-sm">
+            <button 
+              onClick={onClose} 
+              className="px-4 py-2 border rounded text-sm transition-colors"
+              style={{
+                borderColor: colorPalette?.primary || '#ea580c',
+                color: colorPalette?.primary || '#ea580c'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  e.currentTarget.style.color = 'white';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.color = colorPalette.primary;
+                }
+              }}
+            >
               Cancel
             </button>
-            <button onClick={handleSave} disabled={loading} className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded text-sm">
+            <button 
+              onClick={handleSave} 
+              disabled={loading} 
+              className="px-4 py-2 disabled:opacity-50 text-white rounded text-sm transition-colors"
+              style={{
+                backgroundColor: loading ? (isDarkMode ? '#6b7280' : '#9ca3af') : (colorPalette?.primary || '#ea580c')
+              }}
+              onMouseEnter={(e) => {
+                if (!loading && colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading && colorPalette?.primary) {
+                  e.currentTarget.style.backgroundColor = colorPalette.primary;
+                }
+              }}
+            >
               {loading ? 'Saving...' : 'Save'}
             </button>
           </div>
@@ -1783,7 +1835,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 <option value="Failed">Failed</option>
                 <option value="Reschedule">Reschedule</option>
               </select>
-              <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`} size={20} />
             </div>
             {errors.onsiteStatus && <p className="text-red-500 text-xs mt-1">{errors.onsiteStatus}</p>}
           </div>
@@ -1806,7 +1860,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`} size={20} />
             </div>
             {errors.groupName && <p className="text-red-500 text-xs mt-1">{errors.groupName}</p>}
           </div>
@@ -1829,7 +1885,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`} size={20} />
             </div>
             {errors.region && <p className="text-red-500 text-xs mt-1">{errors.region}</p>}
           </div>
@@ -1857,7 +1915,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`} size={20} />
             </div>
             {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
           </div>
@@ -1885,7 +1945,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`} size={20} />
             </div>
             {errors.barangay && <p className="text-red-500 text-xs mt-1">{errors.barangay}</p>}
           </div>
@@ -1913,7 +1975,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`} size={20} />
             </div>
             {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
           </div>
@@ -1958,7 +2022,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
                 </div>
                 {errors.usageType && (
                   <div className="flex items-center mt-1">
@@ -2013,7 +2079,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       <option key={index} value={routerModel.model}>{routerModel.model}</option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
                 </div>
                 {errors.routerModel && (
                   <div className="flex items-center mt-1">
@@ -2112,7 +2180,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                           </option>
                         ))}
                       </select>
-                      <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                      <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
                     </div>
                     {errors.lcpnap && (
                       <div className="flex items-center mt-1">
@@ -2164,7 +2234,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                         <option value="PORT 032">PORT 032</option>
                         <option value="PORT 032">PORT 032</option>
                       </select>
-                      <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                      <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
                     </div>
                     {errors.port && (
                       <div className="flex items-center mt-1">
@@ -2192,7 +2264,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                           </option>
                         ))}
                       </select>
-                      <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                      <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
                     </div>
                     {errors.vlan && (
                       <div className="flex items-center mt-1">
@@ -2220,7 +2294,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       <option key={index} value={technician.name}>{technician.name}</option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
                 </div>
                 {errors.visit_by && (
                   <div className="flex items-center mt-1">
@@ -2247,7 +2323,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       <option key={index} value={technician.name}>{technician.name}</option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
                 </div>
                 {errors.visit_with && (
                   <div className="flex items-center mt-1">
@@ -2274,7 +2352,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       <option key={index} value={technician.name}>{technician.name}</option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
                 </div>
                 {errors.visit_with_other && (
                   <div className="flex items-center mt-1">
@@ -2432,24 +2512,26 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
           )}
 
           {(formData.onsiteStatus === 'Failed' || formData.onsiteStatus === 'Reschedule') && (
-            <>
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Visit By<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.visit_by} onChange={(e) => handleInputChange('visit_by', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.visit_by ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                    <option value=""></option>
-                    {formData.visit_by && !technicians.some(t => t.name === formData.visit_by) && (
-                      <option value={formData.visit_by}>{formData.visit_by}</option>
-                    )}
-                    {technicians.map((technician, index) => (
-                      <option key={index} value={technician.name}>{technician.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+          <>
+          <div>
+          <label className={`block text-sm font-medium mb-2 ${
+          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>Visit By<span className="text-red-500">*</span></label>
+          <div className="relative">
+          <select value={formData.visit_by} onChange={(e) => handleInputChange('visit_by', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
+          isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+          } ${errors.visit_by ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
+          <option value=""></option>
+          {formData.visit_by && !technicians.some(t => t.name === formData.visit_by) && (
+          <option value={formData.visit_by}>{formData.visit_by}</option>
+          )}
+          {technicians.map((technician, index) => (
+          <option key={index} value={technician.name}>{technician.name}</option>
+          ))}
+          </select>
+          <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
                 </div>
                 {errors.visit_by && (
                   <div className="flex items-center mt-1">
@@ -2476,7 +2558,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       <option key={index} value={technician.name}>{technician.name}</option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
                 </div>
                 {errors.visit_with && (
                   <div className="flex items-center mt-1">
@@ -2503,7 +2587,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       <option key={index} value={technician.name}>{technician.name}</option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
                 </div>
                 {errors.visit_with_other && (
                   <div className="flex items-center mt-1">
@@ -2542,7 +2628,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                     <option value="Technician Unavailable">Technician Unavailable</option>
                     <option value="Equipment Issue">Equipment Issue</option>
                   </select>
-                  <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
                 </div>
                 {errors.statusRemarks && (
                   <div className="flex items-center mt-1">
