@@ -1224,15 +1224,16 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
             if (radiusResponse.data.success && radiusResponse.data.data) {
               const { username, password, credentials_exist } = radiusResponse.data.data;
               
+              // Always update the job order with the credentials
+              jobOrderUpdateData.pppoe_username = username;
+              jobOrderUpdateData.pppoe_password = password;
+              
               if (credentials_exist) {
                 saveMessages.push({
                   type: 'warning',
                   text: `PPPoE credentials already exist: Username: ${username}, Password: ${password}, Plan: ${planNameForRadius}`
                 });
               } else {
-                jobOrderUpdateData.pppoe_username = username;
-                jobOrderUpdateData.pppoe_password = password;
-                
                 saveMessages.push({
                   type: 'success',
                   text: `RADIUS Account Created: Username: ${username}, Password: ${password}, Plan: ${planNameForRadius}`

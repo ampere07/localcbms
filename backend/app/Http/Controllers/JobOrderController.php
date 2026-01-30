@@ -295,6 +295,8 @@ class JobOrderController extends Controller
                         'job_order_id' => $id,
                         'username' => $request->input('pppoe_username'),
                         'password_length' => strlen($password),
+                        'password_merged' => $request->has('pppoe_password'),
+                        'password_in_request' => $request->input('pppoe_password') ? 'YES' : 'NO'
                     ]);
                 }
             } elseif ($generateCredentials && empty($jobOrder->pppoe_username)) {
@@ -378,10 +380,20 @@ class JobOrderController extends Controller
             
             \Log::info('JobOrder Updating with data', [
                 'id' => $id,
-                'data' => $data
+                'data' => $data,
+                'has_pppoe_password_in_data' => isset($data['pppoe_password']),
+                'pppoe_password_value' => $data['pppoe_password'] ?? 'NOT SET',
+                'pppoe_password_length' => isset($data['pppoe_password']) ? strlen($data['pppoe_password']) : 0
             ]);
 
             $jobOrder->update($data);
+            
+            \Log::info('JobOrder After Update', [
+                'id' => $id,
+                'pppoe_password_in_model' => $jobOrder->pppoe_password ?? 'NULL',
+                'pppoe_password_length' => $jobOrder->pppoe_password ? strlen($jobOrder->pppoe_password) : 0,
+                'pppoe_username_in_model' => $jobOrder->pppoe_username ?? 'NULL'
+            ]);
 
             // Update technical_details if account_id exists
             if ($jobOrder->account_id) {
