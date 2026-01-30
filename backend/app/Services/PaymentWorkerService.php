@@ -158,25 +158,29 @@ class PaymentWorkerService
                         'updated_at' => now()
                     ]);
 
-                // Insert transaction log
+                // Parse callback payload for payment details
                 $json = json_decode($rawPayload, true);
                 $checkoutID = $json['id'] ?? $payment->payment_id ?? 'N/A';
-                $paymentChannel = $json['payment_channel'] ?? $json['bank_code'] ?? 'Xendit';
+                $paymentChannel = $json['payment_channel'] ?? $json['bank_code'] ?? null;
+                $ewalletType = $json['ewallet_type'] ?? null;
+                $status = $json['status'] ?? 'PAID';
+                $type = $json['type'] ?? null;
 
-                DB::table('transactions')->insert([
-                    'account_no' => $accountNo,
-                    'transaction_type' => 'Recurring Fee',
-                    'received_payment' => $amount,
-                    'payment_method' => "Online - Xendit ($paymentChannel)",
+                // Insert into payment_portal_logs
+                DB::table('payment_portal_logs')->insert([
                     'reference_no' => $ref,
-                    'or_no' => $ref,
-                    'remarks' => "Payment via Xendit Portal - Invoice: $checkoutID - {$result['distribution_summary']}",
-                    'status' => 'Approved',
-                    'payment_date' => now(),
-                    'date_processed' => now(),
-                    'created_by_user' => 'Payment Worker',
-                    'updated_by_user' => 'Payment Worker',
-                    'created_at' => now(),
+                    'account_id' => $account->account_id,
+                    'total_amount' => $amount,
+                    'date_time' => now(),
+                    'checkout_id' => $checkoutID,
+                    'status' => $status,
+                    'transaction_status' => 'COMPLETED',
+                    'ewallet_type' => $ewalletType,
+                    'payment_channel' => $paymentChannel,
+                    'type' => $type,
+                    'payment_url' => $payment->payment_url ?? null,
+                    'json_payload' => $payment->json_payload ?? null,
+                    'callback_payload' => $rawPayload,
                     'updated_at' => now()
                 ]);
 

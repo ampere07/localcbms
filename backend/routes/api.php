@@ -31,6 +31,9 @@ use App\Http\Controllers\InventoryRelatedDataController;
 use App\Http\Controllers\PPPoEController;
 use App\Models\User;
 use App\Models\MassRebate;
+use App\Http\Controllers\MonitorController;
+
+Route::match(['GET','POST'], '/monitor/handle', [MonitorController::class, 'handle']);
 
 // Handle all OPTIONS requests
 Route::options('{any}', function() {
@@ -2740,6 +2743,12 @@ Route::prefix('job-order-notifications')->group(function () {
     Route::put('/mark-all-read', [\App\Http\Controllers\JobOrderNotificationController::class, 'markAllAsRead']);
 });
 
+Route::prefix('payment-portal-logs')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\PaymentPortalLogsController::class, 'index']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\PaymentPortalLogsController::class, 'show']);
+    Route::get('/account/{accountNo}', [\App\Http\Controllers\Api\PaymentPortalLogsController::class, 'getByAccountNo']);
+});
+
 // PPPoE Debug route
 Route::get('/pppoe/debug', function() {
     try {
@@ -2902,28 +2911,17 @@ Route::get('/monitor/debug', function() {
     ]);
 });
 
-// Live Monitor Routes - All methods explicitly defined
+// Live Monitor Routes - All methods use unified getData endpoint
 Route::prefix('monitor')->group(function () {
-    Route::match(['GET', 'OPTIONS'], '/billing_status', [App\Http\Controllers\LiveMonitorController::class, 'billingStatus']);
-    Route::match(['GET', 'OPTIONS'], '/online_status', [App\Http\Controllers\LiveMonitorController::class, 'onlineStatus']);
-    Route::match(['GET', 'OPTIONS'], '/app_status', [App\Http\Controllers\LiveMonitorController::class, 'appStatus']);
-    Route::match(['GET', 'OPTIONS'], '/so_status', [App\Http\Controllers\LiveMonitorController::class, 'soStatus']);
-    Route::match(['GET', 'OPTIONS'], '/jo_status', [App\Http\Controllers\LiveMonitorController::class, 'joStatus']);
-    Route::match(['GET', 'OPTIONS'], '/queue_mon', [App\Http\Controllers\LiveMonitorController::class, 'queueMon']);
-    Route::match(['GET', 'OPTIONS'], '/tech_mon_jo', [App\Http\Controllers\LiveMonitorController::class, 'techMonJo']);
-    Route::match(['GET', 'OPTIONS'], '/tech_mon_so', [App\Http\Controllers\LiveMonitorController::class, 'techMonSo']);
-    Route::match(['GET', 'OPTIONS'], '/expenses_mon', [App\Http\Controllers\LiveMonitorController::class, 'expensesMon']);
-    Route::match(['GET', 'OPTIONS'], '/pay_method_mon', [App\Http\Controllers\LiveMonitorController::class, 'payMethodMon']);
-    Route::match(['GET', 'OPTIONS'], '/invoice_mon', [App\Http\Controllers\LiveMonitorController::class, 'invoiceMon']);
-    Route::match(['GET', 'OPTIONS'], '/transactions_mon', [App\Http\Controllers\LiveMonitorController::class, 'transactionsMon']);
-    Route::match(['GET', 'OPTIONS'], '/portal_mon', [App\Http\Controllers\LiveMonitorController::class, 'portalMon']);
-    Route::match(['GET', 'OPTIONS'], '/jo_refer_rank', [App\Http\Controllers\LiveMonitorController::class, 'joReferRank']);
-    Route::match(['GET', 'OPTIONS'], '/invoice_overall', [App\Http\Controllers\LiveMonitorController::class, 'invoiceOverall']);
-    Route::match(['GET', 'OPTIONS'], '/app_map', [App\Http\Controllers\LiveMonitorController::class, 'appMap']);
+    // Unified endpoint for all widget data
+    Route::match(['GET', 'OPTIONS'], '/{action}', [MonitorController::class, 'getData']);
     
-    Route::match(['GET', 'OPTIONS'], '/templates', [App\Http\Controllers\LiveMonitorController::class, 'getTemplates']);
-    Route::match(['POST', 'OPTIONS'], '/templates', [App\Http\Controllers\LiveMonitorController::class, 'saveTemplate']);
-    Route::match(['DELETE', 'OPTIONS'], '/templates/{id}', [App\Http\Controllers\LiveMonitorController::class, 'deleteTemplate']);
+    // Template management
+    Route::match(['GET', 'OPTIONS'], '/templates', [MonitorController::class, 'listTemplates']);
+    Route::match(['POST', 'OPTIONS'], '/templates', [MonitorController::class, 'saveTemplate']);
+    Route::match(['PUT', 'OPTIONS'], '/templates/{id}', [MonitorController::class, 'updateTemplate']);
+    Route::match(['GET', 'OPTIONS'], '/templates/{id}', [MonitorController::class, 'loadTemplate']);
+    Route::match(['DELETE', 'OPTIONS'], '/templates/{id}', [MonitorController::class, 'deleteTemplate']);
 });
 
 Route::get('/invoices/by-account/{accountNo}', [RelatedDataController::class, 'getInvoicesByAccount']);

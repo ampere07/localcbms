@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Globe, Search, ChevronDown } from 'lucide-react';
 import PaymentPortalDetails from '../components/PaymentPortalDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { paymentPortalLogsService, PaymentPortalLog } from '../services/paymentPortalLogsService';
 
 // Interfaces for payment portal data
 interface PaymentPortalRecord {
@@ -103,78 +104,41 @@ const PaymentPortal: React.FC = () => {
     const fetchPaymentPortalRecords = async () => {
       try {
         setLoading(true);
-        console.log('Fetching payment portal records...');
+        console.log('Fetching payment portal records from API...');
         
-        // TODO: Replace with actual API call
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Call the real API
+        const data = await paymentPortalLogsService.getAllLogs();
         
-        // Sample payment portal data
-        const sampleRecords: PaymentPortalRecord[] = [
-          {
-            id: '1',
-            date_time: '9/18/2025 4:33:57 PM',
-            account_id: '202306310',
-            accountNo: '202306310',
-            total_amount: 999.00,
-            status: 'Completed',
-            reference_no: '439769168',
-            contactNo: '9673080816',
-            accountBalance: 0.00,
-            checkout_id: 'CHK001',
-            transaction_status: 'Success',
-            provider: 'GCash',
-            ewallet_type: 'GCash',
-            payment_channel: 'E-Wallet',
-            fullName: 'Jocelyn H Roncales',
-            city: 'Binangonan',
-            created_at: '2025-09-18T20:33:57Z',
-            updated_at: '2025-09-18T20:33:57Z'
-          },
-          {
-            id: '2',
-            date_time: '9/18/2025 4:33:17 PM',
-            account_id: '202307326',
-            accountNo: '202307326',
-            total_amount: 999.00,
-            status: 'Completed',
-            reference_no: '334905555',
-            contactNo: '9536424625',
-            accountBalance: 0.00,
-            checkout_id: 'CHK002',
-            transaction_status: 'Success',
-            provider: 'PayMaya',
-            ewallet_type: 'PayMaya',
-            payment_channel: 'E-Wallet',
-            fullName: 'Remar A Colinayo',
-            city: 'Binangonan',
-            created_at: '2025-09-18T20:33:17Z',
-            updated_at: '2025-09-18T20:33:17Z'
-          },
-          {
-            id: '3',
-            date_time: '9/18/2025 4:25:27 PM',
-            account_id: '202304334',
-            accountNo: '202304334',
-            total_amount: 1000.00,
-            status: 'Pending',
-            reference_no: '436947078',
-            contactNo: '9536424625',
-            accountBalance: 1000.00,
-            checkout_id: 'CHK003',
-            transaction_status: 'Processing',
-            provider: 'BankTransfer',
-            ewallet_type: 'Bank Transfer',
-            payment_channel: 'Bank Transfer',
-            fullName: 'Sharon Ivy A Lobarbio',
-            city: 'Angono',
-            created_at: '2025-09-18T20:25:27Z',
-            updated_at: '2025-09-18T20:25:27Z'
-          }
-        ];
+        // Transform the data to match the UI interface
+        const transformedRecords: PaymentPortalRecord[] = data.map(log => ({
+          id: log.id.toString(),
+          reference_no: log.reference_no,
+          account_id: log.account_id,
+          total_amount: log.total_amount,
+          date_time: log.date_time,
+          checkout_id: log.checkout_id,
+          status: log.status,
+          transaction_status: log.transaction_status,
+          ewallet_type: log.ewallet_type,
+          payment_channel: log.payment_channel,
+          type: log.type,
+          payment_url: log.payment_url,
+          json_payload: log.json_payload,
+          callback_payload: log.callback_payload,
+          updated_at: log.updated_at,
+          accountNo: log.accountNo,
+          fullName: log.fullName,
+          contactNo: log.contactNo,
+          accountBalance: log.accountBalance,
+          address: log.address,
+          city: log.city,
+          barangay: log.barangay,
+          plan: log.plan,
+          provider: log.provider || log.payment_channel || 'Xendit',
+        }));
         
-        setRecords(sampleRecords);
-        console.log('Payment portal records loaded successfully');
+        setRecords(transformedRecords);
+        console.log(`Payment portal records loaded successfully: ${transformedRecords.length} records`);
       } catch (err: any) {
         console.error('Error fetching payment portal records:', err);
         setError(`Failed to load payment portal records: ${err.message || 'Unknown error'}`);
@@ -240,10 +204,12 @@ const PaymentPortal: React.FC = () => {
     switch (status.toLowerCase()) {
       case 'completed':
       case 'success':
+      case 'paid':
         textColor = 'text-green-500';
         break;
       case 'pending':
       case 'processing':
+      case 'queued':
         textColor = 'text-yellow-500';
         break;
       case 'failed':
