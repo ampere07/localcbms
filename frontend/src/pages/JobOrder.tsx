@@ -278,7 +278,25 @@ const JobOrderPage: React.FC = () => {
               const sevenDaysAgo = new Date();
               sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
               
+              // Statuses that should always be visible regardless of date
+              const activeOnsiteStatuses = ['pending', 'inprogress', 'in progress', 'reschedule'];
+              const activeBillingStatuses = [1, 2, 5]; // In Progress, Active, Overdue
+              
               filteredOrders = processedOrders.filter(order => {
+                const onsiteStatus = (order.Onsite_Status || order.onsite_status || '').toLowerCase();
+                const billingStatusId = order.billing_status_id || order.Billing_Status_ID;
+                
+                // Always show orders with active onsite statuses
+                if (activeOnsiteStatuses.includes(onsiteStatus)) {
+                  return true;
+                }
+                
+                // Always show orders with active billing statuses (Active customers, In Progress, Overdue)
+                if (billingStatusId && activeBillingStatuses.includes(Number(billingStatusId))) {
+                  return true;
+                }
+                
+                // For other statuses, apply 7-day filter
                 const updatedAt = order.updated_at || order.Updated_At;
                 if (!updatedAt) return true;
                 
