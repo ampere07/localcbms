@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\DCNotice;
-use App\Models\BillingDetail;
+use App\Models\BillingAccount;
 use App\Models\Invoice;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -20,14 +20,16 @@ class DCNoticeApiController extends Controller
             $search = $request->input('search', '');
             $date = $request->input('date', '');
 
-            $query = DCNotice::with(['account', 'invoice'])
+            $query = DCNotice::with(['account.customer', 'invoice'])
                 ->orderBy('dc_notice_date', 'desc');
 
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->whereHas('account', function ($accountQuery) use ($search) {
-                        $accountQuery->where('account_no', 'LIKE', "%{$search}%")
-                            ->orWhere('full_name', 'LIKE', "%{$search}%");
+                        $accountQuery->where('account_no', 'LIKE', "%{$search}%");
+                    })->orWhereHas('account.customer', function ($customerQuery) use ($search) {
+                        $customerQuery->where('first_name', 'LIKE', "%{$search}%")
+                                      ->orWhere('last_name', 'LIKE', "%{$search}%");
                     });
                 });
             }
@@ -44,6 +46,7 @@ class DCNoticeApiController extends Controller
 
             $enrichedData = $dcNotices->map(function ($notice) {
                 $account = $notice->account;
+                $customer = $account?->customer;
                 
                 return [
                     'id' => $notice->id,
@@ -56,11 +59,11 @@ class DCNoticeApiController extends Controller
                     'updated_at' => $notice->updated_at?->format('Y-m-d H:i:s'),
                     'updated_by_user_id' => $notice->updated_by_user_id,
                     'account_no' => $account?->account_no ?? null,
-                    'full_name' => $account?->full_name ?? null,
-                    'contact_number' => $account?->contact_number ?? null,
-                    'email_address' => $account?->email_address ?? null,
-                    'address' => $account?->address ?? null,
-                    'plan' => $account?->plan ?? null,
+                    'full_name' => $customer?->full_name ?? null,
+                    'contact_number' => $customer?->contact_number_primary ?? null,
+                    'email_address' => $customer?->email_address ?? null,
+                    'address' => $customer?->address ?? null,
+                    'plan' => $customer?->desired_plan ?? null,
                 ];
             });
 
@@ -96,9 +99,10 @@ class DCNoticeApiController extends Controller
     public function show($id)
     {
         try {
-            $dcNotice = DCNotice::with(['account', 'invoice'])->findOrFail($id);
+            $dcNotice = DCNotice::with(['account.customer', 'invoice'])->findOrFail($id);
 
             $account = $dcNotice->account;
+            $customer = $account?->customer;
             
             $data = [
                 'id' => $dcNotice->id,
@@ -111,11 +115,11 @@ class DCNoticeApiController extends Controller
                 'updated_at' => $dcNotice->updated_at?->format('Y-m-d H:i:s'),
                 'updated_by_user_id' => $dcNotice->updated_by_user_id,
                 'account_no' => $account?->account_no ?? null,
-                'full_name' => $account?->full_name ?? null,
-                'contact_number' => $account?->contact_number ?? null,
-                'email_address' => $account?->email_address ?? null,
-                'address' => $account?->address ?? null,
-                'plan' => $account?->plan ?? null,
+                'full_name' => $customer?->full_name ?? null,
+                'contact_number' => $customer?->contact_number_primary ?? null,
+                'email_address' => $customer?->email_address ?? null,
+                'address' => $customer?->address ?? null,
+                'plan' => $customer?->desired_plan ?? null,
             ];
 
             return response()->json([

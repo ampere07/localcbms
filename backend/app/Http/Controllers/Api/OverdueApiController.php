@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Overdue;
-use App\Models\BillingDetail;
+use App\Models\BillingAccount;
 use App\Models\Invoice;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -39,7 +39,8 @@ class OverdueApiController extends Controller
                 ->get();
 
             $enrichedData = $overdues->map(function ($overdue) {
-                $billingDetail = BillingDetail::where('account_no', $overdue->account_no)->first();
+                $billingAccount = BillingAccount::where('account_no', $overdue->account_no)->with('customer')->first();
+                $customer = $billingAccount?->customer;
                 
                 return [
                     'id' => $overdue->id,
@@ -51,11 +52,11 @@ class OverdueApiController extends Controller
                     'created_by_user_id' => $overdue->created_by_user_id,
                     'updated_at' => $overdue->updated_at?->format('Y-m-d H:i:s'),
                     'updated_by_user_id' => $overdue->updated_by_user_id,
-                    'full_name' => $billingDetail?->full_name ?? null,
-                    'contact_number' => $billingDetail?->contact_number ?? null,
-                    'email_address' => $billingDetail?->email_address ?? null,
-                    'address' => $billingDetail?->address ?? null,
-                    'plan' => $billingDetail?->plan ?? null,
+                    'full_name' => $customer?->full_name ?? null,
+                    'contact_number' => $customer?->contact_number_primary ?? null,
+                    'email_address' => $customer?->email_address ?? null,
+                    'address' => $customer?->address ?? null,
+                    'plan' => $customer?->desired_plan ?? null,
                 ];
             });
 
@@ -93,7 +94,8 @@ class OverdueApiController extends Controller
         try {
             $overdue = Overdue::findOrFail($id);
 
-            $billingDetail = BillingDetail::where('account_no', $overdue->account_no)->first();
+            $billingAccount = BillingAccount::where('account_no', $overdue->account_no)->with('customer')->first();
+            $customer = $billingAccount?->customer;
             
             $data = [
                 'id' => $overdue->id,
@@ -105,11 +107,11 @@ class OverdueApiController extends Controller
                 'created_by_user_id' => $overdue->created_by_user_id,
                 'updated_at' => $overdue->updated_at?->format('Y-m-d H:i:s'),
                 'updated_by_user_id' => $overdue->updated_by_user_id,
-                'full_name' => $billingDetail?->full_name ?? null,
-                'contact_number' => $billingDetail?->contact_number ?? null,
-                'email_address' => $billingDetail?->email_address ?? null,
-                'address' => $billingDetail?->address ?? null,
-                'plan' => $billingDetail?->plan ?? null,
+                'full_name' => $customer?->full_name ?? null,
+                'contact_number' => $customer?->contact_number_primary ?? null,
+                'email_address' => $customer?->email_address ?? null,
+                'address' => $customer?->address ?? null,
+                'plan' => $customer?->desired_plan ?? null,
             ];
 
             return response()->json([
