@@ -52,6 +52,7 @@ interface ServiceOrder {
   image1Url?: string;
   image2Url?: string;
   image3Url?: string;
+  rawUpdatedAt?: string; // Added for filtering
 }
 
 interface LocationItem {
@@ -145,7 +146,7 @@ const ServiceOrder: React.FC = () => {
         console.error('Failed to fetch color palette:', err);
       }
     };
-    
+
     fetchColorPalette();
   }, []);
 
@@ -175,14 +176,14 @@ const ServiceOrder: React.FC = () => {
         setFilterDropdownOpen(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [dropdownRef, filterDropdownRef]);
-  
+
   useEffect(() => {
     const authData = localStorage.getItem('authData');
     if (authData) {
@@ -200,15 +201,15 @@ const ServiceOrder: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
+
         console.log('Fetching cities...');
         const citiesData = await getCities();
         setCities(citiesData || []);
-        
+
         console.log('Fetching service orders from service_orders table...');
         const authData = localStorage.getItem('authData');
         let assignedEmail: string | undefined;
-        
+
         if (authData) {
           try {
             const userData = JSON.parse(authData);
@@ -220,13 +221,13 @@ const ServiceOrder: React.FC = () => {
             console.error('Error parsing auth data:', error);
           }
         }
-        
+
         const response = await getServiceOrders(assignedEmail);
         console.log('Service Orders API Response:', response);
-        
+
         if (response.success && Array.isArray(response.data)) {
           console.log(`Found ${response.data.length} service orders`);
-          
+
           const processedOrders: ServiceOrder[] = response.data.map((order: ServiceOrderData) => ({
             id: order.id || '',
             ticketId: order.ticket_id || order.id || '',
@@ -272,19 +273,20 @@ const ServiceOrder: React.FC = () => {
             clientSignatureUrl: order.client_signature_url || '',
             image1Url: order.image1_url || '',
             image2Url: order.image2_url || '',
-            image3Url: order.image3_url || ''
+            image3Url: order.image3_url || '',
+            rawUpdatedAt: order.updated_at || '' // Capture raw date
           }));
-          
+
           setServiceOrders(processedOrders);
           console.log('Service orders data processed successfully');
         } else {
           console.warn('No service orders returned from API or invalid response format', response);
           setServiceOrders([]);
-          
+
           if (response.table) {
             console.info(`Table name specified in response: ${response.table}`);
           }
-          
+
           if (response.message) {
             if (response.message.includes('SQLSTATE') || response.message.includes('table')) {
               const formattedMessage = `Database error: ${response.message}`;
@@ -306,7 +308,7 @@ const ServiceOrder: React.FC = () => {
 
     fetchData();
   }, []);
-  
+
   const locationItems: LocationItem[] = useMemo(() => {
     const items: LocationItem[] = [
       {
@@ -315,13 +317,13 @@ const ServiceOrder: React.FC = () => {
         count: serviceOrders.length
       }
     ];
-    
+
     if (cities.length > 0) {
       cities.forEach(city => {
-        const cityCount = serviceOrders.filter(so => 
+        const cityCount = serviceOrders.filter(so =>
           so.fullAddress.toLowerCase().includes(city.name.toLowerCase())
         ).length;
-        
+
         items.push({
           id: city.name.toLowerCase(),
           name: city.name,
@@ -330,7 +332,7 @@ const ServiceOrder: React.FC = () => {
       });
     } else {
       const locationSet = new Set<string>();
-      
+
       serviceOrders.forEach(so => {
         const addressParts = so.fullAddress.split(',');
         if (addressParts.length >= 2) {
@@ -340,12 +342,12 @@ const ServiceOrder: React.FC = () => {
           }
         }
       });
-      
+
       Array.from(locationSet).forEach(location => {
-        const cityCount = serviceOrders.filter(so => 
+        const cityCount = serviceOrders.filter(so =>
           so.fullAddress.toLowerCase().includes(location)
         ).length;
-        
+
         items.push({
           id: location,
           name: location.charAt(0).toUpperCase() + location.slice(1),
@@ -353,10 +355,10 @@ const ServiceOrder: React.FC = () => {
         });
       });
     }
-    
+
     return items;
   }, [cities, serviceOrders]);
-  
+
   // Helper function to apply funnel filters
   const applyFunnelFilters = (orders: ServiceOrder[], filters: any): ServiceOrder[] => {
     if (!filters || Object.keys(filters).length === 0) return orders;
@@ -364,13 +366,13 @@ const ServiceOrder: React.FC = () => {
     return orders.filter(order => {
       return Object.entries(filters).every(([key, filter]: [string, any]) => {
         const orderValue = (order as any)[key];
-        
+
         if (filter.type === 'text') {
           if (!filter.value) return true;
           const value = String(orderValue || '').toLowerCase();
           return value.includes(filter.value.toLowerCase());
         }
-        
+
         if (filter.type === 'number') {
           const numValue = Number(orderValue);
           if (isNaN(numValue)) return false;
@@ -378,7 +380,7 @@ const ServiceOrder: React.FC = () => {
           if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
           return true;
         }
-        
+
         if (filter.type === 'date') {
           if (!orderValue) return false;
           const dateValue = new Date(orderValue).getTime();
@@ -386,22 +388,61 @@ const ServiceOrder: React.FC = () => {
           if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
           return true;
         }
-        
+
         return true;
       });
     });
   };
 
   const filteredServiceOrders = useMemo(() => {
+    // Robust detection for Technician role (Role ID 2 or role name 'technician')
+    const numericRoleId = Number(userRole); // Using userRole from state which was populated from authData
+    let userRoleString = '';
+
+    // Double check authData directly for robustness similar to ApplicationVisit.tsx
+    try {
+      const authData = localStorage.getItem('authData');
+      if (authData) {
+        const parsed = JSON.parse(authData);
+        userRoleString = (parsed.role || '').toLowerCase();
+      }
+    } catch (e) { }
+
+    const isTechnician = numericRoleId === 2 || userRoleString === 'technician';
+
     let filtered = serviceOrders.filter(serviceOrder => {
-      const matchesLocation = selectedLocation === 'all' || 
-                             serviceOrder.fullAddress.toLowerCase().includes(selectedLocation.toLowerCase());
-      
-      const matchesSearch = searchQuery === '' || 
-                           serviceOrder.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           serviceOrder.fullAddress.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           (serviceOrder.concern && serviceOrder.concern.toLowerCase().includes(searchQuery.toLowerCase()));
-      
+      // 1. Technician 7-Day Filter for 'Resolved' tickets
+      if (isTechnician) {
+        const supportStatus = (serviceOrder.supportStatus || '').toLowerCase().trim();
+
+        // Only filter if status is 'Resolved'
+        if (supportStatus === 'resolved') {
+          const updatedAt = serviceOrder.rawUpdatedAt;
+
+          // If we have a date, check if it's older than 7 days
+          if (updatedAt) {
+            const updatedDate = new Date(updatedAt);
+            if (!isNaN(updatedDate.getTime())) {
+              const sevenDaysAgo = new Date();
+              sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+              // If older than 7 days, HIDE it (return false)
+              if (updatedDate < sevenDaysAgo) {
+                return false;
+              }
+            }
+          }
+        }
+      }
+
+      const matchesLocation = selectedLocation === 'all' ||
+        serviceOrder.fullAddress.toLowerCase().includes(selectedLocation.toLowerCase());
+
+      const matchesSearch = searchQuery === '' ||
+        serviceOrder.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        serviceOrder.fullAddress.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (serviceOrder.concern && serviceOrder.concern.toLowerCase().includes(searchQuery.toLowerCase()));
+
       return matchesLocation && matchesSearch;
     });
 
@@ -489,12 +530,12 @@ const ServiceOrder: React.FC = () => {
 
     return filtered;
   }, [serviceOrders, selectedLocation, searchQuery, sortColumn, sortDirection, activeFilters]);
-  
+
   const StatusText = ({ status, type }: { status?: string, type: 'support' | 'visit' }) => {
     if (!status) return <span className="text-gray-400">Unknown</span>;
-    
+
     let textColor = '';
-    
+
     if (type === 'support') {
       switch (status.toLowerCase()) {
         case 'resolved':
@@ -536,7 +577,7 @@ const ServiceOrder: React.FC = () => {
           textColor = 'text-gray-400';
       }
     }
-    
+
     return (
       <span className={`${textColor} font-bold uppercase`}>
         {status === 'in-progress' ? 'In Progress' : status}
@@ -576,7 +617,7 @@ const ServiceOrder: React.FC = () => {
       setLoading(true);
       const authData = localStorage.getItem('authData');
       let assignedEmail: string | undefined;
-      
+
       if (authData) {
         try {
           const userData = JSON.parse(authData);
@@ -587,9 +628,9 @@ const ServiceOrder: React.FC = () => {
           console.error('Error parsing auth data:', error);
         }
       }
-      
+
       const response = await getServiceOrders(assignedEmail);
-      
+
       if (response.success && Array.isArray(response.data)) {
         const processedOrders: ServiceOrder[] = response.data.map((order: ServiceOrderData) => ({
           id: order.id || '',
@@ -630,7 +671,7 @@ const ServiceOrder: React.FC = () => {
           repairCategory: order.repair_category || '',
           supportStatus: order.support_status || ''
         }));
-        
+
         setServiceOrders(processedOrders);
         setError(null);
       }
@@ -693,7 +734,7 @@ const ServiceOrder: React.FC = () => {
 
   const handleDrop = (e: React.DragEvent, targetColumnKey: string) => {
     e.preventDefault();
-    
+
     if (!draggedColumn || draggedColumn === targetColumnKey) {
       setDraggedColumn(null);
       setDragOverColumn(null);
@@ -722,7 +763,7 @@ const ServiceOrder: React.FC = () => {
     e.stopPropagation();
     setResizingColumn(columnKey);
     startXRef.current = e.clientX;
-    
+
     const th = (e.target as HTMLElement).closest('th');
     if (th) {
       startWidthRef.current = th.offsetWidth;
@@ -734,10 +775,10 @@ const ServiceOrder: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!resizingColumn) return;
-      
+
       const diff = e.clientX - startXRef.current;
       const newWidth = Math.max(100, startWidthRef.current + diff);
-      
+
       setColumnWidths(prev => ({
         ...prev,
         [resizingColumn]: newWidth
@@ -762,10 +803,10 @@ const ServiceOrder: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizingSidebar) return;
-      
+
       const diff = e.clientX - sidebarStartXRef.current;
       const newWidth = Math.max(200, Math.min(500, sidebarStartWidthRef.current + diff));
-      
+
       setSidebarWidth(newWidth);
     };
 
@@ -829,12 +870,11 @@ const ServiceOrder: React.FC = () => {
         return '-';
     }
   };
-  
+
   if (loading) {
     return (
-      <div className={`flex items-center justify-center h-full ${
-        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-      }`}>
+      <div className={`flex items-center justify-center h-full ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+        }`}>
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-orange-500 mb-3"></div>
           <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
@@ -847,17 +887,14 @@ const ServiceOrder: React.FC = () => {
 
   if (error) {
     return (
-      <div className={`flex items-center justify-center h-full ${
-        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-      }`}>
-        <div className={`border rounded-md p-6 max-w-lg ${
-          isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+      <div className={`flex items-center justify-center h-full ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
         }`}>
+        <div className={`border rounded-md p-6 max-w-lg ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+          }`}>
           <h3 className="text-red-500 text-lg font-medium mb-2">Error</h3>
-          <p className={`mb-4 ${
-            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-          }`}>{error}</p>
-          <button 
+          <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>{error}</p>
+          <button
             onClick={() => window.location.reload()}
             className="text-white py-2 px-4 rounded transition-colors"
             style={{
@@ -882,21 +919,17 @@ const ServiceOrder: React.FC = () => {
   }
 
   return (
-    <div className={`${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    } h-full flex flex-col md:flex-row overflow-hidden`}>
+    <div className={`${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      } h-full flex flex-col md:flex-row overflow-hidden`}>
       {/* Desktop Sidebar - Hidden on mobile */}
       {userRole.toLowerCase() !== 'technician' && (
-        <div className={`hidden md:flex border-r flex-shrink-0 flex-col relative ${
-          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-        }`} style={{ width: `${sidebarWidth}px` }}>
-          <div className={`p-4 border-b flex-shrink-0 ${
-            isDarkMode ? 'border-gray-700' : 'border-gray-200'
-          }`}>
+        <div className={`hidden md:flex border-r flex-shrink-0 flex-col relative ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`} style={{ width: `${sidebarWidth}px` }}>
+          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+            }`}>
             <div className="flex items-center mb-1">
-              <h2 className={`text-lg font-semibold ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Service Orders</h2>
+              <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Service Orders</h2>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -904,9 +937,8 @@ const ServiceOrder: React.FC = () => {
               <button
                 key={location.id}
                 onClick={() => setSelectedLocation(location.id)}
-                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                  isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                }`}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                  }`}
                 style={selectedLocation === location.id ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
                   color: colorPalette?.primary || '#fb923c',
@@ -936,7 +968,7 @@ const ServiceOrder: React.FC = () => {
               </button>
             ))}
           </div>
-          
+
           <div
             className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-10"
             onMouseDown={handleMouseDownSidebarResize}
@@ -946,35 +978,30 @@ const ServiceOrder: React.FC = () => {
 
       {/* Mobile Location View */}
       {mobileView === 'locations' && (
-        <div className={`md:hidden flex-1 flex flex-col overflow-hidden ${
-          isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-        }`}>
-          <div className={`p-4 border-b ${
-            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        <div className={`md:hidden flex-1 flex flex-col overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
           }`}>
-            <h2 className={`text-lg font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Service Orders</h2>
+          <div className={`p-4 border-b ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+            <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Service Orders</h2>
           </div>
           <div className="flex-1 overflow-y-auto">
             {locationItems.map((location) => (
               <button
                 key={location.id}
                 onClick={() => handleLocationSelect(location.id)}
-                className={`w-full flex items-center justify-between px-4 py-4 text-sm transition-colors border-b ${
-                  isDarkMode 
-                    ? 'hover:bg-gray-800 border-gray-800 text-gray-300' 
-                    : 'hover:bg-gray-100 border-gray-200 text-gray-700'
-                }`}
+                className={`w-full flex items-center justify-between px-4 py-4 text-sm transition-colors border-b ${isDarkMode
+                  ? 'hover:bg-gray-800 border-gray-800 text-gray-300'
+                  : 'hover:bg-gray-100 border-gray-200 text-gray-700'
+                  }`}
               >
                 <div className="flex items-center">
                   <FileText className="h-5 w-5 mr-3" />
                   <span className="capitalize text-base">{location.name}</span>
                 </div>
                 {location.count > 0 && (
-                  <span className={`px-3 py-1 rounded-full text-sm ${
-                    isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                  }`}>
+                  <span className={`px-3 py-1 rounded-full text-sm ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                    }`}>
                     {location.count}
                   </span>
                 )}
@@ -988,17 +1015,14 @@ const ServiceOrder: React.FC = () => {
       {mobileMenuOpen && userRole.toLowerCase() !== 'technician' && mobileView === 'orders' && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
-          <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${
-            isDarkMode ? 'bg-gray-900' : 'bg-white'
-          }`}>
-            <div className={`p-4 border-b flex items-center justify-between ${
-              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
             }`}>
-              <h2 className={`text-lg font-semibold ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Filters</h2>
-              <button 
-                onClick={() => setMobileMenuOpen(false)} 
+            <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Filters</h2>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
                 className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
               >
                 <X className="h-6 w-6" />
@@ -1009,22 +1033,20 @@ const ServiceOrder: React.FC = () => {
                 <button
                   key={location.id}
                   onClick={() => handleLocationSelect(location.id)}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
-                    selectedLocation === location.id
-                      ? 'bg-orange-500 bg-opacity-20 text-orange-400'
-                      : 'text-gray-300'
-                  }`}
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${selectedLocation === location.id
+                    ? 'bg-orange-500 bg-opacity-20 text-orange-400'
+                    : 'text-gray-300'
+                    }`}
                 >
                   <div className="flex items-center">
                     <FileText className="h-4 w-4 mr-2" />
                     <span className="capitalize">{location.name}</span>
                   </div>
                   {location.count > 0 && (
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      selectedLocation === location.id
-                        ? 'bg-orange-600 text-white'
-                        : 'bg-gray-700 text-gray-300'
-                    }`}>
+                    <span className={`px-2 py-1 rounded-full text-xs ${selectedLocation === location.id
+                      ? 'bg-orange-600 text-white'
+                      : 'bg-gray-700 text-gray-300'
+                      }`}>
                       {location.count}
                     </span>
                   )}
@@ -1036,13 +1058,11 @@ const ServiceOrder: React.FC = () => {
       )}
 
       {/* Main Content */}
-      <div className={`overflow-hidden flex-1 flex flex-col ${
-        isDarkMode ? 'bg-gray-900' : 'bg-white'
-      } ${mobileView === 'locations' || mobileView === 'details' ? 'hidden md:flex' : ''}`}>
+      <div className={`overflow-hidden flex-1 flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+        } ${mobileView === 'locations' || mobileView === 'details' ? 'hidden md:flex' : ''}`}>
         <div className="flex flex-col h-full">
-          <div className={`p-4 border-b flex-shrink-0 ${
-            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
+          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
             <div className="flex items-center space-x-3">
               {userRole.toLowerCase() !== 'technician' && mobileView === 'orders' && (
                 <button
@@ -1059,11 +1079,10 @@ const ServiceOrder: React.FC = () => {
                   placeholder="Search service orders..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 border focus:outline-none ${
-                    isDarkMode 
-                      ? 'bg-gray-800 text-white border-gray-700' 
-                      : 'bg-gray-100 text-gray-900 border-gray-300'
-                  }`}
+                  className={`w-full rounded pl-10 pr-4 py-2 border focus:outline-none ${isDarkMode
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-gray-100 text-gray-900 border-gray-300'
+                    }`}
                   onFocus={(e) => {
                     if (colorPalette?.primary) {
                       e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1075,43 +1094,37 @@ const ServiceOrder: React.FC = () => {
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 />
-                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`} />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
               </div>
               <div className="hidden md:flex space-x-2">
                 <button
                   onClick={() => setIsFunnelFilterOpen(true)}
-                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
-                    isDarkMode
-                      ? 'hover:bg-gray-700 text-white'
-                      : 'hover:bg-gray-200 text-gray-900'
-                  }`}
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                    ? 'hover:bg-gray-700 text-white'
+                    : 'hover:bg-gray-200 text-gray-900'
+                    }`}
                 >
                   <Filter className="h-5 w-5" />
                 </button>
                 {displayMode === 'table' && (
                   <div className="relative" ref={filterDropdownRef}>
                     <button
-                      className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
-                        isDarkMode
-                          ? 'hover:bg-gray-800 text-white'
-                          : 'hover:bg-gray-100 text-gray-900'
-                      }`}
+                      className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                        ? 'hover:bg-gray-800 text-white'
+                        : 'hover:bg-gray-100 text-gray-900'
+                        }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
                       <ListFilter className="h-5 w-5" />
                     </button>
                     {filterDropdownOpen && (
-                      <div className={`absolute top-full right-0 mt-2 w-80 border rounded shadow-lg z-50 max-h-96 flex flex-col ${
-                        isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
-                      }`}>
-                        <div className={`p-3 border-b flex items-center justify-between ${
-                          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                      <div className={`absolute top-full right-0 mt-2 w-80 border rounded shadow-lg z-50 max-h-96 flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
                         }`}>
-                          <span className={`text-sm font-medium ${
-                            isDarkMode ? 'text-white' : 'text-gray-900'
-                          }`}>Column Visibility</span>
+                        <div className={`p-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                          }`}>
+                          <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>Column Visibility</span>
                           <div className="flex space-x-2">
                             <button
                               onClick={handleSelectAllColumns}
@@ -1158,21 +1171,19 @@ const ServiceOrder: React.FC = () => {
                           {allColumns.map((column) => (
                             <label
                               key={column.key}
-                              className={`flex items-center px-4 py-2 cursor-pointer text-sm ${
-                                isDarkMode 
-                                  ? 'hover:bg-gray-700 text-white' 
-                                  : 'hover:bg-gray-100 text-gray-900'
-                              }`}
+                              className={`flex items-center px-4 py-2 cursor-pointer text-sm ${isDarkMode
+                                ? 'hover:bg-gray-700 text-white'
+                                : 'hover:bg-gray-100 text-gray-900'
+                                }`}
                             >
                               <input
                                 type="checkbox"
                                 checked={visibleColumns.includes(column.key)}
                                 onChange={() => handleToggleColumn(column.key)}
-                                className={`mr-3 h-4 w-4 rounded text-orange-600 focus:ring-orange-500 ${
-                                  isDarkMode 
-                                    ? 'border-gray-600 bg-gray-700 focus:ring-offset-gray-800' 
-                                    : 'border-gray-300 bg-white focus:ring-offset-white'
-                                }`}
+                                className={`mr-3 h-4 w-4 rounded text-orange-600 focus:ring-orange-500 ${isDarkMode
+                                  ? 'border-gray-600 bg-gray-700 focus:ring-offset-gray-800'
+                                  : 'border-gray-300 bg-white focus:ring-offset-white'
+                                  }`}
                               />
                               <span>{column.label}</span>
                             </label>
@@ -1183,31 +1194,28 @@ const ServiceOrder: React.FC = () => {
                   </div>
                 )}
                 <div className="relative z-50" ref={dropdownRef}>
-                <button
-                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
-                    isDarkMode
+                  <button
+                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
                       ? 'hover:bg-gray-800 text-white'
                       : 'hover:bg-gray-100 text-gray-900'
-                  }`}
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                >
+                      }`}
+                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                  >
                     <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
                     <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
                   {dropdownOpen && (
-                  <div className={`fixed right-auto mt-1 w-36 border rounded shadow-lg ${
-                        isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                    <div className={`fixed right-auto mt-1 w-36 border rounded shadow-lg ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
                       }`}>
                       <button
                         onClick={() => {
                           setDisplayMode('card');
                           setDropdownOpen(false);
                         }}
-                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                          isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                        }`}
+                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                          }`}
                         style={displayMode === 'card' ? {
                           color: colorPalette?.primary || '#f97316'
                         } : {
@@ -1221,9 +1229,8 @@ const ServiceOrder: React.FC = () => {
                           setDisplayMode('table');
                           setDropdownOpen(false);
                         }}
-                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                          isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                        }`}
+                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                          }`}
                         style={displayMode === 'table' ? {
                           color: colorPalette?.primary || '#f97316'
                         } : {
@@ -1258,7 +1265,7 @@ const ServiceOrder: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto">
               {loading ? (
@@ -1272,7 +1279,7 @@ const ServiceOrder: React.FC = () => {
               ) : error ? (
                 <div className="px-4 py-12 text-center text-red-400">
                   <p>{error}</p>
-                  <button 
+                  <button
                     onClick={handleRefresh}
                     className="mt-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
                     Retry
@@ -1285,22 +1292,19 @@ const ServiceOrder: React.FC = () => {
                       <div
                         key={serviceOrder.id}
                         onClick={() => window.innerWidth < 768 ? handleMobileRowClick(serviceOrder) : handleRowClick(serviceOrder)}
-                        className={`px-4 py-3 cursor-pointer transition-colors border-b ${
-                          isDarkMode 
-                            ? `hover:bg-gray-800 border-gray-800 ${selectedServiceOrder?.id === serviceOrder.id ? 'bg-gray-800' : ''}` 
-                            : `hover:bg-gray-100 border-gray-200 ${selectedServiceOrder?.id === serviceOrder.id ? 'bg-gray-100' : ''}`
-                        }`}
+                        className={`px-4 py-3 cursor-pointer transition-colors border-b ${isDarkMode
+                          ? `hover:bg-gray-800 border-gray-800 ${selectedServiceOrder?.id === serviceOrder.id ? 'bg-gray-800' : ''}`
+                          : `hover:bg-gray-100 border-gray-200 ${selectedServiceOrder?.id === serviceOrder.id ? 'bg-gray-100' : ''}`
+                          }`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className={`font-medium text-sm mb-1 ${
-                              isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>
+                            <div className={`font-medium text-sm mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
                               {serviceOrder.fullName}
                             </div>
-                            <div className={`text-xs ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`}>
+                            <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`}>
                               {serviceOrder.timestamp} | {serviceOrder.fullAddress}
                             </div>
                           </div>
@@ -1312,9 +1316,8 @@ const ServiceOrder: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className={`text-center py-12 ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
+                  <div className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                     No service orders found matching your filters
                   </div>
                 )
@@ -1322,9 +1325,8 @@ const ServiceOrder: React.FC = () => {
                 <div className="overflow-x-auto overflow-y-hidden">
                   <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
                     <thead>
-                      <tr className={`border-b sticky top-0 z-10 ${
-                        isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
-                      }`}>
+                      <tr className={`border-b sticky top-0 z-10 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
+                        }`}>
                         {filteredColumns.map((column, index) => (
                           <th
                             key={column.key}
@@ -1334,15 +1336,12 @@ const ServiceOrder: React.FC = () => {
                             onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, column.key)}
                             onDragEnd={handleDragEnd}
-                            className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${
-                              isDarkMode 
-                                ? `text-gray-400 bg-gray-800 ${index < filteredColumns.length - 1 ? 'border-r border-gray-700' : ''}` 
-                                : `text-gray-600 bg-gray-100 ${index < filteredColumns.length - 1 ? 'border-r border-gray-200' : ''}`
-                            } ${
-                              draggedColumn === column.key ? 'opacity-50' : ''
-                            } ${
-                              dragOverColumn === column.key ? 'bg-orange-500 bg-opacity-20' : ''
-                            }`}
+                            className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${isDarkMode
+                              ? `text-gray-400 bg-gray-800 ${index < filteredColumns.length - 1 ? 'border-r border-gray-700' : ''}`
+                              : `text-gray-600 bg-gray-100 ${index < filteredColumns.length - 1 ? 'border-r border-gray-200' : ''}`
+                              } ${draggedColumn === column.key ? 'opacity-50' : ''
+                              } ${dragOverColumn === column.key ? 'bg-orange-500 bg-opacity-20' : ''
+                              }`}
                             style={{ width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined }}
                             onMouseEnter={() => setHoveredColumn(column.key)}
                             onMouseLeave={() => setHoveredColumn(null)}
@@ -1375,24 +1374,22 @@ const ServiceOrder: React.FC = () => {
                     <tbody>
                       {filteredServiceOrders.length > 0 ? (
                         filteredServiceOrders.map((serviceOrder) => (
-                          <tr 
-                            key={serviceOrder.id} 
-                            className={`border-b cursor-pointer transition-colors ${
-                              isDarkMode 
-                                ? `border-gray-800 hover:bg-gray-900 ${selectedServiceOrder?.id === serviceOrder.id ? 'bg-gray-800' : ''}` 
-                                : `border-gray-200 hover:bg-gray-100 ${selectedServiceOrder?.id === serviceOrder.id ? 'bg-gray-100' : ''}`
-                            }`}
+                          <tr
+                            key={serviceOrder.id}
+                            className={`border-b cursor-pointer transition-colors ${isDarkMode
+                              ? `border-gray-800 hover:bg-gray-900 ${selectedServiceOrder?.id === serviceOrder.id ? 'bg-gray-800' : ''}`
+                              : `border-gray-200 hover:bg-gray-100 ${selectedServiceOrder?.id === serviceOrder.id ? 'bg-gray-100' : ''}`
+                              }`}
                             onClick={() => window.innerWidth < 768 ? handleMobileRowClick(serviceOrder) : handleRowClick(serviceOrder)}
                           >
                             {filteredColumns.map((column, index) => (
-                              <td 
+                              <td
                                 key={column.key}
-                                className={`py-4 px-3 ${
-                                  isDarkMode 
-                                    ? `text-white ${index < filteredColumns.length - 1 ? 'border-r border-gray-800' : ''}` 
-                                    : `text-gray-900 ${index < filteredColumns.length - 1 ? 'border-r border-gray-200' : ''}`
-                                }`}
-                                style={{ 
+                                className={`py-4 px-3 ${isDarkMode
+                                  ? `text-white ${index < filteredColumns.length - 1 ? 'border-r border-gray-800' : ''}`
+                                  : `text-gray-900 ${index < filteredColumns.length - 1 ? 'border-r border-gray-200' : ''}`
+                                  }`}
+                                style={{
                                   width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
                                   maxWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
                                 }}
@@ -1406,9 +1403,8 @@ const ServiceOrder: React.FC = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${
-                            isDarkMode ? 'text-gray-400 border-gray-800' : 'text-gray-600 border-gray-200'
-                          }`}>
+                          <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${isDarkMode ? 'text-gray-400 border-gray-800' : 'text-gray-600 border-gray-200'
+                            }`}>
                             No service orders found matching your filters
                           </td>
                         </tr>
@@ -1423,11 +1419,10 @@ const ServiceOrder: React.FC = () => {
       </div>
 
       {selectedServiceOrder && mobileView === 'details' && (
-        <div className={`md:hidden flex-1 flex flex-col overflow-hidden ${
-          isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-        }`}>
-          <ServiceOrderDetails 
-            serviceOrder={selectedServiceOrder} 
+        <div className={`md:hidden flex-1 flex flex-col overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+          }`}>
+          <ServiceOrderDetails
+            serviceOrder={selectedServiceOrder}
             onClose={handleMobileBack}
             isMobile={true}
           />
@@ -1436,8 +1431,8 @@ const ServiceOrder: React.FC = () => {
 
       {selectedServiceOrder && mobileView !== 'details' && (
         <div className="hidden md:block flex-shrink-0 overflow-hidden">
-          <ServiceOrderDetails 
-            serviceOrder={selectedServiceOrder} 
+          <ServiceOrderDetails
+            serviceOrder={selectedServiceOrder}
             onClose={() => setSelectedServiceOrder(null)}
             isMobile={false}
           />
