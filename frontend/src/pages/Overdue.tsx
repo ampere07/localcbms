@@ -45,7 +45,7 @@ const OverduePage: React.FC = () => {
         console.error('Failed to fetch color palette:', err);
       }
     };
-    
+
     fetchColorPalette();
   }, []);
 
@@ -57,7 +57,7 @@ const OverduePage: React.FC = () => {
     try {
       setIsLoading(true);
       const response = await overdueService.getAll();
-      
+
       if (response.success) {
         setOverdueRecords(response.data || []);
         setError(null);
@@ -79,10 +79,10 @@ const OverduePage: React.FC = () => {
   };
 
   const filteredRecords = overdueRecords.filter(record => {
-    const matchesSearch = searchQuery === '' || 
+    const matchesSearch = searchQuery === '' ||
       record.account_no?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       record.full_name?.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     return matchesSearch;
   });
 
@@ -93,19 +93,15 @@ const OverduePage: React.FC = () => {
   };
 
   return (
-    <div className={`h-full flex overflow-hidden ${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    }`}>
-      <div className={`w-64 border-r flex-shrink-0 flex flex-col ${
-        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+    <div className={`h-full flex overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
-        <div className={`p-4 border-b flex-shrink-0 ${
-          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+      <div className={`w-64 border-r flex-shrink-0 flex flex-col ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
         }`}>
+        <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
           <div className="flex items-center justify-between mb-1">
-            <h2 className={`text-lg font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Overdue</h2>
+            <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Overdue</h2>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -113,13 +109,11 @@ const OverduePage: React.FC = () => {
             <button
               key={index}
               onClick={() => setSelectedDate(item.date)}
-              className={`w-full flex items-center px-4 py-3 text-sm transition-colors ${
-                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-              } ${
-                selectedDate === item.date
+              className={`w-full flex items-center px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                } ${selectedDate === item.date
                   ? ''
                   : isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}
+                }`}
               style={selectedDate === item.date ? {
                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
                 color: colorPalette?.primary || '#fb923c'
@@ -137,13 +131,11 @@ const OverduePage: React.FC = () => {
         </div>
       </div>
 
-      <div className={`flex-1 overflow-hidden ${
-        isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
-      }`}>
+      <div className={`flex-1 overflow-hidden ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+        }`}>
         <div className="flex flex-col h-full">
-          <div className={`p-4 border-b flex-shrink-0 ${
-            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
+          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
             <div className="flex flex-col space-y-3">
               <div className="flex items-center space-x-3">
                 <div className="relative flex-1">
@@ -152,11 +144,10 @@ const OverduePage: React.FC = () => {
                     placeholder="Search Overdue records..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${
-                      isDarkMode
+                    className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
                         ? 'bg-gray-800 text-white border border-gray-700'
                         : 'bg-white text-gray-900 border border-gray-300'
-                    }`}
+                      }`}
                     style={{
                       '--tw-ring-color': colorPalette?.primary || '#ea580c'
                     } as React.CSSProperties}
@@ -169,9 +160,8 @@ const OverduePage: React.FC = () => {
                       e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                     }}
                   />
-                  <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`} />
+                  <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`} />
                 </div>
                 <button
                   onClick={handleRefresh}
@@ -196,104 +186,78 @@ const OverduePage: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto">
               {isLoading ? (
-                <div className={`px-4 py-12 text-center ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   <div className="animate-pulse flex flex-col items-center">
-                    <div className={`h-4 w-1/3 rounded mb-4 ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                    }`}></div>
-                    <div className={`h-4 w-1/2 rounded ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                    }`}></div>
+                    <div className={`h-4 w-1/3 rounded mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
                   </div>
                   <p className="mt-4">Loading Overdue records...</p>
                 </div>
               ) : error ? (
-                <div className={`px-4 py-12 text-center ${
-                  isDarkMode ? 'text-red-400' : 'text-red-600'
-                }`}>
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>
                   <p>{error}</p>
-                  <button 
+                  <button
                     onClick={handleRefresh}
-                    className={`mt-4 px-4 py-2 rounded ${
-                      isDarkMode
+                    className={`mt-4 px-4 py-2 rounded ${isDarkMode
                         ? 'bg-gray-700 hover:bg-gray-600 text-white'
                         : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                    }`}>
+                      }`}>
                     Retry
                   </button>
                 </div>
               ) : filteredRecords.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <table className={`min-w-full divide-y text-sm ${
-                    isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
-                  }`}>
-                    <thead className={`sticky top-0 ${
-                      isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                  <table className={`min-w-full divide-y text-sm ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
                     }`}>
+                    <thead className={`sticky top-0 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                      }`}>
                       <tr>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>ID</th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Account No</th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Customer Name</th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Overdue Date</th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Invoice ID</th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Print Link</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>ID</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Account No</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Customer Name</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Overdue Date</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Invoice ID</th>
+                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Print Link</th>
                       </tr>
                     </thead>
-                    <tbody className={`divide-y ${
-                      isDarkMode ? 'bg-gray-900 divide-gray-800' : 'bg-white divide-gray-200'
-                    }`}>
+                    <tbody className={`divide-y ${isDarkMode ? 'bg-gray-900 divide-gray-800' : 'bg-white divide-gray-200'
+                      }`}>
                       {filteredRecords.map((record) => (
-                        <tr 
+                        <tr
                           key={record.id}
-                          className={`${
-                            isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
-                          }`}
+                          className={`${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
+                            }`}
                         >
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                          }`}>{record.id}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                          }`}>{record.account_no || '-'}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                          }`}>{record.full_name || '-'}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                          }`}>{formatDate(record.overdue_date)}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                          }`}>{record.invoice_id || '-'}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                          }`}>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                            }`}>{record.id}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                            }`}>{record.account_no || '-'}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                            }`}>{record.full_name || '-'}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                            }`}>{formatDate(record.overdue_date)}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                            }`}>{record.invoice_id || '-'}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                            }`}>
                             {record.print_link ? (
-                              <a 
-                                href={record.print_link} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-blue-500 hover:text-blue-400"
-                              >
+                              <span className="text-blue-500 cursor-default">
                                 View
-                              </a>
+                              </span>
                             ) : '-'}
                           </td>
                         </tr>
@@ -302,9 +266,8 @@ const OverduePage: React.FC = () => {
                   </table>
                 </div>
               ) : (
-                <div className={`h-full flex items-center justify-center ${
-                  isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                }`}>
+                <div className={`h-full flex items-center justify-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                  }`}>
                   No items
                 </div>
               )}
