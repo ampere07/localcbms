@@ -660,6 +660,82 @@ const Customer: React.FC = () => {
     }
   };
 
+  const handleProcessOverdueNotifications = async () => {
+    if (!window.confirm('Process overdue notifications?\n\nThis will:\n- Update overdue table\n- Send email with PDF attachments\n- Send SMS notifications\n\nContinue?')) {
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    const API_BASE_URL = window.location.hostname === 'localhost' 
+      ? 'https://backend.atssfiber.ph/api'
+      : 'https://backend.atssfiber.ph/api';
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/cron-test/process-overdue-notifications`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include'
+      });
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        alert('Overdue notification processing failed: ' + result.message);
+        setError(result.message);
+      } else {
+        alert('✅ Overdue notifications processed successfully!\n\nCheck logs for details.');
+      }
+    } catch (err) {
+      console.error('Processing failed:', err);
+      alert('Processing failed: ' + (err as Error).message);
+      setError('Processing failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleProcessDisconnectionNotices = async () => {
+    if (!window.confirm('Process disconnection notices?\n\nThis will:\n- Update disconnection notice table\n- Send email with PDF attachments\n- Send SMS notifications\n\nContinue?')) {
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    const API_BASE_URL = window.location.hostname === 'localhost' 
+      ? 'https://backend.atssfiber.ph/api'
+      : 'https://backend.atssfiber.ph/api';
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/cron-test/process-disconnection-notices`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include'
+      });
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        alert('Disconnection notice processing failed: ' + result.message);
+        setError(result.message);
+      } else {
+        alert('✅ Disconnection notices processed successfully!\n\nCheck logs for details.');
+      }
+    } catch (err) {
+      console.error('Processing failed:', err);
+      alert('Processing failed: ' + (err as Error).message);
+      setError('Processing failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleGenerateSampleData = async () => {
     if (!window.confirm('Generate sample SOA and invoices for ALL accounts in database (regardless of billing day, status, or any restrictions)?\n\nThis will process EVERY account that has a date_installed value.\n\n✨ NEW: Includes PDF generation + Email queue + SMS notifications!\n\nContinue?')) {
       return;
@@ -1149,6 +1225,20 @@ const Customer: React.FC = () => {
                     </div>
                   )}
                 </div>
+                <button
+                  onClick={handleProcessOverdueNotifications}
+                  disabled={isLoading}
+                  className="bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors"
+                >
+                  {isLoading ? 'Processing...' : 'Process Overdue'}
+                </button>
+                <button
+                  onClick={handleProcessDisconnectionNotices}
+                  disabled={isLoading}
+                  className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors"
+                >
+                  {isLoading ? 'Processing...' : 'Process DC Notice'}
+                </button>
                 <button
                   onClick={handleGenerateSampleData}
                   disabled={isLoading}

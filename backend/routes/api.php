@@ -31,9 +31,9 @@ use App\Http\Controllers\InventoryRelatedDataController;
 use App\Http\Controllers\PPPoEController;
 use App\Models\User;
 use App\Models\MassRebate;
-use App\Http\Controllers\MonitorController;
+use App\Http\Controllers\Api\MonitorController;
 
-Route::match(['GET','POST'], '/monitor/handle', [MonitorController::class, 'handle']);
+Route::get('/monitor/handle', [MonitorController::class, 'handle']);
 
 // Handle all OPTIONS requests
 Route::options('{any}', function() {
@@ -2944,3 +2944,44 @@ Route::get('/borrowed-logs/by-item/{itemId}', [InventoryRelatedDataController::c
 Route::get('/defective-logs/by-item/{itemId}', [InventoryRelatedDataController::class, 'getDefectiveLogsByItem']);
 Route::get('/job-orders/by-item/{itemId}', [InventoryRelatedDataController::class, 'getJobOrdersByItem']);
 Route::get('/service-orders/by-item/{itemId}', [InventoryRelatedDataController::class, 'getServiceOrdersByItem']);
+
+// Cron Test Routes (for manual testing via URL)
+Route::prefix('cron-test')->group(function () {
+    Route::get('/process-overdue-notifications', [\App\Http\Controllers\CronTestController::class, 'processOverdueNotifications']);
+    Route::get('/process-disconnection-notices', [\App\Http\Controllers\CronTestController::class, 'processDisconnectionNotices']);
+    Route::get('/test-logging', [\App\Http\Controllers\CronTestController::class, 'testLogging']);
+    Route::get('/clear-cache', function() {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('config:clear');
+            \Illuminate\Support\Facades\Artisan::call('cache:clear');
+            \Illuminate\Support\Facades\Artisan::call('route:clear');
+            \Illuminate\Support\Facades\Artisan::call('view:clear');
+            return response()->json([
+                'success' => true,
+                'message' => 'All caches cleared successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cache clear failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    });
+    Route::get('/run-migrations', function() {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Migrations completed successfully',
+                'output' => \Illuminate\Support\Facades\Artisan::output()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Migration failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    });
+});

@@ -288,36 +288,36 @@ class MonitorController extends Controller
             // job_orders: visit_by, visit_with, visit_with_other + onsite_status
             // service_orders: visit_by_user, visit_with + visit_status
             if ($action === 'tech_mon_jo') {
-                $qb = DB::table('job_orders')
+                // Query 1: visit_by
+                $qb1 = DB::table('job_orders')
                     ->select(
                         DB::raw("UPPER(TRIM(visit_by)) as tech"),
                         DB::raw("onsite_status as status"),
                         DB::raw("COUNT(*) as count")
                     )
-                    ->whereIn('onsite_status', ['Done', 'Reschedule', 'Failed']);
+                    ->whereIn('onsite_status', ['Done', 'Reschedule', 'Failed'])
+                    ->whereNotNull('visit_by')->where('visit_by', '!=', '');
 
-                $applyScope($qb, 'job_orders.updated_at'); // closest equivalent to "Modified Date"
-                $qb->whereNotNull('visit_by')->where('visit_by', '!=', '');
-                $qb->groupBy('tech', 'status');
+                $applyScope($qb1, 'job_orders.updated_at');
+                $rows1 = $qb1->groupBy(DB::raw("UPPER(TRIM(visit_by))"), 'onsite_status')->get();
 
-                $rows1 = $qb->get();
-
-                // Also include visit_with and visit_with_other
-                $rows2 = DB::table('job_orders')
+                // Query 2: visit_with
+                $qb2 = DB::table('job_orders')
                     ->select(DB::raw("UPPER(TRIM(visit_with)) as tech"), DB::raw("onsite_status as status"), DB::raw("COUNT(*) as count"))
                     ->whereIn('onsite_status', ['Done', 'Reschedule', 'Failed'])
-                    ->whereNotNull('visit_with')->where('visit_with', '!=', '')
-                    ->tap(fn($q) => $applyScope($q, 'job_orders.updated_at'))
-                    ->groupBy('tech', 'status')
-                    ->get();
+                    ->whereNotNull('visit_with')->where('visit_with', '!=', '');
+                    
+                $applyScope($qb2, 'job_orders.updated_at');
+                $rows2 = $qb2->groupBy(DB::raw("UPPER(TRIM(visit_with))"), 'onsite_status')->get();
 
-                $rows3 = DB::table('job_orders')
+                // Query 3: visit_with_other
+                $qb3 = DB::table('job_orders')
                     ->select(DB::raw("UPPER(TRIM(visit_with_other)) as tech"), DB::raw("onsite_status as status"), DB::raw("COUNT(*) as count"))
                     ->whereIn('onsite_status', ['Done', 'Reschedule', 'Failed'])
-                    ->whereNotNull('visit_with_other')->where('visit_with_other', '!=', '')
-                    ->tap(fn($q) => $applyScope($q, 'job_orders.updated_at'))
-                    ->groupBy('tech', 'status')
-                    ->get();
+                    ->whereNotNull('visit_with_other')->where('visit_with_other', '!=', '');
+                    
+                $applyScope($qb3, 'job_orders.updated_at');
+                $rows3 = $qb3->groupBy(DB::raw("UPPER(TRIM(visit_with_other))"), 'onsite_status')->get();
 
                 $all = $rows1->concat($rows2)->concat($rows3);
 
@@ -333,21 +333,23 @@ class MonitorController extends Controller
             }
 
             if ($action === 'tech_mon_so') {
-                $rows1 = DB::table('service_orders')
+                // Query 1: visit_by_user
+                $qb1 = DB::table('service_orders')
                     ->select(DB::raw("UPPER(TRIM(visit_by_user)) as tech"), DB::raw("visit_status as status"), DB::raw("COUNT(*) as count"))
                     ->whereIn('visit_status', ['Done', 'Reschedule', 'Failed'])
-                    ->whereNotNull('visit_by_user')->where('visit_by_user', '!=', '')
-                    ->tap(fn($q) => $applyScope($q, 'service_orders.updated_at'))
-                    ->groupBy('tech', 'status')
-                    ->get();
+                    ->whereNotNull('visit_by_user')->where('visit_by_user', '!=', '');
+                
+                $applyScope($qb1, 'service_orders.updated_at');
+                $rows1 = $qb1->groupBy(DB::raw("UPPER(TRIM(visit_by_user))"), 'visit_status')->get();
 
-                $rows2 = DB::table('service_orders')
+                // Query 2: visit_with
+                $qb2 = DB::table('service_orders')
                     ->select(DB::raw("UPPER(TRIM(visit_with)) as tech"), DB::raw("visit_status as status"), DB::raw("COUNT(*) as count"))
                     ->whereIn('visit_status', ['Done', 'Reschedule', 'Failed'])
-                    ->whereNotNull('visit_with')->where('visit_with', '!=', '')
-                    ->tap(fn($q) => $applyScope($q, 'service_orders.updated_at'))
-                    ->groupBy('tech', 'status')
-                    ->get();
+                    ->whereNotNull('visit_with')->where('visit_with', '!=', '');
+                
+                $applyScope($qb2, 'service_orders.updated_at');
+                $rows2 = $qb2->groupBy(DB::raw("UPPER(TRIM(visit_with))"), 'visit_status')->get();
 
                 $all = $rows1->concat($rows2);
 
@@ -363,62 +365,105 @@ class MonitorController extends Controller
             }
 
             // 7) INVOICE/TRANSACTIONS/PORTAL yearly chart
+            // Shows count of each status (Paid, Unpaid, etc.) for the selected year
+            // X-axis: Status values (Paid, Unpaid, Pending, etc.), Y-axis: Count or Amount
             if (in_array($action, ['invoice_mon', 'transactions_mon', 'portal_mon'], true)) {
                 if ($action === 'invoice_mon') {
-                    $dateCol = 'invoices.invoice_date';
-                    $statusCol = 'invoices.status';
-                    $valExpr = ($param === 'amount')
-                        ? DB::raw("SUM(COALESCE(invoices.total_amount,0)) as val")
-                        : DB::raw("COUNT(*) as val");
-
+                    // Get count/sum for each invoice status in the given year
                     $qb = DB::table('invoices')
                         ->select(
-                            DB::raw("MONTHNAME($dateCol) as label"),
-                            DB::raw("$statusCol as status"),
-                            $valExpr
+                            DB::raw("IFNULL(status, 'Unknown') as label"),
+                            // Count records or sum amounts based on param
+                            $param === 'amount' 
+                                ? DB::raw("SUM(IFNULL(total_amount, 0)) as value")
+                                : DB::raw("COUNT(*) as value")
                         )
-                        ->whereYear($dateCol, $year)
-                        ->groupBy(DB::raw("MONTH($dateCol)"), 'status')
-                        ->orderBy(DB::raw("MONTH($dateCol)"));
+                        ->whereYear('invoice_date', $year)
+                        ->whereNotNull('invoice_date')
+                        ->groupBy(DB::raw("IFNULL(status, 'Unknown')"))
+                        ->orderByDesc('value')
+                        ->get();
+                    
+                    return response()->json([
+                        'status' => 'success', 
+                        'data' => $qb, 
+                        'barangays' => $response['barangays']
+                    ]);
                 } elseif ($action === 'transactions_mon') {
-                    $dateCol = 'transactions.date_processed';
-                    $statusCol = 'transactions.status';
-                    $valExpr = ($param === 'amount')
-                        ? DB::raw("SUM(COALESCE(transactions.received_payment,0)) as val")
-                        : DB::raw("COUNT(*) as val");
-
+                    // Get all transaction statuses per month
                     $qb = DB::table('transactions')
-                        ->select(DB::raw("MONTHNAME($dateCol) as label"), DB::raw("$statusCol as status"), $valExpr)
-                        ->whereYear($dateCol, $year)
-                        ->groupBy(DB::raw("MONTH($dateCol)"), 'status')
-                        ->orderBy(DB::raw("MONTH($dateCol)"));
-                } else {
-                    $dateCol = 'payment_portal_logs.date_time';
-                    $statusCol = 'payment_portal_logs.status';
-                    $valExpr = ($param === 'amount')
-                        ? DB::raw("SUM(COALESCE(payment_portal_logs.total_amount,0)) as val")
-                        : DB::raw("COUNT(*) as val");
-
-                    $qb = DB::table('payment_portal_logs')
-                        ->select(DB::raw("MONTHNAME($dateCol) as label"), DB::raw("$statusCol as status"), $valExpr)
-                        ->whereYear($dateCol, $year)
-                        ->groupBy(DB::raw("MONTH($dateCol)"), 'status')
-                        ->orderBy(DB::raw("MONTH($dateCol)"));
-                }
-
-                $raw = $qb->get();
-
-                $months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-                $structured = [];
-                foreach ($months as $m) $structured[$m] = ['label' => $m, 'series' => []];
-
-                foreach ($raw as $row) {
-                    if (isset($structured[$row->label])) {
-                        $structured[$row->label]['series'][$row->status ?? 'Unknown'] = (float)$row->val;
+                        ->select(
+                            DB::raw("MONTH(date_processed) as month_num"),
+                            DB::raw("MONTHNAME(date_processed) as month_name"),
+                            DB::raw("IFNULL(status, 'Unknown') as status_value"),
+                            // Count records or sum amounts based on param
+                            $param === 'amount'
+                                ? DB::raw("SUM(IFNULL(received_payment, 0)) as value")
+                                : DB::raw("COUNT(*) as value")
+                        )
+                        ->whereYear('date_processed', $year)
+                        ->whereNotNull('date_processed')
+                        ->groupBy(DB::raw("MONTH(date_processed)"), DB::raw("MONTHNAME(date_processed)"), DB::raw("IFNULL(status, 'Unknown')"))
+                        ->orderBy(DB::raw("MONTH(date_processed)"))
+                        ->get();
+                    
+                    // Transform to: {label: "January", series: {"Completed": 100, "Pending": 20}}
+                    $months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                    $result = [];
+                    
+                    foreach ($months as $month) {
+                        $result[$month] = ['label' => $month, 'series' => []];
                     }
+                    
+                    foreach ($qb as $row) {
+                        if (isset($result[$row->month_name])) {
+                            $result[$row->month_name]['series'][$row->status_value] = (float)$row->value;
+                        }
+                    }
+                    
+                    return response()->json([
+                        'status' => 'success',
+                        'data' => array_values($result),
+                        'barangays' => $response['barangays']
+                    ]);
+                } else {
+                    // Get all portal payment statuses per month
+                    $qb = DB::table('payment_portal_logs')
+                        ->select(
+                            DB::raw("MONTH(date_time) as month_num"),
+                            DB::raw("MONTHNAME(date_time) as month_name"),
+                            DB::raw("IFNULL(status, 'Unknown') as status_value"),
+                            // Count records or sum amounts based on param
+                            $param === 'amount'
+                                ? DB::raw("SUM(IFNULL(total_amount, 0)) as value")
+                                : DB::raw("COUNT(*) as value")
+                        )
+                        ->whereYear('date_time', $year)
+                        ->whereNotNull('date_time')
+                        ->groupBy(DB::raw("MONTH(date_time)"), DB::raw("MONTHNAME(date_time)"), DB::raw("IFNULL(status, 'Unknown')"))
+                        ->orderBy(DB::raw("MONTH(date_time)"))
+                        ->get();
+                    
+                    // Transform to: {label: "January", series: {"Success": 80, "Failed": 5}}
+                    $months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                    $result = [];
+                    
+                    foreach ($months as $month) {
+                        $result[$month] = ['label' => $month, 'series' => []];
+                    }
+                    
+                    foreach ($qb as $row) {
+                        if (isset($result[$row->month_name])) {
+                            $result[$row->month_name]['series'][$row->status_value] = (float)$row->value;
+                        }
+                    }
+                    
+                    return response()->json([
+                        'status' => 'success',
+                        'data' => array_values($result),
+                        'barangays' => $response['barangays']
+                    ]);
                 }
-
-                return response()->json(['status' => 'success', 'data' => array_values($structured), 'barangays' => $response['barangays']]);
             }
 
             // 8) EXPENSES (your real table is expenses_log; category_id exists)
@@ -478,20 +523,21 @@ class MonitorController extends Controller
                 return response()->json(['status' => 'success', 'data' => $data, 'barangays' => $response['barangays']]);
             }
 
-            // 11) REFER RANK (job_orders.referred_by)
+            // 11) REFER RANK (applications.referred_by via job_orders.application_id)
             if ($action === 'jo_refer_rank') {
                 $qb = DB::table('job_orders')
+                    ->join('applications', 'job_orders.application_id', '=', 'applications.id')
                     ->select(
-                        DB::raw("COALESCE(referred_by, 'Unknown') as label"),
+                        DB::raw("COALESCE(applications.referred_by, 'Unknown') as label"),
                         DB::raw("COUNT(*) as value")
                     )
-                    ->where('onsite_status', 'Done')
-                    ->whereNotNull('referred_by')
-                    ->where('referred_by', '!=', '');
+                    ->where('job_orders.onsite_status', 'Done')
+                    ->whereNotNull('applications.referred_by')
+                    ->where('applications.referred_by', '!=', '');
 
                 $applyScope($qb, 'job_orders.timestamp');
 
-                $qb->groupBy('referred_by')
+                $qb->groupBy('applications.referred_by')
                    ->orderByDesc('value')
                    ->limit(20);
 

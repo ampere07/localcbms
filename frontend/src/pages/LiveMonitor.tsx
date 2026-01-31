@@ -179,21 +179,27 @@ const LiveMonitor: React.FC = () => {
   const generateChartData = (widgetData: WidgetData[], widgetId: string) => {
     if (!widgetData || widgetData.length === 0) return null;
 
+    // Handle multi-series data (e.g., Invoice Yearly Count with Paid/Unpaid statuses per month)
+    // Data format: [{label: "January", series: {"Paid": 150, "Unpaid": 30}}, ...]
     if (widgetData[0].series) {
-      const labels = widgetData.map(d => d.label);
+      const labels = widgetData.map(d => d.label); // Months: January, February, etc.
+      
+      // Extract all unique status values (Paid, Unpaid, Pending, etc.) from all months
       const seriesKeys = Array.from(new Set(widgetData.flatMap(d => Object.keys(d.series || {}))));
 
       return {
-        labels,
+        labels, // X-axis: Months
         datasets: seriesKeys.map((key, idx) => ({
-          label: key,
-          data: widgetData.map(d => Number(d.series?.[key] || 0)),
+          label: key, // Each status becomes a line/series (Paid, Unpaid, etc.)
+          data: widgetData.map(d => Number(d.series?.[key] || 0)), // Y-axis: counts/amounts per month
           backgroundColor: CHART_COLORS[idx % CHART_COLORS.length],
           borderWidth: 0
         }))
       };
     }
 
+    // Handle simple data (single value per label)
+    // Data format: [{label: "Category A", value: 100}, ...]
     return {
       labels: widgetData.map(d => d.label),
       datasets: [{

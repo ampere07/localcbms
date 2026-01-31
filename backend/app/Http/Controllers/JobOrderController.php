@@ -1222,6 +1222,29 @@ class JobOrderController extends Controller
 
             DB::beginTransaction();
 
+            $radiusConfig = RadiusConfig::first();
+            
+            if (!$radiusConfig) {
+                \Log::error('RADIUS configuration not found in database');
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'RADIUS configuration not found. Please configure RADIUS settings first.',
+                ], 500);
+            }
+
+            $radiusUrl = $radiusConfig->ssl_type . '://' . $radiusConfig->ip . ':' . $radiusConfig->port . '/rest/user-manage/user';
+            $radiusUsername = $radiusConfig->username;
+            $radiusPassword = $radiusConfig->password;
+
+            \Log::info('RADIUS configuration loaded', [
+                'ssl_type' => $radiusConfig->ssl_type,
+                'ip' => $radiusConfig->ip,
+                'port' => $radiusConfig->port,
+                'url' => $radiusUrl,
+                'username' => $radiusConfig->username
+            ]);
+
             $jobOrder = JobOrder::with(['application', 'lcpnapLocation'])->findOrFail($id);
             
             if (!$jobOrder->application) {
@@ -1233,74 +1256,68 @@ class JobOrderController extends Controller
             \Log::info('Job order and application loaded', [
                 'job_order_id' => $id,
                 'application_id' => $application->id,
-                'customer_name' => $application->first_name . ' ' . $application->last_name
+                'customer_name' => $application->first_name . ' ' . $application->last_name,
+                'existing_username' => $jobOrder->pppoe_username,
+                'existing_password' => $jobOrder->pppoe_password ? 'EXISTS' : 'NULL'
             ]);
 
-            // Generate PPPoE credentials using pattern-based service
-            \Log::info('Starting PPPoE credential generation', [
-                'job_order_id' => $id,
-                'customer_first_name' => $application->first_name,
-                'customer_last_name' => $application->last_name,
-                'customer_mobile' => $application->mobile_number
-            ]);
-            
-            $pppoeService = new PppoeUsernameService();
-            
-            $customerData = [
-                'first_name' => $application->first_name ?? '',
-                'middle_initial' => $application->middle_initial ?? '',
-                'last_name' => $application->last_name ?? '',
-                'mobile_number' => $application->mobile_number ?? '',
-                'lcp' => $jobOrder->lcpnapLocation->lcp ?? '',
-                'nap' => $jobOrder->lcpnapLocation->nap ?? '',
-            ];
-            
-            // Generate unique PPPoE username based on patterns
-            $pppoeUsername = $pppoeService->generateUniqueUsername($customerData, $id);
-            $pppoePassword = $pppoeService->generatePassword($customerData);
-            
-            \Log::info('PPPoE credentials generated successfully', [
-                'job_order_id' => $id,
-                'pppoe_username' => $pppoeUsername,
-                'pppoe_password' => '***' . substr($pppoePassword, -4), // Masked for security
-                'username_length' => strlen($pppoeUsername),
-                'password_length' => strlen($pppoePassword),
-                'lcp_value' => $jobOrder->lcpnapLocation->lcp ?? 'NOT SET',
-                'nap_value' => $jobOrder->lcpnapLocation->nap ?? 'NOT SET',
-                'username_pattern_source' => 'pppoe_username_patterns table (pattern_type=username)',
-                'password_pattern_source' => 'pppoe_username_patterns table (pattern_type=password)'
-            ]);
+            $credentialsExist = !empty($jobOrder->pppoe_username) && !empty($jobOrder->pppoe_password);
+            $pppoeUsername = $jobOrder->pppoe_username;
+            $pppoePassword = $jobOrder->pppoe_password;
+            $radiusSubmitted = false;
+            $radiusError = null;
 
-            // Update job order with credentials
-            \Log::info('About to save PPPoE credentials', [
-                'pppoe_username' => $pppoeUsername,
-                'pppoe_password_length' => strlen($pppoePassword),
-                'pppoe_password_is_empty' => empty($pppoePassword),
-                'pppoe_password_preview' => substr($pppoePassword, 0, 3) . '***'
-            ]);
-            
-            $updateResult = $jobOrder->update([
-                'pppoe_username' => $pppoeUsername,
-                'pppoe_password' => $pppoePassword,
-                'updated_by_user_email' => request()->input('updated_by_user_email', 'system@ampere.com')
-            ]);
-            
-            // Refresh to verify what was saved
-            $jobOrder->refresh();
-            
-            \Log::info('PPPoE credentials saved to job_orders table', [
-                'job_order_id' => $id,
-                'update_result' => $updateResult,
-                'table' => 'job_orders',
-                'columns_updated' => ['pppoe_username', 'pppoe_password'],
-                'pppoe_username_saved' => $jobOrder->pppoe_username,
-                'pppoe_password_saved_length' => strlen($jobOrder->pppoe_password ?? ''),
-                'pppoe_password_is_null' => is_null($jobOrder->pppoe_password),
-                'pppoe_password_is_empty' => empty($jobOrder->pppoe_password),
-                'pppoe_password_preview' => $jobOrder->pppoe_password ? substr($jobOrder->pppoe_password, 0, 3) . '***' : 'NULL'
-            ]);
+            if (!$credentialsExist) {
+                \Log::info('No existing credentials found, generating new ones', [
+                    'job_order_id' => $id
+                ]);
+                
+                $pppoeService = new PppoeUsernameService();
+                
+                $customerData = [
+                    'first_name' => $application->first_name ?? '',
+                    'middle_initial' => $application->middle_initial ?? '',
+                    'last_name' => $application->last_name ?? '',
+                    'mobile_number' => $application->mobile_number ?? '',
+                    'lcp' => $jobOrder->lcpnapLocation->lcp ?? '',
+                    'nap' => $jobOrder->lcpnapLocation->nap ?? '',
+                ];
+                
+                $pppoeUsername = $pppoeService->generateUniqueUsername($customerData, $id);
+                $pppoePassword = $pppoeService->generatePassword($customerData);
+                
+                if (empty($pppoeUsername) || empty($pppoePassword)) {
+                    throw new \Exception('Failed to generate PPPoE credentials');
+                }
+                
+                \Log::info('New PPPoE credentials generated', [
+                    'job_order_id' => $id,
+                    'pppoe_username' => $pppoeUsername,
+                    'username_length' => strlen($pppoeUsername),
+                    'password_length' => strlen($pppoePassword)
+                ]);
 
-            // Extract plan name from desired_plan
+                $updateResult = $jobOrder->update([
+                    'pppoe_username' => $pppoeUsername,
+                    'pppoe_password' => $pppoePassword,
+                    'updated_by_user_email' => request()->input('updated_by_user_email', 'system@ampere.com')
+                ]);
+                
+                $jobOrder->refresh();
+                
+                \Log::info('PPPoE credentials saved to job_orders table', [
+                    'job_order_id' => $id,
+                    'update_result' => $updateResult,
+                    'pppoe_username_saved' => $jobOrder->pppoe_username,
+                    'pppoe_password_saved_length' => strlen($jobOrder->pppoe_password ?? '')
+                ]);
+            } else {
+                \Log::info('Credentials already exist, reusing existing credentials', [
+                    'job_order_id' => $id,
+                    'pppoe_username' => $pppoeUsername
+                ]);
+            }
+
             $desiredPlan = $application->desired_plan;
             $plan = $desiredPlan;
             
@@ -1314,7 +1331,6 @@ class JobOrderController extends Controller
                 'extracted_plan' => $plan
             ]);
 
-            // Submit to MikroTik API
             try {
                 $payload = [
                     'name' => $pppoeUsername,
@@ -1322,56 +1338,100 @@ class JobOrderController extends Controller
                     'password' => $pppoePassword
                 ];
 
-                \Log::info('Submitting to MikroTik API', [
-                    'url' => 'https://103.121.65.24:8729/rest/user-manage/user',
+                \Log::info('Submitting to RADIUS API', [
+                    'url' => $radiusUrl,
+                    'method' => 'PUT',
                     'payload' => [
                         'name' => $pppoeUsername,
                         'group' => $plan,
                         'password' => '***'
-                    ]
+                    ],
+                    'auth_username' => $radiusUsername
                 ]);
 
                 $response = Http::withOptions([
                     'verify' => false
-                ])->post('https://103.121.65.24:8729/rest/user-manage/user', $payload);
+                ])
+                ->withBasicAuth($radiusUsername, $radiusPassword)
+                ->put($radiusUrl, $payload);
 
-                if ($response->successful()) {
-                    \Log::info('MikroTik API submission successful', [
-                        'status' => $response->status(),
-                        'response' => $response->json()
+                $statusCode = $response->status();
+
+                if ($statusCode === 204 || $response->successful()) {
+                    $radiusSubmitted = true;
+                    \Log::info('RADIUS API submission successful', [
+                        'status' => $statusCode,
+                        'response' => $statusCode === 204 ? 'No Content (Success)' : $response->json()
                     ]);
                 } else {
-                    \Log::warning('MikroTik API submission failed', [
-                        'status' => $response->status(),
-                        'error' => $response->body()
+                    $radiusError = 'HTTP ' . $statusCode . ': ' . $response->body();
+                    \Log::error('RADIUS API submission failed', [
+                        'status' => $statusCode,
+                        'error' => $response->body(),
+                        'headers' => $response->headers()
                     ]);
+                    
+                    if (!$credentialsExist) {
+                        DB::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Failed to create RADIUS account',
+                            'error' => $radiusError,
+                            'radius_url' => $radiusUrl,
+                            'http_status' => $statusCode
+                        ], 500);
+                    }
                 }
             } catch (\Exception $mikrotikException) {
-                \Log::error('MikroTik API submission error', [
-                    'error' => $mikrotikException->getMessage()
+                $radiusError = $mikrotikException->getMessage();
+                \Log::error('RADIUS API submission exception', [
+                    'error' => $radiusError,
+                    'trace' => $mikrotikException->getTraceAsString()
                 ]);
+                
+                if (!$credentialsExist) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed to connect to RADIUS server',
+                        'error' => $radiusError,
+                        'radius_url' => $radiusUrl
+                    ], 500);
+                }
             }
 
             DB::commit();
 
-            \Log::info('=== RADIUS ACCOUNT CREATED SUCCESSFULLY ===', [
+            \Log::info('=== RADIUS ACCOUNT OPERATION COMPLETED ===', [
                 'job_order_id' => $id,
-                'pppoe_username' => $jobOrder->pppoe_username,
-                'pppoe_password_saved' => !empty($jobOrder->pppoe_password)
+                'credentials_existed' => $credentialsExist,
+                'pppoe_username' => $pppoeUsername,
+                'radius_submitted' => $radiusSubmitted,
+                'radius_error' => $radiusError
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'RADIUS account created successfully',
+                'message' => $credentialsExist ? 'RADIUS credentials already exist' : 'RADIUS account created successfully',
                 'data' => [
                     'job_order_id' => $id,
-                    'username' => $jobOrder->pppoe_username,
-                    'password' => $jobOrder->pppoe_password,
+                    'username' => $pppoeUsername,
+                    'password' => $pppoePassword,
                     'group' => $plan,
-                    'pppoe_username' => $jobOrder->pppoe_username,
-                    'pppoe_password' => $jobOrder->pppoe_password,
+                    'credentials_exist' => $credentialsExist,
+                    'radius_response' => [
+                        'submitted' => $radiusSubmitted,
+                        'status' => $radiusSubmitted ? 'success' : 'failed',
+                        'error' => $radiusError
+                    ],
                     'customer_name' => $application->first_name . ' ' . $application->last_name,
-                    'plan' => $plan
+                    'plan' => $plan,
+                    'radius_config' => [
+                        'url' => $radiusUrl,
+                        'ssl_type' => $radiusConfig->ssl_type,
+                        'ip' => $radiusConfig->ip,
+                        'port' => $radiusConfig->port
+                    ]
                 ]
             ]);
 
