@@ -29,7 +29,9 @@ class HandleCorsManually
         // Handle preflight OPTIONS request
         if ($request->getMethod() === 'OPTIONS') {
             $response = response('', 200);
-            // Set CORS headers for preflight
+0   
+
+// Set CORS headers for preflight
             if ($origin && in_array($origin, $allowedOrigins)) {
                 $response->header('Access-Control-Allow-Origin', $origin);
             } else {
