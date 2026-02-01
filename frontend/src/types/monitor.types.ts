@@ -1,4 +1,4 @@
-// src/types/monitor.types.ts
+import { Layout } from 'react-grid-layout';
 
 export type ViewType = 'bar' | 'line' | 'pie' | 'doughnut' | 'list' | 'grid';
 export type ScopeType = 'overall' | 'today' | 'custom';
@@ -24,6 +24,7 @@ export interface WidgetState {
   startDate?: string; // YYYY-MM-DD
   endDate?: string;   // YYYY-MM-DD
   visible: boolean;
+  layout?: Layout;
 }
 
 export type FilterType =

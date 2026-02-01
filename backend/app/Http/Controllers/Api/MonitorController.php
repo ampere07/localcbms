@@ -64,22 +64,34 @@ class MonitorController extends Controller
             // TEMPLATE MANAGEMENT
             // dashboard_templates: id, template_name, layout_data, style_data
             // -------------------------
+            // -------------------------
+            // TEMPLATE MANAGEMENT
+            // Uses App\Models\DashboardTemplate
+            // -------------------------
             if ($action === 'save_template') {
                 $name   = $request->input('name', 'Untitled');
                 $layout = $request->input('layout', '[]');
                 $styles = $request->input('styles', '{}');
 
-                $id = DB::table('dashboard_templates')->insertGetId([
+                if (is_string($layout)) {
+                    $decoded = json_decode($layout, true);
+                    if (json_last_error() === JSON_ERROR_NONE) $layout = $decoded;
+                }
+                
+                if (is_string($styles)) {
+                    $decoded = json_decode($styles, true);
+                    if (json_last_error() === JSON_ERROR_NONE) $styles = $decoded;
+                }
+
+                $template = \App\Models\DashboardTemplate::create([
                     'template_name' => $name,
                     'layout_data'   => $layout,
                     'style_data'    => $styles,
-                    'created_at'    => now(),
-                    'updated_at'    => now(),
                 ]);
 
                 return response()->json([
                     'status' => 'success',
-                    'id' => $id,
+                    'id' => $template->id,
                     'message' => 'Template saved successfully',
                 ]);
             }
@@ -89,20 +101,29 @@ class MonitorController extends Controller
                 $layout = $request->input('layout', '[]');
                 $styles = $request->input('styles', '{}');
 
-                DB::table('dashboard_templates')
-                    ->where('id', $id)
-                    ->update([
+                if (is_string($layout)) {
+                    $decoded = json_decode($layout, true);
+                    if (json_last_error() === JSON_ERROR_NONE) $layout = $decoded;
+                }
+                
+                if (is_string($styles)) {
+                    $decoded = json_decode($styles, true);
+                    if (json_last_error() === JSON_ERROR_NONE) $styles = $decoded;
+                }
+
+                $template = \App\Models\DashboardTemplate::find($id);
+                if ($template) {
+                    $template->update([
                         'layout_data' => $layout,
                         'style_data'  => $styles,
-                        'updated_at'  => now(),
                     ]);
-
-                return response()->json(['status' => 'success', 'message' => 'Template updated successfully']);
+                    return response()->json(['status' => 'success', 'message' => 'Template updated successfully']);
+                }
+                return response()->json(['status' => 'error', 'message' => 'Template not found'], 404);
             }
 
             if ($action === 'list_templates') {
-                $data = DB::table('dashboard_templates')
-                    ->select('id', 'template_name', 'created_at')
+                $data = \App\Models\DashboardTemplate::select('id', 'template_name', 'created_at')
                     ->orderByDesc('created_at')
                     ->get();
 
@@ -111,15 +132,15 @@ class MonitorController extends Controller
 
             if ($action === 'load_template') {
                 $id = $request->query('id', 0);
-                $res = DB::table('dashboard_templates')->where('id', $id)->first();
+                $template = \App\Models\DashboardTemplate::find($id);
 
-                if ($res) return response()->json(['status' => 'success', 'data' => $res]);
+                if ($template) return response()->json(['status' => 'success', 'data' => $template]);
                 return response()->json(['status' => 'error', 'message' => 'Template not found'], 404);
             }
 
             if ($action === 'delete_template') {
                 $id = $request->input('id', 0);
-                DB::table('dashboard_templates')->where('id', $id)->delete();
+                \App\Models\DashboardTemplate::destroy($id);
                 return response()->json(['status' => 'success']);
             }
 

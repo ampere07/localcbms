@@ -34,6 +34,7 @@ use App\Models\MassRebate;
 use App\Http\Controllers\Api\MonitorController;
 
 Route::get('/monitor/handle', [MonitorController::class, 'handle']);
+Route::post('/monitor/handle', [MonitorController::class, 'handle']); // Ensure POST is also handled for save_template actions if not using REST
 
 // Handle all OPTIONS requests
 Route::options('{any}', function() {

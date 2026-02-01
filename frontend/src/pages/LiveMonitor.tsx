@@ -27,8 +27,12 @@ import {
   Trash2,
   Eye,
   EyeOff,
+  Move,
   LayoutGrid
 } from 'lucide-react';
+import { Responsive } from 'react-grid-layout';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 import {
   WidgetConfig,
   WidgetData,
@@ -40,6 +44,9 @@ import {
   DEFAULT_VISIBLE_WIDGETS,
   CURRENCY_WIDGETS
 } from '../types/monitor.types';
+
+const WidthProvider = require('react-grid-layout').WidthProvider;
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 ChartJS.register(
   CategoryScale,
@@ -64,6 +71,11 @@ const LiveMonitor: React.FC = () => {
   const [templates, setTemplates] = useState<DashboardTemplate[]>([]);
   const [currentTemplateName, setCurrentTemplateName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isDraggable, setIsDraggable] = useState(false);
+
+  // React Grid Layout state
+  const [layouts, setLayouts] = useState<any>({ lg: [] });
+
   const refreshInterval = useRef<NodeJS.Timeout | null>(null);
 
   // IMPORTANT:
@@ -99,6 +111,25 @@ const LiveMonitor: React.FC = () => {
         };
       }
     });
+
+    // Initialize layout from saved state or default
+    const savedLayouts = localStorage.getItem('dashboard_layouts');
+    if (savedLayouts) {
+      setLayouts(JSON.parse(savedLayouts));
+    } else {
+      // Create default layout
+      const defaultLayout = Object.keys(WIDGETS).map((id, i) => {
+        const config = WIDGETS[id];
+        return {
+          i: id,
+          x: (i * 4) % 12,
+          y: Math.floor(i / 3) * 6,
+          w: config.w || 4,
+          h: 6 // default height
+        };
+      });
+      setLayouts({ lg: defaultLayout, md: defaultLayout, sm: defaultLayout });
+    }
 
     setWidgetStates(initialStates);
 
@@ -517,7 +548,13 @@ const LiveMonitor: React.FC = () => {
           action: 'save_template',
           name: currentTemplateName,
           layout: JSON.stringify(widgetStates),
-          styles: JSON.stringify({ darkMode: isDarkMode })
+          // We now save the visual layout (positions/sizes) in 'style_data' for backward compatibility 
+          // or ideally, we should update the DB schema to have a 'positions_data' column. 
+          // For now, let's piggyback on style_data to store the layouts as 'layoutPositions'
+          styles: JSON.stringify({
+            darkMode: isDarkMode,
+            layoutPositions: layouts
+          })
         })
       });
 
@@ -557,6 +594,11 @@ const LiveMonitor: React.FC = () => {
         if (styleData.darkMode !== undefined) {
           setIsDarkMode(!!styleData.darkMode);
           localStorage.setItem('theme', styleData.darkMode ? 'dark' : 'light');
+        }
+
+        if (styleData.layoutPositions) {
+          setLayouts(styleData.layoutPositions);
+          localStorage.setItem('dashboard_layouts', JSON.stringify(styleData.layoutPositions));
         }
 
         Object.entries(layoutData).forEach(([id, state]) => {
@@ -652,6 +694,15 @@ const LiveMonitor: React.FC = () => {
             >
               <RefreshCw size={16} />
               Refresh
+            </button>
+
+            <button
+              onClick={() => setIsDraggable(!isDraggable)}
+              className={`px-4 py-2 rounded text-white text-sm flex items-center gap-2 ${isDraggable ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+              title={isDraggable ? "Lock Layout" : "Edit Layout"}
+            >
+              <Move size={16} />
+              {isDraggable ? "Done Editing" : "Edit Layout"}
             </button>
           </div>
         </div>
@@ -761,24 +812,45 @@ const LiveMonitor: React.FC = () => {
         </div>
       )}
 
-      {/* Widgets Grid */}
+      {/* Widgets Grid - Replaced with ResponsiveGridLayout */}
       <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <ResponsiveGridLayout
+          className="layout"
+          layouts={layouts}
+          breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+          cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+          rowHeight={60}
+          isDraggable={isDraggable}
+
+          isResizable={isDraggable}
+          onLayoutChange={(currentLayout: any, allLayouts: any) => {
+            setLayouts(allLayouts);
+            localStorage.setItem('dashboard_layouts', JSON.stringify(allLayouts));
+          }}
+          draggableHandle=".drag-handle"
+        >
           {Object.entries(WIDGETS).map(([id, config]) => {
             if (!widgetStates[id]?.visible) return null;
 
             return (
               <div
                 key={id}
-                className={`rounded-lg border-l-4 border-blue-600 shadow-lg ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
-                style={{ gridColumn: (config.w || 4) > 4 ? 'span 2' : 'span 1' }}
+                className={`rounded-lg border-l-4 border-blue-600 shadow-lg flex flex-col ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} ${isDraggable ? 'ring-2 ring-blue-500/50' : ''}`}
               >
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                    <h3 className="text-sm font-bold text-blue-600 uppercase tracking-wide">
-                      {config.title}
-                    </h3>
+                <div className="p-4 flex-1 flex flex-col overflow-hidden">
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-2 slide-header">
                     <div className="flex items-center gap-2">
+                      {isDraggable && (
+                        <div className="drag-handle cursor-move p-1 rounded hover:bg-white/10" title="Drag to move">
+                          <Move size={14} className="text-gray-400" />
+                        </div>
+                      )}
+                      <h3 className="text-sm font-bold text-blue-600 uppercase tracking-wide truncate">
+                        {config.title}
+                      </h3>
+                    </div>
+
+                    <div className="flex items-center gap-2 ml-auto">
                       {renderFilters(id, config)}
                     </div>
                   </div>
@@ -855,7 +927,7 @@ const LiveMonitor: React.FC = () => {
               </div>
             );
           })}
-        </div>
+        </ResponsiveGridLayout>
 
         {Object.values(widgetStates).length > 0 && Object.values(widgetStates).every(state => !state.visible) && (
           <div className="text-center py-20">
