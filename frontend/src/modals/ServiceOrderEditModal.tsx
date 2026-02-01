@@ -104,7 +104,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   const currentUser = getCurrentUser();
   const currentUserEmail = currentUser?.email || 'unknown@ampere.com';
 
-  const [technicians, setTechnicians] = useState<UserData[]>([]);
+  const [technicians, setTechnicians] = useState<Array<{ name: string; email: string }>>([]);
   const [lcps, setLcps] = useState<string[]>([]);
   const [naps, setNaps] = useState<string[]>([]);
   const [ports, setPorts] = useState<string[]>([]);
@@ -185,7 +185,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     timeOutFile: null,
     clientSignatureFile: null
   });
-  
+
   const [modal, setModal] = useState<ModalConfig>({
     isOpen: false,
     type: 'success',
@@ -274,13 +274,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
           try {
             const response = await apiClient.get(`/service-order-items?service_order_id=${serviceOrderId}`);
             const data = response.data as { success: boolean; data: any[] };
-            
+
             if (data.success && Array.isArray(data.data)) {
               const items = data.data;
-              
+
               if (items.length > 0) {
                 const uniqueItems = new Map();
-                
+
                 items.forEach((item: any) => {
                   const key = item.item_name;
                   if (uniqueItems.has(key)) {
@@ -296,10 +296,10 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     });
                   }
                 });
-                
+
                 const formattedItems = Array.from(uniqueItems.values());
                 formattedItems.push({ itemId: '', quantity: '' });
-                
+
                 setOrderItems(formattedItems);
               } else {
                 setOrderItems([{ itemId: '', quantity: '' }]);
@@ -311,7 +311,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         }
       }
     };
-    
+
     fetchServiceOrderItems();
   }, [isOpen, serviceOrderData]);
 
@@ -320,7 +320,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       if (isOpen) {
         try {
           const response = await getAllInventoryItems();
-          
+
           if (response.success && Array.isArray(response.data)) {
             setInventoryItems(response.data);
           } else {
@@ -331,19 +331,31 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         }
       }
     };
-    
+
     fetchInventoryItems();
   }, [isOpen]);
 
   useEffect(() => {
     const fetchTechnicians = async () => {
       try {
-        const response = await apiClient.get<{ success: boolean; data: UserData[] }>('/users');
+        const response = await apiClient.get<{ success: boolean; data: any[] }>('/users');
         if (response.data.success && Array.isArray(response.data.data)) {
-          const technicianUsers = response.data.data.filter(user => {
-            const role = typeof user.role === 'string' ? user.role : (user.role as any)?.role_name || '';
-            return role.toLowerCase() === 'technician';
-          });
+          const technicianUsers = response.data.data
+            .filter(user => {
+              const role = typeof user.role === 'string' ? user.role : (user.role as any)?.role_name || '';
+              return role.toLowerCase() === 'technician';
+            })
+            .map(user => {
+              const firstName = (user.first_name || '').trim();
+              const lastName = (user.last_name || '').trim();
+              const fullName = `${firstName} ${lastName}`.trim();
+              return {
+                email: user.email_address || user.email || '',
+                name: fullName || user.username || user.email_address || user.email || ''
+              };
+            })
+            .filter(tech => tech.name);
+
           console.log('Fetched technicians:', technicianUsers);
           setTechnicians(technicianUsers);
         }
@@ -384,7 +396,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         console.error('Error fetching technical details:', error);
       }
     };
-    
+
     if (isOpen) {
       fetchTechnicians();
       fetchTechnicalDetails();
@@ -396,7 +408,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       console.log('ServiceOrderEditModal - Received data:', serviceOrderData);
       console.log('Date Installed (dateInstalled):', serviceOrderData.dateInstalled);
       console.log('Date Installed (date_installed):', serviceOrderData.date_installed);
-      
+
       setFormData(prev => ({
         ...prev,
         accountNo: serviceOrderData.accountNumber || serviceOrderData.account_no || '',
@@ -454,51 +466,51 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       try {
         console.log(`Resizing ${field} image...`);
         console.log('Original file size:', (file.size / 1024 / 1024).toFixed(2), 'MB');
-        
+
         const resizedFile = await resizeImage(file, activeImageSize.image_size_value);
-        
+
         console.log('Resized file size:', (resizedFile.size / 1024 / 1024).toFixed(2), 'MB');
         console.log('Size reduction:', ((1 - resizedFile.size / file.size) * 100).toFixed(2), '%');
-        
+
         const fileToUse = resizedFile.size < file.size ? resizedFile : file;
         setImageFiles(prev => ({ ...prev, [field]: fileToUse }));
-        
+
         if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
           URL.revokeObjectURL(imagePreviews[field]!);
         }
-        
+
         const previewUrl = URL.createObjectURL(fileToUse);
         setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
-        
+
         if (errors[field]) {
           setErrors(prev => ({ ...prev, [field]: '' }));
         }
       } catch (error) {
         console.error('Error resizing image:', error);
         setImageFiles(prev => ({ ...prev, [field]: file }));
-        
+
         if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
           URL.revokeObjectURL(imagePreviews[field]!);
         }
-        
+
         const previewUrl = URL.createObjectURL(file);
         setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
-        
+
         if (errors[field]) {
           setErrors(prev => ({ ...prev, [field]: '' }));
         }
       }
     } else {
       setImageFiles(prev => ({ ...prev, [field]: file }));
-      
+
       if (file) {
         if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
           URL.revokeObjectURL(imagePreviews[field]!);
         }
-        
+
         const previewUrl = URL.createObjectURL(file);
         setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
-        
+
         if (errors[field]) {
           setErrors(prev => ({ ...prev, [field]: '' }));
         }
@@ -576,13 +588,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     if (!formData.accountNo.trim()) newErrors.accountNo = 'Account No is required';
     if (!formData.fullName.trim()) newErrors.fullName = 'Full Name is required';
     if (!formData.contactNumber.trim()) newErrors.contactNumber = 'Contact Number is required';
-    
+
     if (!formData.emailAddress.trim()) {
       newErrors.emailAddress = 'Email Address is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.emailAddress.trim())) {
       newErrors.emailAddress = 'Please enter a valid email address';
     }
-    
+
     if (!formData.plan.trim()) newErrors.plan = 'Plan is required';
     if (!formData.username.trim()) newErrors.username = 'Username is required';
     if (!formData.connectionType.trim()) newErrors.connectionType = 'Connection Type is required';
@@ -597,7 +609,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     const newOrderItems = [...orderItems];
     newOrderItems[index][field] = value;
     setOrderItems(newOrderItems);
-    
+
     if (field === 'itemId' && value && index === orderItems.length - 1) {
       setOrderItems([...newOrderItems, { itemId: '', quantity: '' }]);
     }
@@ -624,9 +636,9 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         hour12: true
       })
     };
-    
+
     setFormData(updatedFormData);
-    
+
     if (!validateForm()) {
       setModal({
         isOpen: true,
@@ -653,29 +665,29 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       title: 'Saving',
       message: 'Please wait while we save your changes...'
     });
-    
+
     setLoading(true);
     setUploadProgress(0);
-    
+
     try {
       const serviceOrderId = serviceOrderData.id;
-      
+
       setModal({
         isOpen: true,
         type: 'loading',
         title: 'Uploading Images',
         message: `Uploading images to Google Drive... 0%`
       });
-      
+
       const imageUrls = await uploadAllImages();
-      
+
       setModal({
         isOpen: true,
         type: 'loading',
         title: 'Saving Service Order',
         message: 'Saving service order details...'
       });
-      
+
       const serviceOrderUpdateData: any = {
         account_no: updatedFormData.accountNo,
         date_installed: updatedFormData.dateInstalled,
@@ -719,10 +731,10 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       };
 
       const response = await apiClient.put<{ success: boolean; message?: string; data?: any }>(
-        `/service-orders/${serviceOrderId}`, 
+        `/service-orders/${serviceOrderId}`,
         serviceOrderUpdateData
       );
-      
+
       if (!response.data.success) {
         throw new Error(response.data.message || 'Service order update failed');
       }
@@ -737,10 +749,10 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       if (validItems.length > 0) {
         try {
           const existingItemsResponse = await apiClient.get<{ success: boolean; data: any[] }>(`/service-order-items?service_order_id=${serviceOrderId}`);
-          
+
           if (existingItemsResponse.data.success && existingItemsResponse.data.data.length > 0) {
             const existingItems = existingItemsResponse.data.data;
-            
+
             for (const item of existingItems) {
               try {
                 await apiClient.delete(`/service-order-items/${item.id}`);
@@ -760,10 +772,10 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
             quantity: parseInt(item.quantity)
           };
         });
-        
+
         try {
           const itemsResponse = await createServiceOrderItems(serviceOrderItems);
-          
+
           if (!itemsResponse.success) {
             throw new Error(itemsResponse.message || 'Failed to create service order items');
           }
@@ -819,35 +831,30 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-        <div className={`h-full w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col ${
-          isDarkMode ? 'bg-gray-900' : 'bg-white'
-        }`}>
-          <div className={`px-6 py-4 flex items-center justify-between border-b ${
-            isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
+        <div className={`h-full w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
           }`}>
+          <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
+            }`}>
             <div className="flex items-center space-x-3">
-              <button onClick={onClose} className={`${
-                isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-              }`}>
+              <button onClick={onClose} className={`${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                }`}>
                 <X size={24} />
               </button>
-              <h2 className={`text-xl font-semibold ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
+              <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
                 {serviceOrderData?.ticket_id || serviceOrderData?.id} | {formData.fullName}
               </h2>
             </div>
             <div className="flex items-center space-x-3">
-              <button onClick={onClose} className={`px-4 py-2 rounded text-sm ${
-                isDarkMode 
-                  ? 'border border-orange-600 text-orange-600 hover:bg-orange-600 hover:text-white'
-                  : 'bg-gray-400 hover:bg-gray-500 text-white'
-              }`}>
+              <button onClick={onClose} className={`px-4 py-2 rounded text-sm ${isDarkMode
+                ? 'border border-orange-600 text-orange-600 hover:bg-orange-600 hover:text-white'
+                : 'bg-gray-400 hover:bg-gray-500 text-white'
+                }`}>
                 Cancel
               </button>
-              <button 
-                onClick={handleSave} 
-                disabled={loading} 
+              <button
+                onClick={handleSave}
+                disabled={loading}
                 className="px-4 py-2 disabled:opacity-50 text-white rounded text-sm"
                 style={{
                   backgroundColor: colorPalette?.primary || '#ea580c'
@@ -870,25 +877,22 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Account No<span className="text-red-500">*</span></label>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Account No<span className="text-red-500">*</span></label>
               <div className="relative">
-                <select 
-                  value={formData.accountNo} 
-                  onChange={(e) => handleInputChange('accountNo', e.target.value)} 
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.accountNo ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                <select
+                  value={formData.accountNo}
+                  onChange={(e) => handleInputChange('accountNo', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    } ${errors.accountNo ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                 >
                   <option value="">Select Account</option>
                   {formData.accountNo && (
                     <option value={formData.accountNo}>{formData.accountNo}</option>
                   )}
                 </select>
-                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`} size={20} />
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
               </div>
               {errors.accountNo && (
                 <div className="flex items-center mt-1">
@@ -899,21 +903,18 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Date Installed<span className="text-red-500">*</span></label>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Date Installed<span className="text-red-500">*</span></label>
               <div className="relative">
-                <input 
-                  type="date" 
-                  value={formData.dateInstalled} 
-                  onChange={(e) => handleInputChange('dateInstalled', e.target.value)} 
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.dateInstalled ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} 
+                <input
+                  type="date"
+                  value={formData.dateInstalled}
+                  onChange={(e) => handleInputChange('dateInstalled', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    } ${errors.dateInstalled ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                 />
-                <Calendar className={`absolute right-3 top-2.5 pointer-events-none ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`} size={20} />
+                <Calendar className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
               </div>
               {errors.dateInstalled && (
                 <div className="flex items-center mt-1">
@@ -924,111 +925,97 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Full Name<span className="text-red-500">*</span></label>
-              <input 
-                type="text" 
-                value={formData.fullName} 
-                onChange={(e) => handleInputChange('fullName', e.target.value)} 
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${errors.fullName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} 
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Full Name<span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={formData.fullName}
+                onChange={(e) => handleInputChange('fullName', e.target.value)}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  } ${errors.fullName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
               />
               {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Contact Number<span className="text-red-500">*</span></label>
-              <input 
-                type="text" 
-                value={formData.contactNumber} 
-                onChange={(e) => handleInputChange('contactNumber', e.target.value)} 
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${errors.contactNumber ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} 
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Contact Number<span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={formData.contactNumber}
+                onChange={(e) => handleInputChange('contactNumber', e.target.value)}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  } ${errors.contactNumber ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
               />
               {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Email Address<span className="text-red-500">*</span></label>
-              <input 
-                type="email" 
-                value={formData.emailAddress} 
-                onChange={(e) => handleInputChange('emailAddress', e.target.value)} 
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${errors.emailAddress ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} 
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Email Address<span className="text-red-500">*</span></label>
+              <input
+                type="email"
+                value={formData.emailAddress}
+                onChange={(e) => handleInputChange('emailAddress', e.target.value)}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  } ${errors.emailAddress ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
               />
               {errors.emailAddress && <p className="text-red-500 text-xs mt-1">{errors.emailAddress}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Plan<span className="text-red-500">*</span></label>
-              <input 
-                type="text" 
-                value={formData.plan} 
-                onChange={(e) => handleInputChange('plan', e.target.value)} 
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
-                  isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
-                } ${errors.plan ? 'border-red-500' : ''}`} 
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Plan<span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={formData.plan}
+                onChange={(e) => handleInputChange('plan', e.target.value)}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.plan ? 'border-red-500' : ''}`}
                 readOnly
               />
               {errors.plan && <p className="text-red-500 text-xs mt-1">{errors.plan}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Affiliate</label>
-              <input 
-                type="text" 
-                value={formData.affiliate} 
-                onChange={(e) => handleInputChange('affiliate', e.target.value)} 
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
-                  isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
-                }`} 
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Affiliate</label>
+              <input
+                type="text"
+                value={formData.affiliate}
+                onChange={(e) => handleInputChange('affiliate', e.target.value)}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  }`}
                 readOnly
               />
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Username<span className="text-red-500">*</span></label>
-              <input 
-                type="text" 
-                value={formData.username} 
-                onChange={(e) => handleInputChange('username', e.target.value)} 
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${errors.username ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} 
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Username<span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={formData.username}
+                onChange={(e) => handleInputChange('username', e.target.value)}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  } ${errors.username ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
               />
               {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Connection Type<span className="text-red-500">*</span></label>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Connection Type<span className="text-red-500">*</span></label>
               <div className="grid grid-cols-3 gap-2">
-                <button 
-                  type="button" 
-                  onClick={() => handleInputChange('connectionType', 'Fiber')} 
-                  className={`py-2 px-4 rounded border transition-colors duration-200 ${
-                    formData.connectionType === 'Fiber' 
-                      ? 'bg-orange-600 border-orange-700' 
-                      : isDarkMode
+                <button
+                  type="button"
+                  onClick={() => handleInputChange('connectionType', 'Fiber')}
+                  className={`py-2 px-4 rounded border transition-colors duration-200 ${formData.connectionType === 'Fiber'
+                    ? 'bg-orange-600 border-orange-700'
+                    : isDarkMode
                       ? 'bg-gray-800 border-gray-700'
                       : 'bg-white border-gray-300'
-                  } text-white`}
+                    } text-white`}
                 >
                   Fiber
                 </button>
@@ -1042,16 +1029,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Router/Modem SN<span className="text-red-500">*</span></label>
-              <input 
-                type="text" 
-                value={formData.routerModemSN} 
-                onChange={(e) => handleInputChange('routerModemSN', e.target.value)} 
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${errors.routerModemSN ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} 
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Router/Modem SN<span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={formData.routerModemSN}
+                onChange={(e) => handleInputChange('routerModemSN', e.target.value)}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  } ${errors.routerModemSN ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
               />
               {errors.routerModemSN && (
                 <div className="flex items-center mt-1">
@@ -1062,101 +1047,88 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>LCP</label>
-              <input 
-                type="text" 
-                value={formData.lcp} 
-                onChange={(e) => handleInputChange('lcp', e.target.value)} 
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
-                  isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
-                }`} 
-                readOnly
-              />
-            </div>
-
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>NAP</label>
-              <input 
-                type="text" 
-                value={formData.nap} 
-                onChange={(e) => handleInputChange('nap', e.target.value)} 
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
-                  isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
-                }`} 
-                readOnly
-              />
-            </div>
-
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>PORT<span className="text-red-500">*</span></label>
-              <input 
-                type="text" 
-                value={formData.port} 
-                onChange={(e) => handleInputChange('port', e.target.value)} 
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
-                  isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
-                } ${errors.port ? 'border-red-500' : ''}`} 
-                readOnly
-              />
-            </div>
-
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>VLAN<span className="text-red-500">*</span></label>
-              <input 
-                type="text" 
-                value={formData.vlan} 
-                onChange={(e) => handleInputChange('vlan', e.target.value)} 
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${
-                  isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
-                } ${errors.vlan ? 'border-red-500' : ''}`} 
-                readOnly
-              />
-            </div>
-
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Support Status</label>
-              <div className="relative">
-                <select 
-                  value={formData.supportStatus} 
-                  onChange={(e) => handleInputChange('supportStatus', e.target.value)} 
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                    isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>LCP</label>
+              <input
+                type="text"
+                value={formData.lcp}
+                onChange={(e) => handleInputChange('lcp', e.target.value)}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   }`}
+                readOnly
+              />
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>NAP</label>
+              <input
+                type="text"
+                value={formData.nap}
+                onChange={(e) => handleInputChange('nap', e.target.value)}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  }`}
+                readOnly
+              />
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>PORT<span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={formData.port}
+                onChange={(e) => handleInputChange('port', e.target.value)}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.port ? 'border-red-500' : ''}`}
+                readOnly
+              />
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>VLAN<span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={formData.vlan}
+                onChange={(e) => handleInputChange('vlan', e.target.value)}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.vlan ? 'border-red-500' : ''}`}
+                readOnly
+              />
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Support Status</label>
+              <div className="relative">
+                <select
+                  value={formData.supportStatus}
+                  onChange={(e) => handleInputChange('supportStatus', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                    }`}
                 >
                   <option value="Resolved">Resolved</option>
                   <option value="Failed">Failed</option>
                   <option value="In Progress">In Progress</option>
                   <option value="For Visit">For Visit</option>
                 </select>
-                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`} size={20} />
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
               </div>
             </div>
 
             {formData.supportStatus === 'For Visit' && (
               <>
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>Visit Status<span className="text-red-500">*</span></label>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Visit Status<span className="text-red-500">*</span></label>
                   <div className="relative">
-                    <select 
-                      value={formData.visitStatus} 
-                      onChange={(e) => handleInputChange('visitStatus', e.target.value)} 
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                        isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                      } ${errors.visitStatus ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                    <select
+                      value={formData.visitStatus}
+                      onChange={(e) => handleInputChange('visitStatus', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                        } ${errors.visitStatus ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                     >
                       <option value="">Select Visit Status</option>
                       <option value="Done">Done</option>
@@ -1164,9 +1136,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       <option value="Failed">Failed</option>
                       <option value="Reschedule">Reschedule</option>
                     </select>
-                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`} size={20} />
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
                   </div>
                   {errors.visitStatus && (
                     <div className="flex items-center mt-1">
@@ -1177,19 +1148,17 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>Assigned Email<span className="text-red-500">*</span></label>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Assigned Email<span className="text-red-500">*</span></label>
                   <div className="relative">
-                    <select 
-                      value={formData.assignedEmail} 
+                    <select
+                      value={formData.assignedEmail}
                       onChange={(e) => {
                         console.log('Assigned Email changed to:', e.target.value);
                         handleInputChange('assignedEmail', e.target.value);
-                      }} 
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                        isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                      } ${errors.assignedEmail ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                      }}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                        } ${errors.assignedEmail ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                     >
                       <option value="">Select Technician</option>
                       {technicians.map((tech) => {
@@ -1215,16 +1184,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 {formData.visitStatus === 'Done' && (
                   <>
                     <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>Repair Category<span className="text-red-500">*</span></label>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Repair Category<span className="text-red-500">*</span></label>
                       <div className="relative">
-                        <select 
-                          value={formData.repairCategory} 
-                          onChange={(e) => handleInputChange('repairCategory', e.target.value)} 
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                            isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                          } ${errors.repairCategory ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                        <select
+                          value={formData.repairCategory}
+                          onChange={(e) => handleInputChange('repairCategory', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                            } ${errors.repairCategory ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                         >
                           <option value="">Select Repair Category</option>
                           <option value="Fiber Relaying">Fiber Relaying</option>
@@ -1240,9 +1207,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                           <option value="Transfer LCP/NAP/PORT">Transfer LCP/NAP/PORT</option>
                           <option value="Update Vlan">Update Vlan</option>
                         </select>
-                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`} size={20} />
+                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`} size={20} />
                       </div>
                       {errors.repairCategory && (
                         <div className="flex items-center mt-1">
@@ -1255,17 +1221,15 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     {formData.repairCategory === 'Migrate' && (
                       <>
                         <div>
-                          <label className={`block text-sm font-medium mb-2 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>New Router Modem SN<span className="text-red-500">*</span></label>
-                          <input 
-                            type="text" 
-                            value={formData.newRouterModemSN} 
-                            onChange={(e) => handleInputChange('newRouterModemSN', e.target.value)} 
+                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>New Router Modem SN<span className="text-red-500">*</span></label>
+                          <input
+                            type="text"
+                            value={formData.newRouterModemSN}
+                            onChange={(e) => handleInputChange('newRouterModemSN', e.target.value)}
                             placeholder="Enter Router Modem SN"
-                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                              isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                            } ${errors.newRouterModemSN ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                              } ${errors.newRouterModemSN ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                           />
                           {errors.newRouterModemSN && (
                             <div className="flex items-center mt-1">
@@ -1276,25 +1240,22 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         </div>
 
                         <div>
-                          <label className={`block text-sm font-medium mb-2 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>New LCP<span className="text-red-500">*</span></label>
+                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>New LCP<span className="text-red-500">*</span></label>
                           <div className="relative">
-                            <select 
-                              value={formData.newLcp} 
-                              onChange={(e) => handleInputChange('newLcp', e.target.value)} 
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                              } ${errors.newLcp ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            <select
+                              value={formData.newLcp}
+                              onChange={(e) => handleInputChange('newLcp', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                                } ${errors.newLcp ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
                               <option value="">Select LCP</option>
                               {lcps.map((lcp) => (
                                 <option key={lcp} value={lcp}>{lcp}</option>
                               ))}
                             </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`} size={20} />
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`} size={20} />
                           </div>
                           {errors.newLcp && (
                             <div className="flex items-center mt-1">
@@ -1305,25 +1266,22 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         </div>
 
                         <div>
-                          <label className={`block text-sm font-medium mb-2 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>New NAP<span className="text-red-500">*</span></label>
+                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>New NAP<span className="text-red-500">*</span></label>
                           <div className="relative">
-                            <select 
-                              value={formData.newNap} 
-                              onChange={(e) => handleInputChange('newNap', e.target.value)} 
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                              } ${errors.newNap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            <select
+                              value={formData.newNap}
+                              onChange={(e) => handleInputChange('newNap', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                                } ${errors.newNap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
                               <option value="">Select NAP</option>
                               {naps.map((nap) => (
                                 <option key={nap} value={nap}>{nap}</option>
                               ))}
                             </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`} size={20} />
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`} size={20} />
                           </div>
                           {errors.newNap && (
                             <div className="flex items-center mt-1">
@@ -1334,25 +1292,22 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         </div>
 
                         <div>
-                          <label className={`block text-sm font-medium mb-2 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>New Port<span className="text-red-500">*</span></label>
+                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>New Port<span className="text-red-500">*</span></label>
                           <div className="relative">
-                            <select 
-                              value={formData.newPort} 
-                              onChange={(e) => handleInputChange('newPort', e.target.value)} 
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                              } ${errors.newPort ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            <select
+                              value={formData.newPort}
+                              onChange={(e) => handleInputChange('newPort', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                                } ${errors.newPort ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
                               <option value="">Select Port</option>
                               {ports.map((port) => (
                                 <option key={port} value={port}>{port}</option>
                               ))}
                             </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`} size={20} />
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`} size={20} />
                           </div>
                           {errors.newPort && (
                             <div className="flex items-center mt-1">
@@ -1363,25 +1318,22 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         </div>
 
                         <div>
-                          <label className={`block text-sm font-medium mb-2 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>New VLAN<span className="text-red-500">*</span></label>
+                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>New VLAN<span className="text-red-500">*</span></label>
                           <div className="relative">
-                            <select 
-                              value={formData.newVlan} 
-                              onChange={(e) => handleInputChange('newVlan', e.target.value)} 
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                              } ${errors.newVlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            <select
+                              value={formData.newVlan}
+                              onChange={(e) => handleInputChange('newVlan', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                                } ${errors.newVlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
                               <option value="">Select VLAN</option>
                               {vlans.map((vlan) => (
                                 <option key={vlan} value={vlan}>{vlan}</option>
                               ))}
                             </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`} size={20} />
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`} size={20} />
                           </div>
                           {errors.newVlan && (
                             <div className="flex items-center mt-1">
@@ -1392,17 +1344,15 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         </div>
 
                         <div>
-                          <label className={`block text-sm font-medium mb-2 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>Router Model<span className="text-red-500">*</span></label>
-                          <input 
-                            type="text" 
-                            value={formData.routerModel} 
-                            onChange={(e) => handleInputChange('routerModel', e.target.value)} 
+                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>Router Model<span className="text-red-500">*</span></label>
+                          <input
+                            type="text"
+                            value={formData.routerModel}
+                            onChange={(e) => handleInputChange('routerModel', e.target.value)}
                             placeholder="Enter Router Model"
-                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                              isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                            } ${errors.routerModel ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                              } ${errors.routerModel ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                           />
                           {errors.routerModel && (
                             <div className="flex items-center mt-1">
@@ -1416,17 +1366,15 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
                     {formData.repairCategory === 'Relocate Router' && (
                       <div>
-                        <label className={`block text-sm font-medium mb-2 ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>Router Model<span className="text-red-500">*</span></label>
-                        <input 
-                          type="text" 
-                          value={formData.routerModel} 
-                          onChange={(e) => handleInputChange('routerModel', e.target.value)} 
+                        <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>Router Model<span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          value={formData.routerModel}
+                          onChange={(e) => handleInputChange('routerModel', e.target.value)}
                           placeholder="Enter Router Model"
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                            isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                          } ${errors.routerModel ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                            } ${errors.routerModel ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                         />
                         {errors.routerModel && (
                           <div className="flex items-center mt-1">
@@ -1440,25 +1388,22 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     {formData.repairCategory === 'Relocate' && (
                       <>
                         <div>
-                          <label className={`block text-sm font-medium mb-2 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>New LCP<span className="text-red-500">*</span></label>
+                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>New LCP<span className="text-red-500">*</span></label>
                           <div className="relative">
-                            <select 
-                              value={formData.newLcp} 
-                              onChange={(e) => handleInputChange('newLcp', e.target.value)} 
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                              } ${errors.newLcp ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            <select
+                              value={formData.newLcp}
+                              onChange={(e) => handleInputChange('newLcp', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                                } ${errors.newLcp ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
                               <option value="">Select LCP</option>
                               {lcps.map((lcp) => (
                                 <option key={lcp} value={lcp}>{lcp}</option>
                               ))}
                             </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`} size={20} />
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`} size={20} />
                           </div>
                           {errors.newLcp && (
                             <div className="flex items-center mt-1">
@@ -1469,25 +1414,22 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         </div>
 
                         <div>
-                          <label className={`block text-sm font-medium mb-2 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>New NAP<span className="text-red-500">*</span></label>
+                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>New NAP<span className="text-red-500">*</span></label>
                           <div className="relative">
-                            <select 
-                              value={formData.newNap} 
-                              onChange={(e) => handleInputChange('newNap', e.target.value)} 
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                              } ${errors.newNap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            <select
+                              value={formData.newNap}
+                              onChange={(e) => handleInputChange('newNap', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                                } ${errors.newNap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
                               <option value="">Select NAP</option>
                               {naps.map((nap) => (
                                 <option key={nap} value={nap}>{nap}</option>
                               ))}
                             </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`} size={20} />
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`} size={20} />
                           </div>
                           {errors.newNap && (
                             <div className="flex items-center mt-1">
@@ -1498,25 +1440,22 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         </div>
 
                         <div>
-                          <label className={`block text-sm font-medium mb-2 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>New Port<span className="text-red-500">*</span></label>
+                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>New Port<span className="text-red-500">*</span></label>
                           <div className="relative">
-                            <select 
-                              value={formData.newPort} 
-                              onChange={(e) => handleInputChange('newPort', e.target.value)} 
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                              } ${errors.newPort ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            <select
+                              value={formData.newPort}
+                              onChange={(e) => handleInputChange('newPort', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                                } ${errors.newPort ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
                               <option value="">Select Port</option>
                               {ports.map((port) => (
                                 <option key={port} value={port}>{port}</option>
                               ))}
                             </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`} size={20} />
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`} size={20} />
                           </div>
                           {errors.newPort && (
                             <div className="flex items-center mt-1">
@@ -1527,25 +1466,22 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         </div>
 
                         <div>
-                          <label className={`block text-sm font-medium mb-2 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>New VLAN<span className="text-red-500">*</span></label>
+                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>New VLAN<span className="text-red-500">*</span></label>
                           <div className="relative">
-                            <select 
-                              value={formData.newVlan} 
-                              onChange={(e) => handleInputChange('newVlan', e.target.value)} 
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                              } ${errors.newVlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            <select
+                              value={formData.newVlan}
+                              onChange={(e) => handleInputChange('newVlan', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                                } ${errors.newVlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
                               <option value="">Select VLAN</option>
                               {vlans.map((vlan) => (
                                 <option key={vlan} value={vlan}>{vlan}</option>
                               ))}
                             </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`} size={20} />
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`} size={20} />
                           </div>
                           {errors.newVlan && (
                             <div className="flex items-center mt-1">
@@ -1559,17 +1495,15 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
                     {formData.repairCategory === 'Replace Router' && (
                       <div>
-                        <label className={`block text-sm font-medium mb-2 ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>New Router Modem SN<span className="text-red-500">*</span></label>
-                        <input 
-                          type="text" 
-                          value={formData.newRouterModemSN} 
-                          onChange={(e) => handleInputChange('newRouterModemSN', e.target.value)} 
+                        <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>New Router Modem SN<span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          value={formData.newRouterModemSN}
+                          onChange={(e) => handleInputChange('newRouterModemSN', e.target.value)}
                           placeholder="Enter Router Modem SN"
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                            isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                          } ${errors.newRouterModemSN ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                            } ${errors.newRouterModemSN ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                         />
                         {errors.newRouterModemSN && (
                           <div className="flex items-center mt-1">
@@ -1583,25 +1517,22 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     {formData.repairCategory === 'Transfer LCP/NAP/PORT' && (
                       <>
                         <div>
-                          <label className={`block text-sm font-medium mb-2 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>New LCP<span className="text-red-500">*</span></label>
+                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>New LCP<span className="text-red-500">*</span></label>
                           <div className="relative">
-                            <select 
-                              value={formData.newLcp} 
-                              onChange={(e) => handleInputChange('newLcp', e.target.value)} 
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                              } ${errors.newLcp ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            <select
+                              value={formData.newLcp}
+                              onChange={(e) => handleInputChange('newLcp', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                                } ${errors.newLcp ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
                               <option value="">Select LCP</option>
                               {lcps.map((lcp) => (
                                 <option key={lcp} value={lcp}>{lcp}</option>
                               ))}
                             </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`} size={20} />
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`} size={20} />
                           </div>
                           {errors.newLcp && (
                             <div className="flex items-center mt-1">
@@ -1612,25 +1543,22 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         </div>
 
                         <div>
-                          <label className={`block text-sm font-medium mb-2 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>New NAP<span className="text-red-500">*</span></label>
+                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>New NAP<span className="text-red-500">*</span></label>
                           <div className="relative">
-                            <select 
-                              value={formData.newNap} 
-                              onChange={(e) => handleInputChange('newNap', e.target.value)} 
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                              } ${errors.newNap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            <select
+                              value={formData.newNap}
+                              onChange={(e) => handleInputChange('newNap', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                                } ${errors.newNap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
                               <option value="">Select NAP</option>
                               {naps.map((nap) => (
                                 <option key={nap} value={nap}>{nap}</option>
                               ))}
                             </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`} size={20} />
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`} size={20} />
                           </div>
                           {errors.newNap && (
                             <div className="flex items-center mt-1">
@@ -1641,25 +1569,22 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         </div>
 
                         <div>
-                          <label className={`block text-sm font-medium mb-2 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>New Port<span className="text-red-500">*</span></label>
+                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>New Port<span className="text-red-500">*</span></label>
                           <div className="relative">
-                            <select 
-                              value={formData.newPort} 
-                              onChange={(e) => handleInputChange('newPort', e.target.value)} 
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                              } ${errors.newPort ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            <select
+                              value={formData.newPort}
+                              onChange={(e) => handleInputChange('newPort', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                                } ${errors.newPort ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
                               <option value="">Select Port</option>
                               {ports.map((port) => (
                                 <option key={port} value={port}>{port}</option>
                               ))}
                             </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`} size={20} />
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`} size={20} />
                           </div>
                           {errors.newPort && (
                             <div className="flex items-center mt-1">
@@ -1673,25 +1598,22 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
                     {formData.repairCategory === 'Update Vlan' && (
                       <div>
-                        <label className={`block text-sm font-medium mb-2 ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>New VLAN<span className="text-red-500">*</span></label>
+                        <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>New VLAN<span className="text-red-500">*</span></label>
                         <div className="relative">
-                          <select 
-                            value={formData.newVlan} 
-                            onChange={(e) => handleInputChange('newVlan', e.target.value)} 
-                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                              isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                            } ${errors.newVlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                          <select
+                            value={formData.newVlan}
+                            onChange={(e) => handleInputChange('newVlan', e.target.value)}
+                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                              } ${errors.newVlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                           >
                             <option value="">Select VLAN</option>
                             {vlans.map((vlan) => (
                               <option key={vlan} value={vlan}>{vlan}</option>
                             ))}
                           </select>
-                          <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`} size={20} />
+                          <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} size={20} />
                         </div>
                         {errors.newVlan && (
                           <div className="flex items-center mt-1">
@@ -1703,26 +1625,21 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     )}
 
                     <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>Visit By<span className="text-red-500">*</span></label>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Visit By<span className="text-red-500">*</span></label>
                       <div className="relative">
-                        <select 
-                          value={formData.visitBy} 
-                          onChange={(e) => handleInputChange('visitBy', e.target.value)} 
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                            isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                          } ${errors.visitBy ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                        <select
+                          value={formData.visitBy}
+                          onChange={(e) => handleInputChange('visitBy', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                            } ${errors.visitBy ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                         >
                           <option value="">Select Visit By</option>
-                          {technicians.map((tech) => {
-                            const emailValue = (tech as any).email_address || tech.email || '';
-                            return (
-                              <option key={emailValue} value={emailValue}>
-                                {emailValue}
-                              </option>
-                            );
-                          })}
+                          {technicians.map((tech, index) => (
+                            <option key={index} value={tech.name}>
+                              {tech.name}
+                            </option>
+                          ))}
                         </select>
                         <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
                       </div>
@@ -1735,68 +1652,56 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     </div>
 
                     <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>Visit With</label>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Visit With</label>
                       <div className="relative">
-                        <select 
-                          value={formData.visitWith} 
-                          onChange={(e) => handleInputChange('visitWith', e.target.value)} 
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                            isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                          }`}
+                        <select
+                          value={formData.visitWith}
+                          onChange={(e) => handleInputChange('visitWith', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                            }`}
                         >
                           <option value="">Select Visit With</option>
-                          {technicians.map((tech) => {
-                            const emailValue = (tech as any).email_address || tech.email || '';
-                            return (
-                              <option key={emailValue} value={emailValue}>
-                                {emailValue}
-                              </option>
-                            );
-                          })}
+                          {technicians.filter((tech) => tech.name !== formData.visitBy).map((tech, index) => (
+                            <option key={index} value={tech.name}>
+                              {tech.name}
+                            </option>
+                          ))}
                         </select>
                         <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
                       </div>
                     </div>
 
                     <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>Visit With Other</label>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Visit With Other</label>
                       <div className="relative">
-                        <select 
-                          value={formData.visitWithOther} 
-                          onChange={(e) => handleInputChange('visitWithOther', e.target.value)} 
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                            isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                          }`}
+                        <select
+                          value={formData.visitWithOther}
+                          onChange={(e) => handleInputChange('visitWithOther', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                            }`}
                         >
                           <option value="">Select Visit With Other</option>
-                          {technicians.map((tech) => {
-                            const emailValue = (tech as any).email_address || tech.email || '';
-                            return (
-                              <option key={emailValue} value={emailValue}>
-                                {emailValue}
-                              </option>
-                            );
-                          })}
+                          {technicians.filter((tech) => tech.name !== formData.visitBy).map((tech, index) => (
+                            <option key={index} value={tech.name}>
+                              {tech.name}
+                            </option>
+                          ))}
                         </select>
                         <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
                       </div>
                     </div>
 
                     <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>Visit Remarks<span className="text-red-500">*</span></label>
-                      <textarea 
-                        value={formData.visitRemarks} 
-                        onChange={(e) => handleInputChange('visitRemarks', e.target.value)} 
-                        rows={3} 
-                        className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${
-                          isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                        } ${errors.visitRemarks ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} 
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Visit Remarks<span className="text-red-500">*</span></label>
+                      <textarea
+                        value={formData.visitRemarks}
+                        onChange={(e) => handleInputChange('visitRemarks', e.target.value)}
+                        rows={3}
+                        className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                          } ${errors.visitRemarks ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                       />
                       {errors.visitRemarks && (
                         <div className="flex items-center mt-1">
@@ -1807,9 +1712,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     </div>
 
                     <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>Client Signature<span className="text-red-500">*</span></label>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Client Signature<span className="text-red-500">*</span></label>
                       <input
                         type="file"
                         accept="image/*"
@@ -1819,15 +1723,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       />
                       <label
                         htmlFor="clientSignatureInput"
-                        className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer flex flex-col items-center justify-center ${
-                          isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
-                        }`}
+                        className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer flex flex-col items-center justify-center ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+                          }`}
                       >
                         {imagePreviews.clientSignatureFile ? (
                           <div className="relative w-full h-full">
-                            <img 
-                              src={imagePreviews.clientSignatureFile} 
-                              alt="Client Signature" 
+                            <img
+                              src={imagePreviews.clientSignatureFile}
+                              alt="Client Signature"
                               className="w-full h-full object-contain"
                             />
                             <div className="absolute bottom-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center pointer-events-none">
@@ -1840,14 +1743,12 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                           </div>
                         ) : (
                           <>
-                            <svg className={`w-12 h-12 mb-2 ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                            }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className={`w-12 h-12 mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                             </svg>
-                            <p className={`text-sm ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`}>Click to upload</p>
+                            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`}>Click to upload</p>
                           </>
                         )}
                       </label>
@@ -1860,16 +1761,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     </div>
 
                     <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>Item Name 1<span className="text-red-500">*</span></label>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Item Name 1<span className="text-red-500">*</span></label>
                       <div className="relative">
-                        <select 
-                          value={formData.itemName1} 
-                          onChange={(e) => handleInputChange('itemName1', e.target.value)} 
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                            isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                          } ${errors.itemName1 ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                        <select
+                          value={formData.itemName1}
+                          onChange={(e) => handleInputChange('itemName1', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                            } ${errors.itemName1 ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                         >
                           <option value="">Select Item</option>
                           {inventoryItems.map((invItem) => (
@@ -1878,9 +1777,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                             </option>
                           ))}
                         </select>
-                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`} size={20} />
+                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`} size={20} />
                       </div>
                       {errors.itemName1 && (
                         <div className="flex items-center mt-1">
@@ -1891,9 +1789,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     </div>
 
                     <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>Time In<span className="text-red-500">*</span></label>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Time In<span className="text-red-500">*</span></label>
                       <input
                         type="file"
                         accept="image/*"
@@ -1903,15 +1800,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       />
                       <label
                         htmlFor="timeInInput"
-                        className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer flex flex-col items-center justify-center ${
-                          isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
-                        }`}
+                        className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer flex flex-col items-center justify-center ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+                          }`}
                       >
                         {imagePreviews.timeInFile ? (
                           <div className="relative w-full h-full">
-                            <img 
-                              src={imagePreviews.timeInFile} 
-                              alt="Time In" 
+                            <img
+                              src={imagePreviews.timeInFile}
+                              alt="Time In"
                               className="w-full h-full object-contain"
                             />
                             <div className="absolute bottom-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center pointer-events-none">
@@ -1941,9 +1837,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     </div>
 
                     <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>Modem Setup Image<span className="text-red-500">*</span></label>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Modem Setup Image<span className="text-red-500">*</span></label>
                       <input
                         type="file"
                         accept="image/*"
@@ -1953,15 +1848,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       />
                       <label
                         htmlFor="modemSetupInput"
-                        className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer flex flex-col items-center justify-center ${
-                          isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
-                        }`}
+                        className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer flex flex-col items-center justify-center ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+                          }`}
                       >
                         {imagePreviews.modemSetupFile ? (
                           <div className="relative w-full h-full">
-                            <img 
-                              src={imagePreviews.modemSetupFile} 
-                              alt="Modem Setup" 
+                            <img
+                              src={imagePreviews.modemSetupFile}
+                              alt="Modem Setup"
                               className="w-full h-full object-contain"
                             />
                             <div className="absolute bottom-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center pointer-events-none">
@@ -1991,9 +1885,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     </div>
 
                     <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>Time Out<span className="text-red-500">*</span></label>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>Time Out<span className="text-red-500">*</span></label>
                       <input
                         type="file"
                         accept="image/*"
@@ -2003,15 +1896,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       />
                       <label
                         htmlFor="timeOutInput"
-                        className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer flex flex-col items-center justify-center ${
-                          isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
-                        }`}
+                        className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer flex flex-col items-center justify-center ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+                          }`}
                       >
                         {imagePreviews.timeOutFile ? (
                           <div className="relative w-full h-full">
-                            <img 
-                              src={imagePreviews.timeOutFile} 
-                              alt="Time Out" 
+                            <img
+                              src={imagePreviews.timeOutFile}
+                              alt="Time Out"
                               className="w-full h-full object-contain"
                             />
                             <div className="absolute bottom-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center pointer-events-none">
@@ -2047,15 +1939,15 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">Visit By<span className="text-red-500">*</span></label>
                       <div className="relative">
-                        <select 
-                          value={formData.visitBy} 
-                          onChange={(e) => handleInputChange('visitBy', e.target.value)} 
+                        <select
+                          value={formData.visitBy}
+                          onChange={(e) => handleInputChange('visitBy', e.target.value)}
                           className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitBy ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
                         >
                           <option value="">Select Visit By</option>
-                          {technicians.map((tech) => (
-                            <option key={tech.email} value={tech.email}>
-                              {tech.email}
+                          {technicians.map((tech, index) => (
+                            <option key={index} value={tech.name}>
+                              {tech.name}
                             </option>
                           ))}
                         </select>
@@ -2072,15 +1964,15 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">Visit With<span className="text-red-500">*</span></label>
                       <div className="relative">
-                        <select 
-                          value={formData.visitWith} 
-                          onChange={(e) => handleInputChange('visitWith', e.target.value)} 
+                        <select
+                          value={formData.visitWith}
+                          onChange={(e) => handleInputChange('visitWith', e.target.value)}
                           className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitWith ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
                         >
                           <option value="">Select Visit With</option>
-                          {technicians.map((tech) => (
-                            <option key={tech.email} value={tech.email}>
-                              {tech.email}
+                          {technicians.filter(tech => tech.name !== formData.visitBy).map((tech, index) => (
+                            <option key={index} value={tech.name}>
+                              {tech.name}
                             </option>
                           ))}
                         </select>
@@ -2097,15 +1989,15 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">Visit With Other<span className="text-red-500">*</span></label>
                       <div className="relative">
-                        <select 
-                          value={formData.visitWithOther} 
-                          onChange={(e) => handleInputChange('visitWithOther', e.target.value)} 
+                        <select
+                          value={formData.visitWithOther}
+                          onChange={(e) => handleInputChange('visitWithOther', e.target.value)}
                           className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitWithOther ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
                         >
                           <option value="">Select Visit With Other</option>
-                          {technicians.map((tech) => (
-                            <option key={tech.email} value={tech.email}>
-                              {tech.email}
+                          {technicians.filter(tech => tech.name !== formData.visitBy).map((tech, index) => (
+                            <option key={index} value={tech.name}>
+                              {tech.name}
                             </option>
                           ))}
                         </select>
@@ -2121,11 +2013,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">Visit Remarks<span className="text-red-500">*</span></label>
-                      <textarea 
-                        value={formData.visitRemarks} 
-                        onChange={(e) => handleInputChange('visitRemarks', e.target.value)} 
-                        rows={3} 
-                        className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitRemarks ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 resize-none`} 
+                      <textarea
+                        value={formData.visitRemarks}
+                        onChange={(e) => handleInputChange('visitRemarks', e.target.value)}
+                        rows={3}
+                        className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitRemarks ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 resize-none`}
                       />
                       {errors.visitRemarks && (
                         <div className="flex items-center mt-1">
@@ -2140,20 +2032,18 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
             )}
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Items<span className="text-red-500">*</span></label>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Items<span className="text-red-500">*</span></label>
               {orderItems.map((item, index) => (
                 <div key={index} className="mb-3">
                   <div className="flex items-start gap-2">
                     <div className="flex-1">
                       <div className="relative">
-                        <select 
-                          value={item.itemId} 
-                          onChange={(e) => handleItemChange(index, 'itemId', e.target.value)} 
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                            isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                          }`}
+                        <select
+                          value={item.itemId}
+                          onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                            }`}
                         >
                           <option value="">Select Item {index + 1}</option>
                           {inventoryItems.map((invItem) => (
@@ -2162,33 +2052,31 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                             </option>
                           ))}
                         </select>
-                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`} size={20} />
+                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`} size={20} />
                       </div>
                       {errors[`item_${index}`] && (
                         <p className="text-orange-500 text-xs mt-1">{errors[`item_${index}`]}</p>
                       )}
                     </div>
-                    
+
                     {item.itemId && (
                       <div className="w-32">
-                        <input 
-                          type="number" 
-                          value={item.quantity} 
-                          onChange={(e) => handleItemChange(index, 'quantity', e.target.value)} 
+                        <input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
                           placeholder="Qty"
                           min="1"
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                            isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                          }`}
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                            }`}
                         />
                         {errors[`quantity_${index}`] && (
                           <p className="text-orange-500 text-xs mt-1">{errors[`quantity_${index}`]}</p>
                         )}
                       </div>
                     )}
-                    
+
                     {orderItems.length > 1 && item.itemId && (
                       <button
                         type="button"
@@ -2210,16 +2098,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Concern<span className="text-red-500">*</span></label>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Concern<span className="text-red-500">*</span></label>
               <div className="relative">
-                <select 
-                  value={formData.concern} 
-                  onChange={(e) => handleInputChange('concern', e.target.value)} 
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.concern ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                <select
+                  value={formData.concern}
+                  onChange={(e) => handleInputChange('concern', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    } ${errors.concern ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                 >
                   <option value="">Select Concern</option>
                   <option value="No Internet">No Internet</option>
@@ -2229,9 +2115,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                   <option value="Billing Concern">Billing Concern</option>
                   <option value="Others">Others</option>
                 </select>
-                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`} size={20} />
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
               </div>
               {errors.concern && (
                 <div className="flex items-center mt-1">
@@ -2242,16 +2127,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Concern Remarks<span className="text-red-500">*</span></label>
-              <textarea 
-                value={formData.concernRemarks} 
-                onChange={(e) => handleInputChange('concernRemarks', e.target.value)} 
-                rows={3} 
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${errors.concernRemarks ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} 
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Concern Remarks<span className="text-red-500">*</span></label>
+              <textarea
+                value={formData.concernRemarks}
+                onChange={(e) => handleInputChange('concernRemarks', e.target.value)}
+                rows={3}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  } ${errors.concernRemarks ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
               />
               {errors.concernRemarks && (
                 <div className="flex items-center mt-1">
@@ -2262,63 +2145,54 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Modified By</label>
-              <input 
-                type="email" 
-                value={formData.modifiedBy} 
-                readOnly 
-                className={`w-full px-3 py-2 border rounded cursor-not-allowed ${
-                  isDarkMode ? 'bg-gray-700 border-gray-700 text-gray-400' : 'bg-gray-100 border-gray-300 text-gray-500'
-                }`} 
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Modified By</label>
+              <input
+                type="email"
+                value={formData.modifiedBy}
+                readOnly
+                className={`w-full px-3 py-2 border rounded cursor-not-allowed ${isDarkMode ? 'bg-gray-700 border-gray-700 text-gray-400' : 'bg-gray-100 border-gray-300 text-gray-500'
+                  }`}
               />
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Modified Date</label>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Modified Date</label>
               <div className="relative">
-                <input 
-                  type="text" 
-                  value={formData.modifiedDate} 
-                  readOnly 
-                  className={`w-full px-3 py-2 border rounded cursor-not-allowed pr-10 ${
-                    isDarkMode ? 'bg-gray-700 border-gray-700 text-gray-400' : 'bg-gray-100 border-gray-300 text-gray-500'
-                  }`} 
+                <input
+                  type="text"
+                  value={formData.modifiedDate}
+                  readOnly
+                  className={`w-full px-3 py-2 border rounded cursor-not-allowed pr-10 ${isDarkMode ? 'bg-gray-700 border-gray-700 text-gray-400' : 'bg-gray-100 border-gray-300 text-gray-500'
+                    }`}
                 />
-                <Calendar className={`absolute right-3 top-2.5 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`} size={20} />
+                <Calendar className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} size={20} />
               </div>
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>User Email</label>
-              <input 
-                type="email" 
-                value={formData.userEmail} 
-                onChange={(e) => handleInputChange('userEmail', e.target.value)} 
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                  isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                }`} 
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>User Email</label>
+              <input
+                type="email"
+                value={formData.userEmail}
+                onChange={(e) => handleInputChange('userEmail', e.target.value)}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                  }`}
               />
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Support Remarks<span className="text-red-500">*</span></label>
-              <textarea 
-                value={formData.supportRemarks} 
-                onChange={(e) => handleInputChange('supportRemarks', e.target.value)} 
-                rows={3} 
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${errors.supportRemarks ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} 
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Support Remarks<span className="text-red-500">*</span></label>
+              <textarea
+                value={formData.supportRemarks}
+                onChange={(e) => handleInputChange('supportRemarks', e.target.value)}
+                rows={3}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  } ${errors.supportRemarks ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
               />
               {errors.supportRemarks && (
                 <div className="flex items-center mt-1">
@@ -2329,40 +2203,34 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Service Charge<span className="text-red-500">*</span></label>
-              <div className={`flex items-center border rounded ${
-                isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
-              }`}>
-                <span className={`px-3 py-2 ${
-                  isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>₱</span>
-                <input 
-                  type="number" 
-                  value={formData.serviceCharge} 
-                  onChange={(e) => handleInputChange('serviceCharge', e.target.value)} 
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Service Charge<span className="text-red-500">*</span></label>
+              <div className={`flex items-center border rounded ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                }`}>
+                <span className={`px-3 py-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>₱</span>
+                <input
+                  type="number"
+                  value={formData.serviceCharge}
+                  onChange={(e) => handleInputChange('serviceCharge', e.target.value)}
                   step="0.01"
-                  className={`flex-1 px-3 py-2 bg-transparent focus:outline-none ${
-                    isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`} 
+                  className={`flex-1 px-3 py-2 bg-transparent focus:outline-none ${isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}
                 />
                 <div className="flex">
-                  <button 
-                    type="button" 
-                    onClick={() => handleNumberChange('serviceCharge', false)} 
-                    className={`px-3 py-2 border-l ${
-                      isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'
-                    }`}
+                  <button
+                    type="button"
+                    onClick={() => handleNumberChange('serviceCharge', false)}
+                    className={`px-3 py-2 border-l ${isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                      }`}
                   >
                     <Minus size={16} />
                   </button>
-                  <button 
-                    type="button" 
-                    onClick={() => handleNumberChange('serviceCharge', true)} 
-                    className={`px-3 py-2 border-l ${
-                      isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'
-                    }`}
+                  <button
+                    type="button"
+                    onClick={() => handleNumberChange('serviceCharge', true)}
+                    className={`px-3 py-2 border-l ${isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                      }`}
                   >
                     <Plus size={16} />
                   </button>
@@ -2380,9 +2248,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
         {modal.isOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-            <div className={`border rounded-lg p-6 max-w-md w-full mx-4 ${
-              isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-            }`}>
+            <div className={`border rounded-lg p-6 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+              }`}>
               {modal.type === 'loading' ? (
                 <>
                   <div className="flex flex-col items-center justify-center">
@@ -2417,20 +2284,17 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </div>
                     )}
                   </div>
-                  <h3 className={`text-lg font-semibold mb-4 text-center ${
-                    isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>{modal.title}</h3>
-                  <p className={`mb-6 whitespace-pre-line text-center ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>{modal.message}</p>
+                  <h3 className={`text-lg font-semibold mb-4 text-center ${isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{modal.title}</h3>
+                  <p className={`mb-6 whitespace-pre-line text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>{modal.message}</p>
                   <div className="flex items-center justify-center gap-3">
                     {modal.type === 'confirm' ? (
                       <>
                         <button
                           onClick={modal.onCancel}
-                          className={`px-4 py-2 rounded transition-colors ${
-                            isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-300 hover:bg-gray-400 text-gray-900'
-                          }`}
+                          className={`px-4 py-2 rounded transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-300 hover:bg-gray-400 text-gray-900'
+                            }`}
                         >
                           Cancel
                         </button>

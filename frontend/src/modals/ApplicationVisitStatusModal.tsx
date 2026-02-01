@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown, Camera ,Loader2 } from 'lucide-react';
+import { X, ChevronDown, Camera, Loader2 } from 'lucide-react';
 import { updateApplicationVisit, uploadApplicationVisitImages } from '../services/applicationVisitService';
 import { updateApplication } from '../services/applicationService';
 import { getRegions, getCities, City } from '../services/cityService';
@@ -120,17 +120,17 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
         }
       }
     };
-    
+
     fetchImageSizeSettings();
   }, [isOpen]);
-  
+
   const [modal, setModal] = useState<ModalConfig>({
     isOpen: false,
     type: 'success',
     title: '',
     message: ''
   });
-  
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -235,24 +235,24 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
 
   const convertGoogleDriveUrl = (url: string | null | undefined): string | null => {
     if (!url) return null;
-    
+
     const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
     if (fileIdMatch && fileIdMatch[1]) {
       return `https://drive.google.com/uc?export=view&id=${fileIdMatch[1]}`;
     }
-    
+
     const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
     if (idMatch && idMatch[1]) {
       return `https://drive.google.com/uc?export=view&id=${idMatch[1]}`;
     }
-    
+
     return url;
   };
 
   const isGoogleDriveUrl = (url: string | null): boolean => {
     return url ? url.includes('drive.google.com') : false;
   };
-  
+
   const [regions, setRegions] = useState<Region[]>([]);
   const [allCities, setAllCities] = useState<City[]>([]);
   const [allBarangays, setAllBarangays] = useState<Barangay[]>([]);
@@ -299,7 +299,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
       if (isOpen) {
         try {
           const fetchedRegions = await getRegions();
-          
+
           if (Array.isArray(fetchedRegions)) {
             setRegions(fetchedRegions);
           } else {
@@ -310,7 +310,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
         }
       }
     };
-    
+
     fetchRegions();
   }, [isOpen]);
 
@@ -319,7 +319,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
       if (isOpen) {
         try {
           const fetchedCities = await getCities();
-          
+
           if (Array.isArray(fetchedCities)) {
             setAllCities(fetchedCities);
           } else {
@@ -330,7 +330,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
         }
       }
     };
-    
+
     fetchAllCities();
   }, [isOpen]);
 
@@ -339,7 +339,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
       if (isOpen) {
         try {
           const response = await barangayService.getAll();
-          
+
           if (response.success && Array.isArray(response.data)) {
             setAllBarangays(response.data);
           } else {
@@ -350,7 +350,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
         }
       }
     };
-    
+
     fetchAllBarangays();
   }, [isOpen]);
 
@@ -359,7 +359,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
       if (isOpen) {
         try {
           const response = await locationDetailService.getAll();
-          
+
           if (response.success && Array.isArray(response.data)) {
             setAllLocations(response.data);
           } else {
@@ -370,7 +370,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
         }
       }
     };
-    
+
     fetchAllLocations();
   }, [isOpen]);
 
@@ -385,7 +385,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
         }
       }
     };
-    
+
     fetchStatusRemarks();
   }, [isOpen]);
 
@@ -407,7 +407,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                 };
               })
               .filter((tech: any) => tech.name);
-            
+
             setTechnicians(technicianList);
           }
         } catch (error) {
@@ -415,7 +415,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
         }
       }
     };
-    
+
     fetchTechnicians();
   }, [isOpen, visitData]);
 
@@ -424,7 +424,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
       if (isOpen) {
         try {
           const response = await planService.getAllPlans();
-          
+
           if (Array.isArray(response)) {
             setPlans(response);
           } else {
@@ -435,7 +435,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
         }
       }
     };
-    
+
     fetchPlans();
   }, [isOpen]);
 
@@ -491,7 +491,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
       }
       return newData;
     });
-    
+
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -499,7 +499,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
 
   const handleTechnicianInputChange = (field: keyof TechnicianFormData, value: string | File | null) => {
     setTechnicianFormData(prev => ({ ...prev, [field]: value }));
-    
+
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -509,12 +509,12 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
     try {
       let processedFile = file;
       const originalSize = (file.size / 1024 / 1024).toFixed(2);
-      
+
       if (activeImageSize && activeImageSize.image_size_value < 100) {
         try {
           const resizedFile = await resizeImage(file, activeImageSize.image_size_value);
           const resizedSize = (resizedFile.size / 1024 / 1024).toFixed(2);
-          
+
           if (resizedFile.size < file.size) {
             processedFile = resizedFile;
             console.log(`[RESIZE SUCCESS] ${field}: ${originalSize}MB → ${resizedSize}MB (${activeImageSize.image_size_value}%, saved ${((1 - resizedFile.size / file.size) * 100).toFixed(1)}%)`);
@@ -526,30 +526,30 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
           processedFile = file;
         }
       }
-      
+
       handleTechnicianInputChange(field, processedFile);
-      
+
       if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
         URL.revokeObjectURL(imagePreviews[field]!);
       }
-      
+
       const previewUrl = URL.createObjectURL(processedFile);
       setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
-      
+
       if (errors[field]) {
         setErrors(prev => ({ ...prev, [field]: '' }));
       }
     } catch (error) {
       console.error(`[UPLOAD ERROR] ${field}:`, error);
       handleTechnicianInputChange(field, file);
-      
+
       if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
         URL.revokeObjectURL(imagePreviews[field]!);
       }
-      
+
       const previewUrl = URL.createObjectURL(file);
       setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
-      
+
       if (errors[field]) {
         setErrors(prev => ({ ...prev, [field]: '' }));
       }
@@ -602,11 +602,11 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
         visit_remarks: technicianFormData.visitRemarks ? technicianFormData.visitRemarks.trim() : null,
         updated_by_user_id: null
       };
-      
+
       if (technicianFormData.visitStatus === 'Not Ready' && technicianFormData.statusRemarks) {
         data.status_remarks = technicianFormData.statusRemarks;
       }
-      
+
       return data;
     } else {
       return {
@@ -633,21 +633,21 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
       city: formData.city,
       barangay: formData.barangay
     };
-    
+
     if (formData.middleInitial) {
       updateData.middle_initial = formData.middleInitial;
     }
-    
+
     if (formData.secondContactNumber) {
       updateData.secondary_mobile_number = formData.secondContactNumber;
     }
-    
+
     return updateData;
   };
 
   const handleSave = async () => {
     const isValid = validateForm();
-    
+
     if (!isValid) {
       setModal({
         isOpen: true,
@@ -657,7 +657,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
       });
       return;
     }
-    
+
     if (!visitData?.id) {
       setModal({
         isOpen: true,
@@ -676,7 +676,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
       title: 'Updating',
       message: 'Please wait while we process your request...'
     });
-    
+
     const progressInterval = setInterval(() => {
       setLoadingPercentage(prev => {
         if (prev >= 99) return 99;
@@ -685,19 +685,19 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
         return prev + 3;
       });
     }, 200);
-    
+
     try {
       if (!visitData?.application_id) {
         throw new Error('Missing application ID. Cannot update application data.');
       }
 
       const applicationUpdateData = mapFormDataToApplicationUpdate();
-      
+
       try {
         await updateApplication(visitData.application_id.toString(), applicationUpdateData);
       } catch (appError: any) {
         console.error('Error updating application:', appError);
-        
+
         clearInterval(progressInterval);
         const errorMsg = appError.response?.data?.message || appError.message || 'Unknown error';
         setModal({
@@ -709,15 +709,15 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
         setLoading(false);
         return;
       }
-      
+
       const updateData = mapFormDataToUpdateData();
-      
+
       const result = await updateApplicationVisit(visitData.id, updateData);
-      
+
       if (!result.success) {
         throw new Error(result.message || 'Failed to update application visit');
       }
-      
+
       if (userRole === 'technician' && (technicianFormData.image1 || technicianFormData.image2 || technicianFormData.image3)) {
         try {
           const uploadResult = await uploadApplicationVisitImages(
@@ -731,11 +731,11 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
               image3: technicianFormData.image3
             }
           );
-          
+
           clearInterval(progressInterval);
           setLoadingPercentage(100);
           await new Promise(resolve => setTimeout(resolve, 500));
-          
+
           if (uploadResult.success) {
             const updatedVisit = { ...visitData, ...updateData, ...applicationUpdateData };
             setPendingUpdate(updatedVisit);
@@ -774,14 +774,14 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
         clearInterval(progressInterval);
         setLoadingPercentage(100);
         await new Promise(resolve => setTimeout(resolve, 500));
-        
+
         const updatedVisit = { ...visitData, ...updateData, ...applicationUpdateData };
         setPendingUpdate(updatedVisit);
         setModal({
-        isOpen: true,
-        type: 'success',
-        title: 'Success',
-        message: `Application and visit details updated successfully!\n\nCustomer: ${formData.firstName} ${formData.lastName}`,
+          isOpen: true,
+          type: 'success',
+          title: 'Success',
+          message: `Application and visit details updated successfully!\n\nCustomer: ${formData.firstName} ${formData.lastName}`,
           onConfirm: () => {
             setErrors({});
             onSave(pendingUpdate!);
@@ -794,7 +794,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
     } catch (error: any) {
       clearInterval(progressInterval);
       let errorMessage = 'Unknown error occurred';
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (error.response?.data?.message) {
@@ -804,7 +804,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
       } else if (typeof error === 'string') {
         errorMessage = error;
       }
-      
+
       setModal({
         isOpen: true,
         type: 'error',
@@ -861,31 +861,29 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
 
     return (
       <div>
-        <label className={`block text-sm font-medium mb-2 ${
-          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-        }`}>{label}{label === 'Image 1' && <span className="text-red-500">*</span>}</label>
-        <div className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer ${
-          isDarkMode
+        <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>{label}{label === 'Image 1' && <span className="text-red-500">*</span>}</label>
+        <div className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer ${isDarkMode
             ? 'bg-gray-800 border-gray-700 hover:bg-gray-750'
             : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
-        }`}>
-          <input 
-            type="file" 
-            accept="image/*" 
+          }`}>
+          <input
+            type="file"
+            accept="image/*"
             onChange={(e) => {
               if (e.target.files && e.target.files[0]) {
                 onUpload(e.target.files[0]);
                 setImageLoadError(false);
               }
-            }} 
-            className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+            }}
+            className="absolute inset-0 opacity-0 cursor-pointer z-10"
           />
           {imageUrl ? (
             <div className="relative w-full h-full">
               {isBlobUrl || (!isGDrive && !imageLoadError) ? (
-                <img 
-                  src={imageUrl} 
-                  alt={label} 
+                <img
+                  src={imageUrl}
+                  alt={label}
                   className="w-full h-full object-contain"
                   onError={() => setImageLoadError(true)}
                 />
@@ -894,10 +892,10 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                   <Camera size={32} />
                   <span className="text-sm mt-2 text-center px-4">Image stored in Google Drive</span>
                   {imageUrl && (
-                    <a 
-                      href={imageUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
+                    <a
+                      href={imageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="text-orange-500 text-xs mt-2 hover:underline z-20"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -932,25 +930,21 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-        <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${
-          isDarkMode ? 'bg-gray-900' : 'bg-white'
-        }`}>
-          <div className={`px-6 py-4 flex items-center justify-between border-b ${
-            isDarkMode
+        <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+          }`}>
+          <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
               ? 'bg-gray-800 border-gray-700'
               : 'bg-gray-100 border-gray-300'
-          }`}>
-            <h2 className={`text-xl font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{getFullName()}</h2>
+            }`}>
+            <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{getFullName()}</h2>
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleCancel}
-                className={`px-4 py-2 rounded text-sm ${
-                  isDarkMode
+                className={`px-4 py-2 rounded text-sm ${isDarkMode
                     ? 'bg-gray-700 hover:bg-gray-600 text-white'
                     : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                }`}
+                  }`}
               >
                 Cancel
               </button>
@@ -992,20 +986,18 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
             {userRole === 'technician' ? (
               <div className="space-y-4">
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Full Address
                   </label>
                   <input
                     type="text"
                     value={technicianFormData.fullAddress}
                     readOnly
-                    className={`w-full px-3 py-2 border rounded cursor-not-allowed ${
-                      isDarkMode
+                    className={`w-full px-3 py-2 border rounded cursor-not-allowed ${isDarkMode
                         ? 'bg-gray-800 border-gray-700 text-gray-400'
                         : 'bg-gray-100 border-gray-300 text-gray-500'
-                    }`}
+                      }`}
                   />
                 </div>
 
@@ -1033,19 +1025,16 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                 )}
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Visit By<span className="text-red-500">*</span>
                   </label>
                   <select
                     value={technicianFormData.visit_by}
                     onChange={(e) => handleTechnicianInputChange('visit_by', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                      errors.visit_by ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                    } ${
-                      isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.visit_by ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`}
                   >
                     <option value="">Select Visit By</option>
                     {technicians.map((technician, index) => (
@@ -1056,23 +1045,20 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Visit With<span className="text-red-500">*</span>
                   </label>
                   <select
                     value={technicianFormData.visit_with}
                     onChange={(e) => handleTechnicianInputChange('visit_with', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                      errors.visit_with ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                    } ${
-                      isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.visit_with ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`}
                   >
                     <option value="">Select Visit With</option>
                     <option value="None">None</option>
-                    {technicians.map((technician, index) => (
+                    {technicians.filter(t => t.name !== technicianFormData.visit_by).map((technician, index) => (
                       <option key={index} value={technician.name}>{technician.name}</option>
                     ))}
                   </select>
@@ -1080,23 +1066,20 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Visit With(Other)<span className="text-red-500">*</span>
                   </label>
                   <select
                     value={technicianFormData.visit_with_other}
                     onChange={(e) => handleTechnicianInputChange('visit_with_other', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                      errors.visit_with_other ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                    } ${
-                      isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.visit_with_other ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`}
                   >
                     <option value="">Select Visit With(Other)</option>
                     <option value="None">None</option>
-                    {technicians.map((technician, index) => (
+                    {technicians.filter(t => t.name !== technicianFormData.visit_by).map((technician, index) => (
                       <option key={index} value={technician.name}>{technician.name}</option>
                     ))}
                   </select>
@@ -1104,48 +1087,44 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Visit Status
                   </label>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => handleTechnicianInputChange('visitStatus', 'In Progress')}
-                      className={`flex-1 px-4 py-3 rounded text-sm font-medium transition-colors ${
-                        technicianFormData.visitStatus === 'In Progress'
+                      className={`flex-1 px-4 py-3 rounded text-sm font-medium transition-colors ${technicianFormData.visitStatus === 'In Progress'
                           ? 'bg-orange-600 text-white'
                           : isDarkMode
                             ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
+                        }`}
                     >
                       In Progress
                     </button>
                     <button
                       type="button"
                       onClick={() => handleTechnicianInputChange('visitStatus', 'OK to Install')}
-                      className={`flex-1 px-4 py-3 rounded text-sm font-medium transition-colors ${
-                        technicianFormData.visitStatus === 'OK to Install'
+                      className={`flex-1 px-4 py-3 rounded text-sm font-medium transition-colors ${technicianFormData.visitStatus === 'OK to Install'
                           ? 'bg-orange-600 text-white'
                           : isDarkMode
                             ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
+                        }`}
                     >
                       OK to Install
                     </button>
                     <button
                       type="button"
                       onClick={() => handleTechnicianInputChange('visitStatus', 'Not Ready')}
-                      className={`flex-1 px-4 py-3 rounded text-sm font-medium transition-colors ${
-                        technicianFormData.visitStatus === 'Not Ready'
+                      className={`flex-1 px-4 py-3 rounded text-sm font-medium transition-colors ${technicianFormData.visitStatus === 'Not Ready'
                           ? 'bg-orange-600 text-white'
                           : isDarkMode
                             ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
+                        }`}
                     >
                       Not Ready
                     </button>
@@ -1154,19 +1133,17 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
 
                 {technicianFormData.visitStatus === 'Not Ready' && (
                   <div>
-                    <label className={`block text-sm font-medium mb-2 ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>
+                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
                       Status Remarks
                     </label>
                     <select
                       value={technicianFormData.statusRemarks}
                       onChange={(e) => handleTechnicianInputChange('statusRemarks', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                        isDarkMode
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
                           ? 'bg-gray-800 border-gray-700 text-white'
                           : 'bg-white border-gray-300 text-gray-900'
-                      }`}
+                        }`}
                     >
                       <option value="">Select Status Remarks</option>
                       {technicianFormData.statusRemarks && !statusRemarks.some(sr => sr.status_remarks === technicianFormData.statusRemarks) && (
@@ -1180,20 +1157,18 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                 )}
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Visit Remarks
                   </label>
                   <textarea
                     value={technicianFormData.visitRemarks}
                     onChange={(e) => handleTechnicianInputChange('visitRemarks', e.target.value)}
                     rows={4}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${
-                      isDarkMode
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode
                         ? 'bg-gray-800 border-gray-700 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                      }`}
                     placeholder="Enter visit remarks..."
                   />
                 </div>
@@ -1201,27 +1176,24 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
             ) : (
               <div className="space-y-4">
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     First Name
                   </label>
                   <input
                     type="text"
                     value={formData.firstName}
                     onChange={(e) => handleInputChange('firstName', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                      isDarkMode
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
                         ? 'bg-gray-800 border-gray-700 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                      }`}
                   />
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Middle Initial
                   </label>
                   <input
@@ -1229,119 +1201,106 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                     value={formData.middleInitial}
                     onChange={(e) => handleInputChange('middleInitial', e.target.value)}
                     maxLength={1}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                      isDarkMode
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
                         ? 'bg-gray-800 border-gray-700 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                      }`}
                   />
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Last Name
                   </label>
                   <input
                     type="text"
                     value={formData.lastName}
                     onChange={(e) => handleInputChange('lastName', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                      isDarkMode
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
                         ? 'bg-gray-800 border-gray-700 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                      }`}
                   />
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Contact Number
                   </label>
                   <input
                     type="text"
                     value={formData.contactNumber}
                     onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                      isDarkMode
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
                         ? 'bg-gray-800 border-gray-700 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                      }`}
                   />
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Second Contact Number
                   </label>
                   <input
                     type="text"
                     value={formData.secondContactNumber || ''}
                     onChange={(e) => handleInputChange('secondContactNumber', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                      isDarkMode
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
                         ? 'bg-gray-800 border-gray-700 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                      }`}
                   />
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Applicant Email Address
                   </label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                      isDarkMode
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
                         ? 'bg-gray-800 border-gray-700 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                      }`}
                   />
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Address
                   </label>
                   <input
                     type="text"
                     value={formData.address}
                     onChange={(e) => handleInputChange('address', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                      isDarkMode
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
                         ? 'bg-gray-800 border-gray-700 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                      }`}
                   />
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Region
                   </label>
                   <div className="relative">
                     <select
                       value={formData.region}
                       onChange={(e) => handleInputChange('region', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                        isDarkMode
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode
                           ? 'bg-gray-800 border-gray-700 text-white'
                           : 'bg-white border-gray-300 text-gray-900'
-                      }`}
+                        }`}
                     >
                       <option value="">Select Region</option>
                       {formData.region && !regions.some(reg => reg.name === formData.region) && (
@@ -1353,16 +1312,14 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`} size={20} />
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
                   </div>
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     City
                   </label>
                   <div className="relative">
@@ -1370,11 +1327,10 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                       value={formData.city}
                       onChange={(e) => handleInputChange('city', e.target.value)}
                       disabled={!formData.region}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isDarkMode
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
                           ? 'bg-gray-800 border-gray-700 text-white'
                           : 'bg-white border-gray-300 text-gray-900'
-                      }`}
+                        }`}
                     >
                       <option value="">{formData.region ? 'Select City' : 'Select Region First'}</option>
                       {formData.city && !filteredCities.some(city => city.name === formData.city) && (
@@ -1391,9 +1347,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Barangay
                   </label>
                   <div className="relative">
@@ -1401,11 +1356,10 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                       value={formData.barangay}
                       onChange={(e) => handleInputChange('barangay', e.target.value)}
                       disabled={!formData.city}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isDarkMode
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
                           ? 'bg-gray-800 border-gray-700 text-white'
                           : 'bg-white border-gray-300 text-gray-900'
-                      }`}
+                        }`}
                     >
                       <option value="">{formData.city ? 'Select Barangay' : 'Select City First'}</option>
                       {formData.barangay && !filteredBarangays.some(brgy => brgy.barangay === formData.barangay) && (
@@ -1422,9 +1376,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Location
                   </label>
                   <div className="relative">
@@ -1432,11 +1385,10 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                       value={formData.location}
                       onChange={(e) => handleInputChange('location', e.target.value)}
                       disabled={!formData.barangay}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isDarkMode
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
                           ? 'bg-gray-800 border-gray-700 text-white'
                           : 'bg-white border-gray-300 text-gray-900'
-                      }`}
+                        }`}
                     >
                       <option value="">{formData.barangay ? 'Select Location' : 'Select Barangay First'}</option>
                       {formData.location && !filteredLocations.some(loc => loc.location_name === formData.location) && (
@@ -1453,28 +1405,26 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Choose Plan
                   </label>
                   <div className="relative">
                     <select
                       value={formData.choosePlan}
                       onChange={(e) => handleInputChange('choosePlan', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                        isDarkMode
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode
                           ? 'bg-gray-800 border-gray-700 text-white'
                           : 'bg-white border-gray-300 text-gray-900'
-                      }`}
+                        }`}
                     >
                       <option value="">Select Plan</option>
                       {formData.choosePlan && !plans.some(plan => {
                         const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
                         return planWithPrice === formData.choosePlan || plan.name === formData.choosePlan;
                       }) && (
-                        <option value={formData.choosePlan}>{formData.choosePlan}</option>
-                      )}
+                          <option value={formData.choosePlan}>{formData.choosePlan}</option>
+                        )}
                       {plans.map((plan) => {
                         const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
                         return (
@@ -1489,38 +1439,33 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Remarks
                   </label>
                   <textarea
                     value={formData.remarks}
                     onChange={(e) => handleInputChange('remarks', e.target.value)}
                     rows={3}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${
-                      isDarkMode
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode
                         ? 'bg-gray-800 border-gray-700 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                      }`}
                   />
                 </div>
 
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Assigned Email<span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <select
                       value={formData.assignedEmail}
                       onChange={(e) => handleInputChange('assignedEmail', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                        errors.assignedEmail ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                      } ${
-                        isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                      }`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${errors.assignedEmail ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                        }`}
                     >
                       <option value="">Select Assigned Email</option>
                       {formData.assignedEmail && !technicians.some(t => t.email === formData.assignedEmail) && (
@@ -1542,11 +1487,10 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
 
       {modal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
-          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${
-            isDarkMode
+          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode
               ? 'bg-gray-900 border-gray-700'
               : 'bg-white border-gray-300'
-          }`}>
+            }`}>
             {modal.type === 'loading' ? (
               <div className="text-center">
                 <div className="flex justify-center mb-6">
@@ -1556,22 +1500,19 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
               </div>
             ) : (
               <>
-                <h3 className={`text-lg font-semibold mb-4 ${
-                  isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>{modal.title}</h3>
-                <p className={`mb-6 whitespace-pre-line ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>{modal.message}</p>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>{modal.message}</p>
                 <div className="flex items-center justify-end gap-3">
                   {modal.type === 'confirm' ? (
                     <>
                       <button
                         onClick={modal.onCancel}
-                        className={`px-4 py-2 rounded transition-colors ${
-                          isDarkMode
+                        className={`px-4 py-2 rounded transition-colors ${isDarkMode
                             ? 'bg-gray-700 hover:bg-gray-600 text-white'
                             : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                        }`}
+                          }`}
                       >
                         Cancel
                       </button>

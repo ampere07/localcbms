@@ -11,7 +11,7 @@ use App\Models\ModemRouterSN;
 use App\Models\ContractTemplate;
 use App\Models\Port;
 use App\Models\VLAN;
-use App\Models\LCPNAP;
+use App\Models\LCPNAPLocation;
 use App\Models\Plan;
 use App\Models\User;
 use App\Models\Role;
@@ -284,6 +284,7 @@ class JobOrderController extends Controller
                         'mobile_number' => $application->mobile_number ?? '',
                         'lcp' => $jobOrder->lcpnapLocation->lcp ?? '',
                         'nap' => $jobOrder->lcpnapLocation->nap ?? '',
+                        'port' => $jobOrder->port ?? '',
                         'tech_input_username' => $request->input('pppoe_username'),
                         'custom_password' => $request->input('custom_password'),
                     ];
@@ -318,6 +319,7 @@ class JobOrderController extends Controller
                         'mobile_number' => $application->mobile_number ?? '',
                         'lcp' => $jobOrder->lcpnapLocation->lcp ?? '',
                         'nap' => $jobOrder->lcpnapLocation->nap ?? '',
+                        'port' => $jobOrder->port ?? '',
                         'tech_input_username' => $request->input('tech_input_username'),
                         'custom_password' => $request->input('custom_password'),
                     ];
@@ -351,6 +353,7 @@ class JobOrderController extends Controller
                         'mobile_number' => $application->mobile_number ?? '',
                         'lcp' => $jobOrder->lcpnapLocation->lcp ?? '',
                         'nap' => $jobOrder->lcpnapLocation->nap ?? '',
+                        'port' => $jobOrder->port ?? '',
                         'tech_input_username' => $request->input('tech_input_username'),
                         'custom_password' => $request->input('custom_password'),
                     ];
@@ -463,12 +466,16 @@ class JobOrderController extends Controller
                     if (isset($data['lcpnap'])) {
                         $technicalUpdateData['lcpnap'] = $data['lcpnap'];
                         
-                        // Parse LCP and NAP from lcpnap value
                         $lcpnapValue = $data['lcpnap'];
-                        if ($lcpnapValue && strpos($lcpnapValue, '/') !== false) {
-                            $parts = explode('/', $lcpnapValue);
-                            $technicalUpdateData['lcp'] = trim($parts[0]);
-                            $technicalUpdateData['nap'] = isset($parts[1]) ? trim($parts[1]) : null;
+                        $loc = LCPNAPLocation::where('lcpnap_name', $lcpnapValue)->first();
+                        
+                        if ($loc) {
+                            $technicalUpdateData['lcp'] = $loc->lcp;
+                            $technicalUpdateData['nap'] = $loc->nap;
+                        } else {
+                            // Fallback if not found in lookup, but try to keep behavior safe
+                             $technicalUpdateData['lcp'] = null;
+                             $technicalUpdateData['nap'] = null;
                         }
                     }
                     if (isset($data['port'])) {
@@ -540,7 +547,7 @@ class JobOrderController extends Controller
         try {
             DB::beginTransaction();
 
-            $jobOrder = JobOrder::with('application')->lockForUpdate()->findOrFail($id);
+            $jobOrder = JobOrder::with(['application', 'lcpnapLocation'])->lockForUpdate()->findOrFail($id);
             
             if (!$jobOrder->application) {
                 throw new \Exception('Job order must have an associated application');
@@ -680,14 +687,8 @@ class JobOrderController extends Controller
             }
 
             $lcpnapValue = $jobOrder->lcpnap;
-            $lcpValue = null;
-            $napValue = null;
-            
-            if ($lcpnapValue && strpos($lcpnapValue, '/') !== false) {
-                $parts = explode('/', $lcpnapValue);
-                $lcpValue = trim($parts[0]);
-                $napValue = isset($parts[1]) ? trim($parts[1]) : null;
-            }
+            $lcpValue = $jobOrder->lcpnapLocation->lcp ?? null;
+            $napValue = $jobOrder->lcpnapLocation->nap ?? null;
 
             $technicalDetail = TechnicalDetail::create([
                 'account_id' => $billingAccount->id,
@@ -729,6 +730,9 @@ class JobOrderController extends Controller
                 'middle_initial' => $application->middle_initial ?? '',
                 'last_name' => $application->last_name ?? '',
                 'mobile_number' => $application->mobile_number ?? '',
+                'lcp' => $jobOrder->lcpnapLocation->lcp ?? '',
+                'nap' => $jobOrder->lcpnapLocation->nap ?? '',
+                'port' => $jobOrder->port ?? '',
             ];
             
             // Generate unique PPPoE username based on patterns

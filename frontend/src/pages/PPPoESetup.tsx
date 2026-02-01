@@ -15,6 +15,7 @@ const usernameComponents = [
   { type: 'mobile_number_last_6', label: 'Mobile (Last 6)' },
   { type: 'lcp', label: 'LCP' },
   { type: 'nap', label: 'NAP' },
+  { type: 'port', label: 'Port' },
   { type: 'tech_input', label: 'Tech Input' }
 ];
 
@@ -30,6 +31,7 @@ const passwordComponents = [
   { type: 'mobile_number_last_6', label: 'Mobile (Last 6)' },
   { type: 'lcp', label: 'LCP' },
   { type: 'nap', label: 'NAP' },
+  { type: 'port', label: 'Port' },
   { type: 'random_4_digits', label: 'Random 4 Digits' },
   { type: 'random_6_digits', label: 'Random 6 Digits' },
   { type: 'random_letters_4', label: 'Random 4 Letters' },
@@ -475,8 +477,8 @@ const PPPoESetup: React.FC = () => {
                       setCustomPasswordValue('');
                     }}
                     className={`w-full px-4 py-2 border rounded-lg appearance-none ${isDarkMode
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
+                      ? 'bg-gray-700 border-gray-600 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
                       }`}
                   >
                     <option value="username">Username</option>
@@ -497,8 +499,8 @@ const PPPoESetup: React.FC = () => {
                   onChange={(e) => setPatternName(e.target.value)}
                   placeholder={`Enter ${patternType} pattern name...`}
                   className={`w-full px-4 py-2 border rounded-lg ${isDarkMode
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                     }`}
                 />
               </div>
@@ -517,12 +519,12 @@ const PPPoESetup: React.FC = () => {
                       draggable={!disabled}
                       onDragStart={() => !disabled && handleDragStart(component)}
                       className={`px-3 py-2 rounded-lg border-2 border-dashed text-center text-sm transition-colors ${disabled
-                          ? isDarkMode
-                            ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed opacity-50'
-                            : 'bg-gray-200 border-gray-300 text-gray-400 cursor-not-allowed opacity-50'
-                          : isDarkMode
-                            ? 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 cursor-move'
-                            : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100 cursor-move'
+                        ? isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed opacity-50'
+                          : 'bg-gray-200 border-gray-300 text-gray-400 cursor-not-allowed opacity-50'
+                        : isDarkMode
+                          ? 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 cursor-move'
+                          : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100 cursor-move'
                         }`}
                     >
                       <GripVertical className="h-4 w-4 mx-auto mb-1" />
@@ -541,8 +543,8 @@ const PPPoESetup: React.FC = () => {
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e)}
                 className={`min-h-32 p-4 rounded-lg border-2 border-dashed ${isDarkMode
-                    ? 'bg-gray-700 border-gray-600'
-                    : 'bg-gray-50 border-gray-300'
+                  ? 'bg-gray-700 border-gray-600'
+                  : 'bg-gray-50 border-gray-300'
                   }`}
               >
                 {currentSequence.length === 0 ? (
@@ -560,16 +562,16 @@ const PPPoESetup: React.FC = () => {
                             onDragOver={handleDragOver}
                             onDrop={(e) => handleDrop(e, index)}
                             className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg ${item.type === 'custom_password'
+                              ? isDarkMode
+                                ? 'bg-purple-900 text-white'
+                                : 'bg-purple-100 text-purple-900'
+                              : item.type === 'tech_input'
                                 ? isDarkMode
-                                  ? 'bg-purple-900 text-white'
-                                  : 'bg-purple-100 text-purple-900'
-                                : item.type === 'tech_input'
-                                  ? isDarkMode
-                                    ? 'bg-orange-900 text-white'
-                                    : 'bg-orange-100 text-orange-900'
-                                  : isDarkMode
-                                    ? 'bg-gray-600 text-white cursor-move'
-                                    : 'bg-blue-100 text-blue-900 cursor-move'
+                                  ? 'bg-orange-900 text-white'
+                                  : 'bg-orange-100 text-orange-900'
+                                : isDarkMode
+                                  ? 'bg-gray-600 text-white cursor-move'
+                                  : 'bg-blue-100 text-blue-900 cursor-move'
                               }`}
                           >
                             {(item.type !== 'custom_password' && item.type !== 'tech_input') && <GripVertical className="h-4 w-4" />}
@@ -590,8 +592,8 @@ const PPPoESetup: React.FC = () => {
                                 onChange={(e) => updateCustomPasswordValue(e.target.value)}
                                 placeholder="Enter custom password..."
                                 className={`w-full px-3 py-2 border rounded-lg ${isDarkMode
-                                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                                   }`}
                               />
                             </div>
@@ -634,8 +636,8 @@ const PPPoESetup: React.FC = () => {
                 onClick={handleCancel}
                 disabled={showLoading}
                 className={`px-4 py-2 rounded-lg transition-colors disabled:opacity-50 ${isDarkMode
-                    ? 'bg-gray-700 text-white hover:bg-gray-600'
-                    : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
+                  ? 'bg-gray-700 text-white hover:bg-gray-600'
+                  : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
                   }`}
               >
                 Cancel

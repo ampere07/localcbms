@@ -127,6 +127,9 @@ class PppoeUsernameService
                 // Get NAP value directly from customerData (already has NP prefix in database)
                 $napValue = $customerData['nap'] ?? '';
                 return strtoupper($napValue);
+
+            case 'port':
+                return strtoupper($customerData['port'] ?? '');
             
             case 'random_4_digits':
                 return str_pad(random_int(0, 9999), 4, '0', STR_PAD_LEFT);
