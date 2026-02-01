@@ -556,6 +556,106 @@ class MonitorController extends Controller
                 return response()->json(['status' => 'success', 'data' => $qb->get(), 'barangays' => $response['barangays']]);
             }
 
+            // 13) TECHNICIAN AVAILABILITY
+            if ($action === 'technician_availability') {
+                $techs = DB::table('users')
+                    ->where('role_id', 2)
+                    ->select('username', 'email_address', 'first_name', 'last_name')
+                    ->get();
+
+                $data = [];
+
+                foreach ($techs as $tech) {
+                    $email = $tech->email_address;
+                    $name = trim(($tech->first_name ?? '') . ' ' . ($tech->last_name ?? ''));
+                    if (!$name) $name = $tech->username;
+
+                    // Check Job Orders (Working if not Done)
+                    $activeJO = DB::table('job_orders')
+                        ->where('assigned_email', $email)
+                        ->where('onsite_status', '!=', 'Done')
+                        ->orderByDesc('updated_at')
+                        ->first();
+
+                    // Check Service Orders (Working if not Resolved)
+                    $activeSO = DB::table('service_orders')
+                        ->where('assigned_email', $email)
+                        ->where('support_status', '!=', 'Resolved')
+                        ->orderByDesc('updated_at')
+                        ->first();
+
+                    // Default to Available
+                    $status = 'Available';
+                    $details = 'Ready to accept tasks';
+                    $since = null;
+                    $type = null;
+
+                    // If active JO exists, they are working
+                    if ($activeJO) {
+                        $status = 'Working';
+                        $details = 'Job Order #' . $activeJO->id . ' (' . ($activeJO->onsite_status ?? 'Unknown') . ')';
+                        $since = $activeJO->updated_at ?? $activeJO->created_at;
+                        $type = 'jo';
+                    } 
+                    // Else if active SO exists, they are working
+                    elseif ($activeSO) {
+                        $status = 'Working';
+                        $details = 'Service Order #' . $activeSO->id . ' (' . ($activeSO->support_status ?? 'Unknown') . ')';
+                        $since = $activeSO->updated_at ?? $activeSO->created_at;
+                        $type = 'so';
+                    } 
+                    // Otherwise they are available, find when they finished last task
+                    else {
+                        // Find last finished JO
+                        $lastJO = DB::table('job_orders')
+                            ->where('assigned_email', $email)
+                            ->where('onsite_status', 'Done')
+                            ->orderByDesc('updated_at')
+                            ->first();
+
+                        // Find last finished SO
+                        $lastSO = DB::table('service_orders')
+                            ->where('assigned_email', $email)
+                            ->where('support_status', 'Resolved')
+                            ->orderByDesc('updated_at')
+                            ->first();
+                        
+                        $joTime = $lastJO ? ($lastJO->updated_at ?? $lastJO->created_at) : null;
+                        $soTime = $lastSO ? ($lastSO->updated_at ?? $lastSO->created_at) : null;
+                        
+                        // Compare who is later
+                        if ($joTime && $soTime) {
+                            $since = ($joTime > $soTime) ? $joTime : $soTime;
+                        } else {
+                            $since = $joTime ?? $soTime ?? null;
+                        }
+                    }
+
+                    // Parse timestamp to ensure correct timezone (PH Time)
+                    if ($since) {
+                        try {
+                            $since = \Carbon\Carbon::parse($since)->setTimezone('Asia/Manila')->toIso8601String();
+                        } catch (\Exception $e) {
+                            // keep original string if parse fails
+                        }
+                    }
+
+                    $data[] = [
+                        'label' => $name, // For generic chart compatibility if needed
+                        'value' => $status === 'Available' ? 1 : 0, // Just a dummy value
+                        'meta' => [
+                            'email' => $email,
+                            'status' => $status,
+                            'details' => $details,
+                            'since' => $since,
+                            'type' => $type
+                        ]
+                    ];
+                }
+
+                return response()->json(['status' => 'success', 'data' => $data]);
+            }
+
             return response()->json([
                 'status' => 'error',
                 'message' => "Unknown action: $action",

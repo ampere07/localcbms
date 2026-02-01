@@ -26,7 +26,8 @@ import {
   Upload,
   Trash2,
   Eye,
-  EyeOff
+  EyeOff,
+  LayoutGrid
 } from 'lucide-react';
 import {
   WidgetConfig,
@@ -90,7 +91,7 @@ const LiveMonitor: React.FC = () => {
         initialStates[id] = JSON.parse(savedState);
       } else {
         initialStates[id] = {
-          viewType: 'bar',
+          viewType: id === 'tech_availability' ? 'grid' : 'bar',
           scope: 'overall',
           year: new Date().getFullYear().toString(),
           bgy: 'All',
@@ -125,7 +126,7 @@ const LiveMonitor: React.FC = () => {
 
       try {
         const widgetState = state || {
-          viewType: 'bar',
+          viewType: id === 'tech_availability' ? 'grid' : 'bar',
           scope: 'overall',
           year: new Date().getFullYear().toString(),
           bgy: 'All',
@@ -183,7 +184,7 @@ const LiveMonitor: React.FC = () => {
     // Data format: [{label: "January", series: {"Paid": 150, "Unpaid": 30}}, ...]
     if (widgetData[0].series) {
       const labels = widgetData.map(d => d.label); // Months: January, February, etc.
-      
+
       // Extract all unique status values (Paid, Unpaid, Pending, etc.) from all months
       const seriesKeys = Array.from(new Set(widgetData.flatMap(d => Object.keys(d.series || {}))));
 
@@ -226,7 +227,7 @@ const LiveMonitor: React.FC = () => {
         },
         tooltip: {
           callbacks: {
-            label: function(context: any) {
+            label: function (context: any) {
               let label = context.dataset.label || '';
               if (label) label += ': ';
 
@@ -334,6 +335,71 @@ const LiveMonitor: React.FC = () => {
     );
   };
 
+
+
+  const renderGridView = (widgetData: WidgetData[], widgetId: string) => {
+    return (
+      <div className="flex gap-4 overflow-x-auto overflow-y-hidden p-2 pb-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent">
+        {widgetData.map((row, idx) => {
+          const meta: any = (row as any).meta || {};
+          const status = meta.status || 'Unknown';
+          const isAvailable = status === 'Available';
+
+          const bgColor = isAvailable
+            ? (isDarkMode ? 'bg-green-900/20 border-green-800' : 'bg-green-50 border-green-200')
+            : (isDarkMode ? 'bg-orange-900/20 border-orange-800' : 'bg-orange-50 border-orange-200');
+
+          const textColor = isAvailable
+            ? (isDarkMode ? 'text-green-400' : 'text-green-700')
+            : (isDarkMode ? 'text-orange-400' : 'text-orange-700');
+
+          let timeString = '--';
+          if (meta.since) {
+            const start = new Date(meta.since).getTime();
+            const now = new Date().getTime();
+            const diff = Math.max(0, now - start);
+            const h = Math.floor(diff / (1000 * 60 * 60));
+            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            timeString = `${h}h ${m}m`;
+          }
+
+          return (
+            <div
+              key={idx}
+              className={`flex-shrink-0 w-64 rounded-2xl border p-4 flex flex-col justify-between items-center relative h-64 transition-all hover:scale-[1.02] shadow-sm ${bgColor}`}
+            >
+              {/* Status - Top Left */}
+              <div className={`absolute top-4 left-4 text-xs font-bold uppercase tracking-wider ${textColor}`}>
+                {status}
+              </div>
+
+              {/* Name - Top Center (slightly pushed down to not overlap with status if name is long) */}
+              <div className="w-full text-center mt-6">
+                <div className={`font-bold text-lg truncate px-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`} title={row.label}>
+                  {row.label}
+                </div>
+              </div>
+
+              {/* Time - Center Large */}
+              <div className="flex-1 flex items-center justify-center">
+                <div className={`text-5xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                  {timeString}
+                </div>
+              </div>
+
+              {/* Details - Bottom */}
+              {meta.details && (
+                <div className={`w-full text-center text-[10px] opacity-60 truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} title={meta.details}>
+                  {meta.details}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderWidget = (id: string) => {
     const widget = widgets[id];
     const state = widgetStates[id];
@@ -357,6 +423,7 @@ const LiveMonitor: React.FC = () => {
     }
 
     if (state.viewType === 'list') return renderListView(widget.data, id);
+    if (state.viewType === 'grid') return renderGridView(widget.data, id);
 
     // IMPORTANT: put id on the chart container so tooltip can detect widgetId for currency
     return (
@@ -719,13 +786,12 @@ const LiveMonitor: React.FC = () => {
                   <div className="flex gap-1 mb-3">
                     <button
                       onClick={() => updateWidgetState(id, { viewType: 'bar' })}
-                      className={`p-1.5 rounded transition-colors ${
-                        widgetStates[id]?.viewType === 'bar'
-                          ? 'bg-blue-600 text-white'
-                          : isDarkMode
+                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'bar'
+                        ? 'bg-blue-600 text-white'
+                        : isDarkMode
                           ? 'bg-gray-800 hover:bg-gray-700'
                           : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
+                        }`}
                       title="Bar Chart"
                     >
                       <BarChart3 size={14} />
@@ -733,13 +799,12 @@ const LiveMonitor: React.FC = () => {
 
                     <button
                       onClick={() => updateWidgetState(id, { viewType: 'line' })}
-                      className={`p-1.5 rounded transition-colors ${
-                        widgetStates[id]?.viewType === 'line'
-                          ? 'bg-blue-600 text-white'
-                          : isDarkMode
+                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'line'
+                        ? 'bg-blue-600 text-white'
+                        : isDarkMode
                           ? 'bg-gray-800 hover:bg-gray-700'
                           : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
+                        }`}
                       title="Line Chart"
                     >
                       <LineChart size={14} />
@@ -747,13 +812,12 @@ const LiveMonitor: React.FC = () => {
 
                     <button
                       onClick={() => updateWidgetState(id, { viewType: 'pie' })}
-                      className={`p-1.5 rounded transition-colors ${
-                        widgetStates[id]?.viewType === 'pie'
-                          ? 'bg-blue-600 text-white'
-                          : isDarkMode
+                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'pie'
+                        ? 'bg-blue-600 text-white'
+                        : isDarkMode
                           ? 'bg-gray-800 hover:bg-gray-700'
                           : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
+                        }`}
                       title="Pie Chart"
                     >
                       <PieChart size={14} />
@@ -761,16 +825,28 @@ const LiveMonitor: React.FC = () => {
 
                     <button
                       onClick={() => updateWidgetState(id, { viewType: 'list' })}
-                      className={`p-1.5 rounded transition-colors ${
-                        widgetStates[id]?.viewType === 'list'
-                          ? 'bg-blue-600 text-white'
-                          : isDarkMode
+                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'list'
+                        ? 'bg-blue-600 text-white'
+                        : isDarkMode
                           ? 'bg-gray-800 hover:bg-gray-700'
                           : 'bg-gray-100 hover:bg-gray-200'
-                      }`}
+                        }`}
                       title="List View"
                     >
                       <List size={14} />
+                    </button>
+
+                    <button
+                      onClick={() => updateWidgetState(id, { viewType: 'grid' })}
+                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'grid'
+                        ? 'bg-blue-600 text-white'
+                        : isDarkMode
+                          ? 'bg-gray-800 hover:bg-gray-700'
+                          : 'bg-gray-100 hover:bg-gray-200'
+                        }`}
+                      title="Grid View"
+                    >
+                      <LayoutGrid size={14} />
                     </button>
                   </div>
 

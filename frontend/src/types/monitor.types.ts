@@ -1,6 +1,6 @@
 // src/types/monitor.types.ts
 
-export type ViewType = 'bar' | 'line' | 'pie' | 'doughnut' | 'list';
+export type ViewType = 'bar' | 'line' | 'pie' | 'doughnut' | 'list' | 'grid';
 export type ScopeType = 'overall' | 'today' | 'custom';
 
 export interface WidgetData {
@@ -239,6 +239,14 @@ export const WIDGETS: Record<string, WidgetConfig> = {
     api: 'invoice_overall',
     param: '',
     w: 4,
+    hasFilters: false,
+    filterType: 'none',
+  },
+  tech_availability: {
+    title: 'Technician Availability',
+    api: 'technician_availability',
+    param: '',
+    w: 12, // Full width
     hasFilters: false,
     filterType: 'none',
   },
