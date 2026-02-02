@@ -1845,6 +1845,11 @@ Route::prefix('billing-generation')->group(function () {
     Route::get('/statements', [\App\Http\Controllers\BillingGenerationController::class, 'getStatements']);
 });
 
+// Billing Records Routes - Direct database fetch (separate from billing-generation)
+Route::get('/soa-records', [\App\Http\Controllers\BillingRecordsController::class, 'getSOARecords']);
+Route::get('/invoice-records', [\App\Http\Controllers\BillingRecordsController::class, 'getInvoiceRecords']);
+
+
 // Advanced Payment Routes
 Route::prefix('advanced-payments')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\AdvancedPaymentApiController::class, 'index']);

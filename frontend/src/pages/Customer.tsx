@@ -8,6 +8,7 @@ import { getCities, City } from '../services/cityService';
 import { getRegions, Region } from '../services/regionService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import CustomerFunnelFilter from '../filter/CustomerFunnelFilter';
+import { useBillingContext } from '../contexts/BillingContext';
 
 const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
   return {
@@ -139,13 +140,18 @@ const Customer: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const { billingRecords, isLoading: isTableLoading, error: contextError, refreshBillingRecords, silentRefresh } = useBillingContext();
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
-  const [billingRecords, setBillingRecords] = useState<BillingRecord[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const isLoading = isTableLoading || isActionLoading;
+  const error = localError || contextError;
+  const setError = setLocalError; // Alias for compatibility with existing code
+
   const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
@@ -251,52 +257,11 @@ const Customer: React.FC = () => {
     fetchLocationData();
   }, []);
 
-  // Fetch billing data
-  // Fetch billing data
+  // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
-    const fetchBillingData = async () => {
-      // Check for cached data first
-      const cachedData = sessionStorage.getItem('billingRecordsCache');
+    silentRefresh();
+  }, [silentRefresh]);
 
-      if (cachedData) {
-        try {
-          const parsedData = JSON.parse(cachedData);
-          setBillingRecords(parsedData);
-          setIsLoading(false); // Show cached data immediately
-        } catch (e) {
-          console.error('Failed to parse cached billing records', e);
-          setIsLoading(true);
-        }
-      } else {
-        setIsLoading(true);
-      }
-
-      try {
-        // Fetch fresh data in background
-        const data = await getBillingRecords();
-
-        // Update state if data changed (simple object comparison or just overwrite)
-        // For performance, we just overwrite as React handles diffing
-        setBillingRecords(data);
-
-        // Update cache
-        sessionStorage.setItem('billingRecordsCache', JSON.stringify(data));
-
-        setError(null);
-      } catch (err) {
-        console.error('Failed to fetch billing records:', err);
-        // Only show error if we don't have displayable data
-        if (!cachedData) {
-          setError('Failed to load billing records. Please try again.');
-          setBillingRecords([]);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchBillingData();
-  }, []);
 
   // Memoize city name lookup for performance
   const getCityName = useMemo(() => {
@@ -309,6 +274,24 @@ const Customer: React.FC = () => {
 
   // Memoize location items for performance
   const locationItems: LocationItem[] = useMemo(() => {
+    // Single pass to count cities
+    const cityCounts: Record<string, number> = {};
+
+    // Initialize counts for all known cities to 0
+    cities.forEach(city => {
+      cityCounts[String(city.id)] = 0;
+    });
+
+    // Count appearances in billing records
+    billingRecords.forEach(record => {
+      if (record.cityId) {
+        const cityIdStr = String(record.cityId);
+        if (cityCounts[cityIdStr] !== undefined) { // Check undefined directly, 0 is falsy
+          cityCounts[cityIdStr]++;
+        }
+      }
+    });
+
     const items: LocationItem[] = [
       {
         id: 'all',
@@ -317,13 +300,12 @@ const Customer: React.FC = () => {
       }
     ];
 
-    // Add cities with counts
+    // Add known cities with their counts
     cities.forEach((city) => {
-      const cityCount = billingRecords.filter(record => record.cityId === city.id).length;
       items.push({
         id: String(city.id),
         name: city.name,
-        count: cityCount
+        count: cityCounts[String(city.id)] || 0
       });
     });
 
@@ -515,6 +497,73 @@ const Customer: React.FC = () => {
     return filtered;
   }, [billingRecords, selectedLocation, searchQuery, sortColumn, sortDirection, activeFilters]);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection]);
+
+  // Derived paginated records
+  const paginatedRecords = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredBillingRecords.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredBillingRecords, currentPage]);
+
+  const totalPages = Math.ceil(filteredBillingRecords.length / itemsPerPage);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  // Pagination Controls Component
+  const PaginationControls = () => {
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredBillingRecords.length)}</span> of <span className="font-medium">{filteredBillingRecords.length}</span> results
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+              }`}
+          >
+            Previous
+          </button>
+
+          <div className="flex items-center space-x-1">
+            {/* Simple page indicator for now, can be expanded to page numbers */}
+            <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Page {currentPage} of {totalPages}
+            </span>
+          </div>
+
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+              }`}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+
   const handleRecordClick = async (record: BillingRecord) => {
     try {
       setIsLoadingDetails(true);
@@ -673,16 +722,10 @@ const Customer: React.FC = () => {
 
   const handleRefresh = async () => {
     try {
-      setIsLoading(true);
-      const data = await getBillingRecords();
-      setBillingRecords(data);
-      sessionStorage.setItem('billingRecordsCache', JSON.stringify(data));
-      setError(null);
+      // Use the context refresh function
+      await refreshBillingRecords();
     } catch (err) {
       console.error('Failed to refresh billing records:', err);
-      setError('Failed to refresh billing records. Please try again.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -691,7 +734,7 @@ const Customer: React.FC = () => {
       return;
     }
 
-    setIsLoading(true);
+    setIsActionLoading(true);
 
     const API_BASE_URL = window.location.hostname === 'localhost'
       ? 'https://backend.atssfiber.ph/api'
@@ -714,13 +757,15 @@ const Customer: React.FC = () => {
         setError(result.message);
       } else {
         alert('✅ Overdue notifications processed successfully!\n\nCheck logs for details.');
+        // Refresh data
+        refreshBillingRecords();
       }
     } catch (err) {
       console.error('Processing failed:', err);
       alert('Processing failed: ' + (err as Error).message);
       setError('Processing failed. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsActionLoading(false);
     }
   };
 
@@ -729,7 +774,7 @@ const Customer: React.FC = () => {
       return;
     }
 
-    setIsLoading(true);
+    setIsActionLoading(true);
 
     const API_BASE_URL = window.location.hostname === 'localhost'
       ? 'https://backend.atssfiber.ph/api'
@@ -752,13 +797,15 @@ const Customer: React.FC = () => {
         setError(result.message);
       } else {
         alert('✅ Disconnection notices processed successfully!\n\nCheck logs for details.');
+        // Refresh data
+        refreshBillingRecords();
       }
     } catch (err) {
       console.error('Processing failed:', err);
       alert('Processing failed: ' + (err as Error).message);
       setError('Processing failed. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsActionLoading(false);
     }
   };
 
@@ -767,7 +814,7 @@ const Customer: React.FC = () => {
       return;
     }
 
-    setIsLoading(true);
+    setIsActionLoading(true);
 
     const API_BASE_URL = window.location.hostname === 'localhost'
       ? 'https://backend.atssfiber.ph/api'
@@ -804,12 +851,12 @@ const Customer: React.FC = () => {
           alert(result.message || 'Generation failed');
         }
         setError(result.message);
-        setIsLoading(false);
+        setIsActionLoading(false);
         return;
       }
 
-      const data = await getBillingRecords();
-      setBillingRecords(data);
+      // Refresh data
+      refreshBillingRecords();
       setError(null);
 
       const invoiceCount = result.data?.invoices?.success || 0;
@@ -837,7 +884,7 @@ const Customer: React.FC = () => {
       setError('Generation failed. Please try again.');
       alert('Generation failed: ' + (err as Error).message);
     } finally {
-      setIsLoading(false);
+      setIsActionLoading(false);
     }
   };
 
@@ -1301,152 +1348,160 @@ const Customer: React.FC = () => {
                   </button>
                 </div>
               ) : displayMode === 'card' ? (
-                filteredBillingRecords.length > 0 ? (
-                  <div className="space-y-0">
-                    {filteredBillingRecords.map((record) => (
-                      <div
-                        key={record.id}
-                        onClick={() => handleRecordClick(record)}
-                        className={`px-4 py-3 cursor-pointer transition-colors border-b ${isDarkMode
-                          ? 'hover:bg-gray-800 border-gray-800'
-                          : 'hover:bg-gray-100 border-gray-200'
-                          } ${selectedCustomer?.billingAccount?.accountNo === record.applicationId ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="text-red-400 font-medium text-sm mb-1">
-                              {record.applicationId} | {record.customerName} | {record.address}
-                            </div>
-                            <div className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
-                              }`}>
-                              {record.status} | ₱ {record.balance.toFixed(2)}
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
-                            <Circle
-                              className={`h-3 w-3 ${record.onlineStatus === 'Online' ? 'text-green-400 fill-green-400' : 'text-gray-400 fill-gray-400'}`}
-                            />
-                            <span className={`text-sm ${record.onlineStatus === 'Online' ? 'text-green-400' : 'text-gray-400'}`}>
-                              {record.onlineStatus}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                    No customer records found matching your filters
-                  </div>
-                )
-              ) : (
-                <div className="overflow-x-auto overflow-y-hidden">
-                  <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
-                    <thead>
-                      <tr className={`border-b sticky top-0 z-10 ${isDarkMode
-                        ? 'border-gray-700 bg-gray-800'
-                        : 'border-gray-200 bg-gray-100'
-                        }`}>
-                        {filteredColumns.map((column, index) => (
-                          <th
-                            key={column.key}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, column.key)}
-                            onDragOver={(e) => handleDragOver(e, column.key)}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleDrop(e, column.key)}
-                            onDragEnd={handleDragEnd}
-                            className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
-                              } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''} ${draggedColumn === column.key ? 'opacity-50' : ''
-                              } ${dragOverColumn === column.key ? '' : ''
-                              }`}
-                            style={dragOverColumn === column.key ? {
-                              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                              width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
-                            } : {
-                              width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
-                            }}
-                            onMouseEnter={() => setHoveredColumn(column.key)}
-                            onMouseLeave={() => setHoveredColumn(null)}
+                <>
+                  <div className="flex-1 overflow-y-auto">
+                    {paginatedRecords.length > 0 ? (
+                      <div>
+                        {paginatedRecords.map((record) => (
+                          <div
+                            key={record.id}
+                            onClick={() => handleRecordClick(record)}
+                            className={`px-4 py-3 cursor-pointer transition-colors border-b ${isDarkMode
+                              ? 'hover:bg-gray-800 border-gray-800'
+                              : 'hover:bg-gray-100 border-gray-200'
+                              } ${selectedCustomer?.billingAccount?.accountNo === record.applicationId ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
                           >
                             <div className="flex items-center justify-between">
-                              <span>{column.label}</span>
-                              {(hoveredColumn === column.key || sortColumn === column.key) && (
-                                <button
-                                  onClick={() => handleSort(column.key)}
-                                  className="ml-2 transition-colors"
-                                >
-                                  {sortColumn === column.key && sortDirection === 'desc' ? (
-                                    <ArrowDown className="h-4 w-4" style={{ color: colorPalette?.accent || '#fb923c' }} />
-                                  ) : (
-                                    <ArrowUp className="h-4 w-4 text-gray-400" style={{ color: hoveredColumn === column.key ? (colorPalette?.accent || '#fb923c') : undefined }} />
-                                  )}
-                                </button>
-                              )}
-                            </div>
-                            {index < filteredColumns.length - 1 && (
-                              <div
-                                className={`absolute right-0 top-0 bottom-0 w-1 cursor-col-resize ${isDarkMode ? 'group-hover:bg-gray-600' : 'group-hover:bg-gray-300'
-                                  }`}
-                                style={{
-                                  '--hover-bg': colorPalette?.primary || '#ea580c'
-                                } as React.CSSProperties}
-                                onMouseEnter={(e) => {
-                                  if (colorPalette?.primary) {
-                                    e.currentTarget.style.backgroundColor = colorPalette.primary;
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = '';
-                                }}
-                                onMouseDown={(e) => handleMouseDownResize(e, column.key)}
-                              />
-                            )}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredBillingRecords.length > 0 ? (
-                        filteredBillingRecords.map((record) => (
-                          <tr
-                            key={record.id}
-                            className={`border-b cursor-pointer transition-colors ${isDarkMode
-                              ? 'border-gray-800 hover:bg-gray-900'
-                              : 'border-gray-200 hover:bg-gray-50'
-                              } ${selectedCustomer?.billingAccount?.accountNo === record.applicationId ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
-                            onClick={() => handleRecordClick(record)}
-                          >
-                            {filteredColumns.map((column, index) => (
-                              <td
-                                key={column.key}
-                                className={`py-4 px-3 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                                  } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''}`}
-                                style={{
-                                  width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
-                                  maxWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
-                                }}
-                              >
-                                <div className="truncate">
-                                  {renderCellValue(record, column.key)}
+                              <div className="flex-1 min-w-0">
+                                <div className="text-red-400 font-medium text-sm mb-1">
+                                  {record.applicationId} | {record.customerName} | {record.address}
                                 </div>
-                              </td>
-                            ))}
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${isDarkMode
-                            ? 'text-gray-400 border-gray-800'
-                            : 'text-gray-600 border-gray-200'
-                            }`}>
-                            No customer records found matching your filters
-                          </td>
+                                <div className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                  }`}>
+                                  {record.status} | ₱ {record.balance.toFixed(2)}
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
+                                <Circle
+                                  className={`h-3 w-3 ${record.onlineStatus === 'Online' ? 'text-green-400 fill-green-400' : 'text-gray-400 fill-gray-400'}`}
+                                />
+                                <span className={`text-sm ${record.onlineStatus === 'Online' ? 'text-green-400' : 'text-gray-400'}`}>
+                                  {record.onlineStatus}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                        No customer records found matching your filters
+                      </div>
+                    )}
+                  </div>
+                  <PaginationControls />
+                </>
+              ) : (
+                <div className="flex-1 overflow-auto relative flex flex-col h-full">
+                  <div className="flex-1 overflow-auto">
+                    <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
+                      <thead>
+                        <tr className={`border-b sticky top-0 z-10 ${isDarkMode
+                          ? 'border-gray-700 bg-gray-800'
+                          : 'border-gray-200 bg-gray-100'
+                          }`}>
+                          {filteredColumns.map((column, index) => (
+                            <th
+                              key={column.key}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, column.key)}
+                              onDragOver={(e) => handleDragOver(e, column.key)}
+                              onDragLeave={handleDragLeave}
+                              onDrop={(e) => handleDrop(e, column.key)}
+                              onDragEnd={handleDragEnd}
+                              className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
+                                } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''} ${draggedColumn === column.key ? 'opacity-50' : ''
+                                } ${dragOverColumn === column.key ? '' : ''
+                                }`}
+                              style={dragOverColumn === column.key ? {
+                                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                                width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
+                              } : {
+                                width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
+                              }}
+                              onMouseEnter={() => setHoveredColumn(column.key)}
+                              onMouseLeave={() => setHoveredColumn(null)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span>{column.label}</span>
+                                {(hoveredColumn === column.key || sortColumn === column.key) && (
+                                  <button
+                                    onClick={() => handleSort(column.key)}
+                                    className="ml-2 transition-colors"
+                                  >
+                                    {sortColumn === column.key && sortDirection === 'desc' ? (
+                                      <ArrowDown className="h-4 w-4" style={{ color: colorPalette?.accent || '#fb923c' }} />
+                                    ) : (
+                                      <ArrowUp className="h-4 w-4 text-gray-400" style={{ color: hoveredColumn === column.key ? (colorPalette?.accent || '#fb923c') : undefined }} />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                              {index < filteredColumns.length - 1 && (
+                                <div
+                                  className={`absolute right-0 top-0 bottom-0 w-1 cursor-col-resize ${isDarkMode ? 'group-hover:bg-gray-600' : 'group-hover:bg-gray-300'
+                                    }`}
+                                  style={{
+                                    '--hover-bg': colorPalette?.primary || '#ea580c'
+                                  } as React.CSSProperties}
+                                  onMouseEnter={(e) => {
+                                    if (colorPalette?.primary) {
+                                      e.currentTarget.style.backgroundColor = colorPalette.primary;
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = '';
+                                  }}
+                                  onMouseDown={(e) => handleMouseDownResize(e, column.key)}
+                                />
+                              )}
+                            </th>
+                          ))}
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {paginatedRecords.length > 0 ? (
+                          paginatedRecords.map((record) => (
+                            <tr
+                              key={record.id}
+                              className={`border-b cursor-pointer transition-colors ${isDarkMode
+                                ? 'border-gray-800 hover:bg-gray-900'
+                                : 'border-gray-200 hover:bg-gray-50'
+                                } ${selectedCustomer?.billingAccount?.accountNo === record.applicationId ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
+                              onClick={() => handleRecordClick(record)}
+                            >
+                              {filteredColumns.map((column, index) => (
+                                <td
+                                  key={column.key}
+                                  className={`py-4 px-3 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                    } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''}`}
+                                  style={{
+                                    width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
+                                    maxWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
+                                  }}
+                                >
+                                  <div className="truncate">
+                                    {renderCellValue(record, column.key)}
+                                  </div>
+                                </td>
+                              ))}
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${isDarkMode
+                              ? 'text-gray-400 border-gray-800'
+                              : 'text-gray-600 border-gray-200'
+                              }`}>
+                              No customer records found matching your filters
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <PaginationControls />
                 </div>
               )}
             </div>

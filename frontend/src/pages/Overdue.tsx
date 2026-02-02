@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { overdueService, Overdue } from '../services/overdueService';
 
@@ -11,6 +11,14 @@ const OverduePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+
+  // Pagination State with session storage
+  const [currentPage, setCurrentPage] = useState(() => {
+    const saved = sessionStorage.getItem('overduePage');
+    return saved ? parseInt(saved) : 1;
+  });
+  const [hasMore, setHasMore] = useState(false);
+  const itemsPerPage = 50;
 
   const dateItems = [
     { date: 'All', id: '' },
@@ -49,18 +57,39 @@ const OverduePage: React.FC = () => {
     fetchColorPalette();
   }, []);
 
+  // Fetch data when page changes
   useEffect(() => {
     fetchOverdueData();
-  }, []);
+    // Save current page to session storage
+    sessionStorage.setItem('overduePage', currentPage.toString());
+  }, [currentPage]);
 
   const fetchOverdueData = async () => {
     try {
       setIsLoading(true);
-      const response = await overdueService.getAll();
 
-      if (response.success) {
-        setOverdueRecords(response.data || []);
+      // PHASE 1: Fast load - Get basic data INSTANTLY
+      const fastResponse = await overdueService.getAll(true, currentPage, itemsPerPage);
+
+      if (fastResponse.success) {
+        setOverdueRecords(fastResponse.data || []);
+        setHasMore(fastResponse.pagination?.has_more || false);
+        setIsLoading(false);
         setError(null);
+
+        // PHASE 2: Load full data in background
+        setTimeout(async () => {
+          try {
+            const fullResponse = await overdueService.getAll(false, currentPage, itemsPerPage);
+
+            if (fullResponse.success) {
+              setOverdueRecords(fullResponse.data || []);
+              setHasMore(fullResponse.pagination?.has_more || false);
+            }
+          } catch (bgError) {
+            console.warn('Background full data load failed:', bgError);
+          }
+        }, 100);
       } else {
         setError('Failed to load Overdue records');
         setOverdueRecords([]);
@@ -78,13 +107,58 @@ const OverduePage: React.FC = () => {
     await fetchOverdueData();
   };
 
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
+
   const filteredRecords = overdueRecords.filter(record => {
     const matchesSearch = searchQuery === '' ||
       record.account_no?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       record.full_name?.toLowerCase().includes(searchQuery.toLowerCase());
-
     return matchesSearch;
   });
+
+  const PaginationControls = () => {
+    return (
+      <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          Page <span className="font-medium">{currentPage}</span> - Showing <span className="font-medium">{filteredRecords.length}</span> records
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`px-3 py-2 rounded text-sm transition-colors flex items-center space-x-1 ${currentPage === 1
+              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+              }`}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            <span>Back</span>
+          </button>
+
+          <div className="flex items-center space-x-1">
+            <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Page {currentPage}
+            </span>
+          </div>
+
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={!hasMore}
+            className={`px-3 py-2 rounded text-sm transition-colors flex items-center space-x-1 ${!hasMore
+              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+              }`}
+          >
+            <span>Next</span>
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-';
@@ -145,8 +219,8 @@ const OverduePage: React.FC = () => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
-                        ? 'bg-gray-800 text-white border border-gray-700'
-                        : 'bg-white text-gray-900 border border-gray-300'
+                      ? 'bg-gray-800 text-white border border-gray-700'
+                      : 'bg-white text-gray-900 border border-gray-300'
                       }`}
                     style={{
                       '--tw-ring-color': colorPalette?.primary || '#ea580c'
@@ -207,64 +281,67 @@ const OverduePage: React.FC = () => {
                   <button
                     onClick={handleRefresh}
                     className={`mt-4 px-4 py-2 rounded ${isDarkMode
-                        ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                       }`}>
                     Retry
                   </button>
                 </div>
               ) : filteredRecords.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className={`min-w-full divide-y text-sm ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
-                    }`}>
-                    <thead className={`sticky top-0 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                <>
+                  <div className="overflow-x-auto">
+                    <table className={`min-w-full divide-y text-sm ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
                       }`}>
-                      <tr>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>ID</th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Account No</th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Customer Name</th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Overdue Date</th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Invoice ID</th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Print Link</th>
-                      </tr>
-                    </thead>
-                    <tbody className={`divide-y ${isDarkMode ? 'bg-gray-900 divide-gray-800' : 'bg-white divide-gray-200'
-                      }`}>
-                      {filteredRecords.map((record) => (
-                        <tr
-                          key={record.id}
-                          className={`${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
-                            }`}
-                        >
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                            }`}>{record.id}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                            }`}>{record.account_no || '-'}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                            }`}>{record.full_name || '-'}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                            }`}>{formatDate(record.overdue_date)}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                            }`}>{record.invoice_id || '-'}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                            }`}>
-                            {record.print_link ? (
-                              <span className="text-blue-500 cursor-default">
-                                View
-                              </span>
-                            ) : '-'}
-                          </td>
+                      <thead className={`sticky top-0 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                        }`}>
+                        <tr>
+                          <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>ID</th>
+                          <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Account No</th>
+                          <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Customer Name</th>
+                          <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Overdue Date</th>
+                          <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Invoice ID</th>
+                          <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Print Link</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className={`divide-y ${isDarkMode ? 'bg-gray-900 divide-gray-800' : 'bg-white divide-gray-200'
+                        }`}>
+                        {filteredRecords.map((record: Overdue) => (
+                          <tr
+                            key={record.id}
+                            className={`${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
+                              }`}
+                          >
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                              }`}>{record.id}</td>
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                              }`}>{record.account_no || '-'}</td>
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                              }`}>{record.full_name || '-'}</td>
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                              }`}>{formatDate(record.overdue_date)}</td>
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                              }`}>{record.invoice_id || '-'}</td>
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                              }`}>
+                              {record.print_link ? (
+                                <span className="text-blue-500 cursor-default">
+                                  View
+                                </span>
+                              ) : '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <PaginationControls />
+                </>
               ) : (
                 <div className={`h-full flex items-center justify-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
                   }`}>
