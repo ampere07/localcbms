@@ -32,9 +32,11 @@ use App\Http\Controllers\PPPoEController;
 use App\Models\User;
 use App\Models\MassRebate;
 use App\Http\Controllers\Api\MonitorController;
+use App\Http\Controllers\Api\SmsBlastController;
 
 Route::get('/monitor/handle', [MonitorController::class, 'handle']);
 Route::post('/monitor/handle', [MonitorController::class, 'handle']); // Ensure POST is also handled for save_template actions if not using REST
+Route::get('/sms-blast', [SmsBlastController::class, 'index']);
 
 // Handle all OPTIONS requests
 Route::options('{any}', function() {

@@ -28,9 +28,15 @@ import {
   Eye,
   EyeOff,
   Move,
-  LayoutGrid
+  LayoutGrid,
+  Maximize,
+  Minimize,
+  Table
 } from 'lucide-react';
 import { Responsive } from 'react-grid-layout';
+// WidthProvider was moved to legacy in v2.0
+// @ts-ignore - Ignore type issues with legacy import if any
+import { WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import {
@@ -45,7 +51,6 @@ import {
   CURRENCY_WIDGETS
 } from '../types/monitor.types';
 
-const WidthProvider = require('react-grid-layout').WidthProvider;
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 ChartJS.register(
@@ -76,12 +81,15 @@ const LiveMonitor: React.FC = () => {
   // React Grid Layout state
   const [layouts, setLayouts] = useState<any>({ lg: [] });
 
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const refreshInterval = useRef<NodeJS.Timeout | null>(null);
 
   // IMPORTANT:
   // put this in .env of React:
   // REACT_APP_API_BASE_URL=https://backend.atssfiber.ph/api
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api';
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://backend.atssfiber.ph/api';
 
   const buildHandleUrl = (params: Record<string, string | number | undefined>) => {
     const url = new URL(`${API_BASE_URL}/monitor/handle`);
@@ -103,7 +111,7 @@ const LiveMonitor: React.FC = () => {
         initialStates[id] = JSON.parse(savedState);
       } else {
         initialStates[id] = {
-          viewType: id === 'tech_availability' ? 'grid' : 'bar',
+          viewType: id === 'tech_availability' ? 'grid' : (id === 'team_detailed_queue' ? 'table' : 'bar'),
           scope: 'overall',
           year: new Date().getFullYear().toString(),
           bgy: 'All',
@@ -431,11 +439,57 @@ const LiveMonitor: React.FC = () => {
     );
   };
 
+  const renderTable = (data: any[], id: string) => {
+    if (!Array.isArray(data) || data.length === 0) {
+      return (
+        <div className={`text-center py-8 text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+          No Data Available
+        </div>
+      );
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <table className={`min-w-full text-xs text-left ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          <thead className={`font-semibold border-b ${isDarkMode ? 'border-gray-800 text-gray-400' : 'border-gray-200 text-gray-500'}`}>
+            <tr>
+              <th className="py-2 px-3">Team Name</th>
+              <th className="py-2 px-3">Type</th>
+              <th className="py-2 px-3">Customer</th>
+              <th className="py-2 px-3">Address</th>
+              <th className="py-2 px-3">Start</th>
+              <th className="py-2 px-3">Duration</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-800/50">
+            {data.map((row, idx) => (
+              <tr key={idx} className={`${isDarkMode ? 'hover:bg-gray-800/50' : 'hover:bg-gray-50'}`}>
+                <td className="py-2 px-3 font-medium">{row.team_name}</td>
+                <td className="py-2 px-3">
+                  <span className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-wide font-bold ${row.type?.toLowerCase().includes('job')
+                    ? 'bg-blue-500/20 text-blue-500'
+                    : 'bg-purple-500/20 text-purple-500'
+                    }`}>
+                    {row.type}
+                  </span>
+                </td>
+                <td className="py-2 px-3">{row.customer}</td>
+                <td className="py-2 px-3 max-w-xs truncate" title={row.address}>{row.address}</td>
+                <td className="py-2 px-3 whitespace-nowrap">{row.start}</td>
+                <td className="py-2 px-3 font-mono font-bold text-orange-500">{row.duration}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   const renderWidget = (id: string) => {
     const widget = widgets[id];
     const state = widgetStates[id];
 
-    if (!widget || !widget.data || !state) {
+    if (!widget || !state) {
       return (
         <div className={`text-center py-8 text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
           <RefreshCw className="animate-spin mx-auto mb-2" size={20} />
@@ -443,6 +497,29 @@ const LiveMonitor: React.FC = () => {
         </div>
       );
     }
+
+    const hasData = widget.data && (Array.isArray(widget.data) ? widget.data.length > 0 : true);
+
+    if (!hasData) {
+      return (
+        <div className={`text-center py-8 text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+          {widget.data ? 'No Data Available' : 'Loading...'}
+        </div>
+      );
+    }
+
+    // Handler for table view
+    if (state.viewType === 'table') {
+      return (
+        <div className="h-full overflow-y-auto custom-scrollbar">
+          {renderTable(widget.data, id)}
+        </div>
+      );
+    }
+
+    // Special handler for generic lists like technician availability
+    if (state.viewType === 'grid') return renderGridView(widget.data, id);
+    if (state.viewType === 'list' || id === 'technician_availability') return renderListView(widget.data, id);
 
     const chartData = generateChartData(widget.data, id);
     if (!chartData) {
@@ -452,9 +529,6 @@ const LiveMonitor: React.FC = () => {
         </div>
       );
     }
-
-    if (state.viewType === 'list') return renderListView(widget.data, id);
-    if (state.viewType === 'grid') return renderGridView(widget.data, id);
 
     // IMPORTANT: put id on the chart container so tooltip can detect widgetId for currency
     return (
@@ -586,8 +660,13 @@ const LiveMonitor: React.FC = () => {
       if (data.status === 'success' && data.data) {
         const template = data.data as DashboardTemplate;
 
-        const layoutData = JSON.parse((template.layout_data as any) || '{}');
-        const styleData = JSON.parse((template.style_data as any) || '{}');
+        const layoutData = typeof template.layout_data === 'string'
+          ? JSON.parse(template.layout_data)
+          : template.layout_data || {};
+
+        const styleData = typeof template.style_data === 'string'
+          ? JSON.parse(template.style_data)
+          : template.style_data || {};
 
         setWidgetStates(layoutData);
 
@@ -644,13 +723,37 @@ const LiveMonitor: React.FC = () => {
     } catch (error) {
       console.error('Error deleting template:', error);
       window.alert('Failed to delete template');
-    } finally {
       setIsLoading(false);
     }
   };
 
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'}`}>
+    <div ref={containerRef} className={`min-h-screen ${isDarkMode ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'} ${isFullscreen ? 'overflow-y-auto' : ''}`}>
       {/* Header */}
       <div className={`sticky top-0 z-50 border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
         <div className="container mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-4">
@@ -693,7 +796,15 @@ const LiveMonitor: React.FC = () => {
               title="Refresh All Widgets"
             >
               <RefreshCw size={16} />
-              Refresh
+            </button>
+
+            <button
+              onClick={toggleFullscreen}
+              className={`px-3 py-2 rounded flex items-center gap-2 ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'}`}
+              title={isFullscreen ? "Exit Full Screen" : "Full Screen"}
+            >
+              {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+              <span className="hidden sm:inline">{isFullscreen ? "Exit" : "Full Screen"}</span>
             </button>
 
             <button
@@ -702,7 +813,7 @@ const LiveMonitor: React.FC = () => {
               title={isDraggable ? "Lock Layout" : "Edit Layout"}
             >
               <Move size={16} />
-              {isDraggable ? "Done Editing" : "Edit Layout"}
+              {isDraggable ? "Done" : "Edit"}
             </button>
           </div>
         </div>
@@ -906,6 +1017,19 @@ const LiveMonitor: React.FC = () => {
                       title="List View"
                     >
                       <List size={14} />
+                    </button>
+
+                    <button
+                      onClick={() => updateWidgetState(id, { viewType: 'table' })}
+                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'table'
+                        ? 'bg-blue-600 text-white'
+                        : isDarkMode
+                          ? 'bg-gray-800 hover:bg-gray-700'
+                          : 'bg-gray-100 hover:bg-gray-200'
+                        }`}
+                      title="Table View"
+                    >
+                      <Table size={14} />
                     </button>
 
                     <button

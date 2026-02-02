@@ -1,6 +1,6 @@
 import { Layout } from 'react-grid-layout';
 
-export type ViewType = 'bar' | 'line' | 'pie' | 'doughnut' | 'list' | 'grid';
+export type ViewType = 'bar' | 'line' | 'pie' | 'doughnut' | 'list' | 'grid' | 'table';
 export type ScopeType = 'overall' | 'today' | 'custom';
 
 export interface WidgetData {
@@ -248,6 +248,14 @@ export const WIDGETS: Record<string, WidgetConfig> = {
     api: 'technician_availability',
     param: '',
     w: 12, // Full width
+    hasFilters: false,
+    filterType: 'none',
+  },
+  team_detailed_queue: {
+    title: 'Team Detailed Queue',
+    api: 'team_detailed_queue',
+    param: '',
+    w: 12, // Full width table
     hasFilters: false,
     filterType: 'none',
   },

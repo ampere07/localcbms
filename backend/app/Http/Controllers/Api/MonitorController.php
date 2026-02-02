@@ -677,6 +677,97 @@ class MonitorController extends Controller
                 return response()->json(['status' => 'success', 'data' => $data]);
             }
 
+            // 14) TEAM DETAILED QUEUE
+            if ($action === 'team_detailed_queue') {
+                // Ensure columns match EXACTLY for UNION
+                // 1) Job Orders
+                $jobs = DB::table('job_orders')
+                    ->join('users', 'job_orders.assigned_email', '=', 'users.email_address')
+                    ->join('applications', 'job_orders.application_id', '=', 'applications.id')
+                    ->select(
+                        'users.username as team_name',
+                        DB::raw("'Job Order' as type"),
+                        DB::raw("CONCAT(applications.first_name, ' ', applications.last_name) as customer"),
+                        DB::raw("CONCAT(
+                            COALESCE(applications.installation_address, ''), ' ', 
+                            COALESCE(applications.landmark, ''), ' ', 
+                            COALESCE(applications.location, ''), ' ', 
+                            COALESCE(applications.barangay, ''), ' ', 
+                            COALESCE(applications.city, ''), ' ', 
+                            COALESCE(applications.region, '')
+                        ) as address"),
+                        // Cast updated_at to char to match service_orders type if diff, or just for safety
+                        DB::raw("CAST(job_orders.updated_at AS CHAR) as start_time_str"),
+                        'job_orders.onsite_status as status'
+                    )
+                    ->where('job_orders.onsite_status', '!=', 'Done')
+                    ->whereNotNull('job_orders.assigned_email')
+                    ->where('job_orders.assigned_email', '!=', '');
+
+                // 2) Service Orders
+                $services = DB::table('service_orders')
+                    ->join('users', 'service_orders.assigned_email', '=', 'users.email_address')
+                    ->join('billing_accounts', 'service_orders.account_no', '=', 'billing_accounts.account_no')
+                    ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                    ->select(
+                        'users.username as team_name',
+                        DB::raw("COALESCE(service_orders.concern, 'Service Order') as type"),
+                        DB::raw("CONCAT(customers.first_name, ' ', customers.last_name) as customer"),
+                        DB::raw("CONCAT(
+                            COALESCE(customers.address, ''), ' ', 
+                            COALESCE(customers.location, ''), ' ', 
+                            COALESCE(customers.barangay, ''), ' ', 
+                            COALESCE(customers.city, ''), ' ', 
+                            COALESCE(customers.region, '')
+                        ) as address"),
+                        DB::raw("CAST(service_orders.updated_at AS CHAR) as start_time_str"),
+                        'service_orders.visit_status as status'
+                    )
+                    ->where('service_orders.visit_status', '!=', 'Resolved')
+                    ->where('service_orders.visit_status', '!=', 'Done') 
+                    ->whereNotNull('service_orders.assigned_email')
+                    ->where('service_orders.assigned_email', '!=', '');
+
+                $all = $jobs->union($services)->get();
+
+                // Calculate duration in PHP
+                $data = $all->map(function ($item) {
+                    $startStr = $item->start_time_str ?? null;
+                    $start = $startStr ? \Carbon\Carbon::parse($startStr) : null;
+                    
+                    if (!$start) {
+                        return [
+                            'team_name' => $item->team_name,
+                            'type' => $item->type,
+                            'customer' => $item->customer,
+                            'address' => trim($item->address),
+                            'start' => '-',
+                            'duration' => '-'
+                        ];
+                    }
+
+                    $now = \Carbon\Carbon::now();
+                    
+                    // Duration string
+                    $diff = $start->diff($now);
+                    $duration = "";
+                    if ($diff->d > 0) $duration .= $diff->d . "d ";
+                    if ($diff->h > 0) $duration .= $diff->h . "h ";
+                    $duration .= $diff->i . "m";
+
+                    return [
+                        'team_name' => $item->team_name,
+                        'type' => $item->type,
+                        'customer' => $item->customer,
+                        'address' => trim($item->address),
+                        'start' => $start->format('M d, Y h:i A'),
+                        'duration' => $duration
+                    ];
+                });
+
+                return response()->json(['status' => 'success', 'data' => $data]);
+            }
+
             return response()->json([
                 'status' => 'error',
                 'message' => "Unknown action: $action",
