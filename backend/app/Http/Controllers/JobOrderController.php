@@ -33,9 +33,19 @@ class JobOrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            \Log::info('Accessing job_orders table');
-            
-            $query = JobOrder::with('application');
+            $page = $request->input('page', 1);
+            $limit = $request->input('limit', 50); // Default 50 for faster response
+            $search = $request->input('search', '');
+            $fastMode = $request->input('fast', false); // Fast mode: skip heavy processing
+
+            \Log::info('JobOrderController: Starting to fetch job orders', [
+                'page' => $page,
+                'limit' => $limit,
+                'search' => $search,
+                'fast_mode' => $fastMode
+            ]);
+
+            $query = JobOrder::with('application')->orderBy('id', 'desc');
             
             if ($request->has('assigned_email')) {
                 $assignedEmail = $request->query('assigned_email');
@@ -50,17 +60,67 @@ class JobOrderController extends Controller
                     'cutoff_date' => $sevenDaysAgo->toDateTimeString()
                 ]);
             }
-            
-            $jobOrders = $query->get();
 
-            \Log::info('Found ' . $jobOrders->count() . ' job orders in database');
-            
-            if ($jobOrders->isEmpty()) {
-                \Log::info('No job orders found in database');
-            } else {
-                \Log::info('First job order example:', $jobOrders->first()->toArray());
+            // Apply search filter
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('assigned_email', 'LIKE', "%{$search}%")
+                      ->orWhere('onsite_status', 'LIKE', "%{$search}%")
+                      ->orWhere('username', 'LIKE', "%{$search}%")
+                      ->orWhereHas('application', function ($appQuery) use ($search) {
+                          $appQuery->where('first_name', 'LIKE', "%{$search}%")
+                                   ->orWhere('last_name', 'LIKE', "%{$search}%")
+                                   ->orWhere('city', 'LIKE', "%{$search}%");
+                      });
+                });
             }
 
+            // Fetch one extra record to check if there are more pages
+            $jobOrders = $query->skip(($page - 1) * $limit)
+                ->take($limit + 1)
+                ->get();
+
+            // Check if there are more pages
+            $hasMore = $jobOrders->count() > $limit;
+
+            // Remove the extra record if it exists
+            if ($hasMore) {
+                $jobOrders = $jobOrders->slice(0, $limit);
+            }
+
+            \Log::info('JobOrderController: Fetched ' . $jobOrders->count() . ' job orders');
+
+            // Fast mode: Return minimal data immediately
+            if ($fastMode) {
+                $formattedJobOrders = $jobOrders->map(function ($jobOrder) {
+                    $application = $jobOrder->application;
+                    
+                    return [
+                        'id' => $jobOrder->id,
+                        'JobOrder_ID' => $jobOrder->id,
+                        'application_id' => $jobOrder->application_id,
+                        'Timestamp' => $jobOrder->timestamp ? $jobOrder->timestamp->format('Y-m-d H:i:s') : null,
+                        'Onsite_Status' => $jobOrder->onsite_status,
+                        'Assigned_Email' => $jobOrder->assigned_email,
+                        'Username' => $jobOrder->username,
+                        'First_Name' => $application ? $application->first_name : null,
+                        'Last_Name' => $application ? $application->last_name : null,
+                        'updated_at' => $jobOrder->updated_at ? $jobOrder->updated_at->format('Y-m-d H:i:s') : null,
+                    ];
+                });
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $formattedJobOrders->values(),
+                    'pagination' => [
+                        'current_page' => (int) $page,
+                        'per_page' => (int) $limit,
+                        'has_more' => $hasMore
+                    ]
+                ]);
+            }
+
+            // Normal mode: Return full data
             $formattedJobOrders = $jobOrders->map(function ($jobOrder) {
                 $application = $jobOrder->application;
                 
@@ -137,9 +197,12 @@ class JobOrderController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $formattedJobOrders,
-                'table' => 'job_orders',
-                'count' => $jobOrders->count()
+                'data' => $formattedJobOrders->values(),
+                'pagination' => [
+                    'current_page' => (int) $page,
+                    'per_page' => (int) $limit,
+                    'has_more' => $hasMore
+                ]
             ]);
         } catch (\Exception $e) {
             \Log::error('Error fetching job orders: ' . $e->getMessage());
@@ -149,8 +212,6 @@ class JobOrderController extends Controller
                 'success' => false,
                 'message' => 'Failed to fetch job orders',
                 'error' => $e->getMessage(),
-                'file' => $e->getFile() . ':' . $e->getLine(),
-                'trace' => $e->getTraceAsString()
             ], 500);
         }
     }

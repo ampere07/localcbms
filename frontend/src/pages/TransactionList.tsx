@@ -44,6 +44,41 @@ const TransactionList: React.FC = () => {
     silentRefresh();
   }, [silentRefresh]);
 
+  // Dark mode synchronization logic
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Fetch color palette
+  useEffect(() => {
+    const fetchThemeData = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+
+    fetchThemeData();
+  }, []);
+
   const formatDate = (dateStr?: string): string => {
     if (!dateStr) return 'No date';
     try {

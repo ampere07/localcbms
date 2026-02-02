@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { FileText, Search, ListFilter, ChevronDown, ArrowUp, ArrowDown, Menu, X, Filter, RefreshCw } from 'lucide-react';
+import { FileText, Search, ListFilter, ChevronDown, ArrowUp, ArrowDown, Menu, X, Filter, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import ApplicationDetails from '../components/ApplicationDetails';
 import AddApplicationModal from '../modals/AddApplicationModal';
 import ApplicationFunnelFilter from '../filter/ApplicationFunnelFilter';
@@ -112,6 +112,13 @@ const ApplicationManagement: React.FC = () => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(() => {
+    const saved = sessionStorage.getItem('applicationManagementCurrentPage');
+    return saved ? parseInt(saved, 10) : 1;
+  });
+  const [hasMore, setHasMore] = useState<boolean>(true);
+  const [totalLoaded, setTotalLoaded] = useState<number>(0);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -142,9 +149,9 @@ const ApplicationManagement: React.FC = () => {
         setFilterDropdownOpen(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
@@ -167,14 +174,35 @@ const ApplicationManagement: React.FC = () => {
         setLocationDataLoaded(true);
       }
     };
-    
+
     fetchLocationData();
   }, []);
 
   useEffect(() => {
     if (!locationDataLoaded) return;
-    fetchApplications();
+    fetchApplications(currentPage, false);
   }, [locationDataLoaded]);
+
+  // Save current page to session storage
+  useEffect(() => {
+    sessionStorage.setItem('applicationManagementCurrentPage', currentPage.toString());
+  }, [currentPage]);
+
+  const handleNextPage = () => {
+    if (hasMore) {
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      fetchApplications(nextPage, false);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      const prevPage = currentPage - 1;
+      setCurrentPage(prevPage);
+      fetchApplications(prevPage, false);
+    }
+  };
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -185,23 +213,29 @@ const ApplicationManagement: React.FC = () => {
         console.error('Failed to fetch color palette:', err);
       }
     };
-    
+
     fetchColorPalette();
   }, []);
 
-  const fetchApplications = async () => {
+  const fetchApplications = async (page: number = currentPage, append: boolean = false) => {
     try {
-      setIsLoading(true);
-      const apiApplications = await getApplications();
-      
-      if (apiApplications && apiApplications.length > 0) {
-        const transformedApplications: Application[] = apiApplications.map(app => {
+      if (append) {
+        setIsLoadingMore(true);
+      } else {
+        setIsLoading(true);
+      }
+
+      // Phase 1: Fast mode for quick initial load
+      const fastResponse = await getApplications(true, page, 50, searchQuery);
+
+      if (fastResponse.applications && fastResponse.applications.length > 0) {
+        const transformedApplications: Application[] = fastResponse.applications.map(app => {
           const regionName = app.region || '';
           const cityName = app.city || '';
           const barangayName = app.barangay || '';
           const addressLine = app.installation_address || app.address_line || app.address || '';
           const fullAddress = [regionName, cityName, barangayName, addressLine].filter(Boolean).join(', ');
-          
+
           return {
             id: app.id || '',
             customerName: app.customer_name || `${app.first_name || ''} ${app.middle_initial || ''} ${app.last_name || ''}`.trim(),
@@ -227,26 +261,95 @@ const ApplicationManagement: React.FC = () => {
             create_time: app.create_time
           };
         });
-        
-        setApplications(transformedApplications);
+
+        if (append) {
+          setApplications(prev => [...prev, ...transformedApplications]);
+        } else {
+          setApplications(transformedApplications);
+        }
+
+        setHasMore(fastResponse.pagination?.has_more ?? false);
+        setTotalLoaded(append ? totalLoaded + transformedApplications.length : transformedApplications.length);
+        setIsLoading(false);
+        setIsLoadingMore(false);
+
+        // Phase 2: Load full data in background
+        const fullResponse = await getApplications(false, page, 50, searchQuery);
+
+        if (fullResponse.applications && fullResponse.applications.length > 0) {
+          const fullTransformedApplications: Application[] = fullResponse.applications.map(app => {
+            const regionName = app.region || '';
+            const cityName = app.city || '';
+            const barangayName = app.barangay || '';
+            const addressLine = app.installation_address || app.address_line || app.address || '';
+            const fullAddress = [regionName, cityName, barangayName, addressLine].filter(Boolean).join(', ');
+
+            return {
+              id: app.id || '',
+              customerName: app.customer_name || `${app.first_name || ''} ${app.middle_initial || ''} ${app.last_name || ''}`.trim(),
+              timestamp: app.timestamp || (app.create_date && app.create_time ? `${app.create_date} ${app.create_time}` : ''),
+              address: addressLine,
+              location: app.location || fullAddress,
+              status: app.status || 'pending',
+              city: cityName,
+              region: regionName,
+              barangay: barangayName,
+              email_address: app.email_address,
+              first_name: app.first_name,
+              middle_initial: app.middle_initial,
+              last_name: app.last_name,
+              mobile_number: app.mobile_number,
+              secondary_mobile_number: app.secondary_mobile_number,
+              installation_address: app.installation_address,
+              landmark: app.landmark,
+              desired_plan: app.desired_plan,
+              promo: app.promo,
+              referred_by: app.referred_by,
+              create_date: app.create_date,
+              create_time: app.create_time
+            };
+          });
+
+          if (append) {
+            setApplications(prev => {
+              const newApps = [...prev];
+              const startIndex = (page - 1) * 50;
+              fullTransformedApplications.forEach((app, idx) => {
+                const targetIndex = startIndex + idx;
+                if (targetIndex < newApps.length) {
+                  newApps[targetIndex] = app;
+                }
+              });
+              return newApps;
+            });
+          } else {
+            setApplications(fullTransformedApplications);
+          }
+        }
       } else {
-        setApplications([]);
+        if (!append) {
+          setApplications([]);
+        }
+        setHasMore(false);
       }
-      
+
       setError(null);
     } catch (err) {
       console.error('Failed to fetch applications:', err);
       setError('Failed to load applications. Please try again.');
-      setApplications([]);
+      if (!append) {
+        setApplications([]);
+      }
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
   };
 
   const handleApplicationUpdate = () => {
-    fetchApplications();
+    fetchApplications(currentPage, false);
   };
-  
+
   useEffect(() => {
     const handleLocationUpdate = async () => {
       try {
@@ -263,7 +366,7 @@ const ApplicationManagement: React.FC = () => {
       locationEvents.off(LOCATION_EVENTS.LOCATIONS_UPDATED, handleLocationUpdate);
     };
   }, []);
-  
+
   const locationItems: LocationItem[] = useMemo(() => {
     const items: LocationItem[] = [
       {
@@ -272,13 +375,13 @@ const ApplicationManagement: React.FC = () => {
         count: applications.length
       }
     ];
-    
+
     const cityGroups: Record<string, number> = {};
     applications.forEach(app => {
       const cityKey = app.city || 'Unknown';
       cityGroups[cityKey] = (cityGroups[cityKey] || 0) + 1;
     });
-    
+
     Object.entries(cityGroups).forEach(([cityName, count]) => {
       items.push({
         id: cityName.toLowerCase(),
@@ -286,7 +389,7 @@ const ApplicationManagement: React.FC = () => {
         count: count
       });
     });
-    
+
     cities.forEach(city => {
       if (!cityGroups[city.name]) {
         items.push({
@@ -296,21 +399,21 @@ const ApplicationManagement: React.FC = () => {
         });
       }
     });
-    
+
     return items;
   }, [cities, applications]);
 
   const filteredApplications = useMemo(() => {
     let filtered = applications.filter(application => {
-      const matchesLocation = selectedLocation === 'all' || 
-                             (application.city && application.city.toLowerCase() === selectedLocation) ||  
-                             selectedLocation === (application.city || '').toLowerCase();
-      
-      const matchesSearch = searchQuery === '' || 
-                           application.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           application.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           (application.timestamp && application.timestamp.includes(searchQuery));
-      
+      const matchesLocation = selectedLocation === 'all' ||
+        (application.city && application.city.toLowerCase() === selectedLocation) ||
+        selectedLocation === (application.city || '').toLowerCase();
+
+      const matchesSearch = searchQuery === '' ||
+        application.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        application.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (application.timestamp && application.timestamp.includes(searchQuery));
+
       return matchesLocation && matchesSearch;
     });
 
@@ -490,7 +593,7 @@ const ApplicationManagement: React.FC = () => {
 
   const handleDrop = (e: React.DragEvent, targetColumnKey: string) => {
     e.preventDefault();
-    
+
     if (!draggedColumn || draggedColumn === targetColumnKey) {
       setDraggedColumn(null);
       setDragOverColumn(null);
@@ -519,7 +622,7 @@ const ApplicationManagement: React.FC = () => {
     e.stopPropagation();
     setResizingColumn(columnKey);
     startXRef.current = e.clientX;
-    
+
     const th = (e.target as HTMLElement).closest('th');
     if (th) {
       startWidthRef.current = th.offsetWidth;
@@ -531,10 +634,10 @@ const ApplicationManagement: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!resizingColumn) return;
-      
+
       const diff = e.clientX - startXRef.current;
       const newWidth = Math.max(100, startWidthRef.current + diff);
-      
+
       setColumnWidths(prev => ({
         ...prev,
         [resizingColumn]: newWidth
@@ -559,10 +662,10 @@ const ApplicationManagement: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizingSidebar) return;
-      
+
       const diff = e.clientX - sidebarStartXRef.current;
       const newWidth = Math.max(200, Math.min(500, sidebarStartWidthRef.current + diff));
-      
+
       setSidebarWidth(newWidth);
     };
 
@@ -589,8 +692,8 @@ const ApplicationManagement: React.FC = () => {
   const renderCellValue = (application: Application, columnKey: string) => {
     switch (columnKey) {
       case 'timestamp':
-        return application.create_date && application.create_time 
-          ? `${application.create_date} ${application.create_time}` 
+        return application.create_date && application.create_time
+          ? `${application.create_date} ${application.create_time}`
           : application.timestamp || '-';
       case 'customerName':
         return application.customerName;
@@ -639,17 +742,16 @@ const ApplicationManagement: React.FC = () => {
     if (columnKey === 'status') {
       const status = application.status || '-';
       return (
-        <span className={`text-xs px-2 py-1 font-bold uppercase ${
-          status.toLowerCase() === 'schedule' ? 'text-green-400' :
+        <span className={`text-xs px-2 py-1 font-bold uppercase ${status.toLowerCase() === 'schedule' ? 'text-green-400' :
           status.toLowerCase() === 'no facility' ? 'text-red-400' :
-          status.toLowerCase() === 'cancelled' ? 'text-red-500' :
-          status.toLowerCase() === 'no slot' ? 'text-purple-400' :
-          status.toLowerCase() === 'duplicate' ? 'text-pink-400' :
-          status.toLowerCase() === 'in progress' ? 'text-blue-400' :
-          status.toLowerCase() === 'completed' ? 'text-green-400' :
-          status.toLowerCase() === 'pending' ? 'text-orange-400' :
-          'text-gray-400'
-        }`}>
+            status.toLowerCase() === 'cancelled' ? 'text-red-500' :
+              status.toLowerCase() === 'no slot' ? 'text-purple-400' :
+                status.toLowerCase() === 'duplicate' ? 'text-pink-400' :
+                  status.toLowerCase() === 'in progress' ? 'text-blue-400' :
+                    status.toLowerCase() === 'completed' ? 'text-green-400' :
+                      status.toLowerCase() === 'pending' ? 'text-orange-400' :
+                        'text-gray-400'
+          }`}>
           {status}
         </span>
       );
@@ -663,20 +765,16 @@ const ApplicationManagement: React.FC = () => {
   };
 
   return (
-    <div className={`h-full flex flex-col md:flex-row overflow-hidden ${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    }`}>
+    <div className={`h-full flex flex-col md:flex-row overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      }`}>
       {/* Desktop Sidebar - Hidden on mobile */}
-      <div className={`hidden md:flex border-r flex-shrink-0 flex-col relative z-40 ${
-        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-      }`} style={{ width: `${sidebarWidth}px` }}>
-        <div className={`p-4 border-b flex-shrink-0 ${
-          isDarkMode ? 'border-gray-700' : 'border-gray-200'
-        }`}>
+      <div className={`hidden md:flex border-r flex-shrink-0 flex-col relative z-40 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`} style={{ width: `${sidebarWidth}px` }}>
+        <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
           <div className="flex items-center justify-between mb-1">
-            <h2 className={`text-lg font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Applications</h2>
+            <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Applications</h2>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -684,13 +782,11 @@ const ApplicationManagement: React.FC = () => {
             <button
               key={location.id}
               onClick={() => setSelectedLocation(location.id)}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-              } ${
-                selectedLocation === location.id
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                } ${selectedLocation === location.id
                   ? ''
                   : isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}
+                }`}
               style={selectedLocation === location.id ? {
                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
                 color: colorPalette?.primary || '#fb923c'
@@ -715,7 +811,7 @@ const ApplicationManagement: React.FC = () => {
             </button>
           ))}
         </div>
-        
+
         <div
           className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
           onMouseDown={handleMouseDownSidebarResize}
@@ -739,15 +835,12 @@ const ApplicationManagement: React.FC = () => {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
-          <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${
-            isDarkMode ? 'bg-gray-900' : 'bg-white'
-          }`}>
-            <div className={`p-4 border-b flex items-center justify-between ${
-              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
             }`}>
-              <h2 className={`text-lg font-semibold ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Filters</h2>
+            <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Filters</h2>
               <button onClick={() => setMobileMenuOpen(false)} className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}>
                 <X className="h-6 w-6" />
               </button>
@@ -757,11 +850,10 @@ const ApplicationManagement: React.FC = () => {
                 <button
                   key={location.id}
                   onClick={() => handleLocationSelect(location.id)}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
-                    selectedLocation === location.id
-                      ? ''
-                      : 'text-gray-300'
-                  }`}
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${selectedLocation === location.id
+                    ? ''
+                    : 'text-gray-300'
+                    }`}
                   style={selectedLocation === location.id ? {
                     backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
                     color: colorPalette?.primary || '#fb923c'
@@ -791,14 +883,12 @@ const ApplicationManagement: React.FC = () => {
       )}
 
       {/* Main Content */}
-      <div className={`overflow-hidden flex-1 flex flex-col pb-16 md:pb-0 ${
-        isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
-      }`}>
+      <div className={`overflow-hidden flex-1 flex flex-col pb-16 md:pb-0 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+        }`}>
         <div className="flex flex-col h-full">
           {/* Search Bar */}
-          <div className={`p-4 border-b flex-shrink-0 ${
-            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
+          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => setMobileMenuOpen(true)}
@@ -813,11 +903,10 @@ const ApplicationManagement: React.FC = () => {
                   placeholder="Search applications..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${
-                    isDarkMode
-                      ? 'bg-gray-800 text-white border border-gray-700'
-                      : 'bg-white text-gray-900 border border-gray-300'
-                  }`}
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${isDarkMode
+                    ? 'bg-gray-800 text-white border border-gray-700'
+                    : 'bg-white text-gray-900 border border-gray-300'
+                    }`}
                   onFocus={(e) => {
                     if (colorPalette?.primary) {
                       e.currentTarget.style.borderColor = colorPalette.primary;
@@ -829,43 +918,37 @@ const ApplicationManagement: React.FC = () => {
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 />
-                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`} />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
               </div>
               <div className="hidden md:flex space-x-2">
                 <button
                   onClick={() => setIsFunnelFilterOpen(true)}
-                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
-                    isDarkMode 
-                      ? 'hover:bg-gray-800 text-white' 
-                      : 'hover:bg-gray-100 text-gray-900'
-                  }`}
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                    ? 'hover:bg-gray-800 text-white'
+                    : 'hover:bg-gray-100 text-gray-900'
+                    }`}
                 >
                   <Filter className="h-5 w-5" />
                 </button>
                 {displayMode === 'table' && (
                   <div className="relative" ref={filterDropdownRef}>
                     <button
-                      className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
-                        isDarkMode 
-                          ? 'hover:bg-gray-800 text-white' 
-                          : 'hover:bg-gray-100 text-gray-900'
-                      }`}
+                      className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                        ? 'hover:bg-gray-800 text-white'
+                        : 'hover:bg-gray-100 text-gray-900'
+                        }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
                       <ListFilter className="h-5 w-5" />
                     </button>
                     {filterDropdownOpen && (
-                      <div className={`absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-96 flex flex-col ${
-                        isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-                      } border`}>
-                        <div className={`p-3 border-b flex items-center justify-between ${
-                          isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                        }`}>
-                          <span className={`text-sm font-medium ${
-                            isDarkMode ? 'text-white' : 'text-gray-900'
-                          }`}>Column Visibility</span>
+                      <div className={`absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-96 flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                        } border`}>
+                        <div className={`p-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                          }`}>
+                          <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>Column Visibility</span>
                           <div className="flex space-x-2">
                             <button
                               onClick={handleSelectAllColumns}
@@ -912,9 +995,8 @@ const ApplicationManagement: React.FC = () => {
                           {allColumns.map((column) => (
                             <label
                               key={column.key}
-                              className={`flex items-center px-4 py-2 cursor-pointer text-sm ${
-                                isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'
-                              }`}
+                              className={`flex items-center px-4 py-2 cursor-pointer text-sm ${isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'
+                                }`}
                             >
                               <input
                                 type="checkbox"
@@ -932,27 +1014,24 @@ const ApplicationManagement: React.FC = () => {
                 )}
                 <div className="relative" ref={dropdownRef}>
                   <button
-                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
-                      isDarkMode 
-                        ? 'hover:bg-gray-800 text-white' 
-                        : 'hover:bg-gray-100 text-gray-900'
-                    }`}
+                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                      ? 'hover:bg-gray-800 text-white'
+                      : 'hover:bg-gray-100 text-gray-900'
+                      }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
                     <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
                     <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
                   {dropdownOpen && (
-                    <div className={`absolute top-full right-0 mt-1 w-36 rounded shadow-lg border z-50 ${
-                        isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                    <div className={`absolute top-full right-0 mt-1 w-36 rounded shadow-lg border z-50 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
                       }`}>
                       <button
                         onClick={() => {
                           setDisplayMode('card');
                           setDropdownOpen(false);
                         }}
-                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                            isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                           }`}
                         style={displayMode === 'card' ? {
                           color: colorPalette?.primary || '#f97316'
@@ -967,8 +1046,7 @@ const ApplicationManagement: React.FC = () => {
                           setDisplayMode('table');
                           setDropdownOpen(false);
                         }}
-                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                            isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                           }`}
                         style={displayMode === 'table' ? {
                           color: colorPalette?.primary || '#f97316'
@@ -982,7 +1060,10 @@ const ApplicationManagement: React.FC = () => {
                   )}
                 </div>
                 <button
-                  onClick={() => fetchApplications()}
+                  onClick={() => {
+                    setCurrentPage(1);
+                    fetchApplications(1, false);
+                  }}
                   disabled={isLoading}
                   className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
                   style={{
@@ -1004,34 +1085,29 @@ const ApplicationManagement: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Applications List Container */}
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto">
               {isLoading ? (
-                <div className={`px-4 py-12 text-center ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   <div className="animate-pulse flex flex-col items-center">
-                    <div className={`h-4 w-1/3 rounded mb-4 ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                    }`}></div>
-                    <div className={`h-4 w-1/2 rounded ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                    }`}></div>
+                    <div className={`h-4 w-1/3 rounded mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
                   </div>
                   <p className="mt-4">Loading applications...</p>
                 </div>
               ) : error ? (
-                <div className={`px-4 py-12 text-center ${
-                  isDarkMode ? 'text-red-400' : 'text-red-600'
-                }`}>
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>
                   <p>{error}</p>
-                  <button 
+                  <button
                     onClick={() => window.location.reload()}
-                    className={`mt-4 px-4 py-2 rounded text-white ${
-                      isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-400 hover:bg-gray-500'
-                    }`}>
+                    className={`mt-4 px-4 py-2 rounded text-white ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-400 hover:bg-gray-500'
+                      }`}>
                     Retry
                   </button>
                 </div>
@@ -1042,22 +1118,19 @@ const ApplicationManagement: React.FC = () => {
                       <div
                         key={application.id}
                         onClick={() => handleRowClick(application)}
-                        className={`px-4 py-3 cursor-pointer transition-colors border-b ${
-                          isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
-                        } ${selectedApplication?.id === application.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
+                        className={`px-4 py-3 cursor-pointer transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
+                          } ${selectedApplication?.id === application.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className={`font-medium text-sm mb-1 uppercase ${
-                              isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>
+                            <div className={`font-medium text-sm mb-1 uppercase ${isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
                               {application.customerName}
                             </div>
-                            <div className={`text-xs ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`}>
-                              {application.create_date && application.create_time 
-                                ? `${application.create_date} ${application.create_time}` 
+                            <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`}>
+                              {application.create_date && application.create_time
+                                ? `${application.create_date} ${application.create_time}`
                                 : application.timestamp || 'Not specified'}
                               {' | '}
                               {[
@@ -1071,17 +1144,16 @@ const ApplicationManagement: React.FC = () => {
                           </div>
                           <div className="flex flex-col items-end space-y-1 ml-4 flex-shrink-0">
                             {application.status && (
-                              <div className={`text-xs px-2 py-1 font-bold uppercase ${
-                                application.status.toLowerCase() === 'schedule' ? 'text-green-400' :
+                              <div className={`text-xs px-2 py-1 font-bold uppercase ${application.status.toLowerCase() === 'schedule' ? 'text-green-400' :
                                 application.status.toLowerCase() === 'no facility' ? 'text-red-400' :
-                                application.status.toLowerCase() === 'cancelled' ? 'text-red-500' :
-                                application.status.toLowerCase() === 'no slot' ? 'text-purple-400' :
-                                application.status.toLowerCase() === 'duplicate' ? 'text-pink-400' :
-                                application.status.toLowerCase() === 'in progress' ? 'text-blue-400' :
-                                application.status.toLowerCase() === 'completed' ? 'text-green-400' :
-                                application.status.toLowerCase() === 'pending' ? 'text-orange-400' :
-                                'text-gray-400'
-                              }`}>
+                                  application.status.toLowerCase() === 'cancelled' ? 'text-red-500' :
+                                    application.status.toLowerCase() === 'no slot' ? 'text-purple-400' :
+                                      application.status.toLowerCase() === 'duplicate' ? 'text-pink-400' :
+                                        application.status.toLowerCase() === 'in progress' ? 'text-blue-400' :
+                                          application.status.toLowerCase() === 'completed' ? 'text-green-400' :
+                                            application.status.toLowerCase() === 'pending' ? 'text-orange-400' :
+                                              'text-gray-400'
+                                }`}>
                                 {application.status}
                               </div>
                             )}
@@ -1091,9 +1163,8 @@ const ApplicationManagement: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className={`text-center py-12 ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
+                  <div className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                     No applications found matching your filters
                   </div>
                 )
@@ -1101,9 +1172,8 @@ const ApplicationManagement: React.FC = () => {
                 <div className="overflow-x-auto overflow-y-hidden">
                   <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
                     <thead>
-                      <tr className={`border-b sticky top-0 z-20 ${
-                        isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
-                      }`}>
+                      <tr className={`border-b sticky top-0 z-20 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
+                        }`}>
                         {filteredColumns.map((column, index) => (
                           <th
                             key={column.key}
@@ -1113,13 +1183,10 @@ const ApplicationManagement: React.FC = () => {
                             onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, column.key)}
                             onDragEnd={handleDragEnd}
-                            className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${
-                              isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
-                            } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''} ${
-                              draggedColumn === column.key ? 'opacity-50' : ''
-                            } ${
-                              dragOverColumn === column.key ? 'bg-orange-500 bg-opacity-20' : ''
-                            }`}
+                            className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
+                              } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''} ${draggedColumn === column.key ? 'opacity-50' : ''
+                              } ${dragOverColumn === column.key ? 'bg-orange-500 bg-opacity-20' : ''
+                              }`}
                             style={{ width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined }}
                             onMouseEnter={() => setHoveredColumn(column.key)}
                             onMouseLeave={() => setHoveredColumn(null)}
@@ -1154,20 +1221,18 @@ const ApplicationManagement: React.FC = () => {
                     <tbody>
                       {filteredApplications.length > 0 ? (
                         filteredApplications.map((application) => (
-                          <tr 
-                            key={application.id} 
-                            className={`border-b cursor-pointer transition-colors ${
-                              isDarkMode ? 'border-gray-800 hover:bg-gray-900' : 'border-gray-200 hover:bg-gray-50'
-                            } ${selectedApplication?.id === application.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
+                          <tr
+                            key={application.id}
+                            className={`border-b cursor-pointer transition-colors ${isDarkMode ? 'border-gray-800 hover:bg-gray-900' : 'border-gray-200 hover:bg-gray-50'
+                              } ${selectedApplication?.id === application.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
                             onClick={() => handleRowClick(application)}
                           >
                             {filteredColumns.map((column, index) => (
-                              <td 
+                              <td
                                 key={column.key}
-                                className={`py-4 px-3 ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''} ${
-                                  isDarkMode ? 'text-white' : 'text-gray-900'
-                                }`}
-                                style={{ 
+                                className={`py-4 px-3 ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                  }`}
+                                style={{
                                   width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
                                   maxWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
                                 }}
@@ -1181,9 +1246,8 @@ const ApplicationManagement: React.FC = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${
-                            isDarkMode ? 'text-gray-400 border-gray-800' : 'text-gray-600 border-gray-200'
-                          }`}>
+                          <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${isDarkMode ? 'text-gray-400 border-gray-800' : 'text-gray-600 border-gray-200'
+                            }`}>
                             No applications found matching your filters
                           </td>
                         </tr>
@@ -1193,24 +1257,82 @@ const ApplicationManagement: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Pagination Controls */}
+            {!isLoading && filteredApplications.length > 0 && (
+              <div className={`border-t p-4 flex items-center justify-between ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Showing {filteredApplications.length} applications (Page {currentPage})
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handlePreviousPage}
+                    disabled={currentPage === 1 || isLoadingMore}
+                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}
+                    style={{
+                      backgroundColor: currentPage === 1 || isLoadingMore ? (isDarkMode ? '#374151' : '#d1d5db') : (colorPalette?.primary || '#ea580c')
+                    }}
+                    onMouseEnter={(e) => {
+                      if (currentPage !== 1 && !isLoadingMore && colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (currentPage !== 1 && !isLoadingMore && colorPalette?.primary) {
+                        e.currentTarget.style.backgroundColor = colorPalette.primary;
+                      }
+                    }}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </button>
+                  <button
+                    onClick={handleNextPage}
+                    disabled={!hasMore || isLoadingMore}
+                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}
+                    style={{
+                      backgroundColor: !hasMore || isLoadingMore ? (isDarkMode ? '#374151' : '#d1d5db') : (colorPalette?.primary || '#ea580c')
+                    }}
+                    onMouseEnter={(e) => {
+                      if (hasMore && !isLoadingMore && colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (hasMore && !isLoadingMore && colorPalette?.primary) {
+                        e.currentTarget.style.backgroundColor = colorPalette.primary;
+                      }
+                    }}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </button>
+                  {isLoadingMore && (
+                    <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Loading...
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Mobile Bottom Bar */}
-      <div className={`md:hidden fixed bottom-0 left-0 right-0 border-t z-40 ${
-        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-      }`}>
+      <div className={`md:hidden fixed bottom-0 left-0 right-0 border-t z-40 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
         <div className="flex overflow-x-auto hide-scrollbar">
           {locationItems.map((location) => (
             <button
               key={location.id}
               onClick={() => setSelectedLocation(location.id)}
-              className={`flex-shrink-0 flex flex-col items-center justify-center px-4 py-2 text-xs transition-colors ${
-                selectedLocation === location.id
-                  ? ''
-                  : 'text-gray-300'
-              }`}
+              className={`flex-shrink-0 flex flex-col items-center justify-center px-4 py-2 text-xs transition-colors ${selectedLocation === location.id
+                ? ''
+                : 'text-gray-300'
+                }`}
               style={selectedLocation === location.id ? {
                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
                 color: colorPalette?.primary || '#fb923c'
@@ -1237,8 +1359,8 @@ const ApplicationManagement: React.FC = () => {
 
       {selectedApplication && (
         <div className="flex-shrink-0 overflow-hidden">
-          <ApplicationDetails 
-            application={selectedApplication} 
+          <ApplicationDetails
+            application={selectedApplication}
             onClose={() => setSelectedApplication(null)}
             onApplicationUpdate={handleApplicationUpdate}
           />

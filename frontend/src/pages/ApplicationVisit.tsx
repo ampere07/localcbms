@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FileText, Search, ChevronDown, RefreshCw, ListFilter, ArrowUp, ArrowDown, Menu, X, ArrowLeft, Filter } from 'lucide-react';
+import { FileText, Search, ChevronDown, RefreshCw, ListFilter, ArrowUp, ArrowDown, Menu, X, ArrowLeft, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import ApplicationVisitDetails from '../components/ApplicationVisitDetails';
 import ApplicationVisitFunnelFilter, { FilterValues } from '../filter/ApplicationVisitFunnelFilter';
 import { getAllApplicationVisits } from '../services/applicationVisitService';
@@ -127,6 +127,13 @@ const ApplicationVisit: React.FC = () => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(() => {
+    const saved = sessionStorage.getItem('applicationVisitCurrentPage');
+    return saved ? parseInt(saved, 10) : 1;
+  });
+  const [hasMore, setHasMore] = useState<boolean>(true);
+  const [totalLoaded, setTotalLoaded] = useState<number>(0);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchColorPalette = async () => {
