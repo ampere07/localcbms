@@ -33,10 +33,16 @@ use App\Models\User;
 use App\Models\MassRebate;
 use App\Http\Controllers\Api\MonitorController;
 use App\Http\Controllers\Api\SmsBlastController;
+use App\Http\Controllers\Api\ExpensesLogController;
+use App\Http\Controllers\Api\DisconnectionLogsController;
+use App\Http\Controllers\Api\ReconnectionLogsController;
 
 Route::get('/monitor/handle', [MonitorController::class, 'handle']);
 Route::post('/monitor/handle', [MonitorController::class, 'handle']); // Ensure POST is also handled for save_template actions if not using REST
 Route::get('/sms-blast', [SmsBlastController::class, 'index']);
+Route::get('/expenses-logs', [ExpensesLogController::class, 'index']);
+Route::get('/disconnection-logs', [DisconnectionLogsController::class, 'index']);
+Route::get('/reconnection-logs', [ReconnectionLogsController::class, 'index']);
 
 // Handle all OPTIONS requests
 Route::options('{any}', function() {
