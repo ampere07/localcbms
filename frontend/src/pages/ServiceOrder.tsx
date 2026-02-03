@@ -2,58 +2,10 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { FileText, Search, Circle, X, ListFilter, ArrowUp, ArrowDown, Menu, Filter, RefreshCw } from 'lucide-react';
 import ServiceOrderDetails from '../components/ServiceOrderDetails';
 import ServiceOrderFunnelFilter from '../components/filters/ServiceOrderFunnelFilter';
-import { getServiceOrders, ServiceOrderData } from '../services/serviceOrderService';
+import { useServiceOrderContext, type ServiceOrder } from '../contexts/ServiceOrderContext';
 import { getCities, City } from '../services/cityService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
-interface ServiceOrder {
-  id: string;
-  ticketId: string;
-  timestamp: string;
-  accountNumber: string;
-  fullName: string;
-  contactAddress: string;
-  dateInstalled: string;
-  contactNumber: string;
-  fullAddress: string;
-  houseFrontPicture: string;
-  emailAddress: string;
-  plan: string;
-  provider: string;
-  affiliate: string;
-  username: string;
-  connectionType: string;
-  routerModemSN: string;
-  lcp: string;
-  nap: string;
-  port: string;
-  vlan: string;
-  concern: string;
-  concernRemarks: string;
-  visitStatus: string;
-  visitBy: string;
-  visitWith: string;
-  visitWithOther: string;
-  visitRemarks: string;
-  modifiedBy: string;
-  modifiedDate: string;
-  userEmail: string;
-  requestedBy: string;
-  assignedEmail: string;
-  supportRemarks: string;
-  serviceCharge: string;
-  repairCategory?: string;
-  supportStatus?: string;
-  priorityLevel?: string;
-  newRouterSn?: string;
-  newLcpnap?: string;
-  newPlan?: string;
-  clientSignatureUrl?: string;
-  image1Url?: string;
-  image2Url?: string;
-  image3Url?: string;
-  rawUpdatedAt?: string; // Added for filtering
-}
 
 interface LocationItem {
   id: string;
@@ -80,15 +32,13 @@ const allColumns = [
   { key: 'modifiedDate', label: 'Modified Date', width: 'min-w-40' }
 ];
 
-const ServiceOrder: React.FC = () => {
+const ServiceOrderPage: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedServiceOrder, setSelectedServiceOrder] = useState<ServiceOrder | null>(null);
-  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
+  const { serviceOrders, isLoading, error, refreshServiceOrders, silentRefresh } = useServiceOrderContext();
   const [cities, setCities] = useState<City[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string>('');
   const [userEmail, setUserEmail] = useState<string>('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
@@ -128,6 +78,9 @@ const ServiceOrder: React.FC = () => {
     return {};
   });
 
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 50;
+
   const formatDate = (dateStr?: string): string => {
     if (!dateStr) return 'Not scheduled';
     try {
@@ -148,7 +101,13 @@ const ServiceOrder: React.FC = () => {
     };
 
     fetchColorPalette();
+    fetchColorPalette();
   }, []);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection]);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -197,117 +156,28 @@ const ServiceOrder: React.FC = () => {
     }
   }, []);
 
+  // Fetch cities
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchCities = async () => {
       try {
-        setLoading(true);
-
-        console.log('Fetching cities...');
         const citiesData = await getCities();
         setCities(citiesData || []);
-
-        console.log('Fetching service orders from service_orders table...');
-        const authData = localStorage.getItem('authData');
-        let assignedEmail: string | undefined;
-
-        if (authData) {
-          try {
-            const userData = JSON.parse(authData);
-            if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
-              assignedEmail = userData.email;
-              console.log('Filtering service orders for technician:', assignedEmail);
-            }
-          } catch (error) {
-            console.error('Error parsing auth data:', error);
-          }
-        }
-
-        const response = await getServiceOrders(assignedEmail);
-        console.log('Service Orders API Response:', response);
-
-        if (response.success && Array.isArray(response.data)) {
-          console.log(`Found ${response.data.length} service orders`);
-
-          const processedOrders: ServiceOrder[] = response.data.map((order: ServiceOrderData) => ({
-            id: order.id || '',
-            ticketId: order.ticket_id || order.id || '',
-            timestamp: formatDate(order.timestamp),
-            accountNumber: order.account_no || '',
-            fullName: order.full_name || '',
-            contactAddress: order.contact_address || '',
-            dateInstalled: order.date_installed || '',
-            contactNumber: order.contact_number || '',
-            fullAddress: order.full_address || '',
-            houseFrontPicture: order.house_front_picture_url || '',
-            emailAddress: order.email_address || '',
-            plan: order.plan || '',
-            provider: '',
-            affiliate: order.group_name || '',
-            username: order.username || '',
-            connectionType: order.connection_type || '',
-            routerModemSN: order.router_modem_sn || '',
-            lcp: order.lcp || '',
-            nap: order.nap || '',
-            port: order.port || '',
-            vlan: order.vlan || '',
-            concern: order.concern || '',
-            concernRemarks: order.concern_remarks || '',
-            visitStatus: order.visit_status || '',
-            visitBy: order.visit_by_user || '',
-            visitWith: order.visit_with || '',
-            visitWithOther: '',
-            visitRemarks: order.visit_remarks || '',
-            modifiedBy: order.updated_by_user || '',
-            modifiedDate: formatDate(order.updated_at),
-            userEmail: order.assigned_email || '',
-            requestedBy: order.requested_by || '',
-            assignedEmail: order.assigned_email || '',
-            supportRemarks: order.support_remarks || '',
-            serviceCharge: order.service_charge ? `₱${order.service_charge}` : '₱0.00',
-            repairCategory: order.repair_category || '',
-            supportStatus: order.support_status || '',
-            priorityLevel: order.priority_level || '',
-            newRouterSn: order.new_router_sn || '',
-            newLcpnap: order.new_lcpnap || '',
-            newPlan: order.new_plan || '',
-            clientSignatureUrl: order.client_signature_url || '',
-            image1Url: order.image1_url || '',
-            image2Url: order.image2_url || '',
-            image3Url: order.image3_url || '',
-            rawUpdatedAt: order.updated_at || '' // Capture raw date
-          }));
-
-          setServiceOrders(processedOrders);
-          console.log('Service orders data processed successfully');
-        } else {
-          console.warn('No service orders returned from API or invalid response format', response);
-          setServiceOrders([]);
-
-          if (response.table) {
-            console.info(`Table name specified in response: ${response.table}`);
-          }
-
-          if (response.message) {
-            if (response.message.includes('SQLSTATE') || response.message.includes('table')) {
-              const formattedMessage = `Database error: ${response.message}`;
-              setError(formattedMessage);
-              console.error(formattedMessage);
-            } else {
-              setError(response.message);
-            }
-          }
-        }
-      } catch (err: any) {
-        console.error('Error fetching data:', err);
-        setError(`Failed to load data: ${err.message || 'Unknown error'}`);
-        setServiceOrders([]);
-      } finally {
-        setLoading(false);
+      } catch (err) {
+        console.error('Failed to fetch cities:', err);
       }
     };
 
-    fetchData();
+    fetchCities();
   }, []);
+
+  // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
+  useEffect(() => {
+    silentRefresh();
+  }, [silentRefresh]);
+
+  const handleRefresh = async () => {
+    await refreshServiceOrders();
+  };
 
   const locationItems: LocationItem[] = useMemo(() => {
     const items: LocationItem[] = [
@@ -531,6 +401,20 @@ const ServiceOrder: React.FC = () => {
     return filtered;
   }, [serviceOrders, selectedLocation, searchQuery, sortColumn, sortDirection, activeFilters]);
 
+  // Derived paginated records
+  const paginatedServiceOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredServiceOrders.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredServiceOrders, currentPage]);
+
+  const totalPages = Math.ceil(filteredServiceOrders.length / itemsPerPage);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
   const StatusText = ({ status, type }: { status?: string, type: 'support' | 'visit' }) => {
     if (!status) return <span className="text-gray-400">Unknown</span>;
 
@@ -610,77 +494,6 @@ const ServiceOrder: React.FC = () => {
   const handleMobileRowClick = (serviceOrder: ServiceOrder) => {
     setSelectedServiceOrder(serviceOrder);
     setMobileView('details');
-  };
-
-  const handleRefresh = async () => {
-    try {
-      setLoading(true);
-      const authData = localStorage.getItem('authData');
-      let assignedEmail: string | undefined;
-
-      if (authData) {
-        try {
-          const userData = JSON.parse(authData);
-          if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
-            assignedEmail = userData.email;
-          }
-        } catch (error) {
-          console.error('Error parsing auth data:', error);
-        }
-      }
-
-      const response = await getServiceOrders(assignedEmail);
-
-      if (response.success && Array.isArray(response.data)) {
-        const processedOrders: ServiceOrder[] = response.data.map((order: ServiceOrderData) => ({
-          id: order.id || '',
-          ticketId: order.ticket_id || order.id || '',
-          timestamp: formatDate(order.timestamp),
-          accountNumber: order.account_no || '',
-          fullName: order.full_name || '',
-          contactAddress: order.contact_address || '',
-          dateInstalled: order.date_installed || '',
-          contactNumber: order.contact_number || '',
-          fullAddress: order.full_address || '',
-          houseFrontPicture: order.house_front_picture_url || '',
-          emailAddress: order.email_address || '',
-          plan: order.plan || '',
-          provider: '',
-          affiliate: order.group_name || '',
-          username: order.username || '',
-          connectionType: order.connection_type || '',
-          routerModemSN: order.router_modem_sn || '',
-          lcp: order.lcp || '',
-          nap: order.nap || '',
-          port: order.port || '',
-          vlan: order.vlan || '',
-          concern: order.concern || '',
-          concernRemarks: order.concern_remarks || '',
-          visitStatus: order.visit_status || '',
-          visitBy: order.visit_by_user || '',
-          visitWith: order.visit_with || '',
-          visitWithOther: '',
-          visitRemarks: order.visit_remarks || '',
-          modifiedBy: order.updated_by_user || '',
-          modifiedDate: formatDate(order.updated_at),
-          userEmail: order.assigned_email || '',
-          requestedBy: order.requested_by || '',
-          assignedEmail: order.assigned_email || '',
-          supportRemarks: order.support_remarks || '',
-          serviceCharge: order.service_charge ? `₱${order.service_charge}` : '₱0.00',
-          repairCategory: order.repair_category || '',
-          supportStatus: order.support_status || ''
-        }));
-
-        setServiceOrders(processedOrders);
-        setError(null);
-      }
-    } catch (err: any) {
-      console.error('Failed to refresh service orders:', err);
-      setError('Failed to refresh service orders. Please try again.');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleToggleColumn = (columnKey: string) => {
@@ -871,7 +684,7 @@ const ServiceOrder: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className={`flex items-center justify-center h-full ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
         }`}>
@@ -1244,31 +1057,31 @@ const ServiceOrder: React.FC = () => {
                 </div>
                 <button
                   onClick={handleRefresh}
-                  disabled={loading}
+                  disabled={isLoading}
                   className="text-white px-3 py-2 rounded text-sm flex items-center transition-colors disabled:bg-gray-600"
                   style={{
-                    backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
                   }}
                   onMouseEnter={(e) => {
-                    if (!loading && colorPalette?.accent) {
+                    if (!isLoading && colorPalette?.accent) {
                       e.currentTarget.style.backgroundColor = colorPalette.accent;
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (!loading && colorPalette?.primary) {
+                    if (!isLoading && colorPalette?.primary) {
                       e.currentTarget.style.backgroundColor = colorPalette.primary;
                     }
                   }}
                 >
-                  <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
                 </button>
               </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto">
-              {loading ? (
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-y-auto">
+              {isLoading ? (
                 <div className="px-4 py-12 text-center text-gray-400">
                   <div className="animate-pulse flex flex-col items-center">
                     <div className="h-4 w-1/3 bg-gray-700 rounded mb-4"></div>
@@ -1286,9 +1099,9 @@ const ServiceOrder: React.FC = () => {
                   </button>
                 </div>
               ) : displayMode === 'card' ? (
-                filteredServiceOrders.length > 0 ? (
+                paginatedServiceOrders.length > 0 ? (
                   <div className="space-y-0">
-                    {filteredServiceOrders.map((serviceOrder) => (
+                    {paginatedServiceOrders.map((serviceOrder) => (
                       <div
                         key={serviceOrder.id}
                         onClick={() => window.innerWidth < 768 ? handleMobileRowClick(serviceOrder) : handleRowClick(serviceOrder)}
@@ -1372,8 +1185,8 @@ const ServiceOrder: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredServiceOrders.length > 0 ? (
-                        filteredServiceOrders.map((serviceOrder) => (
+                      {paginatedServiceOrders.length > 0 ? (
+                        paginatedServiceOrders.map((serviceOrder) => (
                           <tr
                             key={serviceOrder.id}
                             className={`border-b cursor-pointer transition-colors ${isDarkMode
@@ -1414,6 +1227,44 @@ const ServiceOrder: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Pagination Controls */}
+            {!isLoading && filteredServiceOrders.length > 0 && totalPages > 1 && (
+              <div className={`border-t p-4 flex items-center justify-between ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredServiceOrders.length)}</span> of <span className="font-medium">{filteredServiceOrders.length}</span> results
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+                      ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                      : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                      }`}
+                  >
+                    Previous
+                  </button>
+
+                  <div className="flex items-center space-x-1">
+                    <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      Page {currentPage} of {totalPages}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+                      ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                      : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                      }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1454,4 +1305,4 @@ const ServiceOrder: React.FC = () => {
   );
 };
 
-export default ServiceOrder;
+export default ServiceOrderPage;

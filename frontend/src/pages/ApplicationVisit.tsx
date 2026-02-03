@@ -2,43 +2,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FileText, Search, ChevronDown, RefreshCw, ListFilter, ArrowUp, ArrowDown, Menu, X, ArrowLeft, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import ApplicationVisitDetails from '../components/ApplicationVisitDetails';
 import ApplicationVisitFunnelFilter, { FilterValues } from '../filter/ApplicationVisitFunnelFilter';
-import { getAllApplicationVisits } from '../services/applicationVisitService';
+import { useApplicationVisitContext, type ApplicationVisit } from '../contexts/ApplicationVisitContext';
 import { getApplication } from '../services/applicationService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { applyFilters } from '../utils/filterUtils';
 
-interface ApplicationVisit {
-  id: string;
-  application_id: string;
-  timestamp: string;
-  assigned_email?: string;
-  visit_by?: string;
-  visit_with?: string;
-  visit_with_other?: string;
-  visit_status: string;
-  visit_remarks?: string;
-  status_remarks?: string;
-  application_status?: string;
-  full_name: string;
-  full_address: string;
-  referred_by?: string;
-  updated_by_user_email: string;
-  created_at: string;
-  updated_at: string;
-  first_name?: string;
-  middle_initial?: string;
-  last_name?: string;
-  region?: string;
-  city?: string;
-  barangay?: string;
-  location?: string;
-  choose_plan?: string;
-  promo?: string;
-  house_front_picture_url?: string;
-  image1_url?: string;
-  image2_url?: string;
-  image3_url?: string;
-}
 
 interface LocationItem {
   id: string;
@@ -81,14 +49,12 @@ const allColumns = [
   { key: 'createdAt', label: 'Created At', width: 'min-w-40' }
 ];
 
-const ApplicationVisit: React.FC = () => {
+const ApplicationVisitPage: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedVisit, setSelectedVisit] = useState<ApplicationVisit | null>(null);
-  const [applicationVisits, setApplicationVisits] = useState<ApplicationVisit[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const { applicationVisits, isLoading, error, refreshApplicationVisits, silentRefresh } = useApplicationVisitContext();
   const [userRole, setUserRole] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [displayMode, setDisplayMode] = useState<DisplayMode>('table');
@@ -127,13 +93,8 @@ const ApplicationVisit: React.FC = () => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-  const [currentPage, setCurrentPage] = useState<number>(() => {
-    const saved = sessionStorage.getItem('applicationVisitCurrentPage');
-    return saved ? parseInt(saved, 10) : 1;
-  });
-  const [hasMore, setHasMore] = useState<boolean>(true);
-  const [totalLoaded, setTotalLoaded] = useState<number>(0);
-  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 50;
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -146,7 +107,13 @@ const ApplicationVisit: React.FC = () => {
     };
 
     fetchColorPalette();
+    fetchColorPalette();
   }, []);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection]);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -207,158 +174,21 @@ const ApplicationVisit: React.FC = () => {
     }
   }, []);
 
-  const fetchApplicationVisits = useCallback(async (isInitialLoad: boolean = false) => {
-    try {
-      if (isInitialLoad) {
-        setLoading(true);
-      }
-
-      const authData = localStorage.getItem('authData');
-      let assignedEmail: string | undefined;
-      let roleId: number | null = null;
-
-      if (authData) {
-        try {
-          const userData = JSON.parse(authData);
-          roleId = userData.role_id || null;
-          if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
-            assignedEmail = userData.email;
-          }
-        } catch (err) {
-          // Error parsing auth data
-        }
-      }
-
-      const response = await getAllApplicationVisits(assignedEmail);
-
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to fetch application visits');
-      }
-
-      if (response.success && Array.isArray(response.data)) {
-
-        const visits: ApplicationVisit[] = response.data.map((visit: any) => ({
-          id: visit.id || '',
-          application_id: visit.application_id || '',
-          timestamp: visit.timestamp || visit.created_at || '',
-          assigned_email: visit.assigned_email || '',
-          visit_by: visit.visit_by || '',
-          visit_with: visit.visit_with || '',
-          visit_with_other: visit.visit_with_other || '',
-          visit_status: visit.visit_status || 'Scheduled',
-          visit_remarks: visit.visit_remarks || '',
-          status_remarks: visit.status_remarks || '',
-          application_status: visit.application_status || 'Pending',
-          full_name: visit.full_name || '',
-          full_address: visit.full_address || '',
-          referred_by: visit.referred_by || '',
-          updated_by_user_email: visit.updated_by_user_email || 'System',
-          created_at: visit.created_at || '',
-          updated_at: visit.updated_at || '',
-          first_name: visit.first_name || '',
-          middle_initial: visit.middle_initial || '',
-          last_name: visit.last_name || '',
-          region: visit.region || '',
-          city: visit.city || '',
-          barangay: visit.barangay || '',
-          location: visit.location || '',
-          choose_plan: visit.choose_plan || '',
-          promo: visit.promo || '',
-          house_front_picture_url: visit.house_front_picture_url || '',
-          image1_url: visit.image1_url || '',
-          image2_url: visit.image2_url || '',
-          image3_url: visit.image3_url || '',
-        }));
-
-        // Apply 7-day filter for technicians (role_id === 2 OR role === 'technician')
-        const numericRoleId = Number(roleId);
-        let userRoleString = '';
-
-        if (authData) {
-          try {
-            const parsed = JSON.parse(authData);
-            userRoleString = (parsed.role || '').toLowerCase();
-          } catch (e) { }
-        }
-
-        // Check if technician (either by ID 2 or role name)
-        const isTechnician = numericRoleId === 2 || userRoleString === 'technician';
-
-        // DEBUG: Print role detection to console
-        console.log(`FILTER DEBUG: RoleID=${numericRoleId}, RoleString='${userRoleString}', IsTechnician=${isTechnician}`);
-
-        let filteredVisits = visits;
-
-        if (isTechnician) {
-          const sevenDaysAgo = new Date();
-          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-          // Statuses that should always be visible regardless of date
-          // Normalized to lowercase
-          const activeVisitStatuses = ['pending', 'scheduled', 'msg sent', 'in progress', 'reschedule'];
-
-          filteredVisits = visits.filter(visit => {
-            const visitStatus = (visit.visit_status || '').toLowerCase().trim();
-
-            // Always show visits with active statuses
-            if (activeVisitStatuses.includes(visitStatus)) {
-              return true;
-            }
-
-            // For other statuses (like OK to Install, Completed), apply 7-day filter
-            // Check multiple potential casing for robustness
-            const updatedAt = visit.updated_at || (visit as any).updatedAt || (visit as any).Updated_At;
-
-            if (!updatedAt) return true;
-
-            const updatedDate = new Date(updatedAt);
-            // Check if valid date
-            if (isNaN(updatedDate.getTime())) return true;
-
-            return updatedDate >= sevenDaysAgo;
-          });
-        }
-
-        setApplicationVisits(filteredVisits);
-        setError(null);
-      } else {
-        setApplicationVisits([]);
-        if (response.message) {
-          setError(response.message);
-        }
-      }
-    } catch (err: any) {
-      if (isInitialLoad) {
-        setError(err.message || 'Failed to load application visits. Please try again.');
-        setApplicationVisits([]);
-      }
-    } finally {
-      if (isInitialLoad) {
-        setLoading(false);
-      }
-    }
-  }, []);
-
+  // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
-    fetchApplicationVisits(true);
-  }, [fetchApplicationVisits]);
-
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      fetchApplicationVisits(false);
-    }, 5 * 60 * 1000);
-
-    return () => clearInterval(intervalId);
-  }, [fetchApplicationVisits]);
+    silentRefresh();
+  }, [silentRefresh]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchApplicationVisits(false);
-    setTimeout(() => setIsRefreshing(false), 500);
+    await refreshApplicationVisits();
+    setIsRefreshing(false);
   };
 
+
+
   const handleVisitUpdate = async () => {
-    await fetchApplicationVisits(false);
+    await silentRefresh();
   };
 
   const locationItems: LocationItem[] = [
@@ -535,7 +365,22 @@ const ApplicationVisit: React.FC = () => {
     if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
     if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
     return 0;
+    return 0;
   });
+
+  // Derived paginated records
+  const paginatedVisits = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return sortedVisits.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedVisits, currentPage]);
+
+  const totalPages = Math.ceil(sortedVisits.length / itemsPerPage);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
 
   const handleRowClick = async (visit: ApplicationVisit) => {
     try {
@@ -556,7 +401,7 @@ const ApplicationVisit: React.FC = () => {
         setSelectedVisit(visit);
       }
     } catch (err: any) {
-      setError(`Failed to select visit: ${err.message || 'Unknown error'}`);
+      console.error('Failed to select visit:', err);
     }
   };
 
@@ -866,7 +711,7 @@ const ApplicationVisit: React.FC = () => {
     setMobileView('details');
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className={`flex items-center justify-center h-full ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
         }`}>
@@ -1372,9 +1217,9 @@ const ApplicationVisit: React.FC = () => {
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto">
               {displayMode === 'card' ? (
-                filteredVisits.length > 0 ? (
+                paginatedVisits.length > 0 ? (
                   <div className="space-y-0">
-                    {sortedVisits.map((visit) => (
+                    {paginatedVisits.map((visit) => (
                       <div
                         key={visit.id}
                         onClick={() => window.innerWidth < 768 ? handleMobileRowClick(visit) : handleRowClick(visit)}
@@ -1473,8 +1318,8 @@ const ApplicationVisit: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredVisits.length > 0 ? (
-                        sortedVisits.map((visit) => (
+                      {paginatedVisits.length > 0 ? (
+                        paginatedVisits.map((visit) => (
                           <tr
                             key={visit.id}
                             className={`border-b cursor-pointer transition-colors ${isDarkMode ? 'border-gray-800 hover:bg-gray-900' : 'border-gray-200 hover:bg-gray-50'
@@ -1513,6 +1358,44 @@ const ApplicationVisit: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Pagination Controls */}
+            {!isLoading && sortedVisits.length > 0 && totalPages > 1 && (
+              <div className={`border-t p-4 flex items-center justify-between ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, sortedVisits.length)}</span> of <span className="font-medium">{sortedVisits.length}</span> results
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+                      ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                      : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                      }`}
+                  >
+                    Previous
+                  </button>
+
+                  <div className="flex items-center space-x-1">
+                    <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      Page {currentPage} of {totalPages}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+                      ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                      : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                      }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1563,4 +1446,4 @@ const ApplicationVisit: React.FC = () => {
   );
 };
 
-export default ApplicationVisit;
+export default ApplicationVisitPage;

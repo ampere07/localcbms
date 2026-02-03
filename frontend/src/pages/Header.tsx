@@ -112,8 +112,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate }
         badge: logoUrl || undefined,
         tag: `application-${notification.id}`,
         requireInteraction: false,
-        silent: false,
-        timestamp: Date.now()
+        silent: false
       });
 
       browserNotification.onclick = () => {

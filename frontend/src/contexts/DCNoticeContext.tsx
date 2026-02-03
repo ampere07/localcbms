@@ -1,38 +1,38 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
-import { overdueService, Overdue } from '../services/overdueService';
+import { dcNoticeService, DCNotice } from '../services/dcNoticeService';
 
-interface OverdueContextType {
-    overdueRecords: Overdue[];
+interface DCNoticeContextType {
+    dcNoticeRecords: DCNotice[];
     isLoading: boolean;
     error: string | null;
-    refreshOverdueRecords: () => Promise<void>;
+    refreshDCNoticeRecords: () => Promise<void>;
     silentRefresh: () => Promise<void>;
     lastUpdated: Date | null;
 }
 
-const OverdueContext = createContext<OverdueContextType | undefined>(undefined);
+const DCNoticeContext = createContext<DCNoticeContextType | undefined>(undefined);
 
-export const useOverdueContext = () => {
-    const context = useContext(OverdueContext);
+export const useDCNoticeContext = () => {
+    const context = useContext(DCNoticeContext);
     if (!context) {
-        throw new Error('useOverdueContext must be used within an OverdueProvider');
+        throw new Error('useDCNoticeContext must be used within a DCNoticeProvider');
     }
     return context;
 };
 
-interface OverdueProviderProps {
+interface DCNoticeProviderProps {
     children: ReactNode;
 }
 
-export const OverdueProvider: React.FC<OverdueProviderProps> = ({ children }) => {
-    const [overdueRecords, setOverdueRecords] = useState<Overdue[]>([]);
+export const DCNoticeProvider: React.FC<DCNoticeProviderProps> = ({ children }) => {
+    const [dcNoticeRecords, setDCNoticeRecords] = useState<DCNotice[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-    const fetchOverdueRecords = useCallback(async (force = false, silent = false) => {
+    const fetchDCNoticeRecords = useCallback(async (force = false, silent = false) => {
         // If we have data and not forced, skip fetching
-        if (!force && overdueRecords.length > 0) {
+        if (!force && dcNoticeRecords.length > 0) {
             return;
         }
 
@@ -42,26 +42,26 @@ export const OverdueProvider: React.FC<OverdueProviderProps> = ({ children }) =>
 
         try {
             // PHASE 1: Fast load - Get basic data INSTANTLY (Fetch all records with high limit)
-            const fastResponse = await overdueService.getAll(true, 1, 10000);
+            const fastResponse = await dcNoticeService.getAll(true, 1, 10000);
 
             if (fastResponse.success) {
                 let records = fastResponse.data || [];
                 // Sort by ID descending by default if not sorted from backend
                 records.sort((a, b) => b.id - a.id);
 
-                setOverdueRecords(records);
+                setDCNoticeRecords(records);
                 setLastUpdated(new Date());
                 setError(null);
 
                 // PHASE 2: Load full data in background
                 setTimeout(async () => {
                     try {
-                        const fullResponse = await overdueService.getAll(false, 1, 10000);
+                        const fullResponse = await dcNoticeService.getAll(false, 1, 10000);
 
                         if (fullResponse.success) {
                             let fullRecords = fullResponse.data || [];
                             fullRecords.sort((a, b) => b.id - a.id);
-                            setOverdueRecords(fullRecords);
+                            setDCNoticeRecords(fullRecords);
                             setLastUpdated(new Date());
                         }
                     } catch (bgError) {
@@ -69,54 +69,54 @@ export const OverdueProvider: React.FC<OverdueProviderProps> = ({ children }) =>
                     }
                 }, 100);
             } else {
-                setError('Failed to load Overdue records');
+                setError('Failed to load DC Notice records');
                 // Don't clear data on error if we have it
-                if (overdueRecords.length === 0) {
-                    setOverdueRecords([]);
+                if (dcNoticeRecords.length === 0) {
+                    setDCNoticeRecords([]);
                 }
             }
         } catch (err: any) {
-            console.error('Failed to fetch Overdue records:', err);
+            console.error('Failed to fetch DC Notice records:', err);
             if (!silent) {
-                setError('Failed to load Overdue records. Please try again.');
+                setError('Failed to load DC Notice records. Please try again.');
                 // Don't clear data on error if we have it
-                if (overdueRecords.length === 0) {
-                    setOverdueRecords([]);
+                if (dcNoticeRecords.length === 0) {
+                    setDCNoticeRecords([]);
                 }
             }
         } finally {
             setIsLoading(false);
         }
-    }, [overdueRecords.length]);
+    }, [dcNoticeRecords.length]);
 
-    const refreshOverdueRecords = useCallback(async () => {
-        await fetchOverdueRecords(true, false);
-    }, [fetchOverdueRecords]);
+    const refreshDCNoticeRecords = useCallback(async () => {
+        await fetchDCNoticeRecords(true, false);
+    }, [fetchDCNoticeRecords]);
 
     const silentRefresh = useCallback(async () => {
-        await fetchOverdueRecords(true, true);
-    }, [fetchOverdueRecords]);
+        await fetchDCNoticeRecords(true, true);
+    }, [fetchDCNoticeRecords]);
 
     // Initial fetch effect
     useEffect(() => {
         // Only fetch if empty, otherwise let the logic decide
-        if (overdueRecords.length === 0) {
-            fetchOverdueRecords(false, false);
+        if (dcNoticeRecords.length === 0) {
+            fetchDCNoticeRecords(false, false);
         }
-    }, [fetchOverdueRecords, overdueRecords.length]);
+    }, [fetchDCNoticeRecords, dcNoticeRecords.length]);
 
     return (
-        <OverdueContext.Provider
+        <DCNoticeContext.Provider
             value={{
-                overdueRecords,
+                dcNoticeRecords,
                 isLoading,
                 error,
-                refreshOverdueRecords,
+                refreshDCNoticeRecords,
                 silentRefresh,
                 lastUpdated
             }}
         >
             {children}
-        </OverdueContext.Provider>
+        </DCNoticeContext.Provider>
     );
 };

@@ -2,94 +2,14 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, ChevronRight, Tag } from 'lucide-react';
 import DiscountDetails from '../components/DiscountDetails';
 import DiscountFormModal from '../modals/DiscountFormModal';
-import * as discountService from '../services/discountService';
+import { useDiscountContext, DiscountRecord } from '../contexts/DiscountContext';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
-
-interface DiscountRecord {
-  id: string;
-  fullName: string;
-  accountNo: string;
-  contactNumber: string;
-  emailAddress: string;
-  address: string;
-  plan: string;
-  provider: string;
-  discountId: string;
-  discountAmount: number;
-  discountStatus: string;
-  dateCreated: string;
-  processedBy: string;
-  processedDate: string;
-  approvedBy: string;
-  approvedByEmail?: string;
-  modifiedBy: string;
-  modifiedDate: string;
-  userEmail: string;
-  remarks: string;
-  cityId?: number;
-  barangay?: string;
-  city?: string;
-  completeAddress?: string;
-  onlineStatus?: string;
-}
 
 interface LocationItem {
   id: string;
   name: string;
   count: number;
 }
-
-const getDiscountRecords = async (): Promise<DiscountRecord[]> => {
-  try {
-    const response = await discountService.getAll();
-    if (response.success && response.data) {
-      return response.data.map((discount: any) => {
-        const customer = discount.billing_account?.customer;
-        const plan = discount.billing_account?.plan;
-        
-        return {
-          id: String(discount.id),
-          fullName: customer?.full_name || 
-                    [customer?.first_name, customer?.middle_initial, customer?.last_name]
-                      .filter(Boolean).join(' ') || 'N/A',
-          accountNo: discount.account_no || 'N/A',
-          contactNumber: customer?.contact_number_primary || 'N/A',
-          emailAddress: customer?.email_address || 'N/A',
-          address: customer?.address || 'N/A',
-          completeAddress: [
-            customer?.address,
-            customer?.location,
-            customer?.barangay,
-            customer?.city,
-            customer?.region
-          ].filter(Boolean).join(', ') || 'N/A',
-          plan: plan?.plan_name || 'N/A',
-          provider: 'N/A',
-          discountId: String(discount.id),
-          discountAmount: parseFloat(discount.discount_amount) || 0,
-          discountStatus: discount.status || 'Unknown',
-          dateCreated: discount.created_at ? new Date(discount.created_at).toLocaleDateString() : 'N/A',
-          processedBy: discount.processed_by_user?.full_name || discount.processed_by_user?.username || 'N/A',
-          processedDate: discount.processed_date ? new Date(discount.processed_date).toLocaleDateString() : 'N/A',
-          approvedBy: discount.approved_by_user?.full_name || discount.approved_by_user?.username || 'N/A',
-          approvedByEmail: discount.approved_by_user?.email_address || discount.approved_by_user?.email,
-          modifiedBy: discount.updated_by_user?.full_name || discount.updated_by_user?.username || 'N/A',
-          modifiedDate: discount.updated_at ? new Date(discount.updated_at).toLocaleString() : 'N/A',
-          userEmail: discount.processed_by_user?.email_address || discount.processed_by_user?.email || 'N/A',
-          remarks: discount.remarks || '',
-          cityId: undefined,
-          barangay: customer?.barangay,
-          city: customer?.city,
-          onlineStatus: undefined
-        };
-      });
-    }
-    return [];
-  } catch (error) {
-    console.error('Error fetching discount records:', error);
-    throw error;
-  }
-};
 
 const getCities = async () => {
   return [
@@ -111,11 +31,9 @@ const Discounts: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedDiscount, setSelectedDiscount] = useState<DiscountRecord | null>(null);
-  const [discountRecords, setDiscountRecords] = useState<DiscountRecord[]>([]);
+  const { discountRecords, isLoading, error, refreshDiscountRecords, silentRefresh } = useDiscountContext();
   const [cities, setCities] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState<number>(256);
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const sidebarStartXRef = useRef<number>(0);
@@ -158,7 +76,7 @@ const Discounts: React.FC = () => {
         setRegions([]);
       }
     };
-    
+
     fetchLocationData();
   }, []);
 
@@ -171,28 +89,14 @@ const Discounts: React.FC = () => {
         console.error('Failed to fetch color palette:', err);
       }
     };
-    
+
     fetchColorPalette();
   }, []);
 
+  // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
-    const fetchDiscountData = async () => {
-      try {
-        setIsLoading(true);
-        const data = await getDiscountRecords();
-        setDiscountRecords(data);
-        setError(null);
-      } catch (err) {
-        console.error('Failed to fetch discount records:', err);
-        setError('Failed to load discount records. Please try again.');
-        setDiscountRecords([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchDiscountData();
-  }, []);
+    silentRefresh();
+  }, [silentRefresh]);
 
   const getCityName = useMemo(() => {
     const cityMap = new Map(cities.map(c => [c.id, c.name]));
@@ -210,7 +114,7 @@ const Discounts: React.FC = () => {
         count: discountRecords.length
       }
     ];
-    
+
     cities.forEach((city) => {
       const cityCount = discountRecords.filter(record => record.cityId === city.id).length;
       items.push({
@@ -225,14 +129,14 @@ const Discounts: React.FC = () => {
 
   const filteredDiscountRecords = useMemo(() => {
     return discountRecords.filter(record => {
-      const matchesLocation = selectedLocation === 'all' || 
-                             record.cityId === Number(selectedLocation);
-      
-      const matchesSearch = searchQuery === '' || 
-                           record.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           record.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           record.accountNo.includes(searchQuery);
-      
+      const matchesLocation = selectedLocation === 'all' ||
+        record.cityId === Number(selectedLocation);
+
+      const matchesSearch = searchQuery === '' ||
+        record.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.accountNo.includes(searchQuery);
+
       return matchesLocation && matchesSearch;
     });
   }, [discountRecords, selectedLocation, searchQuery]);
@@ -246,17 +150,7 @@ const Discounts: React.FC = () => {
   };
 
   const handleRefresh = async () => {
-    try {
-      setIsLoading(true);
-      const data = await getDiscountRecords();
-      setDiscountRecords(data);
-      setError(null);
-    } catch (err) {
-      console.error('Failed to refresh discount records:', err);
-      setError('Failed to refresh discount records. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+    await refreshDiscountRecords();
   };
 
   useEffect(() => {
@@ -264,10 +158,10 @@ const Discounts: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizingSidebar) return;
-      
+
       const diff = e.clientX - sidebarStartXRef.current;
       const newWidth = Math.max(200, Math.min(500, sidebarStartWidthRef.current + diff));
-      
+
       setSidebarWidth(newWidth);
     };
 
@@ -310,21 +204,17 @@ const Discounts: React.FC = () => {
   };
 
   return (
-    <div className={`h-full flex flex-col md:flex-row overflow-hidden ${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    }`}>
-      <div className={`md:border-r border-t md:border-t-0 flex-shrink-0 flex flex-col order-2 md:order-1 relative ${
-        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-      }`} style={{ width: `${sidebarWidth}px` }}>
-        <div className={`p-4 border-b flex-shrink-0 hidden md:block ${
-          isDarkMode ? 'border-gray-700' : 'border-gray-200'
-        }`}>
+    <div className={`h-full flex flex-col md:flex-row overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      }`}>
+      <div className={`md:border-r border-t md:border-t-0 flex-shrink-0 flex flex-col order-2 md:order-1 relative ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`} style={{ width: `${sidebarWidth}px` }}>
+        <div className={`p-4 border-b flex-shrink-0 hidden md:block ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
           <div className="flex items-center justify-between mb-1">
-            <h2 className={`text-lg font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Discounts</h2>
+            <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Discounts</h2>
             <div>
-              <button 
+              <button
                 className="flex items-center space-x-1 text-white px-3 py-1 rounded text-sm transition-colors"
                 onClick={handleOpenDiscountFormModal}
                 style={{
@@ -353,13 +243,11 @@ const Discounts: React.FC = () => {
               <button
                 key={location.id}
                 onClick={() => setSelectedLocation(location.id)}
-                className={`md:w-full flex-shrink-0 flex flex-col md:flex-row items-center md:justify-between px-4 py-3 text-sm transition-colors rounded-md md:rounded-none ${
-                  isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                } ${
-                  selectedLocation === location.id
+                className={`md:w-full flex-shrink-0 flex flex-col md:flex-row items-center md:justify-between px-4 py-3 text-sm transition-colors rounded-md md:rounded-none ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                  } ${selectedLocation === location.id
                     ? ''
                     : isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}
+                  }`}
                 style={selectedLocation === location.id ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
                   color: colorPalette?.primary || '#fb923c'
@@ -425,38 +313,32 @@ const Discounts: React.FC = () => {
         />
       </div>
 
-      <div className={`flex-1 overflow-hidden order-1 md:order-2 ${
-        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-      }`}>
+      <div className={`flex-1 overflow-hidden order-1 md:order-2 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+        }`}>
         <div className="flex flex-col h-full">
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto">
               {isLoading ? (
-                <div className={`px-4 py-12 text-center ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   <div className="animate-pulse flex flex-col items-center">
-                    <div className={`h-4 w-1/3 rounded mb-4 ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                    }`}></div>
-                    <div className={`h-4 w-1/2 rounded ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                    }`}></div>
+                    <div className={`h-4 w-1/3 rounded mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
                   </div>
                   <p className="mt-4">Loading discount records...</p>
                 </div>
               ) : error ? (
-                <div className={`px-4 py-12 text-center ${
-                  isDarkMode ? 'text-red-400' : 'text-red-600'
-                }`}>
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>
                   <p>{error}</p>
-                  <button 
+                  <button
                     onClick={handleRefresh}
-                    className={`mt-4 px-4 py-2 rounded ${
-                      isDarkMode
+                    className={`mt-4 px-4 py-2 rounded ${isDarkMode
                         ? 'bg-gray-700 hover:bg-gray-600 text-white'
                         : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                    }`}>
+                      }`}>
                     Retry
                   </button>
                 </div>
@@ -467,15 +349,13 @@ const Discounts: React.FC = () => {
                       <div
                         key={record.id}
                         onClick={() => handleRecordClick(record)}
-                        className={`px-4 py-3 cursor-pointer transition-colors border-b ${
-                          isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
-                        } ${selectedDiscount?.id === record.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
+                        className={`px-4 py-3 cursor-pointer transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
+                          } ${selectedDiscount?.id === record.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className={`font-medium ${
-                              isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>
+                            <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
                               {record.fullName}
                             </div>
                             <div className="text-red-400 text-sm">
@@ -491,9 +371,8 @@ const Discounts: React.FC = () => {
                       </div>
                     ))
                   ) : (
-                    <div className={`text-center py-12 ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
+                    <div className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
                       No discount records found matching your filters
                     </div>
                   )}
