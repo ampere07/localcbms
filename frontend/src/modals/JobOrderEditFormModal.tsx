@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, ChevronDown, Minus, Plus, Camera, MapPin ,Loader2 } from 'lucide-react';
+import { X, Calendar, ChevronDown, Minus, Plus, Camera, MapPin, Loader2 } from 'lucide-react';
 import { UserData } from '../types/api';
 import { updateJobOrder } from '../services/jobOrderService';
 import { updateApplication } from '../services/applicationService';
@@ -96,17 +96,17 @@ interface OrderItem {
 
 const convertGoogleDriveUrl = (url: string | null | undefined): string | null => {
   if (!url) return null;
-  
+
   const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
   if (fileIdMatch && fileIdMatch[1]) {
     return `https://drive.google.com/uc?export=view&id=${fileIdMatch[1]}`;
   }
-  
+
   const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
   if (idMatch && idMatch[1]) {
     return `https://drive.google.com/uc?export=view&id=${idMatch[1]}`;
   }
-  
+
   return url;
 };
 
@@ -211,7 +211,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
   const [vlans, setVlans] = useState<VLAN[]>([]);
   const [usageTypes, setUsageTypes] = useState<UsageType[]>([]);
   const [statusRemarksList, setStatusRemarksList] = useState<StatusRemark[]>([]);
-  
+
   const [modal, setModal] = useState<ModalConfig>({
     isOpen: false,
     type: 'success',
@@ -221,7 +221,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
   const [showLoadingModal, setShowLoadingModal] = useState(false);
   const [progressSteps, setProgressSteps] = useState<string[]>([]);
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
-  
+
   const [imagePreviews, setImagePreviews] = useState<{
     signedContractImage: string | null;
     setupImage: string | null;
@@ -283,7 +283,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         }
       }
     };
-    
+
     fetchImageSizeSettings();
   }, [isOpen]);
 
@@ -306,13 +306,13 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
           try {
             const response = await apiClient.get(`/job-order-items?job_order_id=${jobOrderId}`);
             const data = response.data as { success: boolean; data: any[] };
-            
+
             if (data.success && Array.isArray(data.data)) {
               const items = data.data;
-              
+
               if (items.length > 0) {
                 const uniqueItems = new Map();
-                
+
                 items.forEach((item: any) => {
                   const key = item.item_name;
                   if (uniqueItems.has(key)) {
@@ -328,10 +328,10 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
                     });
                   }
                 });
-                
+
                 const formattedItems = Array.from(uniqueItems.values());
                 formattedItems.push({ itemId: '', quantity: '' });
-                
+
                 setOrderItems(formattedItems);
               } else {
                 setOrderItems([{ itemId: '', quantity: '' }]);
@@ -344,7 +344,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         }
       }
     };
-    
+
     fetchJobOrderItems();
   }, [isOpen, jobOrderData]);
 
@@ -353,7 +353,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
       if (isOpen) {
         try {
           const response = await getAllInventoryItems();
-          
+
           if (response.success && Array.isArray(response.data)) {
             setInventoryItems(response.data);
           } else {
@@ -365,7 +365,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         }
       }
     };
-    
+
     fetchInventoryItems();
   }, [isOpen]);
 
@@ -374,7 +374,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
       if (isOpen) {
         try {
           const response = await planService.getAllPlans();
-          
+
           if (Array.isArray(response)) {
             setPlans(response);
           } else {
@@ -386,7 +386,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         }
       }
     };
-    
+
     fetchPlans();
   }, [isOpen]);
 
@@ -395,7 +395,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
       if (isOpen) {
         try {
           const response = await getAllGroups();
-          
+
           if (response.success && Array.isArray(response.data)) {
             setGroups(response.data);
           } else {
@@ -407,7 +407,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         }
       }
     };
-    
+
     fetchGroups();
   }, [isOpen]);
 
@@ -423,7 +423,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         }
       }
     };
-    
+
     fetchRouterModels();
   }, [isOpen]);
 
@@ -432,7 +432,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
       if (isOpen) {
         try {
           const response = await getAllVLANs();
-          
+
           if (response.success && Array.isArray(response.data)) {
             setVlans(response.data);
           } else {
@@ -444,7 +444,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         }
       }
     };
-    
+
     fetchVlans();
   }, [isOpen]);
 
@@ -453,7 +453,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
       if (isOpen) {
         try {
           const response = await getAllUsageTypes();
-          
+
           if (response.success && Array.isArray(response.data)) {
             setUsageTypes(response.data);
           } else {
@@ -465,7 +465,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         }
       }
     };
-    
+
     fetchUsageTypes();
   }, [isOpen]);
 
@@ -474,7 +474,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
       if (isOpen) {
         try {
           const response = await statusRemarksService.getAllStatusRemarks();
-          
+
           if (Array.isArray(response)) {
             setStatusRemarksList(response);
           } else {
@@ -486,7 +486,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         }
       }
     };
-    
+
     fetchStatusRemarks();
   }, [isOpen]);
 
@@ -515,7 +515,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         }
       }
     };
-    
+
     fetchTechnicians();
   }, [isOpen]);
 
@@ -535,7 +535,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         }
       }
     };
-    
+
     fetchRegions();
   }, [isOpen]);
 
@@ -555,7 +555,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         }
       }
     };
-    
+
     fetchAllCities();
   }, [isOpen]);
 
@@ -575,7 +575,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         }
       }
     };
-    
+
     fetchAllBarangays();
   }, [isOpen]);
 
@@ -595,7 +595,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         }
       }
     };
-    
+
     fetchAllLocations();
   }, [isOpen]);
 
@@ -604,7 +604,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
       if (isOpen) {
         try {
           const response = await getAllLCPNAPs();
-          
+
           if (response.success && Array.isArray(response.data)) {
             setLcpnaps(response.data);
           } else {
@@ -616,7 +616,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         }
       }
     };
-    
+
     fetchLcpnaps();
   }, [isOpen]);
 
@@ -626,7 +626,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         try {
           const jobOrderId = jobOrderData?.id || jobOrderData?.JobOrder_ID;
           const response = await getAllPorts(formData.lcpnap, 1, 100, true, jobOrderId);
-          
+
           if (response.success && Array.isArray(response.data)) {
             setPorts(response.data);
           } else {
@@ -720,7 +720,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
     if (jobOrderData && isOpen) {
       const loadedStatus = jobOrderData.Status || jobOrderData.status || 'Confirmed';
       const loadedOnsiteStatus = jobOrderData.Onsite_Status || jobOrderData.onsite_status || 'In Progress';
-      
+
       const fetchApplicationData = async () => {
         try {
           const applicationId = jobOrderData.application_id || jobOrderData.Application_ID;
@@ -728,7 +728,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
             const appResponse = await apiClient.get<{ success: boolean; application: any }>(`/applications/${applicationId}`);
             if (appResponse.data.success && appResponse.data.application) {
               const appData = appResponse.data.application;
-              
+
               setFormData(prev => ({
                 ...prev,
                 referredBy: jobOrderData.Referred_By || jobOrderData.referred_by || '',
@@ -777,7 +777,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
           loadDefaultFormData();
         }
       };
-      
+
       const loadDefaultFormData = () => {
         setFormData(prev => ({
           ...prev,
@@ -819,7 +819,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
           ip: jobOrderData.IP || jobOrderData.ip || ''
         }));
       };
-      
+
       fetchApplicationData();
     }
   }, [jobOrderData, isOpen]);
@@ -853,7 +853,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
     try {
       let processedFile = file;
       const originalSize = (file.size / 1024 / 1024).toFixed(2);
-      
+
       if (activeImageSize && activeImageSize.image_size_value < 100) {
         try {
           console.log(`Resizing ${field} from ${originalSize}MB with ${activeImageSize.image_size_value}% scale...`);
@@ -867,30 +867,30 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
       } else {
         console.log(`Skipping resize for ${field}: no active size or size >= 100% (${activeImageSize?.image_size_value}%)`);
       }
-      
+
       setFormData(prev => ({ ...prev, [field]: processedFile }));
-      
+
       if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
         URL.revokeObjectURL(imagePreviews[field]!);
       }
-      
+
       const previewUrl = URL.createObjectURL(processedFile);
       setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
-      
+
       if (errors[field]) {
         setErrors(prev => ({ ...prev, [field]: '' }));
       }
     } catch (error) {
       console.error(`Error in handleImageUpload for ${field}:`, error);
       setFormData(prev => ({ ...prev, [field]: file }));
-      
+
       if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
         URL.revokeObjectURL(imagePreviews[field]!);
       }
-      
+
       const previewUrl = URL.createObjectURL(file);
       setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
-      
+
       if (errors[field]) {
         setErrors(prev => ({ ...prev, [field]: '' }));
       }
@@ -909,29 +909,27 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
 
     return (
       <div>
-        <label className={`block text-sm font-medium mb-2 ${
-          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-        }`}>{label}<span className="text-red-500">*</span></label>
-        <div className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer ${
-          isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
-        }`}>
-          <input 
-            type="file" 
-            accept="image/*" 
+        <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>{label}</label>
+        <div className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+          }`}>
+          <input
+            type="file"
+            accept="image/*"
             onChange={(e) => {
               if (e.target.files && e.target.files[0]) {
                 onUpload(e.target.files[0]);
                 setImageLoadError(false);
               }
-            }} 
-            className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+            }}
+            className="absolute inset-0 opacity-0 cursor-pointer z-10"
           />
           {imageUrl ? (
             <div className="relative w-full h-full">
               {isBlobUrl || (!isGDrive && !imageLoadError) ? (
-                <img 
-                  src={imageUrl} 
-                  alt={label} 
+                <img
+                  src={imageUrl}
+                  alt={label}
                   className="w-full h-full object-contain"
                   onError={() => setImageLoadError(true)}
                 />
@@ -940,10 +938,10 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
                   <Camera size={32} />
                   <span className="text-sm mt-2 text-center px-4">Image stored in Google Drive</span>
                   {imageUrl && (
-                    <a 
-                      href={imageUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
+                    <a
+                      href={imageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="text-orange-500 text-xs mt-2 hover:underline z-20"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -957,9 +955,8 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
               </div>
             </div>
           ) : (
-            <div className={`w-full h-full flex flex-col items-center justify-center ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-500'
-            }`}>
+            <div className={`w-full h-full flex flex-col items-center justify-center ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+              }`}>
               <Camera size={32} />
               <span className="text-sm mt-2">Click to upload</span>
             </div>
@@ -990,7 +987,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
     const newOrderItems = [...orderItems];
     newOrderItems[index][field] = value;
     setOrderItems(newOrderItems);
-    
+
     if (field === 'itemId' && value && index === orderItems.length - 1) {
       setOrderItems([...newOrderItems, { itemId: '', quantity: '' }]);
     }
@@ -1009,13 +1006,13 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
     if (!formData.firstName.trim()) newErrors.firstName = 'First Name is required';
     if (!formData.lastName.trim()) newErrors.lastName = 'Last Name is required';
     if (!formData.contactNumber.trim()) newErrors.contactNumber = 'Contact Number is required';
-    
+
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
       newErrors.email = 'Please enter a valid email address';
     }
-    
+
     if (!formData.address.trim()) newErrors.address = 'Address is required';
     if (!formData.barangay.trim()) newErrors.barangay = 'Barangay is required';
     if (!formData.city.trim()) newErrors.city = 'City is required';
@@ -1036,19 +1033,18 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         if (!formData.connectionType.trim()) newErrors.connectionType = 'Connection Type is required';
         if (!formData.routerModel.trim()) newErrors.routerModel = 'Router Model is required';
         if (!formData.modemSN.trim()) newErrors.modemSN = 'Modem SN is required';
-        
+
         if (formData.connectionType === 'Antenna') {
           if (!formData.ip.trim()) newErrors.ip = 'IP is required';
-          if (!formData.portLabelImage) newErrors.portLabelImage = 'Port Label Image is required';
         } else if (formData.connectionType === 'Fiber') {
           if (!formData.lcpnap.trim()) newErrors.lcpnap = 'LCP-NAP is required';
           if (!formData.port.trim()) newErrors.port = 'PORT is required';
           if (!formData.vlan.trim()) newErrors.vlan = 'VLAN is required';
         } else if (formData.connectionType === 'Local') {
-          if (!formData.portLabelImage) newErrors.portLabelImage = 'Port Label Image is required';
+          // Local specific validations if any
         }
         if (!formData.onsiteRemarks.trim()) newErrors.onsiteRemarks = 'Onsite Remarks is required';
-        
+
         const validItems = orderItems.filter(item => item.itemId && item.quantity);
         if (validItems.length === 0) {
           newErrors.items = 'At least one item with quantity is required';
@@ -1062,12 +1058,8 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
             }
           }
         }
-        
-        if (!formData.signedContractImage) newErrors.signedContractImage = 'Signed Contract Image is required';
-        if (!formData.setupImage) newErrors.setupImage = 'Setup Image is required';
-        if (!formData.boxReadingImage) newErrors.boxReadingImage = 'Box Reading Image is required';
-        if (!formData.routerReadingImage) newErrors.routerReadingImage = 'Router Reading Image is required';
-        if (!formData.clientSignatureImage) newErrors.clientSignatureImage = 'Client Signature Image is required';
+
+
         if (!formData.visit_by.trim()) newErrors.visit_by = 'Visit By is required';
         if (!formData.visit_with.trim()) newErrors.visit_with = 'Visit With is required';
         if (!formData.visit_with_other.trim()) newErrors.visit_with_other = 'Visit With(Other) is required';
@@ -1103,9 +1095,9 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         hour12: true
       })
     };
-    
+
     setFormData(updatedFormData);
-    
+
     if (!validateForm()) {
       setModal({
         isOpen: true,
@@ -1130,7 +1122,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
     setShowLoadingModal(true);
     setUploadProgress(0);
     setProgressSteps([]);
-    
+
     const progressInterval = setInterval(() => {
       setUploadProgress(prev => {
         if (prev >= 99) return 99;
@@ -1139,13 +1131,13 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         return prev + 5;
       });
     }, 300);
-    
+
     try {
       setProgressSteps(['Preparing data...']);
-      
+
       const jobOrderId = jobOrderData.id || jobOrderData.JobOrder_ID;
       const applicationId = jobOrderData.Application_ID || jobOrderData.application_id;
-      
+
       const jobOrderUpdateData: any = {
         Referred_By: updatedFormData.referredBy,
         First_Name: updatedFormData.firstName,
@@ -1199,9 +1191,9 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
       }
 
       setProgressSteps(prev => [...prev, 'Updating job order...']);
-      
+
       const jobOrderResponse = await updateJobOrder(jobOrderId, jobOrderUpdateData);
-      
+
       if (!jobOrderResponse.success) {
         throw new Error(jobOrderResponse.message || 'Job order update failed');
       }
@@ -1215,10 +1207,10 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         if (validItems.length > 0) {
           try {
             const existingItemsResponse = await apiClient.get<{ success: boolean; data: any[] }>(`/job-order-items?job_order_id=${jobOrderId}`);
-            
+
             if (existingItemsResponse.data.success && existingItemsResponse.data.data.length > 0) {
               const existingItems = existingItemsResponse.data.data;
-              
+
               for (const item of existingItems) {
                 try {
                   await apiClient.delete(`/job-order-items/${item.id}`);
@@ -1232,7 +1224,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
           }
 
           setProgressSteps(prev => [...prev, 'Saving items...']);
-          
+
           const jobOrderItems: JobOrderItem[] = validItems.map(item => {
             return {
               job_order_id: parseInt(jobOrderId.toString()),
@@ -1240,10 +1232,10 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
               quantity: parseInt(item.quantity)
             };
           });
-          
+
           try {
             const itemsResponse = await createJobOrderItems(jobOrderItems);
-            
+
             if (!itemsResponse.success) {
               throw new Error(itemsResponse.message || 'Failed to create job order items');
             }
@@ -1265,7 +1257,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
 
       if (applicationId) {
         setProgressSteps(prev => [...prev, 'Updating application...']);
-        
+
         const applicationUpdateData: any = {
           first_name: updatedFormData.firstName,
           middle_initial: updatedFormData.middleInitial,
@@ -1285,7 +1277,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
 
         await updateApplication(applicationId, applicationUpdateData);
       }
-      
+
       clearInterval(progressInterval);
       setUploadProgress(100);
       setProgressSteps(prev => [...prev, 'Complete!']);
@@ -1348,596 +1340,508 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
 
   return (
     <>
-    {showLoadingModal && (
-      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[70]">
-        <div className="bg-gray-800 rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
-          <div className="flex flex-col items-center space-y-6">
-            <div className="relative">
-              <div className="animate-spin rounded-full h-24 w-24 border-t-4 border-b-4 border-orange-500"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-2xl font-bold text-white">{uploadProgress}%</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-      <div className={`h-full w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col ${
-        isDarkMode ? 'bg-gray-900' : 'bg-white'
-      }`}>
-        <div className={`px-6 py-4 flex items-center justify-between border-b ${
-          isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
-        }`}>
-          <div className="flex items-center space-x-3">
-            <button onClick={onClose} className={`transition-colors ${
-              isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-            }`}>
-              <X size={24} />
-            </button>
-            <h2 className={`text-xl font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>
-              {formData.firstName} {formData.middleInitial} {formData.lastName}
-            </h2>
-          </div>
-          <div className="flex items-center space-x-3">
-            <button onClick={onClose} className={`px-4 py-2 border rounded text-sm transition-colors ${
-              isDarkMode 
-                ? 'border-orange-600 text-orange-600 hover:bg-orange-600 hover:text-white' 
-                : 'border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white'
-            }`}>
-              Cancel
-            </button>
-            <button onClick={handleSave} disabled={loading} className={`px-4 py-2 rounded text-sm transition-colors ${
-              isDarkMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'
-            } disabled:opacity-50 text-white`}>
-              {loading ? 'Saving...' : 'Save'}
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Referred By</label>
-            <input type="text" value={formData.referredBy} onChange={(e) => handleInputChange('referredBy', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-              isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-            }`} />
-          </div>
-
-          {formData.status === 'Confirmed' && formData.onsiteStatus === 'Done' && (
-            <>
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Date Installed<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <input type="date" value={formData.dateInstalled} onChange={(e) => handleInputChange('dateInstalled', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                    errors.dateInstalled ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`} />
-                  <Calendar className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-                </div>
-                {errors.dateInstalled && (
-                  <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Usage Type<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.usageType} onChange={(e) => handleInputChange('usageType', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                    errors.usageType ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}>
-                    <option value=""></option>
-                    {formData.usageType && !usageTypes.some(ut => ut.usage_name === formData.usageType) && (
-                      <option value={formData.usageType}>{formData.usageType}</option>
-                    )}
-                    {usageTypes.map((usageType) => (
-                      <option key={usageType.id} value={usageType.usage_name}>
-                        {usageType.usage_name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-                </div>
-                {errors.usageType && (
-                  <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>First Name<span className="text-red-500">*</span></label>
-            <input type="text" value={formData.firstName} onChange={(e) => handleInputChange('firstName', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-              errors.firstName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-            } ${
-              isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-            }`} />
-            {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Middle Initial</label>
-            <input type="text" value={formData.middleInitial} onChange={(e) => handleInputChange('middleInitial', e.target.value)} maxLength={1} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-              isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-            }`} />
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Last Name<span className="text-red-500">*</span></label>
-            <input type="text" value={formData.lastName} onChange={(e) => handleInputChange('lastName', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-              errors.lastName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-            } ${
-              isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-            }`} />
-            {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Contact Number<span className="text-red-500">*</span></label>
-            <input type="text" value={formData.contactNumber} onChange={(e) => handleInputChange('contactNumber', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-              errors.contactNumber ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-            } ${
-              isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-            }`} />
-            {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Second Contact Number</label>
-            <input type="text" value={formData.secondContactNumber} onChange={(e) => handleInputChange('secondContactNumber', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-              isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-            }`} />
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Applicant Email Address<span className="text-red-500">*</span></label>
-            <input type="email" value={formData.email} onChange={(e) => handleInputChange('email', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-              errors.email ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-            } ${
-              isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-            }`} />
-            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Address<span className="text-red-500">*</span></label>
-            <input type="text" value={formData.address} onChange={(e) => handleInputChange('address', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-              errors.address ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-            } ${
-              isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-            }`} />
-            {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Region<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select value={formData.region} onChange={(e) => handleInputChange('region', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none ${
-                errors.region ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-              } ${
-                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-              }`}>
-                <option value="">Select Region</option>
-                {formData.region && !regions.some(reg => reg.name === formData.region) && (
-                  <option value={formData.region}>{formData.region}</option>
-                )}
-                {regions.map((region) => (
-                  <option key={region.id} value={region.name}>
-                    {region.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
-            </div>
-            {errors.region && <p className="text-red-500 text-xs mt-1">{errors.region}</p>}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>City<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select 
-                value={formData.city} 
-                onChange={(e) => handleInputChange('city', e.target.value)} 
-                disabled={!formData.region}
-                className={`w-full px-3 py-2 border rounded appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                  errors.city ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                }`}
-              >
-                <option value="">{formData.region ? 'Select City' : 'Select Region First'}</option>
-                {formData.city && !filteredCities.some(city => city.name === formData.city) && (
-                  <option value={formData.city}>{formData.city}</option>
-                )}
-                {filteredCities.map((city) => (
-                  <option key={city.id} value={city.name}>
-                    {city.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
-            </div>
-            {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Barangay<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select 
-                value={formData.barangay} 
-                onChange={(e) => handleInputChange('barangay', e.target.value)} 
-                disabled={!formData.city}
-                className={`w-full px-3 py-2 border rounded appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                  errors.barangay ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                }`}
-              >
-                <option value="">{formData.city ? 'Select Barangay' : 'Select City First'}</option>
-                {formData.barangay && !filteredBarangays.some(brgy => brgy.barangay === formData.barangay) && (
-                  <option value={formData.barangay}>{formData.barangay}</option>
-                )}
-                {filteredBarangays.map((barangay) => (
-                  <option key={barangay.id} value={barangay.barangay}>
-                    {barangay.barangay}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
-            </div>
-            {errors.barangay && <p className="text-red-500 text-xs mt-1">{errors.barangay}</p>}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Location<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select 
-                value={formData.location} 
-                onChange={(e) => handleInputChange('location', e.target.value)} 
-                disabled={!formData.barangay}
-                className={`w-full px-3 py-2 border rounded appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                  errors.location ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                }`}
-              >
-                <option value="">{formData.barangay ? 'Select Location' : 'Select Barangay First'}</option>
-                {formData.location && !filteredLocations.some(loc => loc.location_name === formData.location) && (
-                  <option value={formData.location}>{formData.location}</option>
-                )}
-                {filteredLocations.map((location) => (
-                  <option key={location.id} value={location.location_name}>
-                    {location.location_name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
-            </div>
-            {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
-          </div>
-
-          {formData.status === 'Confirmed' && formData.onsiteStatus === 'Done' && (
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Address Coordinates<span className="text-red-500">*</span></label>
+      {showLoadingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[70]">
+          <div className="bg-gray-800 rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
+            <div className="flex flex-col items-center space-y-6">
               <div className="relative">
-                <input type="text" value={formData.addressCoordinates} onChange={(e) => handleInputChange('addressCoordinates', e.target.value)} placeholder="14.466580, 121.201807" className={`w-full px-3 py-2 border rounded pr-10 ${
-                  errors.addressCoordinates ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                <div className="animate-spin rounded-full h-24 w-24 border-t-4 border-b-4 border-orange-500"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-2xl font-bold text-white">{uploadProgress}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
+        <div className={`h-full w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+          }`}>
+          <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
+            }`}>
+            <div className="flex items-center space-x-3">
+              <button onClick={onClose} className={`transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                }`}>
+                <X size={24} />
+              </button>
+              <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
+                {formData.firstName} {formData.middleInitial} {formData.lastName}
+              </h2>
+            </div>
+            <div className="flex items-center space-x-3">
+              <button onClick={onClose} className={`px-4 py-2 border rounded text-sm transition-colors ${isDarkMode
+                ? 'border-orange-600 text-orange-600 hover:bg-orange-600 hover:text-white'
+                : 'border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white'
+                }`}>
+                Cancel
+              </button>
+              <button onClick={handleSave} disabled={loading} className={`px-4 py-2 rounded text-sm transition-colors ${isDarkMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'
+                } disabled:opacity-50 text-white`}>
+                {loading ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Referred By</label>
+              <input type="text" value={formData.referredBy} onChange={(e) => handleInputChange('referredBy', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
                 }`} />
-                <MapPin className={`absolute right-3 top-2.5 pointer-events-none ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`} size={20} />
-              </div>
-              {errors.addressCoordinates && (
-                <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                  <p className="text-orange-500 text-xs">This entry is required</p>
-                </div>
-              )}
             </div>
-          )}
 
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Choose Plan<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select value={formData.choosePlan} onChange={(e) => handleInputChange('choosePlan', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none ${
-                errors.choosePlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-              } ${
-                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-              }`}>
-                <option value="">Select Plan</option>
-                {formData.choosePlan && !plans.some(plan => {
-                  const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
-                  return planWithPrice === formData.choosePlan || plan.name === formData.choosePlan;
-                }) && (
-                  <option value={formData.choosePlan}>{formData.choosePlan}</option>
-                )}
-                {plans.map((plan) => {
-                  const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
-                  return (
-                    <option key={plan.id} value={planWithPrice}>
-                      {planWithPrice}
-                    </option>
-                  );
-                })}
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
-            </div>
-            {errors.choosePlan && <p className="text-red-500 text-xs mt-1">{errors.choosePlan}</p>}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Status<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select value={formData.status} onChange={(e) => handleInputChange('status', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none ${
-                errors.status ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-              } ${
-                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-              }`}>
-                <option value="Confirmed">Confirmed</option>
-                <option value="For Confirmation">For Confirmation</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
-            </div>
-            {errors.status && <p className="text-red-500 text-xs mt-1">{errors.status}</p>}
-          </div>
-
-          {formData.status === 'Confirmed' && formData.onsiteStatus === 'Done' && (
-            <>
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Connection Type<span className="text-red-500">*</span></label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button type="button" onClick={() => handleInputChange('connectionType', 'Antenna')} className={`py-2 px-4 rounded border transition-colors duration-200 ${
-                    formData.connectionType === 'Antenna' 
-                      ? 'bg-orange-600 border-orange-700 text-white' 
-                      : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-200 border-gray-300 text-gray-900'
-                  }`}>Antenna</button>
-                  <button type="button" onClick={() => handleInputChange('connectionType', 'Fiber')} className={`py-2 px-4 rounded border transition-colors duration-200 ${
-                    formData.connectionType === 'Fiber' 
-                      ? 'bg-orange-600 border-orange-700 text-white' 
-                      : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-200 border-gray-300 text-gray-900'
-                  }`}>Fiber</button>
-                  <button type="button" onClick={() => handleInputChange('connectionType', 'Local')} className={`py-2 px-4 rounded border transition-colors duration-200 ${
-                    formData.connectionType === 'Local' 
-                      ? 'bg-orange-600 border-orange-700 text-white' 
-                      : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-200 border-gray-300 text-gray-900'
-                  }`}>Local</button>
-                </div>
-                {errors.connectionType && (
-                  <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Router Model<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.routerModel} onChange={(e) => handleInputChange('routerModel', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none ${
-                    errors.routerModel ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}>
-                    <option value=""></option>
-                    {formData.routerModel && !routerModels.some(rm => rm.model === formData.routerModel) && (
-                      <option value={formData.routerModel}>{formData.routerModel}</option>
-                    )}
-                    {routerModels.map((routerModel, index) => (
-                      <option key={index} value={routerModel.model}>{routerModel.model}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-                </div>
-                {errors.routerModel && (
-                  <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Modem SN<span className="text-red-500">*</span></label>
-                <input type="text" value={formData.modemSN} onChange={(e) => handleInputChange('modemSN', e.target.value)} className={`w-full px-3 py-2 border rounded ${
-                  errors.modemSN ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                }`} />
-                {errors.modemSN && (
-                  <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
-                  </div>
-                )}
-              </div>
-
-              {formData.connectionType === 'Antenna' && (
+            {formData.status === 'Confirmed' && formData.onsiteStatus === 'Done' && (
+              <>
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>IP<span className="text-red-500">*</span></label>
-                  <input type="text" value={formData.ip} onChange={(e) => handleInputChange('ip', e.target.value)} className={`w-full px-3 py-2 border rounded ${
-                    errors.ip ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`} />
-                  {errors.ip && (
-                    <div className="flex items-center mt-1">
-                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                      <p className="text-orange-500 text-xs">This entry is required</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {(formData.connectionType === 'Antenna' || formData.connectionType === 'Local') && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Port Label Image<span className="text-red-500">*</span></label>
-                  <div className="relative w-full h-32 bg-gray-800 border border-gray-700 rounded flex items-center justify-center cursor-pointer hover:bg-gray-750">
-                    <input type="file" accept="image/*" onChange={(e) => e.target.files && handleImageUpload('portLabelImage', e.target.files[0])} className="absolute inset-0 opacity-0 cursor-pointer" />
-                    {formData.portLabelImage ? (
-                      <div className="text-green-500 flex items-center"><Camera className="mr-2" size={20} />Image uploaded</div>
-                    ) : (
-                      <div className="text-gray-400 flex flex-col items-center"><Camera size={32} /><span className="text-sm mt-2">Click to upload</span></div>
-                    )}
-                  </div>
-                  {errors.portLabelImage && (
-                    <div className="flex items-center mt-1">
-                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                      <p className="text-orange-500 text-xs">This entry is required</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Affiliate<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select value={formData.groupName} onChange={(e) => handleInputChange('groupName', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none ${
-                errors.groupName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-              } ${
-                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-              }`}>
-                <option value="">Select Affiliate</option>
-                {formData.groupName && !groups.some(g => g.group_name === formData.groupName) && (
-                  <option value={formData.groupName}>{formData.groupName} (Current)</option>
-                )}
-                {groups.map((group) => (
-                  <option key={group.id} value={group.group_name}>
-                    {group.group_name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
-            </div>
-            {errors.groupName && <p className="text-red-500 text-xs mt-1">{errors.groupName}</p>}
-          </div>
-
-          {formData.status === 'Confirmed' && formData.onsiteStatus === 'Done' && formData.connectionType === 'Fiber' && (
-            <>
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>LCP-NAP<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select 
-                    value={formData.lcpnap} 
-                    onChange={(e) => handleInputChange('lcpnap', e.target.value)} 
-                    className={`w-full px-3 py-2 border rounded appearance-none ${
-                      errors.lcpnap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                    } ${
-                      isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    }`}
-                  >
-                    <option value="">Select LCP-NAP</option>
-                    {formData.lcpnap && !lcpnaps.some(ln => ln.lcpnap_name === formData.lcpnap) && (
-                      <option value={formData.lcpnap}>{formData.lcpnap}</option>
-                    )}
-                    {lcpnaps.map((lcpnap) => (
-                      <option key={lcpnap.id} value={lcpnap.lcpnap_name}>
-                        {lcpnap.lcpnap_name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-                </div>
-                {errors.lcpnap && (
-                  <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>PORT<span className="text-red-500">*</span></label>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Date Installed<span className="text-red-500">*</span></label>
                   <div className="relative">
-                    <select value={formData.port} onChange={(e) => handleInputChange('port', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none ${
-                      errors.port ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                    } ${
-                      isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    }`}>
+                    <input type="date" value={formData.dateInstalled} onChange={(e) => handleInputChange('dateInstalled', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.dateInstalled ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`} />
+                    <Calendar className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.dateInstalled && (
+                    <div className="flex items-center mt-1">
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                      <p className="text-orange-500 text-xs">This entry is required</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Usage Type<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.usageType} onChange={(e) => handleInputChange('usageType', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${errors.usageType ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`}>
+                      <option value=""></option>
+                      {formData.usageType && !usageTypes.some(ut => ut.usage_name === formData.usageType) && (
+                        <option value={formData.usageType}>{formData.usageType}</option>
+                      )}
+                      {usageTypes.map((usageType) => (
+                        <option key={usageType.id} value={usageType.usage_name}>
+                          {usageType.usage_name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.usageType && (
+                    <div className="flex items-center mt-1">
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                      <p className="text-orange-500 text-xs">This entry is required</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>First Name<span className="text-red-500">*</span></label>
+              <input type="text" value={formData.firstName} onChange={(e) => handleInputChange('firstName', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.firstName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                }`} />
+              {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Middle Initial</label>
+              <input type="text" value={formData.middleInitial} onChange={(e) => handleInputChange('middleInitial', e.target.value)} maxLength={1} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                }`} />
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Last Name<span className="text-red-500">*</span></label>
+              <input type="text" value={formData.lastName} onChange={(e) => handleInputChange('lastName', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.lastName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                }`} />
+              {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Contact Number<span className="text-red-500">*</span></label>
+              <input type="text" value={formData.contactNumber} onChange={(e) => handleInputChange('contactNumber', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.contactNumber ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                }`} />
+              {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Second Contact Number</label>
+              <input type="text" value={formData.secondContactNumber} onChange={(e) => handleInputChange('secondContactNumber', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                }`} />
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Applicant Email Address<span className="text-red-500">*</span></label>
+              <input type="email" value={formData.email} onChange={(e) => handleInputChange('email', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.email ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                }`} />
+              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Address<span className="text-red-500">*</span></label>
+              <input type="text" value={formData.address} onChange={(e) => handleInputChange('address', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.address ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                }`} />
+              {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Region<span className="text-red-500">*</span></label>
+              <div className="relative">
+                <select value={formData.region} onChange={(e) => handleInputChange('region', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none ${errors.region ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  }`}>
+                  <option value="">Select Region</option>
+                  {formData.region && !regions.some(reg => reg.name === formData.region) && (
+                    <option value={formData.region}>{formData.region}</option>
+                  )}
+                  {regions.map((region) => (
+                    <option key={region.id} value={region.name}>
+                      {region.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
+              </div>
+              {errors.region && <p className="text-red-500 text-xs mt-1">{errors.region}</p>}
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>City<span className="text-red-500">*</span></label>
+              <div className="relative">
+                <select
+                  value={formData.city}
+                  onChange={(e) => handleInputChange('city', e.target.value)}
+                  disabled={!formData.region}
+                  className={`w-full px-3 py-2 border rounded appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.city ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    }`}
+                >
+                  <option value="">{formData.region ? 'Select City' : 'Select Region First'}</option>
+                  {formData.city && !filteredCities.some(city => city.name === formData.city) && (
+                    <option value={formData.city}>{formData.city}</option>
+                  )}
+                  {filteredCities.map((city) => (
+                    <option key={city.id} value={city.name}>
+                      {city.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
+              </div>
+              {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Barangay<span className="text-red-500">*</span></label>
+              <div className="relative">
+                <select
+                  value={formData.barangay}
+                  onChange={(e) => handleInputChange('barangay', e.target.value)}
+                  disabled={!formData.city}
+                  className={`w-full px-3 py-2 border rounded appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.barangay ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    }`}
+                >
+                  <option value="">{formData.city ? 'Select Barangay' : 'Select City First'}</option>
+                  {formData.barangay && !filteredBarangays.some(brgy => brgy.barangay === formData.barangay) && (
+                    <option value={formData.barangay}>{formData.barangay}</option>
+                  )}
+                  {filteredBarangays.map((barangay) => (
+                    <option key={barangay.id} value={barangay.barangay}>
+                      {barangay.barangay}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
+              </div>
+              {errors.barangay && <p className="text-red-500 text-xs mt-1">{errors.barangay}</p>}
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Location<span className="text-red-500">*</span></label>
+              <div className="relative">
+                <select
+                  value={formData.location}
+                  onChange={(e) => handleInputChange('location', e.target.value)}
+                  disabled={!formData.barangay}
+                  className={`w-full px-3 py-2 border rounded appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.location ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    }`}
+                >
+                  <option value="">{formData.barangay ? 'Select Location' : 'Select Barangay First'}</option>
+                  {formData.location && !filteredLocations.some(loc => loc.location_name === formData.location) && (
+                    <option value={formData.location}>{formData.location}</option>
+                  )}
+                  {filteredLocations.map((location) => (
+                    <option key={location.id} value={location.location_name}>
+                      {location.location_name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
+              </div>
+              {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
+            </div>
+
+            {formData.status === 'Confirmed' && formData.onsiteStatus === 'Done' && (
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>Address Coordinates<span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <input type="text" value={formData.addressCoordinates} onChange={(e) => handleInputChange('addressCoordinates', e.target.value)} placeholder="14.466580, 121.201807" className={`w-full px-3 py-2 border rounded pr-10 ${errors.addressCoordinates ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    }`} />
+                  <MapPin className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`} size={20} />
+                </div>
+                {errors.addressCoordinates && (
+                  <div className="flex items-center mt-1">
+                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                    <p className="text-orange-500 text-xs">This entry is required</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Choose Plan<span className="text-red-500">*</span></label>
+              <div className="relative">
+                <select value={formData.choosePlan} onChange={(e) => handleInputChange('choosePlan', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none ${errors.choosePlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  }`}>
+                  <option value="">Select Plan</option>
+                  {formData.choosePlan && !plans.some(plan => {
+                    const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
+                    return planWithPrice === formData.choosePlan || plan.name === formData.choosePlan;
+                  }) && (
+                      <option value={formData.choosePlan}>{formData.choosePlan}</option>
+                    )}
+                  {plans.map((plan) => {
+                    const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
+                    return (
+                      <option key={plan.id} value={planWithPrice}>
+                        {planWithPrice}
+                      </option>
+                    );
+                  })}
+                </select>
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
+              </div>
+              {errors.choosePlan && <p className="text-red-500 text-xs mt-1">{errors.choosePlan}</p>}
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Status<span className="text-red-500">*</span></label>
+              <div className="relative">
+                <select value={formData.status} onChange={(e) => handleInputChange('status', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none ${errors.status ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  }`}>
+                  <option value="Confirmed">Confirmed</option>
+                  <option value="For Confirmation">For Confirmation</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
+              </div>
+              {errors.status && <p className="text-red-500 text-xs mt-1">{errors.status}</p>}
+            </div>
+
+            {formData.status === 'Confirmed' && formData.onsiteStatus === 'Done' && (
+              <>
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Connection Type<span className="text-red-500">*</span></label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button type="button" onClick={() => handleInputChange('connectionType', 'Antenna')} className={`py-2 px-4 rounded border transition-colors duration-200 ${formData.connectionType === 'Antenna'
+                      ? 'bg-orange-600 border-orange-700 text-white'
+                      : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-200 border-gray-300 text-gray-900'
+                      }`}>Antenna</button>
+                    <button type="button" onClick={() => handleInputChange('connectionType', 'Fiber')} className={`py-2 px-4 rounded border transition-colors duration-200 ${formData.connectionType === 'Fiber'
+                      ? 'bg-orange-600 border-orange-700 text-white'
+                      : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-200 border-gray-300 text-gray-900'
+                      }`}>Fiber</button>
+                    <button type="button" onClick={() => handleInputChange('connectionType', 'Local')} className={`py-2 px-4 rounded border transition-colors duration-200 ${formData.connectionType === 'Local'
+                      ? 'bg-orange-600 border-orange-700 text-white'
+                      : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-200 border-gray-300 text-gray-900'
+                      }`}>Local</button>
+                  </div>
+                  {errors.connectionType && (
+                    <div className="flex items-center mt-1">
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                      <p className="text-orange-500 text-xs">This entry is required</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Router Model<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.routerModel} onChange={(e) => handleInputChange('routerModel', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none ${errors.routerModel ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`}>
+                      <option value=""></option>
+                      {formData.routerModel && !routerModels.some(rm => rm.model === formData.routerModel) && (
+                        <option value={formData.routerModel}>{formData.routerModel}</option>
+                      )}
+                      {routerModels.map((routerModel, index) => (
+                        <option key={index} value={routerModel.model}>{routerModel.model}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.routerModel && (
+                    <div className="flex items-center mt-1">
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                      <p className="text-orange-500 text-xs">This entry is required</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Modem SN<span className="text-red-500">*</span></label>
+                  <input type="text" value={formData.modemSN} onChange={(e) => handleInputChange('modemSN', e.target.value)} className={`w-full px-3 py-2 border rounded ${errors.modemSN ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    }`} />
+                  {errors.modemSN && (
+                    <div className="flex items-center mt-1">
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                      <p className="text-orange-500 text-xs">This entry is required</p>
+                    </div>
+                  )}
+                </div>
+
+                {formData.connectionType === 'Antenna' && (
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>IP<span className="text-red-500">*</span></label>
+                    <input type="text" value={formData.ip} onChange={(e) => handleInputChange('ip', e.target.value)} className={`w-full px-3 py-2 border rounded ${errors.ip ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`} />
+                    {errors.ip && (
+                      <div className="flex items-center mt-1">
+                        <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                        <p className="text-orange-500 text-xs">This entry is required</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {(formData.connectionType === 'Antenna' || formData.connectionType === 'Local') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Port Label Image<span className="text-red-500">*</span></label>
+                    <div className="relative w-full h-32 bg-gray-800 border border-gray-700 rounded flex items-center justify-center cursor-pointer hover:bg-gray-750">
+                      <input type="file" accept="image/*" onChange={(e) => e.target.files && handleImageUpload('portLabelImage', e.target.files[0])} className="absolute inset-0 opacity-0 cursor-pointer" />
+                      {formData.portLabelImage ? (
+                        <div className="text-green-500 flex items-center"><Camera className="mr-2" size={20} />Image uploaded</div>
+                      ) : (
+                        <div className="text-gray-400 flex flex-col items-center"><Camera size={32} /><span className="text-sm mt-2">Click to upload</span></div>
+                      )}
+                    </div>
+                    {errors.portLabelImage && (
+                      <div className="flex items-center mt-1">
+                        <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                        <p className="text-orange-500 text-xs">This entry is required</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Affiliate<span className="text-red-500">*</span></label>
+              <div className="relative">
+                <select value={formData.groupName} onChange={(e) => handleInputChange('groupName', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none ${errors.groupName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  }`}>
+                  <option value="">Select Affiliate</option>
+                  {formData.groupName && !groups.some(g => g.group_name === formData.groupName) && (
+                    <option value={formData.groupName}>{formData.groupName} (Current)</option>
+                  )}
+                  {groups.map((group) => (
+                    <option key={group.id} value={group.group_name}>
+                      {group.group_name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
+              </div>
+              {errors.groupName && <p className="text-red-500 text-xs mt-1">{errors.groupName}</p>}
+            </div>
+
+            {formData.status === 'Confirmed' && formData.onsiteStatus === 'Done' && formData.connectionType === 'Fiber' && (
+              <>
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>LCP-NAP<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select
+                      value={formData.lcpnap}
+                      onChange={(e) => handleInputChange('lcpnap', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded appearance-none ${errors.lcpnap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                        }`}
+                    >
+                      <option value="">Select LCP-NAP</option>
+                      {formData.lcpnap && !lcpnaps.some(ln => ln.lcpnap_name === formData.lcpnap) && (
+                        <option value={formData.lcpnap}>{formData.lcpnap}</option>
+                      )}
+                      {lcpnaps.map((lcpnap) => (
+                        <option key={lcpnap.id} value={lcpnap.lcpnap_name}>
+                          {lcpnap.lcpnap_name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.lcpnap && (
+                    <div className="flex items-center mt-1">
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                      <p className="text-orange-500 text-xs">This entry is required</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>PORT<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.port} onChange={(e) => handleInputChange('port', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none ${errors.port ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`}>
                       <option value="">Select PORT</option>
                       <option value="PORT 001">PORT 001</option>
                       <option value="PORT 002">PORT 002</option>
@@ -1972,9 +1876,8 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
                       <option value="PORT 032">PORT 032</option>
                       <option value="PORT 032">PORT 032</option>
                     </select>
-                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`} size={20} />
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
                   </div>
                   {errors.port && (
                     <div className="flex items-center mt-1">
@@ -1982,480 +1885,424 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
                       <p className="text-orange-500 text-xs">This entry is required</p>
                     </div>
                   )}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>VLAN<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.vlan} onChange={(e) => handleInputChange('vlan', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none ${
-                    errors.vlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}>
-                    <option value="">Select VLAN</option>
-                    {formData.vlan && !vlans.some(v => v.value.toString() === formData.vlan) && (
-                      <option value={formData.vlan}>{formData.vlan}</option>
-                    )}
-                    {vlans.map((vlan) => (
-                      <option key={vlan.vlan_id} value={vlan.value}>
-                        {vlan.value}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
                 </div>
-                {errors.vlan && (
-                  <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
 
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Username<span className="text-red-500">*</span></label>
-            <input type="text" value={formData.username} onChange={(e) => handleInputChange('username', e.target.value)} className={`w-full px-3 py-2 border rounded ${
-              errors.username ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-            } ${
-              isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-            }`} />
-            {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
-          </div>
-
-          {formData.status === 'Confirmed' && (formData.onsiteStatus === 'Done' || formData.onsiteStatus === 'Reschedule') && (
-            <>
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Visit By<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.visit_by} onChange={(e) => handleInputChange('visit_by', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none focus:outline-none focus:border-orange-500 ${
-                    errors.visit_by ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}>
-                    <option value="">Select Visit By</option>
-                    {formData.visit_by && !technicians.some(t => t.name === formData.visit_by) && (
-                      <option value={formData.visit_by}>{formData.visit_by}</option>
-                    )}
-                    {technicians.map((technician, index) => (
-                      <option key={index} value={technician.name}>{technician.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-                </div>
-                {errors.visit_by && (
-                  <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Visit With<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.visit_with} onChange={(e) => handleInputChange('visit_with', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none focus:outline-none focus:border-orange-500 ${
-                    errors.visit_with ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}>
-                    <option value="">Select Visit With</option>
-                    <option value="None">None</option>
-                    {formData.visit_with && !technicians.some(t => t.name === formData.visit_with) && formData.visit_with !== 'None' && (
-                      <option value={formData.visit_with}>{formData.visit_with}</option>
-                    )}
-                    {technicians.map((technician, index) => (
-                      <option key={index} value={technician.name}>{technician.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-                </div>
-                {errors.visit_with && (
-                  <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Visit With(Other)<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.visit_with_other} onChange={(e) => handleInputChange('visit_with_other', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none focus:outline-none focus:border-orange-500 ${
-                    errors.visit_with_other ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}>
-                    <option value="">Select Visit With(Other)</option>
-                    <option value="None">None</option>
-                    {formData.visit_with_other && !technicians.some(t => t.name === formData.visit_with_other) && formData.visit_with_other !== 'None' && (
-                      <option value={formData.visit_with_other}>{formData.visit_with_other}</option>
-                    )}
-                    {technicians.map((technician, index) => (
-                      <option key={index} value={technician.name}>{technician.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-                </div>
-                {errors.visit_with_other && (
-                  <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">This entry is required</p>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {formData.status === 'Confirmed' && (
-            <>
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Onsite Status<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.onsiteStatus} onChange={(e) => handleInputChange('onsiteStatus', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none focus:outline-none focus:border-orange-500 ${
-                    errors.onsiteStatus ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Done">Done</option>
-                    <option value="Failed">Failed</option>
-                    <option value="Reschedule">Reschedule</option>
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-                </div>
-                {errors.onsiteStatus && <p className="text-red-500 text-xs mt-1">{errors.onsiteStatus}</p>}
-              </div>
-
-              {(formData.onsiteStatus === 'Reschedule' || formData.onsiteStatus === 'Done') && (
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>Onsite Remarks<span className="text-red-500">*</span></label>
-                  <textarea value={formData.onsiteRemarks} onChange={(e) => handleInputChange('onsiteRemarks', e.target.value)} rows={3} className={`w-full px-3 py-2 border rounded resize-none focus:outline-none focus:border-orange-500 ${
-                    errors.onsiteRemarks ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`} />
-                  {errors.onsiteRemarks && (
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>VLAN<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.vlan} onChange={(e) => handleInputChange('vlan', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none ${errors.vlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`}>
+                      <option value="">Select VLAN</option>
+                      {formData.vlan && !vlans.some(v => v.value.toString() === formData.vlan) && (
+                        <option value={formData.vlan}>{formData.vlan}</option>
+                      )}
+                      {vlans.map((vlan) => (
+                        <option key={vlan.vlan_id} value={vlan.value}>
+                          {vlan.value}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.vlan && (
                     <div className="flex items-center mt-1">
                       <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
                       <p className="text-orange-500 text-xs">This entry is required</p>
                     </div>
                   )}
                 </div>
-              )}
+              </>
+            )}
 
-              {formData.onsiteStatus === 'Done' && (
-                <>
-                  <ImagePreview
-                    imageUrl={imagePreviews.signedContractImage}
-                    label="Signed Contract Image"
-                    onUpload={(file) => handleImageUpload('signedContractImage', file)}
-                    error={errors.signedContractImage}
-                  />
-
-                  <ImagePreview
-                    imageUrl={imagePreviews.setupImage}
-                    label="Setup Image"
-                    onUpload={(file) => handleImageUpload('setupImage', file)}
-                    error={errors.setupImage}
-                  />
-
-                  <ImagePreview
-                    imageUrl={imagePreviews.boxReadingImage}
-                    label="Box Reading Image"
-                    onUpload={(file) => handleImageUpload('boxReadingImage', file)}
-                    error={errors.boxReadingImage}
-                  />
-
-                  <ImagePreview
-                    imageUrl={imagePreviews.routerReadingImage}
-                    label="Router Reading Image"
-                    onUpload={(file) => handleImageUpload('routerReadingImage', file)}
-                    error={errors.routerReadingImage}
-                  />
-
-                  <ImagePreview
-                    imageUrl={imagePreviews.clientSignatureImage}
-                    label="Client Signature Image"
-                    onUpload={(file) => handleImageUpload('clientSignatureImage', file)}
-                    error={errors.clientSignatureImage}
-                  />
-
-                  <ImagePreview
-                    imageUrl={imagePreviews.speedTestImage}
-                    label="Speed Test Image"
-                    onUpload={(file) => handleImageUpload('speedTestImage', file)}
-                    error={errors.speedTestImage}
-                  />
-                </>
-              )}
-            </>
-          )}
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Modified By<span className="text-red-500">*</span></label>
-            <input type="email" value={formData.modifiedBy} readOnly className={`w-full px-3 py-2 border rounded cursor-not-allowed ${
-              isDarkMode ? 'bg-gray-700 border-gray-700 text-gray-400' : 'bg-gray-100 border-gray-200 text-gray-500'
-            }`} />
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Modified Date<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <input type="text" value={formData.modifiedDate} readOnly className={`w-full px-3 py-2 border rounded cursor-not-allowed pr-10 ${
-                isDarkMode ? 'bg-gray-700 border-gray-700 text-gray-400' : 'bg-gray-100 border-gray-200 text-gray-500'
-              }`} />
-              <Calendar className={`absolute right-3 top-2.5 ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
-            </div>
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Contract Link</label>
-            <input type="text" value={formData.contractLink} onChange={(e) => handleInputChange('contractLink', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-              isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-            }`} />
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Contract Template<span className="text-red-500">*</span></label>
-            <div className={`flex items-center border rounded ${
-              isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
-            }`}>
-              <input type="number" value={formData.contractTemplate} onChange={(e) => handleInputChange('contractTemplate', e.target.value)} className={`flex-1 px-3 py-2 bg-transparent focus:outline-none ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`} />
-              <div className="flex">
-                <button type="button" onClick={() => handleNumberChange('contractTemplate', false)} className={`px-3 py-2 border-l transition-colors ${
-                  isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'
-                }`}><Minus size={16} /></button>
-                <button type="button" onClick={() => handleNumberChange('contractTemplate', true)} className={`px-3 py-2 border-l transition-colors ${
-                  isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'
-                }`}><Plus size={16} /></button>
-              </div>
-            </div>
-            {errors.contractTemplate && <p className="text-red-500 text-xs mt-1">{errors.contractTemplate}</p>}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Assigned Email<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select value={formData.assignedEmail} onChange={(e) => handleInputChange('assignedEmail', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none focus:outline-none focus:border-orange-500 ${
-                errors.assignedEmail ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-              } ${
-                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-              }`}>
-                <option value="">Select Assigned Email</option>
-                {formData.assignedEmail && !technicians.some(t => t.email === formData.assignedEmail) && (
-                  <option value={formData.assignedEmail}>{formData.assignedEmail}</option>
-                )}
-                {technicians.map((technician, index) => (
-                  <option key={index} value={technician.email}>{technician.email}</option>
-                ))}
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
-            </div>
-            {errors.assignedEmail && <p className="text-red-500 text-xs mt-1">{errors.assignedEmail}</p>}
-          </div>
-
-          {formData.status === 'Confirmed' && formData.onsiteStatus === 'Done' && (
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Items<span className="text-red-500">*</span></label>
-              {orderItems.map((item, index) => (
-                <div key={index} className="mb-3">
-                  <div className="flex items-start gap-2">
-                    <div className="flex-1">
-                      <div className="relative">
-                        <select 
-                          value={item.itemId} 
-                          onChange={(e) => handleItemChange(index, 'itemId', e.target.value)} 
-                          className={`w-full px-3 py-2 border rounded appearance-none focus:outline-none focus:border-orange-500 ${
-                            isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-                          }`}
-                        >
-                          <option value="">Select Item {index + 1}</option>
-                          {inventoryItems.map((invItem) => (
-                            <option key={invItem.id} value={invItem.item_name}>
-                              {invItem.item_name}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`} size={20} />
-                      </div>
-                      {errors[`item_${index}`] && (
-                        <p className="text-orange-500 text-xs mt-1">{errors[`item_${index}`]}</p>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Username<span className="text-red-500">*</span></label>
+              <input type="text" value={formData.username} onChange={(e) => handleInputChange('username', e.target.value)} className={`w-full px-3 py-2 border rounded ${errors.username ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                }`} />
+              {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
+            </div>
+
+            {formData.status === 'Confirmed' && (formData.onsiteStatus === 'Done' || formData.onsiteStatus === 'Reschedule') && (
+              <>
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Visit By<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.visit_by} onChange={(e) => handleInputChange('visit_by', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none focus:outline-none focus:border-orange-500 ${errors.visit_by ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`}>
+                      <option value="">Select Visit By</option>
+                      {formData.visit_by && !technicians.some(t => t.name === formData.visit_by) && (
+                        <option value={formData.visit_by}>{formData.visit_by}</option>
                       )}
+                      {technicians.filter(t => t.name !== formData.visit_with && t.name !== formData.visit_with_other).map((technician, index) => (
+                        <option key={index} value={technician.name}>{technician.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.visit_by && (
+                    <div className="flex items-center mt-1">
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                      <p className="text-orange-500 text-xs">This entry is required</p>
                     </div>
-                    
-                    {item.itemId && (
-                      <div className="w-32">
-                        <input 
-                          type="number" 
-                          value={item.quantity} 
-                          onChange={(e) => handleItemChange(index, 'quantity', e.target.value)} 
-                          placeholder="Qty"
-                          min="1"
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                            isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-                          }`}
-                        />
-                        {errors[`quantity_${index}`] && (
-                          <p className="text-orange-500 text-xs mt-1">{errors[`quantity_${index}`]}</p>
-                        )}
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Visit With<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.visit_with} onChange={(e) => handleInputChange('visit_with', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none focus:outline-none focus:border-orange-500 ${errors.visit_with ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`}>
+                      <option value="">Select Visit With</option>
+                      <option value="None">None</option>
+                      {formData.visit_with && !technicians.some(t => t.name === formData.visit_with) && formData.visit_with !== 'None' && (
+                        <option value={formData.visit_with}>{formData.visit_with}</option>
+                      )}
+                      {technicians.filter(t => t.name !== formData.visit_by && t.name !== formData.visit_with_other).map((technician, index) => (
+                        <option key={index} value={technician.name}>{technician.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.visit_with && (
+                    <div className="flex items-center mt-1">
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                      <p className="text-orange-500 text-xs">This entry is required</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Visit With(Other)<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.visit_with_other} onChange={(e) => handleInputChange('visit_with_other', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none focus:outline-none focus:border-orange-500 ${errors.visit_with_other ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`}>
+                      <option value="">Select Visit With(Other)</option>
+                      <option value="None">None</option>
+                      {formData.visit_with_other && !technicians.some(t => t.name === formData.visit_with_other) && formData.visit_with_other !== 'None' && (
+                        <option value={formData.visit_with_other}>{formData.visit_with_other}</option>
+                      )}
+                      {technicians.filter(t => t.name !== formData.visit_by && t.name !== formData.visit_with).map((technician, index) => (
+                        <option key={index} value={technician.name}>{technician.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.visit_with_other && (
+                    <div className="flex items-center mt-1">
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                      <p className="text-orange-500 text-xs">This entry is required</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {formData.status === 'Confirmed' && (
+              <>
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Onsite Status<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.onsiteStatus} onChange={(e) => handleInputChange('onsiteStatus', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none focus:outline-none focus:border-orange-500 ${errors.onsiteStatus ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`}>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Done">Done</option>
+                      <option value="Failed">Failed</option>
+                      <option value="Reschedule">Reschedule</option>
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.onsiteStatus && <p className="text-red-500 text-xs mt-1">{errors.onsiteStatus}</p>}
+                </div>
+
+                {(formData.onsiteStatus === 'Reschedule' || formData.onsiteStatus === 'Done') && (
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>Onsite Remarks<span className="text-red-500">*</span></label>
+                    <textarea value={formData.onsiteRemarks} onChange={(e) => handleInputChange('onsiteRemarks', e.target.value)} rows={3} className={`w-full px-3 py-2 border rounded resize-none focus:outline-none focus:border-orange-500 ${errors.onsiteRemarks ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`} />
+                    {errors.onsiteRemarks && (
+                      <div className="flex items-center mt-1">
+                        <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                        <p className="text-orange-500 text-xs">This entry is required</p>
                       </div>
-                    )}
-                    
-                    {orderItems.length > 1 && item.itemId && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(index)}
-                        className="p-2 text-red-500 hover:text-red-400 transition-colors"
-                      >
-                        <X size={20} />
-                      </button>
                     )}
                   </div>
-                </div>
-              ))}
-              {errors.items && (
-                <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                  <p className="text-orange-500 text-xs">{errors.items}</p>
-                </div>
-              )}
-            </div>
-          )}
+                )}
 
-          {formData.status === 'Confirmed' && formData.onsiteStatus === 'Reschedule' && (
+                {formData.onsiteStatus === 'Done' && (
+                  <>
+                    <ImagePreview
+                      imageUrl={imagePreviews.signedContractImage}
+                      label="Signed Contract Image"
+                      onUpload={(file) => handleImageUpload('signedContractImage', file)}
+                      error={errors.signedContractImage}
+                    />
+
+                    <ImagePreview
+                      imageUrl={imagePreviews.setupImage}
+                      label="Setup Image"
+                      onUpload={(file) => handleImageUpload('setupImage', file)}
+                      error={errors.setupImage}
+                    />
+
+                    <ImagePreview
+                      imageUrl={imagePreviews.boxReadingImage}
+                      label="Box Reading Image"
+                      onUpload={(file) => handleImageUpload('boxReadingImage', file)}
+                      error={errors.boxReadingImage}
+                    />
+
+                    <ImagePreview
+                      imageUrl={imagePreviews.routerReadingImage}
+                      label="Router Reading Image"
+                      onUpload={(file) => handleImageUpload('routerReadingImage', file)}
+                      error={errors.routerReadingImage}
+                    />
+
+                    <ImagePreview
+                      imageUrl={imagePreviews.clientSignatureImage}
+                      label="Client Signature Image"
+                      onUpload={(file) => handleImageUpload('clientSignatureImage', file)}
+                      error={errors.clientSignatureImage}
+                    />
+
+                    <ImagePreview
+                      imageUrl={imagePreviews.speedTestImage}
+                      label="Speed Test Image"
+                      onUpload={(file) => handleImageUpload('speedTestImage', file)}
+                      error={errors.speedTestImage}
+                    />
+                  </>
+                )}
+              </>
+            )}
+
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Status Remarks<span className="text-red-500">*</span></label>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Modified By<span className="text-red-500">*</span></label>
+              <input type="email" value={formData.modifiedBy} readOnly className={`w-full px-3 py-2 border rounded cursor-not-allowed ${isDarkMode ? 'bg-gray-700 border-gray-700 text-gray-400' : 'bg-gray-100 border-gray-200 text-gray-500'
+                }`} />
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Modified Date<span className="text-red-500">*</span></label>
               <div className="relative">
-                <select value={formData.statusRemarks} onChange={(e) => handleInputChange('statusRemarks', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none focus:outline-none focus:border-orange-500 ${
-                  errors.statusRemarks ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                <input type="text" value={formData.modifiedDate} readOnly className={`w-full px-3 py-2 border rounded cursor-not-allowed pr-10 ${isDarkMode ? 'bg-gray-700 border-gray-700 text-gray-400' : 'bg-gray-100 border-gray-200 text-gray-500'
+                  }`} />
+                <Calendar className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
+              </div>
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Contract Link</label>
+              <input type="text" value={formData.contractLink} onChange={(e) => handleInputChange('contractLink', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                }`} />
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Contract Template<span className="text-red-500">*</span></label>
+              <div className={`flex items-center border rounded ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
                 }`}>
-                  <option value="">Select Status Remarks</option>
-                  {formData.statusRemarks && !statusRemarksList.some(sr => sr.status_remarks === formData.statusRemarks) && (
-                    <option value={formData.statusRemarks}>{formData.statusRemarks}</option>
+                <input type="number" value={formData.contractTemplate} onChange={(e) => handleInputChange('contractTemplate', e.target.value)} className={`flex-1 px-3 py-2 bg-transparent focus:outline-none ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`} />
+                <div className="flex">
+                  <button type="button" onClick={() => handleNumberChange('contractTemplate', false)} className={`px-3 py-2 border-l transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                    }`}><Minus size={16} /></button>
+                  <button type="button" onClick={() => handleNumberChange('contractTemplate', true)} className={`px-3 py-2 border-l transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                    }`}><Plus size={16} /></button>
+                </div>
+              </div>
+              {errors.contractTemplate && <p className="text-red-500 text-xs mt-1">{errors.contractTemplate}</p>}
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Assigned Email<span className="text-red-500">*</span></label>
+              <div className="relative">
+                <select value={formData.assignedEmail} onChange={(e) => handleInputChange('assignedEmail', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none focus:outline-none focus:border-orange-500 ${errors.assignedEmail ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  }`}>
+                  <option value="">Select Assigned Email</option>
+                  {formData.assignedEmail && !technicians.some(t => t.email === formData.assignedEmail) && (
+                    <option value={formData.assignedEmail}>{formData.assignedEmail}</option>
                   )}
-                  {statusRemarksList.map((statusRemark) => (
-                    <option key={statusRemark.id} value={statusRemark.status_remarks}>
-                      {statusRemark.status_remarks}
-                    </option>
+                  {technicians.map((technician, index) => (
+                    <option key={index} value={technician.email}>{technician.email}</option>
                   ))}
                 </select>
-                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`} size={20} />
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
               </div>
-              {errors.statusRemarks && (
-                <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                  <p className="text-orange-500 text-xs">This entry is required</p>
-                </div>
-              )}
+              {errors.assignedEmail && <p className="text-red-500 text-xs mt-1">{errors.assignedEmail}</p>}
             </div>
-          )}
-        </div>
-      </div>
 
-      {modal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className={`border rounded-lg p-6 max-w-md w-full mx-4 ${
-            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
-            <h3 className={`text-lg font-semibold mb-4 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{modal.title}</h3>
-            <p className={`mb-6 whitespace-pre-line ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>{modal.message}</p>
-            <div className="flex items-center justify-end gap-3">
-              {modal.type === 'confirm' ? (
-                <>
-                  <button
-                    onClick={modal.onCancel}
-                    className={`px-4 py-2 rounded text-white transition-colors ${
-                      isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                    }`}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={modal.onConfirm}
-                    className={`px-4 py-2 rounded text-white transition-colors ${
-                      isDarkMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'
-                    }`}
-                  >
-                    Confirm
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => {
-                    if (modal.onConfirm) {
-                      modal.onConfirm();
-                    } else {
-                      setModal({ ...modal, isOpen: false });
-                    }
-                  }}
-                  className={`px-4 py-2 rounded text-white transition-colors ${
-                    isDarkMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'
-                  }`}
-                >
-                  OK
-                </button>
-              )}
-            </div>
+            {formData.status === 'Confirmed' && formData.onsiteStatus === 'Done' && (
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>Items<span className="text-red-500">*</span></label>
+                {orderItems.map((item, index) => (
+                  <div key={index} className="mb-3">
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <div className="relative">
+                          <select
+                            value={item.itemId}
+                            onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}
+                            className={`w-full px-3 py-2 border rounded appearance-none focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                              }`}
+                          >
+                            <option value="">Select Item {index + 1}</option>
+                            {inventoryItems.map((invItem) => (
+                              <option key={invItem.id} value={invItem.item_name}>
+                                {invItem.item_name}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} size={20} />
+                        </div>
+                        {errors[`item_${index}`] && (
+                          <p className="text-orange-500 text-xs mt-1">{errors[`item_${index}`]}</p>
+                        )}
+                      </div>
+
+                      {item.itemId && (
+                        <div className="w-32">
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                            placeholder="Qty"
+                            min="1"
+                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                              }`}
+                          />
+                          {errors[`quantity_${index}`] && (
+                            <p className="text-orange-500 text-xs mt-1">{errors[`quantity_${index}`]}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {orderItems.length > 1 && item.itemId && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(index)}
+                          className="p-2 text-red-500 hover:text-red-400 transition-colors"
+                        >
+                          <X size={20} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {errors.items && (
+                  <div className="flex items-center mt-1">
+                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                    <p className="text-orange-500 text-xs">{errors.items}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {formData.status === 'Confirmed' && formData.onsiteStatus === 'Reschedule' && (
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>Status Remarks<span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <select value={formData.statusRemarks} onChange={(e) => handleInputChange('statusRemarks', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none focus:outline-none focus:border-orange-500 ${errors.statusRemarks ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    }`}>
+                    <option value="">Select Status Remarks</option>
+                    {formData.statusRemarks && !statusRemarksList.some(sr => sr.status_remarks === formData.statusRemarks) && (
+                      <option value={formData.statusRemarks}>{formData.statusRemarks}</option>
+                    )}
+                    {statusRemarksList.map((statusRemark) => (
+                      <option key={statusRemark.id} value={statusRemark.status_remarks}>
+                        {statusRemark.status_remarks}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`} size={20} />
+                </div>
+                {errors.statusRemarks && (
+                  <div className="flex items-center mt-1">
+                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                    <p className="text-orange-500 text-xs">This entry is required</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
-      )}
-    </div>
+
+        {modal.isOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+            <div className={`border rounded-lg p-6 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+              }`}>
+              <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{modal.title}</h3>
+              <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>{modal.message}</p>
+              <div className="flex items-center justify-end gap-3">
+                {modal.type === 'confirm' ? (
+                  <>
+                    <button
+                      onClick={modal.onCancel}
+                      className={`px-4 py-2 rounded text-white transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                        }`}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={modal.onConfirm}
+                      className={`px-4 py-2 rounded text-white transition-colors ${isDarkMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'
+                        }`}
+                    >
+                      Confirm
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (modal.onConfirm) {
+                        modal.onConfirm();
+                      } else {
+                        setModal({ ...modal, isOpen: false });
+                      }
+                    }}
+                    className={`px-4 py-2 rounded text-white transition-colors ${isDarkMode ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-500 hover:bg-orange-600'
+                      }`}
+                  >
+                    OK
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 };

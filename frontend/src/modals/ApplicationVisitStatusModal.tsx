@@ -864,8 +864,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
         <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
           }`}>{label}{label === 'Image 1' && <span className="text-red-500">*</span>}</label>
         <div className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer ${isDarkMode
-            ? 'bg-gray-800 border-gray-700 hover:bg-gray-750'
-            : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+          ? 'bg-gray-800 border-gray-700 hover:bg-gray-750'
+          : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
           }`}>
           <input
             type="file"
@@ -933,8 +933,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
         <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
           }`}>
           <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
-              ? 'bg-gray-800 border-gray-700'
-              : 'bg-gray-100 border-gray-300'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-gray-100 border-gray-300'
             }`}>
             <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>{getFullName()}</h2>
@@ -942,8 +942,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
               <button
                 onClick={handleCancel}
                 className={`px-4 py-2 rounded text-sm ${isDarkMode
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                   }`}
               >
                 Cancel
@@ -995,8 +995,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                     value={technicianFormData.fullAddress}
                     readOnly
                     className={`w-full px-3 py-2 border rounded cursor-not-allowed ${isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-gray-400'
-                        : 'bg-gray-100 border-gray-300 text-gray-500'
+                      ? 'bg-gray-800 border-gray-700 text-gray-400'
+                      : 'bg-gray-100 border-gray-300 text-gray-500'
                       }`}
                   />
                 </div>
@@ -1037,7 +1037,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                       }`}
                   >
                     <option value="">Select Visit By</option>
-                    {technicians.map((technician, index) => (
+                    {technicians.filter(t => t.name !== technicianFormData.visit_with && t.name !== technicianFormData.visit_with_other).map((technician, index) => (
                       <option key={index} value={technician.name}>{technician.name}</option>
                     ))}
                   </select>
@@ -1058,7 +1058,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                   >
                     <option value="">Select Visit With</option>
                     <option value="None">None</option>
-                    {technicians.filter(t => t.name !== technicianFormData.visit_by).map((technician, index) => (
+                    {technicians.filter(t => t.name !== technicianFormData.visit_by && t.name !== technicianFormData.visit_with_other).map((technician, index) => (
                       <option key={index} value={technician.name}>{technician.name}</option>
                     ))}
                   </select>
@@ -1079,7 +1079,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                   >
                     <option value="">Select Visit With(Other)</option>
                     <option value="None">None</option>
-                    {technicians.filter(t => t.name !== technicianFormData.visit_by).map((technician, index) => (
+                    {technicians.filter(t => t.name !== technicianFormData.visit_by && t.name !== technicianFormData.visit_with).map((technician, index) => (
                       <option key={index} value={technician.name}>{technician.name}</option>
                     ))}
                   </select>
@@ -1096,10 +1096,10 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                       type="button"
                       onClick={() => handleTechnicianInputChange('visitStatus', 'In Progress')}
                       className={`flex-1 px-4 py-3 rounded text-sm font-medium transition-colors ${technicianFormData.visitStatus === 'In Progress'
-                          ? 'bg-orange-600 text-white'
-                          : isDarkMode
-                            ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        ? 'bg-orange-600 text-white'
+                        : isDarkMode
+                          ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                         }`}
                     >
                       In Progress
@@ -1108,10 +1108,10 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                       type="button"
                       onClick={() => handleTechnicianInputChange('visitStatus', 'OK to Install')}
                       className={`flex-1 px-4 py-3 rounded text-sm font-medium transition-colors ${technicianFormData.visitStatus === 'OK to Install'
-                          ? 'bg-orange-600 text-white'
-                          : isDarkMode
-                            ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        ? 'bg-orange-600 text-white'
+                        : isDarkMode
+                          ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                         }`}
                     >
                       OK to Install
@@ -1120,10 +1120,10 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                       type="button"
                       onClick={() => handleTechnicianInputChange('visitStatus', 'Not Ready')}
                       className={`flex-1 px-4 py-3 rounded text-sm font-medium transition-colors ${technicianFormData.visitStatus === 'Not Ready'
-                          ? 'bg-orange-600 text-white'
-                          : isDarkMode
-                            ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        ? 'bg-orange-600 text-white'
+                        : isDarkMode
+                          ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                         }`}
                     >
                       Not Ready
@@ -1141,8 +1141,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                       value={technicianFormData.statusRemarks}
                       onChange={(e) => handleTechnicianInputChange('statusRemarks', e.target.value)}
                       className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                          ? 'bg-gray-800 border-gray-700 text-white'
-                          : 'bg-white border-gray-300 text-gray-900'
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
                         }`}
                     >
                       <option value="">Select Status Remarks</option>
@@ -1166,8 +1166,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                     onChange={(e) => handleTechnicianInputChange('visitRemarks', e.target.value)}
                     rows={4}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
                       }`}
                     placeholder="Enter visit remarks..."
                   />
@@ -1185,8 +1185,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                     value={formData.firstName}
                     onChange={(e) => handleInputChange('firstName', e.target.value)}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
                       }`}
                   />
                 </div>
@@ -1202,8 +1202,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                     onChange={(e) => handleInputChange('middleInitial', e.target.value)}
                     maxLength={1}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
                       }`}
                   />
                 </div>
@@ -1218,8 +1218,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                     value={formData.lastName}
                     onChange={(e) => handleInputChange('lastName', e.target.value)}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
                       }`}
                   />
                 </div>
@@ -1234,8 +1234,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                     value={formData.contactNumber}
                     onChange={(e) => handleInputChange('contactNumber', e.target.value)}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
                       }`}
                   />
                 </div>
@@ -1250,8 +1250,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                     value={formData.secondContactNumber || ''}
                     onChange={(e) => handleInputChange('secondContactNumber', e.target.value)}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
                       }`}
                   />
                 </div>
@@ -1266,8 +1266,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
                       }`}
                   />
                 </div>
@@ -1282,8 +1282,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                     value={formData.address}
                     onChange={(e) => handleInputChange('address', e.target.value)}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
                       }`}
                   />
                 </div>
@@ -1298,8 +1298,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                       value={formData.region}
                       onChange={(e) => handleInputChange('region', e.target.value)}
                       className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode
-                          ? 'bg-gray-800 border-gray-700 text-white'
-                          : 'bg-white border-gray-300 text-gray-900'
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
                         }`}
                     >
                       <option value="">Select Region</option>
@@ -1328,8 +1328,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                       onChange={(e) => handleInputChange('city', e.target.value)}
                       disabled={!formData.region}
                       className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
-                          ? 'bg-gray-800 border-gray-700 text-white'
-                          : 'bg-white border-gray-300 text-gray-900'
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
                         }`}
                     >
                       <option value="">{formData.region ? 'Select City' : 'Select Region First'}</option>
@@ -1357,8 +1357,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                       onChange={(e) => handleInputChange('barangay', e.target.value)}
                       disabled={!formData.city}
                       className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
-                          ? 'bg-gray-800 border-gray-700 text-white'
-                          : 'bg-white border-gray-300 text-gray-900'
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
                         }`}
                     >
                       <option value="">{formData.city ? 'Select Barangay' : 'Select City First'}</option>
@@ -1386,8 +1386,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                       onChange={(e) => handleInputChange('location', e.target.value)}
                       disabled={!formData.barangay}
                       className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
-                          ? 'bg-gray-800 border-gray-700 text-white'
-                          : 'bg-white border-gray-300 text-gray-900'
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
                         }`}
                     >
                       <option value="">{formData.barangay ? 'Select Location' : 'Select Barangay First'}</option>
@@ -1414,8 +1414,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                       value={formData.choosePlan}
                       onChange={(e) => handleInputChange('choosePlan', e.target.value)}
                       className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode
-                          ? 'bg-gray-800 border-gray-700 text-white'
-                          : 'bg-white border-gray-300 text-gray-900'
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
                         }`}
                     >
                       <option value="">Select Plan</option>
@@ -1448,8 +1448,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                     onChange={(e) => handleInputChange('remarks', e.target.value)}
                     rows={3}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
                       }`}
                   />
                 </div>
@@ -1488,8 +1488,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
       {modal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
           <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode
-              ? 'bg-gray-900 border-gray-700'
-              : 'bg-white border-gray-300'
+            ? 'bg-gray-900 border-gray-700'
+            : 'bg-white border-gray-300'
             }`}>
             {modal.type === 'loading' ? (
               <div className="text-center">
@@ -1510,8 +1510,8 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                       <button
                         onClick={modal.onCancel}
                         className={`px-4 py-2 rounded transition-colors ${isDarkMode
-                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                           }`}
                       >
                         Cancel

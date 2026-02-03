@@ -252,7 +252,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     return (
       <div>
         <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-          }`}>{label}<span className="text-red-500">*</span></label>
+          }`}>{label}</label>
         <div className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
           }`}>
           <input
@@ -1008,15 +1008,13 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
 
       if (formData.connectionType === 'Antenna') {
         if (!formData.ip.trim()) newErrors.ip = 'IP is required';
-        const hasPortLabelImageInDb = isValidImageUrl(jobOrderData?.port_label_image_url) || isValidImageUrl(jobOrderData?.Port_Label_Image_URL);
-        if (!formData.portLabelImage && !hasPortLabelImageInDb) newErrors.portLabelImage = 'Port Label Image is required';
+
       } else if (formData.connectionType === 'Fiber') {
         if (!formData.lcpnap.trim()) newErrors.lcpnap = 'LCP-NAP is required';
         if (!formData.port.trim()) newErrors.port = 'PORT is required';
         if (!formData.vlan.trim()) newErrors.vlan = 'VLAN is required';
       } else if (formData.connectionType === 'Local') {
-        const hasPortLabelImageInDb = isValidImageUrl(jobOrderData?.port_label_image_url) || isValidImageUrl(jobOrderData?.Port_Label_Image_URL);
-        if (!formData.portLabelImage && !hasPortLabelImageInDb) newErrors.portLabelImage = 'Port Label Image is required';
+
       }
 
       if (!formData.visit_by.trim()) newErrors.visit_by = 'Visit By is required';
@@ -1039,31 +1037,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         }
       }
 
-      const hasSignedContractImageInDb = isValidImageUrl(jobOrderData?.signed_contract_image_url) || isValidImageUrl(jobOrderData?.Signed_Contract_Image_URL);
-      const hasSetupImageInDb = isValidImageUrl(jobOrderData?.setup_image_url) || isValidImageUrl(jobOrderData?.Setup_Image_URL);
-      const hasBoxReadingImageInDb = isValidImageUrl(jobOrderData?.box_reading_image_url) || isValidImageUrl(jobOrderData?.Box_Reading_Image_URL);
-      const hasRouterReadingImageInDb = isValidImageUrl(jobOrderData?.router_reading_image_url) || isValidImageUrl(jobOrderData?.Router_Reading_Image_URL);
 
-      const clientSignatureVariations = [
-        'client_signature_image_url',
-        'Client_Signature_Image_URL',
-        'client_sig_image_url',
-        'signature_image_url',
-        'clientSignatureImageUrl',
-        'ClientSignatureImageURL',
-        'client_signature_url',
-        'clientSignatureUrl'
-      ];
-      const hasClientSignatureImageInDb = clientSignatureVariations.some(field => isValidImageUrl(jobOrderData?.[field]));
-
-      const hasSpeedTestImageInDb = isValidImageUrl(jobOrderData?.speedtest_image_url) || isValidImageUrl(jobOrderData?.Speedtest_Image_URL);
-
-      if (!formData.signedContractImage && !hasSignedContractImageInDb) newErrors.signedContractImage = 'Signed Contract Image is required';
-      if (!formData.setupImage && !hasSetupImageInDb) newErrors.setupImage = 'Setup Image is required';
-      if (!formData.boxReadingImage && !hasBoxReadingImageInDb) newErrors.boxReadingImage = 'Box Reading Image is required';
-      if (!formData.routerReadingImage && !hasRouterReadingImageInDb) newErrors.routerReadingImage = 'Router Reading Image is required';
-      if (!formData.clientSignatureImage && !hasClientSignatureImageInDb) newErrors.clientSignatureImage = 'Client Signature Image is required';
-      if (!formData.speedTestImage && !hasSpeedTestImageInDb) newErrors.speedTestImage = 'Speed Test Image is required';
     }
 
     if (formData.onsiteStatus === 'Failed' || formData.onsiteStatus === 'Reschedule') {
@@ -1667,10 +1641,10 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                   <div
                     key={index}
                     className={`flex items-start gap-3 p-3 rounded-lg border ${message.type === 'success'
-                        ? (isDarkMode ? 'bg-green-900/30 border-green-700' : 'bg-green-100 border-green-300')
-                        : message.type === 'warning'
-                          ? (isDarkMode ? 'bg-yellow-900/30 border-yellow-700' : 'bg-yellow-100 border-yellow-300')
-                          : (isDarkMode ? 'bg-red-900/30 border-red-700' : 'bg-red-100 border-red-300')
+                      ? (isDarkMode ? 'bg-green-900/30 border-green-700' : 'bg-green-100 border-green-300')
+                      : message.type === 'warning'
+                        ? (isDarkMode ? 'bg-yellow-900/30 border-yellow-700' : 'bg-yellow-100 border-yellow-300')
+                        : (isDarkMode ? 'bg-red-900/30 border-red-700' : 'bg-red-100 border-red-300')
                       }`}
                   >
                     {message.type === 'success' && (
@@ -1684,10 +1658,10 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                     )}
                     <p
                       className={`text-sm ${message.type === 'success'
-                          ? (isDarkMode ? 'text-green-200' : 'text-green-800')
-                          : message.type === 'warning'
-                            ? (isDarkMode ? 'text-yellow-200' : 'text-yellow-800')
-                            : (isDarkMode ? 'text-red-200' : 'text-red-800')
+                        ? (isDarkMode ? 'text-green-200' : 'text-green-800')
+                        : message.type === 'warning'
+                          ? (isDarkMode ? 'text-yellow-200' : 'text-yellow-800')
+                          : (isDarkMode ? 'text-red-200' : 'text-red-800')
                         }`}
                     >
                       {message.text}
@@ -2067,8 +2041,8 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       type="button"
                       onClick={() => handleInputChange('connectionType', 'Antenna')}
                       className={`py-2 px-4 rounded border transition-colors duration-200 ${formData.connectionType === 'Antenna'
-                          ? 'text-white'
-                          : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
+                        ? 'text-white'
+                        : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
                         }`}
                       style={formData.connectionType === 'Antenna' ? {
                         backgroundColor: colorPalette?.primary || '#ea580c',
@@ -2079,8 +2053,8 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       type="button"
                       onClick={() => handleInputChange('connectionType', 'Fiber')}
                       className={`py-2 px-4 rounded border transition-colors duration-200 ${formData.connectionType === 'Fiber'
-                          ? 'text-white'
-                          : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
+                        ? 'text-white'
+                        : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
                         }`}
                       style={formData.connectionType === 'Fiber' ? {
                         backgroundColor: colorPalette?.primary || '#ea580c',
@@ -2091,8 +2065,8 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       type="button"
                       onClick={() => handleInputChange('connectionType', 'Local')}
                       className={`py-2 px-4 rounded border transition-colors duration-200 ${formData.connectionType === 'Local'
-                          ? 'text-white'
-                          : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
+                        ? 'text-white'
+                        : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
                         }`}
                       style={formData.connectionType === 'Local' ? {
                         backgroundColor: colorPalette?.primary || '#ea580c',
@@ -2338,7 +2312,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       {formData.visit_by && !technicians.some(t => t.name === formData.visit_by) && (
                         <option value={formData.visit_by}>{formData.visit_by}</option>
                       )}
-                      {technicians.map((technician, index) => (
+                      {technicians.filter(t => t.name !== formData.visit_with && t.name !== formData.visit_with_other).map((technician, index) => (
                         <option key={index} value={technician.name}>{technician.name}</option>
                       ))}
                     </select>
@@ -2367,7 +2341,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       {formData.visit_with && formData.visit_with !== 'None' && formData.visit_with !== '' && !technicians.some(t => t.name === formData.visit_with) && (
                         <option value={formData.visit_with}>{formData.visit_with}</option>
                       )}
-                      {technicians.filter(t => t.name !== formData.visit_by).map((technician, index) => (
+                      {technicians.filter(t => t.name !== formData.visit_by && t.name !== formData.visit_with_other).map((technician, index) => (
                         <option key={index} value={technician.name}>{technician.name}</option>
                       ))}
                     </select>
@@ -2396,7 +2370,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       {formData.visit_with_other && formData.visit_with_other !== 'None' && formData.visit_with_other !== '' && !technicians.some(t => t.name === formData.visit_with_other) && (
                         <option value={formData.visit_with_other}>{formData.visit_with_other}</option>
                       )}
-                      {technicians.filter(t => t.name !== formData.visit_by).map((technician, index) => (
+                      {technicians.filter(t => t.name !== formData.visit_by && t.name !== formData.visit_with).map((technician, index) => (
                         <option key={index} value={technician.name}>{technician.name}</option>
                       ))}
                     </select>

@@ -1635,7 +1635,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                             } ${errors.visitBy ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                         >
                           <option value="">Select Visit By</option>
-                          {technicians.map((tech, index) => (
+                          {technicians.filter(t => t.name !== formData.visitWith && t.name !== formData.visitWithOther).map((tech, index) => (
                             <option key={index} value={tech.name}>
                               {tech.name}
                             </option>
@@ -1662,7 +1662,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                             }`}
                         >
                           <option value="">Select Visit With</option>
-                          {technicians.filter((tech) => tech.name !== formData.visitBy).map((tech, index) => (
+                          {technicians.filter((tech) => tech.name !== formData.visitBy && tech.name !== formData.visitWithOther).map((tech, index) => (
                             <option key={index} value={tech.name}>
                               {tech.name}
                             </option>
@@ -1683,7 +1683,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                             }`}
                         >
                           <option value="">Select Visit With Other</option>
-                          {technicians.filter((tech) => tech.name !== formData.visitBy).map((tech, index) => (
+                          {technicians.filter((tech) => tech.name !== formData.visitBy && tech.name !== formData.visitWith).map((tech, index) => (
                             <option key={index} value={tech.name}>
                               {tech.name}
                             </option>
@@ -1713,7 +1713,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>Client Signature<span className="text-red-500">*</span></label>
+                        }`}>Client Signature</label>
                       <input
                         type="file"
                         accept="image/*"
@@ -1790,7 +1790,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>Time In<span className="text-red-500">*</span></label>
+                        }`}>Time In</label>
                       <input
                         type="file"
                         accept="image/*"
@@ -1838,7 +1838,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>Modem Setup Image<span className="text-red-500">*</span></label>
+                        }`}>Modem Setup Image</label>
                       <input
                         type="file"
                         accept="image/*"
@@ -1886,7 +1886,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>Time Out<span className="text-red-500">*</span></label>
+                        }`}>Time Out</label>
                       <input
                         type="file"
                         accept="image/*"
