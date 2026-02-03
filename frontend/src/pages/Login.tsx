@@ -3,77 +3,47 @@ import { login, forgotPassword } from '../services/api';
 import { UserData } from '../types/api';
 import { formUIService } from '../services/formUIService';
 import { settingsColorPaletteService } from '../services/settingsColorPaletteService';
+import { ArrowRight } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (userData: UserData) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
+  const [accountNo, setAccountNo] = useState('');
+  const [mobileNo, setMobileNo] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotMessage, setForgotMessage] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [primaryColor, setPrimaryColor] = useState<string>('#9333ea');
 
   const convertGoogleDriveUrl = (url: string): string => {
     if (!url) return '';
-
-    console.log('[Logo] Original URL:', url);
-
-    // Use backend proxy to avoid CORS issues
     const apiUrl = process.env.REACT_APP_API_URL || 'https://backend.atssfiber.ph/api';
-    const proxyUrl = `${apiUrl}/proxy/image?url=${encodeURIComponent(url)}`;
-
-    console.log('[Logo] Using proxy URL:', proxyUrl);
-    return proxyUrl;
+    return `${apiUrl}/proxy/image?url=${encodeURIComponent(url)}`;
   };
 
   useEffect(() => {
     const fetchLogo = async () => {
       try {
-        console.log('[Logo] Fetching config from form_ui table...');
         const config = await formUIService.getConfig();
-        console.log('[Logo] Config received:', config);
-
         if (config && config.logo_url) {
-          console.log('[Logo] Logo URL from database:', config.logo_url);
-          const directUrl = convertGoogleDriveUrl(config.logo_url);
-          setLogoUrl(directUrl);
-        } else {
-          console.log('[Logo] No logo_url in config');
+          setLogoUrl(convertGoogleDriveUrl(config.logo_url));
         }
       } catch (error) {
         console.error('[Logo] Error fetching logo:', error);
       }
     };
 
-    const fetchColorPalette = async () => {
-      try {
-        console.log('[Color] Fetching active color palette...');
-        const activePalette = await settingsColorPaletteService.getActive();
-        console.log('[Color] Active palette:', activePalette);
-
-        if (activePalette && activePalette.primary) {
-          console.log('[Color] Using primary color:', activePalette.primary);
-          setPrimaryColor(activePalette.primary);
-        }
-      } catch (error) {
-        console.error('[Color] Error fetching color palette:', error);
-      }
-    };
-
     fetchLogo();
-    fetchColorPalette();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!identifier || !password) {
-      setError('Please enter your username/email and password');
+    if (!accountNo || !mobileNo) {
+      setError('Please enter your account number and mobile number');
       return;
     }
 
@@ -81,23 +51,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError('');
 
     try {
-      const demoEmail = process.env.REACT_APP_DEMO_EMAIL;
-      const demoPassword = process.env.REACT_APP_DEMO_PASSWORD;
-
-      if (identifier === demoEmail && password === demoPassword) {
-        const mockUserData: UserData = {
-          id: 1,
-          username: 'admin',
-          email: identifier,
-          full_name: 'Admin User',
-          role: 'administrator',
-          role_id: 1
-        };
-        onLogin(mockUserData);
-        return;
-      }
-
-      const response = await login(identifier, password);
+      const response = await login(accountNo, mobileNo);
       if (response.status === 'success') {
         const userData: UserData = {
           id: response.data.user.id,
@@ -148,49 +102,26 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        backgroundColor: '#ffffff',
+        backgroundColor: '#f3f4f6',
         padding: '20px'
       }}>
         <div style={{
           backgroundColor: '#ffffff',
           padding: '40px',
           borderRadius: '12px',
-          border: '1px solid #e0e0e0',
           width: '100%',
           maxWidth: '400px',
-          boxShadow: '0 4px 20px rgba(147, 51, 234, 0.1)'
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
         }}>
           <div style={{
             textAlign: 'center',
             marginBottom: '30px'
           }}>
-            {logoUrl && (
-              <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                marginBottom: '20px'
-              }}>
-                <img
-                  src={logoUrl}
-                  alt="Logo"
-                  style={{
-                    height: '80px',
-                    objectFit: 'contain'
-                  }}
-                  crossOrigin="anonymous"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    console.error('[Logo] Failed to load image from:', logoUrl);
-                    console.error('[Logo] Make sure the Google Drive file is shared as "Anyone with the link"');
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
             <h2 style={{
-              color: primaryColor,
+              color: '#6d28d9',
               fontSize: '24px',
-              marginBottom: '10px'
+              marginBottom: '10px',
+              fontWeight: '600'
             }}>
               Reset Password
             </h2>
@@ -204,7 +135,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 marginBottom: '20px',
                 padding: '15px',
                 backgroundColor: '#f0fdf4',
-                borderRadius: '8px',
+                borderRadius: '30px',
                 border: '1px solid #16a34a'
               }}>
                 {forgotMessage}
@@ -218,11 +149,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 }}
                 style={{
                   width: '100%',
-                  padding: '12px',
-                  backgroundColor: primaryColor,
+                  padding: '14px',
+                  backgroundColor: '#6d28d9',
                   color: '#ffffff',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: '30px',
                   fontSize: '16px',
                   cursor: 'pointer',
                   fontWeight: '600'
@@ -234,25 +165,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           ) : (
             <form onSubmit={handleForgotPassword}>
               <div style={{ marginBottom: '20px' }}>
-                <label style={{
-                  display: 'block',
-                  color: '#6b7280',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500'
-                }}>
-                  Email Address
-                </label>
                 <input
                   type="email"
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '12px',
-                    backgroundColor: '#f9fafb',
+                    padding: '14px',
+                    backgroundColor: '#ffffff',
                     border: '1px solid #d1d5db',
-                    borderRadius: '8px',
+                    borderRadius: '30px',
                     color: '#111827',
                     fontSize: '16px'
                   }}
@@ -276,11 +198,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 disabled={isLoading}
                 style={{
                   width: '100%',
-                  padding: '12px',
+                  padding: '14px',
                   backgroundColor: isLoading ? '#d1d5db' : '#16a34a',
                   color: '#ffffff',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: '30px',
                   fontSize: '16px',
                   cursor: isLoading ? 'not-allowed' : 'pointer',
                   marginBottom: '15px',
@@ -298,10 +220,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 }}
                 style={{
                   width: '100%',
-                  padding: '12px',
+                  padding: '14px',
                   backgroundColor: 'transparent',
-                  color: primaryColor,
-                  border: `1px solid ${primaryColor}`,
+                  color: '#6d28d9',
+                  border: '1px solid #6d28d9',
                   borderRadius: '8px',
                   fontSize: '16px',
                   cursor: 'pointer',
@@ -318,196 +240,285 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   }
 
   return (
+    <>
+      <style>{`
+        * {
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          text-rendering: optimizeLegibility;
+        }
+        @media (max-width: 768px) {
+          .login-container {
+            flex-direction: column !important;
+          }
+          .login-left {
+            order: 2 !important;
+            border-radius: 0 0 16px 16px !important;
+            box-shadow: none !important;
+          }
+          .login-right {
+            order: 1 !important;
+            padding: 40px 30px !important;
+          }
+        }
+      `}</style>
     <div style={{
       display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
       minHeight: '100vh',
-      backgroundColor: '#ffffff',
-      padding: '20px'
+      backgroundColor: '#f3f4f6'
     }}>
       <div style={{
-        backgroundColor: '#ffffff',
-        padding: '40px',
-        borderRadius: '12px',
-        border: '1px solid #e0e0e0',
+        display: 'flex',
         width: '100%',
-        maxWidth: '400px',
-        boxShadow: '0 4px 20px rgba(147, 51, 234, 0.1)'
-      }}>
+        maxWidth: '1200px',
+        margin: 'auto',
+        backgroundColor: '#ffffff',
+        borderRadius: '16px',
+        overflow: 'hidden',
+        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)'
+      }} className="login-container">
         <div style={{
-          textAlign: 'center',
-          marginBottom: '30px'
-        }}>
-          {logoUrl && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              marginBottom: '20px'
+          flex: 1,
+          background: 'linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%)',
+          padding: '60px 50px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          borderTopRightRadius: '16px',
+          borderBottomRightRadius: '16px',
+          boxShadow: '4px 0 15px rgba(0, 0, 0, 0.1)'
+        }} className="login-left">
+          <div style={{ marginBottom: '40px' }}>
+            <h1 style={{
+              fontSize: '32px',
+              fontWeight: '700',
+              color: '#ffffff',
+              marginBottom: '10px'
             }}>
+              Welcome Back
+            </h1>
+            <p style={{
+              fontSize: '14px',
+              color: '#ffffff',
+              opacity: 0.9,
+              fontWeight: '700'
+            }}>
+              Please login to your account.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: '24px' }}>
+              <input
+                type="text"
+                value={accountNo}
+                onChange={(e) => setAccountNo(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '8px',
+                  color: '#111827',
+                  fontSize: '15px',
+                  outline: 'none',
+                  fontWeight: '600'
+                }}
+                placeholder="Username or Email"
+              />
+            </div>
+
+            <div style={{ marginBottom: '32px' }}>
+              <input
+                type="password"
+                value={mobileNo}
+                onChange={(e) => setMobileNo(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '8px',
+                  color: '#111827',
+                  fontSize: '15px',
+                  outline: 'none',
+                  fontWeight: '600'
+                }}
+                placeholder="Password"
+              />
+            </div>
+
+            {error && (
+              <div style={{
+                color: '#dc2626',
+                marginBottom: '20px',
+                fontSize: '14px',
+                backgroundColor: '#fee2e2',
+                padding: '12px',
+                borderRadius: '6px'
+              }}>
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              style={{
+                width: '100%',
+                padding: '16px',
+                backgroundColor: isLoading ? '#6b7280' : '#ffffff',
+                color: isLoading ? '#ffffff' : '#6d28d9',
+                border: 'none',
+                borderRadius: '30px',
+                fontSize: '16px',
+                fontWeight: '700',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 0.2s',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading) {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isLoading) {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+                }
+              }}
+            >
+              {isLoading ? 'LOGGING IN...' : 'SECURE LOGIN'}
+              {!isLoading && <ArrowRight size={20} />}
+            </button>
+
+            <div style={{
+              textAlign: 'center',
+              marginTop: '20px'
+            }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForgotPassword(true);
+                  setError('');
+                }}
+                style={{
+                  backgroundColor: 'transparent',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  textDecoration: 'none',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  margin: '0 auto'
+                }}
+              >
+                Forgot Password?
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div style={{
+          flex: 1,
+          backgroundColor: '#ffffff',
+          padding: '60px 50px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }} className="login-right">
+          <div style={{
+            textAlign: 'center',
+            marginBottom: '40px'
+          }}>
+            {logoUrl && (
               <img
                 src={logoUrl}
                 alt="Logo"
                 style={{
-                  height: '80px',
-                  objectFit: 'contain'
+                  height: '120px',
+                  objectFit: 'contain',
+                  marginBottom: '10px'
                 }}
                 crossOrigin="anonymous"
                 referrerPolicy="no-referrer"
                 onError={(e) => {
-                  console.error('[Logo] Failed to load image from:', logoUrl);
-                  console.error('[Logo] Make sure the Google Drive file is shared as "Anyone with the link"');
                   e.currentTarget.style.display = 'none';
                 }}
               />
-            </div>
-          )}
-          <h1 style={{
-            color: primaryColor,
-            fontSize: '16px',
-            marginBottom: '10px',
-            fontWeight: '700'
-          }}>
-            Powered by Sync
-          </h1>
-          <p style={{
-            color: '#6b7280',
-            fontSize: '16px'
-          }}>
-            Sign in to your account
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              color: '#6b7280',
-              marginBottom: '8px',
+            )}
+            <p style={{
               fontSize: '14px',
-              fontWeight: '500'
-            }}>
-              Email or Username
-            </label>
-            <input
-              type="text"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px',
-                backgroundColor: '#f9fafb',
-                border: '1px solid #d1d5db',
-                borderRadius: '8px',
-                color: '#111827',
-                fontSize: '16px'
-              }}
-              placeholder="Enter your email or username"
-            />
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
+              fontWeight: '600',
               color: '#6b7280',
-              marginBottom: '8px',
-              fontSize: '14px',
-              fontWeight: '500'
+              marginTop: '10px'
             }}>
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px',
-                backgroundColor: '#f9fafb',
-                border: '1px solid #d1d5db',
-                borderRadius: '8px',
-                color: '#111827',
-                fontSize: '16px'
-              }}
-              placeholder="Enter your password"
-            />
+              Powered by <span style={{ color: '#6d28d9' }}>Sync</span>
+            </p>
           </div>
-
-          {error && (
-            <div style={{
-              color: '#dc2626',
-              marginBottom: '20px',
-              textAlign: 'center',
-              fontSize: '14px'
-            }}>
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            style={{
-              width: '100%',
-              padding: '12px',
-              backgroundColor: isLoading ? '#d1d5db' : primaryColor,
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '16px',
-              fontWeight: '700',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              marginBottom: '15px'
-            }}
-          >
-            {isLoading ? 'Signing In...' : 'Sign In'}
-          </button>
 
           <div style={{
             textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px'
+            marginBottom: '30px'
           }}>
-            <button
-              type="button"
-              onClick={() => {
-                setShowForgotPassword(true);
-                setError('');
-              }}
-              style={{
-                backgroundColor: 'transparent',
-                color: primaryColor,
-                border: 'none',
-                fontSize: '14px',
-                cursor: 'pointer',
-                textDecoration: 'underline',
-                fontWeight: '500'
-              }}
-            >
-              Forgot your password?
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                window.open('https://apply.atssfiber.ph', '_blank');
-              }}
-              style={{
-                backgroundColor: 'transparent',
-                color: primaryColor,
-                border: 'none',
-                fontSize: '14px',
-                cursor: 'pointer',
-                textDecoration: 'underline',
-                fontWeight: '500'
-              }}
-            >
-              Apply
-            </button>
+            <h2 style={{
+              fontSize: '36px',
+              fontWeight: '700',
+              marginBottom: '15px',
+              color: '#6d28d9'
+            }}>
+              New Here?
+            </h2>
+            <p style={{
+              fontSize: '16px',
+              color: '#6b7280'
+            }}>
+              Apply online in just 2 minutes.
+            </p>
           </div>
-        </form>
+
+          <button
+            type="button"
+            onClick={() => {
+              window.open('https://apply.atssfiber.ph', '_blank');
+            }}
+            style={{
+              padding: '16px 48px',
+              backgroundColor: '#6d28d9',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '30px',
+              fontSize: '16px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              transition: 'transform 0.2s',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+            }}
+          >
+            APPLY NOW
+          </button>
+        </div>
       </div>
     </div>
+    </>
   );
 };
 
