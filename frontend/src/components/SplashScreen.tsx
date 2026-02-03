@@ -8,10 +8,10 @@ const SplashScreen: React.FC = () => {
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: '100vh',
-      backgroundColor: '#282c34',
-      color: '#61dafb',
+      backgroundColor: '#ffffff',
+      color: '#1a1a1a',
       fontSize: '18px',
-      fontWeight: '500'
+      fontWeight: '600'
     }}>
       <div style={{
         display: 'flex',
@@ -31,14 +31,19 @@ const SplashScreen: React.FC = () => {
           width: '48px',
           height: '48px',
           border: '4px solid',
-          borderColor: '#444',
-          borderTopColor: '#61dafb',
+          borderColor: '#e5e7eb',
+          borderTopColor: '#6d28d9',
           borderRadius: '50%',
           animation: 'spin 1s linear infinite'
         }} />
         <div>Loading...</div>
       </div>
       <style>{`
+        * {
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          text-rendering: optimizeLegibility;
+        }
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
