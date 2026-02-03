@@ -6,9 +6,10 @@ import { formUIService } from '../services/formUIService';
 interface HeaderProps {
   onToggleSidebar?: () => void;
   onSearch?: (query: string) => void;
+  onNavigate?: (section: string) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
+const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -43,10 +44,10 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
 
   useEffect(() => {
     mountedRef.current = true;
-    
+
     if ('Notification' in window) {
       console.log('[Notification] API available, current permission:', Notification.permission);
-      
+
       if (Notification.permission === 'default') {
         console.log('[Notification] Requesting permission...');
         Notification.requestPermission().then(permission => {
@@ -65,7 +66,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
     } else {
       console.error('[Notification] API not supported in this browser');
     }
-    
+
     return () => {
       mountedRef.current = false;
     };
@@ -93,22 +94,22 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
 
   const showBrowserNotification = (notification: AppNotification) => {
     console.log('[Browser Notification] Attempting to show notification:', notification);
-    
+
     if (!('Notification' in window)) {
-    console.error('[Browser Notification] Browser does not support notifications');
-    return;
+      console.error('[Browser Notification] Browser does not support notifications');
+      return;
     }
 
     if (Notification.permission !== 'granted') {
-    console.warn('[Browser Notification] Permission not granted. Current permission:', Notification.permission);
-    return;
+      console.warn('[Browser Notification] Permission not granted. Current permission:', Notification.permission);
+      return;
     }
 
     try {
-    const browserNotification = new Notification('🔔 New Customer Application', {
-    body: `${notification.customer_name}\nPlan: ${notification.plan_name}`,
-    icon: logoUrl || undefined,
-    badge: logoUrl || undefined,
+      const browserNotification = new Notification('🔔 New Customer Application', {
+        body: `${notification.customer_name}\nPlan: ${notification.plan_name}`,
+        icon: logoUrl || undefined,
+        badge: logoUrl || undefined,
         tag: `application-${notification.id}`,
         requireInteraction: false,
         silent: false,
@@ -130,25 +131,25 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
   useEffect(() => {
     const fetchInitialData = async () => {
       if (!mountedRef.current) return;
-      
+
       console.log('[Fetch] Fetching initial notification data...');
-      
+
       try {
         const data = await notificationService.getRecentApplications(10);
         const count = await notificationService.getUnreadCount();
-        
+
         console.log('[Fetch] Initial data received:', {
           notificationCount: data.length,
           unreadCount: count,
           notifications: data
         });
-        
+
         if (mountedRef.current) {
           previousCountRef.current = count;
           setUnreadCount(count);
           setNotifications(data);
           previousNotificationIdsRef.current = new Set(data.map(n => n.id));
-          
+
           console.log('[Fetch] State updated with initial data');
         }
       } catch (error) {
@@ -160,27 +161,27 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
 
     const interval = setInterval(async () => {
       if (!mountedRef.current) return;
-      
+
       console.log('[Polling] Checking for new notifications...');
-      
+
       try {
         const data = await notificationService.getRecentApplications(10);
         const count = await notificationService.getUnreadCount();
-        
+
         console.log('[Polling] Data received:', {
           notificationCount: data.length,
           unreadCount: count,
           previousIds: Array.from(previousNotificationIdsRef.current)
         });
-        
+
         if (mountedRef.current) {
           const currentIds = new Set(data.map(n => n.id));
           const newNotifications = data.filter(n => !previousNotificationIdsRef.current.has(n.id));
-          
+
           if (newNotifications.length > 0) {
             console.log('[Polling] NEW NOTIFICATIONS DETECTED:', newNotifications.length);
             console.log('[Polling] New notification details:', newNotifications);
-            
+
             newNotifications.forEach((notification, index) => {
               console.log(`[Polling] Triggering browser notification ${index + 1}/${newNotifications.length}`);
               showBrowserNotification(notification);
@@ -188,7 +189,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
           } else {
             console.log('[Polling] No new notifications');
           }
-          
+
           previousNotificationIdsRef.current = currentIds;
           previousCountRef.current = count;
           setUnreadCount(count);
@@ -236,15 +237,15 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
   const toggleNotifications = async () => {
     console.log('[UI] Toggling notifications modal');
     setShowNotifications(!showNotifications);
-    
+
     if (!showNotifications) {
       setLoading(true);
       console.log('[UI] Loading notifications for modal...');
-      
+
       try {
         const data = await notificationService.getRecentApplications(10);
         console.log('[UI] Notifications loaded for modal:', data);
-        
+
         if (mountedRef.current) {
           setNotifications(data);
         }
@@ -258,28 +259,81 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
     }
   };
 
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('authData');
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error("Failed to parse user data");
+      }
+    }
+  }, []);
+
+  // Customer Header (Role: customer)
+  if (user && user.role === 'customer') {
+    return (
+      <header className="bg-white border-b h-16 flex items-center justify-between px-6 md:px-12 w-full shadow-sm z-50">
+        <div className="flex items-center space-x-2">
+          {/* Logo Section */}
+          {logoUrl ? (
+            <img src={logoUrl} alt="ATSS Fiber" className="h-8 object-contain" />
+          ) : (
+            <div className="flex items-center">
+              <div className="w-8 h-8 bg-slate-900 rounded-full flex items-center justify-center text-white font-bold text-xs mr-2">
+                A
+              </div>
+              <span className="text-slate-900 font-bold text-lg tracking-wide">ATSS FIBER <span className="font-extrabold text-slate-900">PORTAL</span></span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center space-x-8">
+          <nav className="hidden md:flex items-center space-x-6 text-sm font-bold text-slate-700">
+            <button onClick={() => onNavigate?.('customer-dashboard')} className="text-slate-900 hover:text-blue-700 transition">Dashboard</button>
+            <button onClick={() => onNavigate?.('customer-bills')} className="text-gray-500 hover:text-blue-700 transition">Bills</button>
+            <button onClick={() => onNavigate?.('customer-support')} className="text-gray-500 hover:text-blue-700 transition">Support</button>
+          </nav>
+
+          <button
+            onClick={() => {
+              // Logout logic
+              localStorage.removeItem('token');
+              localStorage.removeItem('authData');
+              window.location.href = '/login';
+            }}
+            className="px-6 py-2 border border-red-500 text-red-500 rounded-full text-sm font-bold hover:bg-red-50 transition"
+          >
+            Logout
+          </button>
+        </div>
+      </header>
+    );
+  }
+
+  // Admin/Staff Header (Original)
   return (
-    <header className={`${
-      isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
-    } border-b h-16 flex items-center px-4`}>
+    <header className={`${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
+      } border-b h-16 flex items-center px-4`}>
       <div className="flex items-center space-x-4">
-        <button 
+        <button
           onClick={handleToggleClick}
-          className={`${
-            isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'
-          } p-2 transition-colors cursor-pointer`}
+          className={`${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'
+            } p-2 transition-colors cursor-pointer`}
           type="button"
         >
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        
+
         <div className="flex flex-col items-center space-y-1">
           {logoUrl && (
-            <img 
-              src={logoUrl} 
-              alt="Logo" 
+            <img
+              src={logoUrl}
+              alt="Logo"
               className="h-10 object-contain"
               crossOrigin="anonymous"
               referrerPolicy="no-referrer"
@@ -289,32 +343,29 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
               }}
             />
           )}
-          <h1 className={`${
-            isDarkMode ? 'text-white' : 'text-gray-900'
-          } text-xs font-semibold`}>
+          <h1 className={`${isDarkMode ? 'text-white' : 'text-gray-900'
+            } text-xs font-semibold`}>
             Powered by Sync
           </h1>
         </div>
       </div>
-      
+
       <div className="flex-1"></div>
 
       <div className="flex items-center space-x-2">
-        <button 
+        <button
           onClick={handleRefresh}
-          className={`p-2 ${
-            isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'
-          } transition-colors`}
+          className={`p-2 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'
+            } transition-colors`}
         >
           <RefreshCw className="h-5 w-5" />
         </button>
-        
+
         <div className="relative" ref={notificationRef}>
-          <button 
+          <button
             onClick={toggleNotifications}
-            className={`p-2 relative ${
-              isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'
-            } transition-colors`}
+            className={`p-2 relative ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'
+              } transition-colors`}
           >
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
@@ -323,52 +374,43 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch }) => {
           </button>
 
           {showNotifications && (
-            <div className={`absolute right-0 mt-2 w-96 rounded-lg shadow-lg ${
-              isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-            } border z-50`}>
-              <div className={`p-4 border-b ${
-                isDarkMode ? 'border-gray-700' : 'border-gray-200'
-              }`}>
-                <h3 className={`font-semibold ${
-                  isDarkMode ? 'text-white' : 'text-gray-900'
+            <div className={`absolute right-0 mt-2 w-96 rounded-lg shadow-lg ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+              } border z-50`}>
+              <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
                 }`}>
+                <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
                   Recent Applications ({notifications.length})
                 </h3>
               </div>
               <div className="max-h-96 overflow-y-auto">
                 {loading ? (
-                  <div className={`p-4 text-center ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
+                  <div className={`p-4 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                     Loading...
                   </div>
                 ) : notifications.length === 0 ? (
-                  <div className={`p-4 text-center ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
+                  <div className={`p-4 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                     No new applications
                   </div>
                 ) : (
                   notifications.map((notification) => (
-                    <div 
+                    <div
                       key={notification.id}
-                      className={`p-4 border-b ${
-                        isDarkMode ? 'border-gray-700 hover:bg-gray-750' : 'border-gray-200 hover:bg-gray-50'
-                      } transition-colors cursor-pointer`}
+                      className={`p-4 border-b ${isDarkMode ? 'border-gray-700 hover:bg-gray-750' : 'border-gray-200 hover:bg-gray-50'
+                        } transition-colors cursor-pointer`}
                     >
-                      <div className={`font-medium ${
-                        isDarkMode ? 'text-white' : 'text-gray-900'
-                      }`}>
+                      <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
                         {notification.customer_name}
                       </div>
-                      <div className={`text-sm ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
+                      <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
                         Plan: {notification.plan_name}
                       </div>
-                      <div className={`text-xs mt-1 ${
-                        isDarkMode ? 'text-gray-500' : 'text-gray-500'
-                      }`}>
+                      <div className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'
+                        }`}>
                         {notification.formatted_date}
                       </div>
                     </div>

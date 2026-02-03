@@ -54,17 +54,43 @@ import PPPoESetup from './PPPoESetup';
 import Support from './Support';
 import LiveMonitor from './LiveMonitor';
 import ConcernConfig from './ConcernConfig';
+import DashboardCustomer from './DashboardCustomer';
+import Bills from './Bills';
 
 interface DashboardProps {
     onLogout: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
-    const [activeSection, setActiveSection] = useState('dashboard');
+    const [userData, setUserData] = useState<any>(() => {
+        try {
+            const authData = localStorage.getItem('authData');
+            return authData ? JSON.parse(authData) : null;
+        } catch (error) {
+            console.error('Error parsing user data:', error);
+            return null;
+        }
+    });
+
+    const [activeSection, setActiveSection] = useState(() => {
+        try {
+            // Use the initialized user data if available
+            const authData = localStorage.getItem('authData');
+            if (authData) {
+                const user = JSON.parse(authData);
+                if (user.role === 'customer') {
+                    return 'customer-dashboard';
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+        return 'dashboard';
+    });
+
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [userData, setUserData] = useState<any>(null);
     const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
 
     // Track dark mode changes
@@ -88,19 +114,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         return () => observer.disconnect();
     }, []);
 
-    // Load user data from localStorage
-    useEffect(() => {
-        const authData = localStorage.getItem('authData');
-        if (authData) {
-            try {
-                const user = JSON.parse(authData);
-                setUserData(user);
-            } catch (error) {
-                console.error('Error parsing user data:', error);
-            }
-        }
-    }, []);
-
     // Add effect to log the active section when it changes
     useEffect(() => {
         console.log('Active section changed to:', activeSection);
@@ -108,6 +121,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
 
     const renderContent = () => {
         switch (activeSection) {
+            // Customer Routes
+            case 'customer-dashboard':
+                return <DashboardCustomer />;
+            case 'customer-bills':
+                return <Bills />;
+            case 'customer-support':
+                return <Support forceLightMode={true} />;
 
             case 'live-monitor':
                 return <LiveMonitor />;
@@ -203,6 +223,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 return <Settings />;
             case 'dashboard':
             default:
+                if (userData && String(userData.role_id) === '3') {
+                    return <DashboardCustomer />;
+                }
                 return <DashboardContent />;
         }
     };
@@ -231,7 +254,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         }
     };
 
-
+    // Helper to determine if we should show sidebar
+    const showSidebar = userData && String(userData.role_id) !== '3';
 
     return (
         <BillingProvider>
@@ -244,7 +268,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                                     }`}>
                                     {/* Fixed Header */}
                                     <div className="flex-shrink-0">
-                                        <Header onSearch={handleSearch} onToggleSidebar={toggleSidebar} />
+                                        <Header
+                                            onSearch={handleSearch}
+                                            onToggleSidebar={toggleSidebar}
+                                            onNavigate={handleSectionChange}
+                                        />
                                     </div>
 
                                     {/* Main Content Area with Fixed Sidebar and Scrollable Content */}
@@ -258,19 +286,21 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                                         )}
 
                                         {/* Fixed Sidebar */}
-                                        <div className={`flex-shrink-0 fixed md:relative z-50 transition-all duration-300 top-0 md:top-auto left-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-                                            } md:translate-x-0 h-screen md:h-auto`}>
-                                            <div className="h-full md:h-full">
-                                                <Sidebar
-                                                    activeSection={activeSection}
-                                                    onSectionChange={handleSectionChange}
-                                                    onLogout={onLogout}
-                                                    isCollapsed={sidebarCollapsed}
-                                                    userRole={userData?.role || ''}
-                                                    userEmail={userData?.email || ''}
-                                                />
+                                        {showSidebar && (
+                                            <div className={`flex-shrink-0 fixed md:relative z-50 transition-all duration-300 top-0 md:top-auto left-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+                                                } md:translate-x-0 h-screen md:h-auto`}>
+                                                <div className="h-full md:h-full">
+                                                    <Sidebar
+                                                        activeSection={activeSection}
+                                                        onSectionChange={handleSectionChange}
+                                                        onLogout={onLogout}
+                                                        isCollapsed={sidebarCollapsed}
+                                                        userRole={userData?.role || ''}
+                                                        userEmail={userData?.email || ''}
+                                                    />
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
 
                                         {/* Scrollable Content Area Only */}
                                         <div className={`flex-1 overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'

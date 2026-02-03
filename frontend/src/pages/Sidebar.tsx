@@ -95,6 +95,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
     fetchColorPalette();
   }, []);
 
+  if (userRole?.toLowerCase() === 'customer') return null;
+
   const menuItems: MenuItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['administrator', 'customer'] },
     { id: 'live-monitor', label: 'Live Monitor', icon: Activity, allowedRoles: ['administrator'] },
@@ -107,8 +109,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         { id: 'customer', label: 'Customer', icon: User, allowedRoles: ['administrator'] },
         { id: 'transaction-list', label: 'Transaction List', icon: Receipt, allowedRoles: ['administrator'] },
         { id: 'payment-portal', label: 'Payment Portal', icon: DollarSign, allowedRoles: ['administrator'] },
-        { id: 'soa', label: 'SOA', icon: FileText, allowedRoles: ['administrator', 'customer'] },
-        { id: 'invoice', label: 'Invoice', icon: Receipt, allowedRoles: ['administrator', 'customer'] },
+        { id: 'soa', label: 'SOA', icon: FileText, allowedRoles: ['administrator'] },
+        { id: 'invoice', label: 'Invoice', icon: Receipt, allowedRoles: ['administrator'] },
         { id: 'overdue', label: 'Overdue', icon: Clock, allowedRoles: ['administrator'] },
         { id: 'dc-notice', label: 'DC Notice', icon: AlertTriangle, allowedRoles: ['administrator'] },
         { id: 'mass-rebate', label: 'Rebates', icon: DollarSign, allowedRoles: ['administrator'] },
@@ -156,9 +158,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       id: 'support',
       label: 'Support',
       icon: Wrench,
-      allowedRoles: ['administrator', 'technician', 'customer'],
+      allowedRoles: ['administrator', 'technician'],
       children: [
-        { id: 'support', label: 'Support Ticket', icon: FileText, allowedRoles: ['customer'] },
         { id: 'service-order', label: 'Service Order', icon: Wrench, allowedRoles: ['administrator', 'technician'] }
       ]
     },
@@ -213,19 +214,23 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   ];
 
   const filterMenuByRole = (items: MenuItem[]): MenuItem[] => {
+    // If the user is a customer, always return an empty menu (hide sidebar content)
+    const normalizedUserRole = userRole ? userRole.toLowerCase().trim() : '';
+    if (normalizedUserRole === 'customer') {
+      return [];
+    }
+
     return items.filter(item => {
       if (!item.allowedRoles || item.allowedRoles.length === 0) {
         return true;
       }
-
-      const normalizedUserRole = userRole ? userRole.toLowerCase().trim() : '';
 
       const hasAccess = item.allowedRoles.some(role =>
         role.toLowerCase().trim() === normalizedUserRole
       );
 
       if (hasAccess && item.children) {
-        item.children = filterMenuByRole(item.children);
+        item.children = filterMenuByRole(item.children); // Recursive call
         if (item.children.length === 0) {
           return false;
         }

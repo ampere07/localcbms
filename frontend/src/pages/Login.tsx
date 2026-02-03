@@ -21,13 +21,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   const convertGoogleDriveUrl = (url: string): string => {
     if (!url) return '';
-    
+
     console.log('[Logo] Original URL:', url);
-    
+
     // Use backend proxy to avoid CORS issues
     const apiUrl = process.env.REACT_APP_API_URL || 'https://backend.atssfiber.ph/api';
     const proxyUrl = `${apiUrl}/proxy/image?url=${encodeURIComponent(url)}`;
-    
+
     console.log('[Logo] Using proxy URL:', proxyUrl);
     return proxyUrl;
   };
@@ -38,7 +38,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         console.log('[Logo] Fetching config from form_ui table...');
         const config = await formUIService.getConfig();
         console.log('[Logo] Config received:', config);
-        
+
         if (config && config.logo_url) {
           console.log('[Logo] Logo URL from database:', config.logo_url);
           const directUrl = convertGoogleDriveUrl(config.logo_url);
@@ -50,13 +50,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         console.error('[Logo] Error fetching logo:', error);
       }
     };
-    
+
     const fetchColorPalette = async () => {
       try {
         console.log('[Color] Fetching active color palette...');
         const activePalette = await settingsColorPaletteService.getActive();
         console.log('[Color] Active palette:', activePalette);
-        
+
         if (activePalette && activePalette.primary) {
           console.log('[Color] Using primary color:', activePalette.primary);
           setPrimaryColor(activePalette.primary);
@@ -65,7 +65,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         console.error('[Color] Error fetching color palette:', error);
       }
     };
-    
+
     fetchLogo();
     fetchColorPalette();
   }, []);
@@ -76,26 +76,27 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       setError('Please enter your username/email and password');
       return;
     }
-    
+
     setIsLoading(true);
     setError('');
-    
+
     try {
       const demoEmail = process.env.REACT_APP_DEMO_EMAIL;
       const demoPassword = process.env.REACT_APP_DEMO_PASSWORD;
-      
+
       if (identifier === demoEmail && password === demoPassword) {
         const mockUserData: UserData = {
           id: 1,
           username: 'admin',
           email: identifier,
           full_name: 'Admin User',
-          role: 'administrator'
+          role: 'administrator',
+          role_id: 1
         };
         onLogin(mockUserData);
         return;
       }
-      
+
       const response = await login(identifier, password);
       if (response.status === 'success') {
         const userData: UserData = {
@@ -104,6 +105,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           email: response.data.user.email,
           full_name: response.data.user.full_name,
           role: response.data.user.role,
+          role_id: response.data.user.role_id,
           organization: response.data.user.organization
         };
         onLogin(userData);
@@ -123,10 +125,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       setError('Please enter your email address');
       return;
     }
-    
+
     setIsLoading(true);
     setError('');
-    
+
     try {
       const response = await forgotPassword(forgotEmail);
       if (response.status === 'success') {
@@ -168,9 +170,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 justifyContent: 'center',
                 marginBottom: '20px'
               }}>
-                <img 
-                  src={logoUrl} 
-                  alt="Logo" 
+                <img
+                  src={logoUrl}
+                  alt="Logo"
                   style={{
                     height: '80px',
                     objectFit: 'contain'
@@ -186,14 +188,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </div>
             )}
             <h2 style={{
-            color: primaryColor,
-            fontSize: '24px',
-            marginBottom: '10px'
+              color: primaryColor,
+              fontSize: '24px',
+              marginBottom: '10px'
             }}>
-            Reset Password
+              Reset Password
             </h2>
           </div>
-          
+
           {forgotMessage ? (
             <div>
               <div style={{
@@ -257,7 +259,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   placeholder="Enter your email address"
                 />
               </div>
-              
+
               {error && (
                 <div style={{
                   color: '#dc2626',
@@ -268,7 +270,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   {error}
                 </div>
               )}
-              
+
               <button
                 type="submit"
                 disabled={isLoading}
@@ -287,7 +289,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               >
                 {isLoading ? 'Sending...' : 'Send Reset Instructions'}
               </button>
-              
+
               <button
                 type="button"
                 onClick={() => {
@@ -343,9 +345,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               justifyContent: 'center',
               marginBottom: '20px'
             }}>
-              <img 
-                src={logoUrl} 
-                alt="Logo" 
+              <img
+                src={logoUrl}
+                alt="Logo"
                 style={{
                   height: '80px',
                   objectFit: 'contain'
@@ -375,7 +377,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             Sign in to your account
           </p>
         </div>
-        
+
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '20px' }}>
             <label style={{
@@ -403,7 +405,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               placeholder="Enter your email or username"
             />
           </div>
-          
+
           <div style={{ marginBottom: '20px' }}>
             <label style={{
               display: 'block',
@@ -430,7 +432,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               placeholder="Enter your password"
             />
           </div>
-          
+
           {error && (
             <div style={{
               color: '#dc2626',
@@ -441,7 +443,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               {error}
             </div>
           )}
-          
+
           <button
             type="submit"
             disabled={isLoading}
@@ -460,7 +462,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           >
             {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
-          
+
           <div style={{
             textAlign: 'center',
             display: 'flex',
