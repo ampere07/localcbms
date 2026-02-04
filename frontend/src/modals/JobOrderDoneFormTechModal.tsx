@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, ChevronDown, Camera, MapPin, CheckCircle, AlertCircle, XCircle, Loader2 } from 'lucide-react';
+import { X, Calendar, ChevronDown, Camera, MapPin, CheckCircle, AlertCircle, XCircle, Loader2, Search } from 'lucide-react';
 import { UserData } from '../types/api';
 import { updateJobOrder } from '../services/jobOrderService';
 import { userService } from '../services/userService';
@@ -218,6 +218,8 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
   const [usernamePattern, setUsernamePattern] = useState<UsernamePattern | null>(null);
   const [techInputValue, setTechInputValue] = useState<string>('');
+  const [lcpnapSearch, setLcpnapSearch] = useState('');
+  const [isLcpnapOpen, setIsLcpnapOpen] = useState(false);
 
   const convertGoogleDriveUrl = (url: string | null | undefined): string | null => {
     if (!url) return null;
@@ -2183,27 +2185,95 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 {formData.connectionType === 'Fiber' && (
                   <>
                     <div>
-                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>LCP-NAP<span className="text-red-500">*</span></label>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        LCP-NAP<span className="text-red-500">*</span>
+                      </label>
                       <div className="relative">
-                        <select
-                          value={formData.lcpnap}
-                          onChange={(e) => handleInputChange('lcpnap', e.target.value)}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                            } ${errors.lcpnap ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}
+                        {/* Display Field (The "Closed" state) */}
+                        <div
+                          className={`flex items-center justify-between px-3 py-2 border rounded cursor-pointer transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                            } ${errors.lcpnap ? 'border-red-500' : 'focus-within:border-orange-500'}`}
+                          onClick={() => setIsLcpnapOpen(!isLcpnapOpen)}
                         >
-                          <option value="">Select LCP-NAP</option>
-                          {formData.lcpnap && !lcpnaps.some(ln => ln.lcpnap_name === formData.lcpnap) && (
-                            <option value={formData.lcpnap}>{formData.lcpnap}</option>
-                          )}
-                          {lcpnaps.map((lcpnap) => (
-                            <option key={lcpnap.id} value={lcpnap.lcpnap_name}>
-                              {lcpnap.lcpnap_name}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`} size={20} />
+                          <span className={`text-sm ${!formData.lcpnap ? (isDarkMode ? 'text-gray-500' : 'text-gray-400') : ''}`}>
+                            {formData.lcpnap || 'Select LCP-NAP'}
+                          </span>
+                          <ChevronDown
+                            size={18}
+                            className={`transition-transform duration-200 ${isLcpnapOpen ? 'rotate-180' : ''} ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}
+                          />
+                        </div>
+
+                        {/* Dropdown Menu */}
+                        {isLcpnapOpen && (
+                          <div
+                            className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                              }`}
+                            style={{ minWidth: '100%' }}
+                          >
+                            {/* Search Box at Top of Dropdown */}
+                            <div className={`p-2 border-b ${isDarkMode ? 'border-gray-700 bg-gray-900/50' : 'border-gray-100 bg-gray-50'}`}>
+                              <div className={`flex items-center px-2 py-1.5 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 focus-within:border-orange-500' : 'bg-white border-gray-300 focus-within:border-orange-500'
+                                }`}>
+                                <Search size={14} className="mr-2 text-gray-400" />
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  placeholder="Search LCP-NAP..."
+                                  value={lcpnapSearch}
+                                  onChange={(e) => setLcpnapSearch(e.target.value)}
+                                  className={`w-full bg-transparent border-none focus:outline-none focus:ring-0 p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                    }`}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Options List */}
+                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                              {lcpnaps
+                                .filter(ln => ln.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase()))
+                                .map((lcpnap) => (
+                                  <div
+                                    key={lcpnap.id}
+                                    className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode
+                                      ? 'hover:bg-gray-700 text-gray-200'
+                                      : 'hover:bg-gray-100 text-gray-700'
+                                      } ${formData.lcpnap === lcpnap.lcpnap_name ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                                    onClick={() => {
+                                      handleInputChange('lcpnap', lcpnap.lcpnap_name);
+                                      setLcpnapSearch('');
+                                      setIsLcpnapOpen(false);
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span>{lcpnap.lcpnap_name}</span>
+                                      {formData.lcpnap === lcpnap.lcpnap_name && (
+                                        <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              {lcpnaps.filter(ln => ln.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase())).length === 0 && (
+                                <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                  No results found for "{lcpnapSearch}"
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Click outside to close */}
+                        {isLcpnapOpen && (
+                          <div
+                            className="fixed inset-0 z-40 bg-transparent"
+                            onClick={() => {
+                              setIsLcpnapOpen(false);
+                              setLcpnapSearch('');
+                            }}
+                          />
+                        )}
                       </div>
                       {errors.lcpnap && (
                         <div className="flex items-center mt-1">
