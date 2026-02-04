@@ -343,11 +343,14 @@ class JobOrderController extends Controller
                 if ($application) {
                     $pppoeService = new PppoeUsernameService();
                     
-                    $lcpnapValue = $jobOrder->lcpnap;
+                    $lcpnapValue = $request->input('lcpnap', $jobOrder->lcpnap);
+                    $portValue = $request->input('port', $jobOrder->port);
                     $lcpnapData = null;
                     
                     if ($lcpnapValue) {
-                        $lcpnapData = LCPNAPLocation::where('lcpnap_name', $lcpnapValue)->first();
+                        $lcpnapData = LCPNAPLocation::where('lcpnap_name', trim($lcpnapValue))
+                                                 ->orWhere('id', trim($lcpnapValue))
+                                                 ->first();
                     }
                     
                     $customerData = [
@@ -357,7 +360,7 @@ class JobOrderController extends Controller
                         'mobile_number' => $application->mobile_number ?? '',
                         'lcp' => trim($lcpnapData->lcp ?? ''),
                         'nap' => trim($lcpnapData->nap ?? ''),
-                        'port' => trim($jobOrder->port ?? ''),
+                        'port' => trim($portValue ?? ''),
                         'tech_input_username' => $request->input('pppoe_username'),
                         'custom_password' => $request->input('custom_password'),
                     ];
@@ -385,11 +388,14 @@ class JobOrderController extends Controller
                 if ($application) {
                     $pppoeService = new PppoeUsernameService();
                     
-                    $lcpnapValue = $jobOrder->lcpnap;
+                    $lcpnapValue = $request->input('lcpnap', $jobOrder->lcpnap);
+                    $portValue = $request->input('port', $jobOrder->port);
                     $lcpnapData = null;
                     
                     if ($lcpnapValue) {
-                        $lcpnapData = LCPNAPLocation::where('lcpnap_name', $lcpnapValue)->first();
+                        $lcpnapData = LCPNAPLocation::where('lcpnap_name', trim($lcpnapValue))
+                                                 ->orWhere('id', trim($lcpnapValue))
+                                                 ->first();
                     }
                     
                     $customerData = [
@@ -399,7 +405,7 @@ class JobOrderController extends Controller
                         'mobile_number' => $application->mobile_number ?? '',
                         'lcp' => trim($lcpnapData->lcp ?? ''),
                         'nap' => trim($lcpnapData->nap ?? ''),
-                        'port' => trim($jobOrder->port ?? ''),
+                        'port' => trim($portValue ?? ''),
                         'tech_input_username' => $request->input('tech_input_username'),
                         'custom_password' => $request->input('custom_password'),
                     ];
@@ -426,11 +432,14 @@ class JobOrderController extends Controller
                 if ($application) {
                     $pppoeService = new PppoeUsernameService();
                     
-                    $lcpnapValue = $jobOrder->lcpnap;
+                    $lcpnapValue = $request->input('lcpnap', $jobOrder->lcpnap);
+                    $portValue = $request->input('port', $jobOrder->port);
                     $lcpnapData = null;
                     
                     if ($lcpnapValue) {
-                        $lcpnapData = LCPNAPLocation::where('lcpnap_name', $lcpnapValue)->first();
+                        $lcpnapData = LCPNAPLocation::where('lcpnap_name', trim($lcpnapValue))
+                                                 ->orWhere('id', trim($lcpnapValue))
+                                                 ->first();
                     }
                     
                     $customerData = [
@@ -440,7 +449,7 @@ class JobOrderController extends Controller
                         'mobile_number' => $application->mobile_number ?? '',
                         'lcp' => trim($lcpnapData->lcp ?? ''),
                         'nap' => trim($lcpnapData->nap ?? ''),
-                        'port' => trim($jobOrder->port ?? ''),
+                        'port' => trim($portValue ?? ''),
                         'tech_input_username' => $request->input('tech_input_username'),
                         'custom_password' => $request->input('custom_password'),
                     ];
@@ -559,7 +568,9 @@ class JobOrderController extends Controller
                         $technicalUpdateData['lcpnap'] = $data['lcpnap'];
                         
                         $lcpnapValue = $data['lcpnap'];
-                        $loc = LCPNAPLocation::where('lcpnap_name', $lcpnapValue)->first();
+                        $loc = LCPNAPLocation::where('lcpnap_name', trim($lcpnapValue))
+                                           ->orWhere('id', trim($lcpnapValue))
+                                           ->first();
                         
                         if ($loc) {
                             $technicalUpdateData['lcp'] = $loc->lcp;
@@ -818,27 +829,22 @@ class JobOrderController extends Controller
             $pppoeService = new PppoeUsernameService();
             
             $lcpnapValue = $jobOrder->lcpnap;
-            $lcpnapData = null;
+            $lcpnapData = LCPNAPLocation::where('lcpnap_name', trim($lcpnapValue))
+                                      ->orWhere('id', trim($lcpnapValue))
+                                      ->first();
             
-            if ($lcpnapValue) {
-                $lcpnapData = LCPNAPLocation::where('lcpnap_name', $lcpnapValue)->first();
-                
-                \Log::info('LCPNAP lookup in approve', [
-                    'lcpnap_value' => $lcpnapValue,
-                    'found' => $lcpnapData ? 'YES' : 'NO',
-                    'lcp' => $lcpnapData->lcp ?? 'NULL',
-                    'nap' => $lcpnapData->nap ?? 'NULL'
-                ]);
-            }
-            
+            $lcpValue = $lcpnapData->lcp ?? '';
+            $napValue = $lcpnapData->nap ?? '';
+            $portValue = $jobOrder->port ?? '';
+
             $customerData = [
                 'first_name' => $application->first_name ?? '',
                 'middle_initial' => $application->middle_initial ?? '',
                 'last_name' => $application->last_name ?? '',
                 'mobile_number' => $application->mobile_number ?? '',
-                'lcp' => $lcpnapData->lcp ?? '',
-                'nap' => $lcpnapData->nap ?? '',
-                'port' => $jobOrder->port ?? '',
+                'lcp' => $lcpValue,
+                'nap' => $napValue,
+                'port' => $portValue,
             ];
             
             // Generate unique PPPoE username based on patterns
@@ -1118,7 +1124,7 @@ class JobOrderController extends Controller
     public function getLCPNAPs(): JsonResponse
     {
         try {
-            $lcpnaps = LCPNAP::all();
+            $lcpnaps = LCPNAPLocation::all();
             return response()->json([
                 'success' => true,
                 'data' => $lcpnaps,
@@ -1377,6 +1383,16 @@ class JobOrderController extends Controller
             $radiusSubmitted = false;
             $radiusError = null;
 
+            // Fetch LCP/NAP details regardless of whether credentials exist
+            $lcpnapValue = $jobOrder->lcpnap;
+            $lcpnapData = LCPNAPLocation::where('lcpnap_name', trim($lcpnapValue))
+                                      ->orWhere('id', $lcpnapValue)
+                                      ->first();
+
+            $lcpValue = $lcpnapData->lcp ?? '';
+            $napValue = $lcpnapData->nap ?? '';
+            $portValue = $jobOrder->port ?? '';
+
             if (!$credentialsExist) {
                 \Log::info('No existing credentials found, generating new ones', [
                     'job_order_id' => $id
@@ -1384,28 +1400,21 @@ class JobOrderController extends Controller
                 
                 $pppoeService = new PppoeUsernameService();
                 
-                $lcpnapValue = $jobOrder->lcpnap;
-                $lcpnapData = null;
-                
-                if ($lcpnapValue) {
-                    $lcpnapData = LCPNAPLocation::where('lcpnap_name', $lcpnapValue)->first();
-                    
-                    \Log::info('LCPNAP lookup', [
-                        'lcpnap_value' => $lcpnapValue,
-                        'found' => $lcpnapData ? 'YES' : 'NO',
-                        'lcp' => $lcpnapData->lcp ?? 'NULL',
-                        'nap' => $lcpnapData->nap ?? 'NULL'
-                    ]);
-                }
+                \Log::info('LCPNAP/Port technical info', [
+                    'lcpnap_value' => $lcpnapValue,
+                    'lcp' => $lcpValue,
+                    'nap' => $napValue,
+                    'port' => $portValue
+                ]);
                 
                 $customerData = [
                     'first_name' => $application->first_name ?? '',
                     'middle_initial' => $application->middle_initial ?? '',
                     'last_name' => $application->last_name ?? '',
                     'mobile_number' => $application->mobile_number ?? '',
-                    'lcp' => trim($lcpnapData->lcp ?? ''),
-                    'nap' => trim($lcpnapData->nap ?? ''),
-                    'port' => trim($jobOrder->port ?? ''),
+                    'lcp' => trim($lcpValue),
+                    'nap' => trim($napValue),
+                    'port' => trim($portValue),
                 ];
                 
                 $pppoeUsername = $pppoeService->generateUniqueUsername($customerData, $id);
