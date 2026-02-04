@@ -925,8 +925,8 @@ const ApplicationManagement: React.FC = () => {
           </div>
 
           {/* Applications List Container */}
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto">
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-y-auto">
               {isLoading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>

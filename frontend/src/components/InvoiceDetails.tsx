@@ -38,9 +38,10 @@ interface InvoiceRecord {
 
 interface InvoiceDetailsProps {
   invoiceRecord: InvoiceRecord;
+  onViewCustomer?: (accountNo: string) => void;
 }
 
-const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
+const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord, onViewCustomer }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
@@ -157,8 +158,8 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
 
   return (
     <div className={`h-full flex flex-col border-l relative ${isDarkMode
-        ? 'bg-gray-900 text-white border-white border-opacity-30'
-        : 'bg-white text-gray-900 border-gray-300'
+      ? 'bg-gray-900 text-white border-white border-opacity-30'
+      : 'bg-white text-gray-900 border-gray-300'
       }`} style={{ width: `${detailsWidth}px` }}>
       <div
         className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
@@ -179,8 +180,8 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
       />
       {/* Header with Invoice No and Actions */}
       <div className={`px-4 py-3 flex items-center justify-between border-b ${isDarkMode
-          ? 'bg-gray-800 border-gray-700'
-          : 'bg-gray-100 border-gray-200'
+        ? 'bg-gray-800 border-gray-700'
+        : 'bg-gray-100 border-gray-200'
         }`}>
         <h1 className={`text-lg font-semibold truncate pr-4 min-w-0 flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
           }`}>
@@ -188,8 +189,8 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
         </h1>
         <div className="flex items-center space-x-2 flex-shrink-0">
           <button className={`p-2 rounded transition-colors ${isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+            ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
             }`}>
             <X size={18} />
           </button>
@@ -213,8 +214,14 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
                 <span className="text-red-500">
                   {invoiceRecord.accountNo} | {invoiceRecord.fullName} | {invoiceRecord.address}
                 </span>
-                <Info size={16} className={`ml-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                  }`} />
+                <button
+                  onClick={() => onViewCustomer?.(invoiceRecord.accountNo)}
+                  className={`ml-2 p-1 rounded transition-colors ${isDarkMode ? 'text-gray-500 hover:text-white hover:bg-gray-700' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-200'
+                    }`}
+                  title="View Customer Details"
+                >
+                  <Info size={16} />
+                </button>
               </div>
             </div>
 
@@ -315,8 +322,8 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
               <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>Related Staggered Payments</span>
               <span className={`text-xs px-2 py-1 rounded ${isDarkMode
-                  ? 'bg-gray-600 text-white'
-                  : 'bg-gray-300 text-gray-900'
+                ? 'bg-gray-600 text-white'
+                : 'bg-gray-300 text-gray-900'
                 }`}>{staggeredCount}</span>
             </div>
             <div className="flex items-center space-x-2">
@@ -367,8 +374,8 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
                 All Related Staggered Payments
               </h2>
               <span className={`text-xs px-2 py-1 rounded ${isDarkMode
-                  ? 'bg-gray-600 text-white'
-                  : 'bg-gray-300 text-gray-900'
+                ? 'bg-gray-600 text-white'
+                : 'bg-gray-300 text-gray-900'
                 }`}>
                 {staggeredCount} items
               </span>
@@ -376,8 +383,8 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord }) => {
             <button
               onClick={handleExpandModalClose}
               className={`p-2 rounded transition-colors ${isDarkMode
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                 }`}
             >
               <X size={20} />

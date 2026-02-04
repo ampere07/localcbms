@@ -38,9 +38,10 @@ interface SOARecord {
 
 interface SOADetailsProps {
   soaRecord: SOARecord;
+  onViewCustomer?: (accountNo: string) => void;
 }
 
-const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord }) => {
+const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer }) => {
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
@@ -65,7 +66,7 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord }) => {
         console.error('Failed to fetch color palette:', err);
       }
     };
-    
+
     fetchColorPalette();
   }, []);
 
@@ -74,10 +75,10 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord }) => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
-      
+
       const diff = startXRef.current - e.clientX;
       const newWidth = Math.max(600, Math.min(1200, startWidthRef.current + diff));
-      
+
       setDetailsWidth(newWidth);
     };
 
@@ -108,11 +109,10 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord }) => {
   };
 
   return (
-    <div className={`h-full flex flex-col border-l relative ${
-      isDarkMode
+    <div className={`h-full flex flex-col border-l relative ${isDarkMode
         ? 'bg-gray-900 text-white border-white border-opacity-30'
         : 'bg-white text-gray-900 border-gray-300'
-    }`} style={{ width: `${detailsWidth}px` }}>
+      }`} style={{ width: `${detailsWidth}px` }}>
       <div
         className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
         style={{
@@ -130,34 +130,30 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord }) => {
         }}
         onMouseDown={handleMouseDownResize}
       />
-      <div className={`px-4 py-3 flex items-center justify-between border-b ${
-        isDarkMode
+      <div className={`px-4 py-3 flex items-center justify-between border-b ${isDarkMode
           ? 'bg-gray-800 border-gray-700'
           : 'bg-gray-100 border-gray-200'
-      }`}>
-        <h1 className={`text-lg font-semibold truncate pr-4 min-w-0 flex-1 ${
-          isDarkMode ? 'text-white' : 'text-gray-900'
         }`}>
+        <h1 className={`text-lg font-semibold truncate pr-4 min-w-0 flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>
           {soaRecord.accountNo} | {soaRecord.fullName} | {soaRecord.address.split(',')[0]}
         </h1>
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <button 
+          <button
             onClick={handleOpenGDrive}
             disabled={!soaRecord.printLink}
-            className={`p-2 rounded transition-colors ${
-              isDarkMode
+            className={`p-2 rounded transition-colors ${isDarkMode
                 ? 'text-gray-400 hover:text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed'
-            }`}
+              }`}
             title={soaRecord.printLink ? 'Open SOA in Google Drive' : 'No Google Drive link available'}
           >
             <ExternalLink size={18} />
           </button>
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
+          <button className={`p-2 rounded transition-colors ${isDarkMode
               ? 'text-gray-400 hover:text-white hover:bg-gray-700'
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
+            }`}>
             <X size={18} />
           </button>
         </div>
@@ -187,9 +183,14 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord }) => {
                 <span className="text-red-500">
                   {soaRecord.accountNo} | {soaRecord.fullName} | {soaRecord.address}
                 </span>
-                <Info size={16} className={`ml-2 ${
-                  isDarkMode ? 'text-gray-500' : 'text-gray-600'
-                }`} />
+                <button
+                  onClick={() => onViewCustomer?.(soaRecord.accountNo)}
+                  className={`ml-2 p-1 rounded transition-colors ${isDarkMode ? 'text-gray-500 hover:text-white hover:bg-gray-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                    }`}
+                  title="View Customer Details"
+                >
+                  <Info size={16} />
+                </button>
               </div>
             </div>
 
@@ -212,9 +213,8 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord }) => {
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Plan</span>
               <div className="flex items-center">
                 <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{soaRecord.plan}</span>
-                <Info size={16} className={`ml-2 ${
-                  isDarkMode ? 'text-gray-500' : 'text-gray-600'
-                }`} />
+                <Info size={16} className={`ml-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                  }`} />
               </div>
             </div>
 
@@ -222,9 +222,8 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord }) => {
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Provider</span>
               <div className="flex items-center">
                 <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{soaRecord.provider || 'SWITCH'}</span>
-                <Info size={16} className={`ml-2 ${
-                  isDarkMode ? 'text-gray-500' : 'text-gray-600'
-                }`} />
+                <Info size={16} className={`ml-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                  }`} />
               </div>
             </div>
 

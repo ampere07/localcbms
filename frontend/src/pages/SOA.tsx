@@ -5,8 +5,63 @@ import { soaService, SOARecord } from '../services/soaService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { paymentService, PendingPayment } from '../services/paymentService';
 import { useSOAContext, SOARecordUI } from '../contexts/SOAContext';
+import BillingDetails from '../components/CustomerDetails';
+import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
+import { BillingDetailRecord } from '../types/billing';
 
 // Removed local SOARecordUI interface
+
+// Removed local SOARecordUI interface
+
+const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
+  return {
+    id: customerData.billingAccount?.accountNo || '',
+    applicationId: customerData.billingAccount?.accountNo || '',
+    customerName: customerData.fullName,
+    address: customerData.address,
+    status: customerData.billingAccount?.billingStatusId === 2 ? 'Active' : 'Inactive',
+    balance: customerData.billingAccount?.accountBalance || 0,
+    onlineStatus: customerData.billingAccount?.billingStatusId === 2 ? 'Online' : 'Offline',
+    cityId: null,
+    regionId: null,
+    timestamp: customerData.updatedAt || '',
+    billingStatus: customerData.billingAccount?.billingStatusId ? `Status ${customerData.billingAccount.billingStatusId}` : '',
+    dateInstalled: customerData.billingAccount?.dateInstalled || '',
+    contactNumber: customerData.contactNumberPrimary,
+    secondContactNumber: customerData.contactNumberSecondary || '',
+    emailAddress: customerData.emailAddress || '',
+    plan: customerData.desiredPlan || '',
+    username: customerData.technicalDetails?.username || '',
+    connectionType: customerData.technicalDetails?.connectionType || '',
+    routerModel: customerData.technicalDetails?.routerModel || '',
+    routerModemSN: customerData.technicalDetails?.routerModemSn || '',
+    lcpnap: customerData.technicalDetails?.lcpnap || '',
+    port: customerData.technicalDetails?.port || '',
+    vlan: customerData.technicalDetails?.vlan || '',
+    billingDay: customerData.billingAccount?.billingDay || 0,
+    totalPaid: 0,
+    provider: '',
+    lcp: customerData.technicalDetails?.lcp || '',
+    nap: customerData.technicalDetails?.nap || '',
+    modifiedBy: '',
+    modifiedDate: customerData.updatedAt || '',
+    barangay: customerData.barangay || '',
+    city: customerData.city || '',
+    region: customerData.region || '',
+
+    usageType: customerData.technicalDetails?.usageTypeId ? `Type ${customerData.technicalDetails.usageTypeId}` : '',
+    referredBy: customerData.referredBy || '',
+    referralContactNo: '',
+    groupName: customerData.groupName || '',
+    mikrotikId: '',
+    sessionIp: customerData.technicalDetails?.ipAddress || '',
+    houseFrontPicture: customerData.houseFrontPictureUrl || '',
+    accountBalance: customerData.billingAccount?.accountBalance || 0,
+    housingStatus: customerData.housingStatus || '',
+    location: customerData.location || '',
+    addressCoordinates: customerData.addressCoordinates || '',
+  };
+};
 
 const SOA: React.FC = () => {
   const { soaRecords, isLoading, error, silentRefresh, refreshSOARecords } = useSOAContext();
@@ -23,6 +78,8 @@ const SOA: React.FC = () => {
   const [userRole, setUserRole] = useState<string>('');
   const [accountNo, setAccountNo] = useState<string>('');
   const [accountBalance, setAccountBalance] = useState<number>(0);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
   const [isPaymentProcessing, setIsPaymentProcessing] = useState<boolean>(false);
   const [showPaymentVerifyModal, setShowPaymentVerifyModal] = useState<boolean>(false);
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
@@ -220,6 +277,21 @@ const SOA: React.FC = () => {
   const handleRowClick = (record: SOARecordUI) => {
     if (userRole !== 'customer') {
       setSelectedRecord(record);
+      setSelectedCustomer(null); // Clear customer view when switching records
+    }
+  };
+
+  const handleViewCustomer = async (accountNo: string) => {
+    setIsLoadingDetails(true);
+    try {
+      const detail = await getCustomerDetail(accountNo);
+      if (detail) {
+        setSelectedCustomer(detail);
+      }
+    } catch (err) {
+      console.error('Error fetching customer details:', err);
+    } finally {
+      setIsLoadingDetails(false);
     }
   };
 
@@ -454,10 +526,10 @@ const SOA: React.FC = () => {
   };
 
   return (
-    <div className={`h-full flex overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    <div className={`h-full flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
       {userRole !== 'customer' && (
-        <div className={`border-r flex-shrink-0 flex flex-col relative ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        <div className={`hidden md:flex border-r flex-shrink-0 flex flex-col relative ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
           }`} style={{ width: `${sidebarWidth}px` }}>
           <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
             }`}>
@@ -588,8 +660,8 @@ const SOA: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto">
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-y-auto">
               {isLoading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
@@ -671,17 +743,45 @@ const SOA: React.FC = () => {
                       </tbody>
                     </table>
                   </div>
-                  <PaginationControls />
                 </>
               )}
             </div>
+            {!isLoading && !error && filteredRecords.length > 0 && <PaginationControls />}
           </div>
         </div>
       </div>
 
       {selectedRecord && userRole !== 'customer' && (
         <div className="flex-shrink-0 overflow-hidden">
-          <SOADetails soaRecord={selectedRecord} />
+          <SOADetails
+            soaRecord={selectedRecord}
+            onViewCustomer={handleViewCustomer}
+          />
+        </div>
+      )}
+
+      {(selectedCustomer || isLoadingDetails) && (
+        <div className="flex-shrink-0 overflow-hidden">
+          {isLoadingDetails ? (
+            <div className={`w-[600px] h-full flex items-center justify-center border-l ${isDarkMode
+              ? 'bg-gray-900 text-white border-white border-opacity-30'
+              : 'bg-white text-gray-900 border-gray-300'
+              }`}>
+              <div className="text-center">
+                <div
+                  className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+                  style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
+                ></div>
+                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
+              </div>
+            </div>
+          ) : selectedCustomer ? (
+            <BillingDetails
+              billingRecord={convertCustomerDataToBillingDetail(selectedCustomer)}
+              onlineStatusRecords={[]}
+              onClose={() => setSelectedCustomer(null)}
+            />
+          ) : null}
         </div>
       )}
 

@@ -133,9 +133,9 @@ const DCNoticePage: React.FC = () => {
   };
 
   return (
-    <div className={`h-full flex overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    <div className={`h-full flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
-      <div className={`w-64 border-r flex-shrink-0 flex flex-col ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+      <div className={`hidden md:flex w-64 border-r flex-shrink-0 flex flex-col ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
         }`}>
         <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
@@ -227,8 +227,8 @@ const DCNoticePage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto">
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-y-auto">
               {isLoading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
@@ -311,7 +311,6 @@ const DCNoticePage: React.FC = () => {
                       </tbody>
                     </table>
                   </div>
-                  <PaginationControls />
                 </>
               ) : (
                 <div className={`h-full flex items-center justify-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
@@ -320,6 +319,7 @@ const DCNoticePage: React.FC = () => {
                 </div>
               )}
             </div>
+            {!isLoading && !error && filteredRecords.length > 0 && <PaginationControls />}
           </div>
         </div>
       </div>

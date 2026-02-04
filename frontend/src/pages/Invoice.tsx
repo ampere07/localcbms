@@ -5,8 +5,63 @@ import InvoiceDetails from '../components/InvoiceDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { paymentService, PendingPayment } from '../services/paymentService';
 import { useInvoiceContext, InvoiceRecordUI } from '../contexts/InvoiceContext';
+import BillingDetails from '../components/CustomerDetails';
+import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
+import { BillingDetailRecord } from '../types/billing';
 
 // Removed local InvoiceRecordUI interface
+
+// Removed local InvoiceRecordUI interface
+
+const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
+  return {
+    id: customerData.billingAccount?.accountNo || '',
+    applicationId: customerData.billingAccount?.accountNo || '',
+    customerName: customerData.fullName,
+    address: customerData.address,
+    status: customerData.billingAccount?.billingStatusId === 2 ? 'Active' : 'Inactive',
+    balance: customerData.billingAccount?.accountBalance || 0,
+    onlineStatus: customerData.billingAccount?.billingStatusId === 2 ? 'Online' : 'Offline',
+    cityId: null,
+    regionId: null,
+    timestamp: customerData.updatedAt || '',
+    billingStatus: customerData.billingAccount?.billingStatusId ? `Status ${customerData.billingAccount.billingStatusId}` : '',
+    dateInstalled: customerData.billingAccount?.dateInstalled || '',
+    contactNumber: customerData.contactNumberPrimary,
+    secondContactNumber: customerData.contactNumberSecondary || '',
+    emailAddress: customerData.emailAddress || '',
+    plan: customerData.desiredPlan || '',
+    username: customerData.technicalDetails?.username || '',
+    connectionType: customerData.technicalDetails?.connectionType || '',
+    routerModel: customerData.technicalDetails?.routerModel || '',
+    routerModemSN: customerData.technicalDetails?.routerModemSn || '',
+    lcpnap: customerData.technicalDetails?.lcpnap || '',
+    port: customerData.technicalDetails?.port || '',
+    vlan: customerData.technicalDetails?.vlan || '',
+    billingDay: customerData.billingAccount?.billingDay || 0,
+    totalPaid: 0,
+    provider: '',
+    lcp: customerData.technicalDetails?.lcp || '',
+    nap: customerData.technicalDetails?.nap || '',
+    modifiedBy: '',
+    modifiedDate: customerData.updatedAt || '',
+    barangay: customerData.barangay || '',
+    city: customerData.city || '',
+    region: customerData.region || '',
+
+    usageType: customerData.technicalDetails?.usageTypeId ? `Type ${customerData.technicalDetails.usageTypeId}` : '',
+    referredBy: customerData.referredBy || '',
+    referralContactNo: '',
+    groupName: customerData.groupName || '',
+    mikrotikId: '',
+    sessionIp: customerData.technicalDetails?.ipAddress || '',
+    houseFrontPicture: customerData.houseFrontPictureUrl || '',
+    accountBalance: customerData.billingAccount?.accountBalance || 0,
+    housingStatus: customerData.housingStatus || '',
+    location: customerData.location || '',
+    addressCoordinates: customerData.addressCoordinates || '',
+  };
+};
 
 const Invoice: React.FC = () => {
   const { invoiceRecords, isLoading, error, silentRefresh } = useInvoiceContext();
@@ -23,6 +78,8 @@ const Invoice: React.FC = () => {
   const [userRole, setUserRole] = useState<string>('');
   const [accountNo, setAccountNo] = useState<string>('');
   const [accountBalance, setAccountBalance] = useState<number>(0);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
   const [isPaymentProcessing, setIsPaymentProcessing] = useState<boolean>(false);
   const [showPaymentVerifyModal, setShowPaymentVerifyModal] = useState<boolean>(false);
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
@@ -224,6 +281,21 @@ const Invoice: React.FC = () => {
   const handleRowClick = (record: InvoiceRecordUI) => {
     if (userRole !== 'customer') {
       setSelectedRecord(record);
+      setSelectedCustomer(null); // Clear customer view when switching records
+    }
+  };
+
+  const handleViewCustomer = async (accountNo: string) => {
+    setIsLoadingDetails(true);
+    try {
+      const detail = await getCustomerDetail(accountNo);
+      if (detail) {
+        setSelectedCustomer(detail);
+      }
+    } catch (err) {
+      console.error('Error fetching customer details:', err);
+    } finally {
+      setIsLoadingDetails(false);
     }
   };
 
@@ -425,10 +497,10 @@ const Invoice: React.FC = () => {
   };
 
   return (
-    <div className={`h-full flex overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    <div className={`h-full flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
       {userRole !== 'customer' && (
-        <div className={`border-r flex-shrink-0 flex flex-col relative ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        <div className={`hidden md:flex border-r flex-shrink-0 flex flex-col relative ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
           }`} style={{ width: `${sidebarWidth}px` }}>
           <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
             }`}>
@@ -559,8 +631,8 @@ const Invoice: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto">
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-y-auto">
               {isLoading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
@@ -642,17 +714,45 @@ const Invoice: React.FC = () => {
                       </tbody>
                     </table>
                   </div>
-                  <PaginationControls />
                 </>
               )}
             </div>
+            {!isLoading && !error && filteredRecords.length > 0 && <PaginationControls />}
           </div>
         </div>
       </div>
 
       {selectedRecord && userRole !== 'customer' && (
         <div className="flex-shrink-0 overflow-hidden">
-          <InvoiceDetails invoiceRecord={selectedRecord} />
+          <InvoiceDetails
+            invoiceRecord={selectedRecord as any}
+            onViewCustomer={handleViewCustomer}
+          />
+        </div>
+      )}
+
+      {(selectedCustomer || isLoadingDetails) && (
+        <div className="flex-shrink-0 overflow-hidden">
+          {isLoadingDetails ? (
+            <div className={`w-[600px] h-full flex items-center justify-center border-l ${isDarkMode
+              ? 'bg-gray-900 text-white border-white border-opacity-30'
+              : 'bg-white text-gray-900 border-gray-300'
+              }`}>
+              <div className="text-center">
+                <div
+                  className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+                  style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
+                ></div>
+                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
+              </div>
+            </div>
+          ) : selectedCustomer ? (
+            <BillingDetails
+              billingRecord={convertCustomerDataToBillingDetail(selectedCustomer)}
+              onlineStatusRecords={[]}
+              onClose={() => setSelectedCustomer(null)}
+            />
+          ) : null}
         </div>
       )}
 
@@ -761,44 +861,94 @@ const Invoice: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      )
+      }
 
-      {showPendingPaymentModal && pendingPayment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div
-            className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
-          >
-            <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h3 className="text-xl font-bold text-center">Transaction In Progress</h3>
-            </div>
-
-            <div className="p-6">
-              <div className={`p-4 rounded mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                <p className="text-center mb-4">
-                  You have a pending payment (<b>{pendingPayment.reference_no}</b>).
-                  <br />The link is still active.
-                </p>
-                <div className="flex justify-between mt-4">
-                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
-                  <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#ea580c' }}>
-                    ₱{pendingPayment.amount.toFixed(2)}
-                  </span>
-                </div>
+      {
+        showPendingPaymentModal && pendingPayment && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div
+              className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
+            >
+              <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className="text-xl font-bold text-center">Transaction In Progress</h3>
               </div>
 
-              <div className="flex gap-3">
+              <div className="p-6">
+                <div className={`p-4 rounded mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                  <p className="text-center mb-4">
+                    You have a pending payment (<b>{pendingPayment?.reference_no}</b>).
+                    <br />The link is still active.
+                  </p>
+                  <div className="flex justify-between mt-4">
+                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
+                    <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#ea580c' }}>
+                      ₱{pendingPayment?.amount?.toFixed(2) || '0.00'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleCancelPendingPayment}
+                    className={`flex-1 px-4 py-3 rounded font-bold transition-colors ${isDarkMode
+                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      }`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleResumePendingPayment}
+                    className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors"
+                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    onMouseEnter={(e) => {
+                      if (colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (colorPalette?.primary) {
+                        e.currentTarget.style.backgroundColor = colorPalette.primary;
+                      }
+                    }}
+                  >
+                    Pay Now →
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {
+        showPaymentLinkModal && paymentLinkData && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div
+              className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
+            >
+              <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className="text-xl font-bold text-center">Proceed to Payment Portal</h3>
+              </div>
+
+              <div className="p-6">
+                <div className={`p-4 rounded mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                  <div className="flex justify-between mb-3">
+                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Reference:</span>
+                    <span className="font-mono font-bold">{paymentLinkData?.referenceNo}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
+                    <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#ea580c' }}>
+                      ₱{paymentLinkData?.amount?.toFixed(2) || '0.00'}
+                    </span>
+                  </div>
+                </div>
+
                 <button
-                  onClick={handleCancelPendingPayment}
-                  className={`flex-1 px-4 py-3 rounded font-bold transition-colors ${isDarkMode
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                    }`}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleResumePendingPayment}
-                  className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors"
+                  onClick={handleOpenPaymentLink}
+                  className="w-full px-4 py-3 rounded font-bold text-white transition-colors"
                   style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
                   onMouseEnter={(e) => {
                     if (colorPalette?.accent) {
@@ -811,59 +961,14 @@ const Invoice: React.FC = () => {
                     }
                   }}
                 >
-                  Pay Now →
+                  PROCEED
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {showPaymentLinkModal && paymentLinkData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div
-            className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
-          >
-            <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h3 className="text-xl font-bold text-center">Proceed to Payment Portal</h3>
-            </div>
-
-            <div className="p-6">
-              <div className={`p-4 rounded mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                <div className="flex justify-between mb-3">
-                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Reference:</span>
-                  <span className="font-mono font-bold">{paymentLinkData.referenceNo}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
-                  <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#ea580c' }}>
-                    ₱{paymentLinkData.amount.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-
-              <button
-                onClick={handleOpenPaymentLink}
-                className="w-full px-4 py-3 rounded font-bold text-white transition-colors"
-                style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                onMouseEnter={(e) => {
-                  if (colorPalette?.accent) {
-                    e.currentTarget.style.backgroundColor = colorPalette.accent;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (colorPalette?.primary) {
-                    e.currentTarget.style.backgroundColor = colorPalette.primary;
-                  }
-                }}
-              >
-                PROCEED
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 

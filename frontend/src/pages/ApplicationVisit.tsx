@@ -711,76 +711,8 @@ const ApplicationVisitPage: React.FC = () => {
     setMobileView('details');
   };
 
-  if (isLoading) {
-    return (
-      <div className={`flex items-center justify-center h-full ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-        }`}>
-        <div className="flex flex-col items-center">
-          <div
-            className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 mb-3"
-            style={{ borderTopColor: colorPalette?.primary || '#ea580c', borderBottomColor: colorPalette?.primary || '#ea580c' }}
-          ></div>
-          <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Loading application visits...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className={`flex items-center justify-center h-full ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-        }`}>
-        <div className={`rounded-md p-6 max-w-lg ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-          }`}>
-          <h3 className="text-red-500 text-lg font-medium mb-2">Error</h3>
-          <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>{error}</p>
-          <div className="flex flex-col space-y-4">
-            <button
-              onClick={() => window.location.reload()}
-              className="text-white py-2 px-4 rounded transition-colors"
-              style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
-              }}
-              onMouseEnter={(e) => {
-                if (colorPalette?.accent) {
-                  e.currentTarget.style.backgroundColor = colorPalette.accent;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (colorPalette?.primary) {
-                  e.currentTarget.style.backgroundColor = colorPalette.primary;
-                }
-              }}
-            >
-              Retry
-            </button>
-
-            <div className={`mt-4 p-4 rounded overflow-auto max-h-48 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'
-              }`}>
-              <pre className={`text-xs whitespace-pre-wrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
-                {error.includes("SQLSTATE") ? (
-                  <>
-                    <span className="text-red-400">Database Error:</span>
-                    <br />
-                    {error.includes("Table") ? "Table name mismatch - check the database schema" : error}
-                    <br /><br />
-                    <span className="text-yellow-400">Suggestion:</span>
-                    <br />
-                    Verify that the table &apos;application_visits&apos; exists in your database.
-                  </>
-                ) : error}
-              </pre>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className={`h-full flex flex-col md:flex-row overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    <div className={`h-full flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
       {/* Desktop Sidebar - Hidden on mobile */}
       {userRole.toLowerCase() !== 'technician' && (
@@ -1214,9 +1146,38 @@ const ApplicationVisitPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto">
-              {displayMode === 'card' ? (
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-y-auto">
+              {isLoading ? (
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
+                  <div className="animate-pulse flex flex-col items-center">
+                    <div className={`h-4 w-1/3 rounded mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
+                  </div>
+                  <p className="mt-4">Loading application visits...</p>
+                </div>
+              ) : error ? (
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>
+                  <p>{error}</p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className={`mt-4 px-4 py-2 rounded text-white ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-400 hover:bg-gray-500'
+                      }`}>
+                    Retry
+                  </button>
+                  <div className={`mt-4 p-4 rounded overflow-auto max-h-48 text-left ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                    }`}>
+                    <pre className={`text-xs whitespace-pre-wrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                      {error}
+                    </pre>
+                  </div>
+                </div>
+              ) : displayMode === 'card' ? (
                 paginatedVisits.length > 0 ? (
                   <div className="space-y-0">
                     {paginatedVisits.map((visit) => (

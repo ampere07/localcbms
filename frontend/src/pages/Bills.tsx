@@ -6,6 +6,7 @@ import { paymentPortalLogsService } from '../services/paymentPortalLogsService';
 import { transactionService } from '../services/transactionService';
 import { getCustomerDetail } from '../services/customerDetailService';
 import { paymentService, PendingPayment } from '../services/paymentService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 // Interfaces
 interface SOARecord {
@@ -32,15 +33,20 @@ interface PaymentRecord {
     status?: string;
 }
 
-const Bills: React.FC = () => {
+interface BillsProps {
+    initialTab?: 'soa' | 'invoices' | 'payments';
+}
+
+const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'soa' | 'invoices' | 'payments'>('soa');
+    const [activeTab, setActiveTab] = useState<'soa' | 'invoices' | 'payments'>(initialTab);
     const [soaRecords, setSoaRecords] = useState<SOARecord[]>([]);
     const [invoiceRecords, setInvoiceRecords] = useState<InvoiceRecord[]>([]);
     const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>([]);
     const [balance, setBalance] = useState(0);
     const [accountNo, setAccountNo] = useState('');
     const [displayName, setDisplayName] = useState('');
+    const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
     // Payment State (Mirrored from Dashboard)
     const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
@@ -123,8 +129,24 @@ const Bills: React.FC = () => {
             }
         };
 
+        const fetchColorPalette = async () => {
+            try {
+                const activePalette = await settingsColorPaletteService.getActive();
+                setColorPalette(activePalette);
+            } catch (err) {
+                console.error('Failed to fetch color palette:', err);
+            }
+        };
+
         fetchData();
+        fetchColorPalette();
     }, []);
+
+    useEffect(() => {
+        if (initialTab) {
+            setActiveTab(initialTab);
+        }
+    }, [initialTab]);
 
     // --- Payment Handlers (Identical to DashboardCustomer) ---
     const handlePayNow = async () => {
@@ -211,7 +233,7 @@ const Bills: React.FC = () => {
         return `₱ ${(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
     };
 
-    if (loading) return <div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>;
+    if (loading) return <div className="p-8 flex justify-center bg-gray-50 min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>;
 
     return (
         <div className="p-6 md:p-12 min-h-screen bg-gray-50 font-sans">
@@ -224,7 +246,8 @@ const Bills: React.FC = () => {
                 <button
                     onClick={handlePayNow}
                     disabled={isPaymentProcessing}
-                    className="flex items-center space-x-2 bg-slate-900 text-white px-6 py-3 rounded-full font-bold hover:bg-slate-800 transition disabled:opacity-50"
+                    className="flex items-center space-x-2 text-white px-6 py-3 rounded-full font-bold transition disabled:opacity-50"
+                    style={{ backgroundColor: colorPalette?.primary || '#0f172a' }}
                 >
                     <CreditCard className="w-5 h-5" />
                     <span>PAY NOW</span>
@@ -236,21 +259,24 @@ const Bills: React.FC = () => {
                 <div className="flex space-x-8">
                     <button
                         onClick={() => setActiveTab('soa')}
-                        className={`pb-4 px-2 text-sm font-bold flex items-center space-x-2 border-b-2 transition ${activeTab === 'soa' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                        className={`pb-4 px-2 text-sm font-bold flex items-center space-x-2 border-b-2 transition ${activeTab === 'soa' ? 'text-slate-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                        style={{ borderBottomColor: activeTab === 'soa' ? (colorPalette?.primary || '#0f172a') : 'transparent' }}
                     >
                         <FileText className="w-4 h-4" />
                         <span>Statement of Account</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('invoices')}
-                        className={`pb-4 px-2 text-sm font-bold flex items-center space-x-2 border-b-2 transition ${activeTab === 'invoices' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                        className={`pb-4 px-2 text-sm font-bold flex items-center space-x-2 border-b-2 transition ${activeTab === 'invoices' ? 'text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                        style={{ borderBottomColor: activeTab === 'invoices' ? (colorPalette?.primary || '#2563eb') : 'transparent' }}
                     >
                         <File className="w-4 h-4" />
                         <span>Invoices</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('payments')}
-                        className={`pb-4 px-2 text-sm font-bold flex items-center space-x-2 border-b-2 transition ${activeTab === 'payments' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                        className={`pb-4 px-2 text-sm font-bold flex items-center space-x-2 border-b-2 transition ${activeTab === 'payments' ? 'text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                        style={{ borderBottomColor: activeTab === 'payments' ? (colorPalette?.primary || '#2563eb') : 'transparent' }}
                     >
                         <Clock className="w-4 h-4" />
                         <span>Payment History</span>
@@ -435,7 +461,8 @@ const Bills: React.FC = () => {
                                 <button
                                     onClick={handleProceedToCheckout}
                                     disabled={isPaymentProcessing || paymentAmount < 1}
-                                    className="flex-1 px-4 py-3 rounded font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
+                                    className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors disabled:opacity-50"
+                                    style={{ backgroundColor: colorPalette?.primary || '#0f172a' }}
                                 >
                                     {isPaymentProcessing ? 'Processing...' : 'Proceed to Pay'}
                                 </button>
@@ -503,7 +530,8 @@ const Bills: React.FC = () => {
                                 </button>
                                 <button
                                     onClick={handleResumePendingPayment}
-                                    className="flex-1 px-4 py-3 rounded font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors"
+                                    className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors"
+                                    style={{ backgroundColor: colorPalette?.primary || '#0f172a' }}
                                 >
                                     Resume Payment
                                 </button>

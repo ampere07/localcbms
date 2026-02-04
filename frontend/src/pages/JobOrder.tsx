@@ -842,57 +842,9 @@ const JobOrderPage: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className={`flex items-center justify-center h-full ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-        }`}>
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 mb-3" style={{ borderTopColor: colorPalette?.primary || '#ea580c', borderBottomColor: colorPalette?.primary || '#ea580c' }}></div>
-          <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-            Loading job orders...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className={`flex items-center justify-center h-full ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-        }`}>
-        <div className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
-          } border rounded-md p-6 max-w-lg`}>
-          <h3 className="text-red-500 text-lg font-medium mb-2">Error</h3>
-          <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-4`}>
-            {error}
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="text-white py-2 px-4 rounded transition-colors"
-            style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
-            }}
-            onMouseEnter={(e) => {
-              if (colorPalette?.accent) {
-                e.currentTarget.style.backgroundColor = colorPalette.accent;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (colorPalette?.primary) {
-                e.currentTarget.style.backgroundColor = colorPalette.primary;
-              }
-            }}
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className={`${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-      } h-full flex flex-col md:flex-row overflow-hidden`}>
+      } h-full flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0`}>
       {/* Mobile Location View */}
       {mobileView === 'locations' && (
         <div className={`md:hidden flex-1 flex flex-col overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
@@ -1344,7 +1296,29 @@ const JobOrderPage: React.FC = () => {
 
           <div className="flex-1 overflow-hidden flex flex-col">
             <div className="flex-1 overflow-y-auto">
-              {displayMode === 'card' ? (
+              {isLoading ? (
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
+                  <div className="animate-pulse flex flex-col items-center">
+                    <div className={`h-4 w-1/3 rounded mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
+                  </div>
+                  <p className="mt-4">Loading job orders...</p>
+                </div>
+              ) : error ? (
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>
+                  <p>{error}</p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className={`mt-4 px-4 py-2 rounded text-white ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-400 hover:bg-gray-500'
+                      }`}>
+                    Retry
+                  </button>
+                </div>
+              ) : displayMode === 'card' ? (
                 paginatedJobOrders.length > 0 ? (
                   <div className="space-y-0">
                     {paginatedJobOrders.map((jobOrder) => (

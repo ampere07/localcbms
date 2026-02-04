@@ -2,20 +2,24 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Bell, RefreshCw } from 'lucide-react';
 import { notificationService, type Notification as AppNotification } from '../services/notificationService';
 import { formUIService } from '../services/formUIService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface HeaderProps {
   onToggleSidebar?: () => void;
   onSearch?: (query: string) => void;
   onNavigate?: (section: string) => void;
+  onLogout?: () => void;
+  activeSection?: string;
 }
 
-const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate }) => {
+const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, onLogout, activeSection }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
   const previousCountRef = useRef(0);
@@ -40,6 +44,18 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate }
       }
     };
     fetchLogo();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   useEffect(() => {
@@ -290,10 +306,28 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate }
         </div>
 
         <div className="flex items-center space-x-8">
-          <nav className="hidden md:flex items-center space-x-6 text-sm font-bold text-slate-700">
-            <button onClick={() => onNavigate?.('customer-dashboard')} className="text-slate-900 hover:text-blue-700 transition">Dashboard</button>
-            <button onClick={() => onNavigate?.('customer-bills')} className="text-gray-500 hover:text-blue-700 transition">Bills</button>
-            <button onClick={() => onNavigate?.('customer-support')} className="text-gray-500 hover:text-blue-700 transition">Support</button>
+          <nav className="hidden md:flex items-center space-x-6 text-sm font-bold">
+            <button
+              onClick={() => onNavigate?.('customer-dashboard')}
+              className="transition"
+              style={{ color: activeSection === 'customer-dashboard' || !activeSection ? (colorPalette?.primary || '#0f172a') : '#6b7280' }}
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => onNavigate?.('customer-bills')}
+              className="transition"
+              style={{ color: activeSection === 'customer-bills' ? (colorPalette?.primary || '#0f172a') : '#6b7280' }}
+            >
+              Bills
+            </button>
+            <button
+              onClick={() => onNavigate?.('customer-support')}
+              className="transition"
+              style={{ color: activeSection === 'customer-support' ? (colorPalette?.primary || '#0f172a') : '#6b7280' }}
+            >
+              Support
+            </button>
           </nav>
 
           <button
@@ -301,9 +335,23 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate }
               // Logout logic
               localStorage.removeItem('token');
               localStorage.removeItem('authData');
-              window.location.href = '/login';
+              if (onLogout) {
+                onLogout();
+              } else {
+                window.location.href = '/';
+              }
             }}
-            className="px-6 py-2 border border-red-500 text-red-500 rounded-full text-sm font-bold hover:bg-red-50 transition"
+            className="px-6 py-2 border rounded-full text-sm font-bold transition"
+            style={{
+              color: colorPalette?.primary || '#ef4444',
+              borderColor: colorPalette?.primary || '#ef4444'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = `${colorPalette?.primary || '#ef4444'}10`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
             Logout
           </button>

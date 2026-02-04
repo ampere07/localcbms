@@ -56,6 +56,7 @@ import LcpNapLocation from './LcpNapLocation';
 import BillingConfig from './BillingConfig';
 import RadiusConfig from './RadiusConfig';
 import SmsConfig from './SmsConfig';
+import SMSTemplate from './SMSTemplate';
 import EmailTemplates from './EmailTemplates';
 import PPPoESetup from './PPPoESetup';
 import Support from './Support';
@@ -63,6 +64,7 @@ import LiveMonitor from './LiveMonitor';
 import ConcernConfig from './ConcernConfig';
 import DashboardCustomer from './DashboardCustomer';
 import Bills from './Bills';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface DashboardProps {
     onLogout: () => void;
@@ -98,8 +100,25 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
-
+    const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+    const [billsInitialTab, setBillsInitialTab] = useState<'soa' | 'invoices' | 'payments'>('soa');
+    const [customerInitialSearch, setCustomerInitialSearch] = useState('');
+    const [customerAutoOpenAccountNo, setCustomerAutoOpenAccountNo] = useState('');
+    const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+        try {
+            const authData = localStorage.getItem('authData');
+            if (authData) {
+                const user = JSON.parse(authData);
+                if (user.role === 'customer' || String(user.role_id) === '3') {
+                    return false;
+                }
+            }
+            const theme = localStorage.getItem('theme');
+            return theme === 'dark' || theme === null;
+        } catch (e) {
+            return true;
+        }
+    });
     // Track dark mode changes
     useEffect(() => {
         const checkDarkMode = () => {
@@ -121,6 +140,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         return () => observer.disconnect();
     }, []);
 
+    useEffect(() => {
+        const fetchColorPalette = async () => {
+            try {
+                const activePalette = await settingsColorPaletteService.getActive();
+                setColorPalette(activePalette);
+            } catch (err) {
+                console.error('Failed to fetch color palette:', err);
+            }
+        };
+
+        fetchColorPalette();
+    }, []);
+
     // Add effect to log the active section when it changes
     useEffect(() => {
         console.log('Active section changed to:', activeSection);
@@ -130,9 +162,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         switch (activeSection) {
             // Customer Routes
             case 'customer-dashboard':
-                return <DashboardCustomer />;
+                return <DashboardCustomer onNavigate={(section, tab) => handleSectionChange(section, tab)} />;
             case 'customer-bills':
-                return <Bills />;
+                return <Bills initialTab={billsInitialTab} />;
             case 'customer-support':
                 return <Support forceLightMode={true} />;
 
@@ -156,6 +188,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 return <RadiusConfig />;
             case 'sms-config':
                 return <SmsConfig />;
+            case 'sms-template':
+                return <SMSTemplate />;
             case 'email-templates':
                 return <EmailTemplates />;
             case 'pppoe-setup':
@@ -185,9 +219,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             case 'application-management':
                 return <ApplicationManagement />;
             case 'customer':
-                return <Customer />;
+                return <Customer initialSearchQuery={customerInitialSearch} autoOpenAccountNo={customerAutoOpenAccountNo} />;
             case 'transaction-list':
-                return <TransactionList />;
+                return (
+                    <TransactionProvider>
+                        <TransactionList onNavigate={(section, search) => handleSectionChange(section, search)} />
+                    </TransactionProvider>
+                );
             case 'payment-portal':
                 return <PaymentPortal />;
             case 'job-order':
@@ -231,7 +269,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             case 'dashboard':
             default:
                 if (userData && String(userData.role_id) === '3') {
-                    return <DashboardCustomer />;
+                    return <DashboardCustomer onNavigate={(section, tab) => handleSectionChange(section, tab)} />;
                 }
                 return <DashboardContent />;
         }
@@ -254,8 +292,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         setIsMobileMenuOpen(false);
     };
 
-    const handleSectionChange = (section: string) => {
+    const handleSectionChange = (section: string, extra?: string) => {
         setActiveSection(section);
+        if (section === 'customer-bills') {
+            setBillsInitialTab((extra as any) || 'soa');
+        } else if (section === 'customer') {
+            setCustomerInitialSearch(extra || '');
+            setCustomerAutoOpenAccountNo(extra || '');
+        }
+
         if (window.innerWidth < 768) {
             closeMobileMenu();
         }
@@ -286,6 +331,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                                                                         onSearch={handleSearch}
                                                                         onToggleSidebar={toggleSidebar}
                                                                         onNavigate={handleSectionChange}
+                                                                        onLogout={onLogout}
+                                                                        activeSection={activeSection}
                                                                     />
                                                                 </div>
 

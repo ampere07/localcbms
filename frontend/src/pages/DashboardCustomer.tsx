@@ -4,6 +4,7 @@ import { getCustomerDetail, CustomerDetailData } from '../services/customerDetai
 import { transactionService } from '../services/transactionService';
 import { paymentPortalLogsService } from '../services/paymentPortalLogsService';
 import { paymentService, PendingPayment } from '../services/paymentService'; // Import paymentService
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 // Interfaces for data types
 interface Payment {
@@ -22,7 +23,11 @@ interface Referral {
     status: 'Done' | 'Failed' | 'Scheduled' | 'Pending';
 }
 
-const DashboardCustomer: React.FC = () => {
+interface DashboardCustomerProps {
+    onNavigate?: (section: string, tab?: string) => void;
+}
+
+const DashboardCustomer: React.FC<DashboardCustomerProps> = ({ onNavigate }) => {
     const [user, setUser] = useState<any>(null);
     const [customerDetail, setCustomerDetail] = useState<CustomerDetailData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -40,6 +45,7 @@ const DashboardCustomer: React.FC = () => {
     const [showPendingPaymentModal, setShowPendingPaymentModal] = useState<boolean>(false);
     const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(null);
     const [errorMessage, setErrorMessage] = useState<string>('');
+    const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -113,10 +119,20 @@ const DashboardCustomer: React.FC = () => {
             }
         };
 
+        const fetchColorPalette = async () => {
+            try {
+                const activePalette = await settingsColorPaletteService.getActive();
+                setColorPalette(activePalette);
+            } catch (err) {
+                console.error('Failed to fetch color palette:', err);
+            }
+        };
+
         fetchData();
+        fetchColorPalette();
     }, []);
 
-    if (loading) return <div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>;
+    if (loading) return <div className="p-8 flex justify-center bg-gray-50 min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>;
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -286,11 +302,17 @@ const DashboardCustomer: React.FC = () => {
                         </div>
 
                         <div className="mt-8 space-y-3">
-                            <button className="w-full flex items-center justify-center space-x-2 py-3 border border-slate-900 rounded-full text-slate-900 font-semibold hover:bg-gray-50 transition">
+                            <button
+                                className="w-full flex items-center justify-center space-x-2 py-3 border rounded-full font-semibold hover:bg-gray-50 transition"
+                                style={{ borderColor: colorPalette?.primary || '#0f172a', color: colorPalette?.primary || '#0f172a' }}
+                            >
                                 <FileText className="w-4 h-4" />
                                 <span>My Bills</span>
                             </button>
-                            <button className="w-full flex items-center justify-center space-x-2 py-3 border border-slate-900 rounded-full text-slate-900 font-semibold hover:bg-gray-50 transition">
+                            <button
+                                className="w-full flex items-center justify-center space-x-2 py-3 border rounded-full font-semibold hover:bg-gray-50 transition"
+                                style={{ borderColor: colorPalette?.primary || '#0f172a', color: colorPalette?.primary || '#0f172a' }}
+                            >
                                 <HelpCircle className="w-4 h-4" />
                                 <span>Help & Support</span>
                             </button>
@@ -301,11 +323,11 @@ const DashboardCustomer: React.FC = () => {
                 {/* Right Column: Balance & History */}
                 <div className="lg:col-span-2 space-y-8">
                     {/* Balance Card */}
-                    <div className="bg-slate-900 rounded-3xl p-8 md:p-12 text-center text-white relative overflow-hidden">
+                    <div className="rounded-3xl p-8 md:p-12 text-center text-white relative overflow-hidden" style={{ backgroundColor: colorPalette?.primary || '#0f172a' }}>
                         <h3 className="text-gray-400 text-sm font-medium tracking-wide uppercase mb-2">Total Amount Due</h3>
                         <div className="text-5xl md:text-6xl font-bold mb-4">₱{balance.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
                         <div className="text-gray-400 text-sm mb-8 flex items-center justify-center space-x-2">
-                            <span>Reference: <span className="text-yellow-400 font-medium">{accountNo}</span> </span>
+                            <span>Reference: <span className="text-white font-medium">{accountNo}</span></span>
                             {/* Due date could come from SOA service ideally */}
                             <span>|</span>
                             <span>Due: <span className="text-white">{dueDateString}</span></span>
@@ -315,10 +337,15 @@ const DashboardCustomer: React.FC = () => {
                             <button
                                 onClick={handlePayNow}
                                 disabled={isPaymentProcessing}
-                                className="bg-white text-slate-900 px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition min-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed">
+                                className="bg-white text-slate-900 px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition min-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{ color: colorPalette?.primary || '#0f172a' }}
+                            >
                                 {isPaymentProcessing ? 'Processing' : 'PAY NOW'}
                             </button>
-                            <button className="bg-transparent border border-white text-white px-8 py-3 rounded-full font-bold hover:bg-white/10 transition min-w-[140px]">
+                            <button
+                                onClick={() => onNavigate?.('customer-bills', 'payments')}
+                                className="bg-transparent border border-white text-white px-8 py-3 rounded-full font-bold hover:bg-white/10 transition min-w-[140px]"
+                            >
                                 History
                             </button>
                         </div>
@@ -327,8 +354,8 @@ const DashboardCustomer: React.FC = () => {
                     {/* Recent Payments - Still Mocked for Now */}
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="p-6 border-b border-gray-100 flex items-center space-x-2">
-                            <Clock className="w-5 h-5 text-slate-900" />
-                            <h3 className="font-bold text-slate-900">Recent Payments</h3>
+                            <Clock className="w-5 h-5" style={{ color: colorPalette?.primary || '#0f172a' }} />
+                            <h3 className="font-bold" style={{ color: colorPalette?.primary || '#0f172a' }}>Recent Payments</h3>
                         </div>
                         <div>
                             {payments.length === 0 ? (
@@ -349,8 +376,8 @@ const DashboardCustomer: React.FC = () => {
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                             <div className="flex items-center space-x-2">
-                                <Users className="w-5 h-5 text-slate-900" />
-                                <h3 className="font-bold text-slate-900">My Referrals</h3>
+                                <Users className="w-5 h-5" style={{ color: colorPalette?.primary || '#0f172a' }} />
+                                <h3 className="font-bold" style={{ color: colorPalette?.primary || '#0f172a' }}>My Referrals</h3>
                             </div>
                         </div>
                         <div className="overflow-x-auto">
@@ -429,7 +456,8 @@ const DashboardCustomer: React.FC = () => {
                                             }
                                         }}
                                         placeholder="0.00"
-                                        className="w-full px-4 py-3 rounded text-lg font-bold border border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                        className="w-full px-4 py-3 rounded text-lg font-bold border border-gray-300 text-gray-900 focus:outline-none focus:ring-2"
+                                        style={{ '--tw-ring-color': colorPalette?.primary || '#0f172a' } as React.CSSProperties}
                                     />
                                     <div className="text-sm text-right mt-1 text-gray-500">
                                         {balance > 0 ? (
@@ -451,7 +479,8 @@ const DashboardCustomer: React.FC = () => {
                                     <button
                                         onClick={handleProceedToCheckout}
                                         disabled={isPaymentProcessing || paymentAmount < 1}
-                                        className="flex-1 px-4 py-3 rounded font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
+                                        className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors disabled:opacity-50"
+                                        style={{ backgroundColor: colorPalette?.primary || '#0f172a' }}
                                     >
                                         {isPaymentProcessing ? 'Processing...' : 'Proceed to Pay'}
                                     </button>
@@ -523,7 +552,8 @@ const DashboardCustomer: React.FC = () => {
                                     </button>
                                     <button
                                         onClick={handleResumePendingPayment}
-                                        className="flex-1 px-4 py-3 rounded font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors"
+                                        className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors"
+                                        style={{ backgroundColor: colorPalette?.primary || '#0f172a' }}
                                     >
                                         Resume Payment
                                     </button>

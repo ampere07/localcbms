@@ -4,6 +4,9 @@ import DiscountDetails from '../components/DiscountDetails';
 import DiscountFormModal from '../modals/DiscountFormModal';
 import { useDiscountContext, DiscountRecord } from '../contexts/DiscountContext';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import BillingDetails from '../components/CustomerDetails';
+import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
+import { BillingDetailRecord } from '../types/billing';
 
 interface LocationItem {
   id: string;
@@ -26,6 +29,56 @@ const getRegions = async () => {
   ];
 };
 
+const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
+  return {
+    id: customerData.billingAccount?.accountNo || '',
+    applicationId: customerData.billingAccount?.accountNo || '',
+    customerName: customerData.fullName,
+    address: customerData.address,
+    status: customerData.billingAccount?.billingStatusId === 2 ? 'Active' : 'Inactive',
+    balance: customerData.billingAccount?.accountBalance || 0,
+    onlineStatus: customerData.billingAccount?.billingStatusId === 2 ? 'Online' : 'Offline',
+    cityId: null,
+    regionId: null,
+    timestamp: customerData.updatedAt || '',
+    billingStatus: customerData.billingAccount?.billingStatusId ? `Status ${customerData.billingAccount.billingStatusId}` : '',
+    dateInstalled: customerData.billingAccount?.dateInstalled || '',
+    contactNumber: customerData.contactNumberPrimary,
+    secondContactNumber: customerData.contactNumberSecondary || '',
+    emailAddress: customerData.emailAddress || '',
+    plan: customerData.desiredPlan || '',
+    username: customerData.technicalDetails?.username || '',
+    connectionType: customerData.technicalDetails?.connectionType || '',
+    routerModel: customerData.technicalDetails?.routerModel || '',
+    routerModemSN: customerData.technicalDetails?.routerModemSn || '',
+    lcpnap: customerData.technicalDetails?.lcpnap || '',
+    port: customerData.technicalDetails?.port || '',
+    vlan: customerData.technicalDetails?.vlan || '',
+    billingDay: customerData.billingAccount?.billingDay || 0,
+    totalPaid: 0,
+    provider: '',
+    lcp: customerData.technicalDetails?.lcp || '',
+    nap: customerData.technicalDetails?.nap || '',
+    modifiedBy: '',
+    modifiedDate: customerData.updatedAt || '',
+    barangay: customerData.barangay || '',
+    city: customerData.city || '',
+    region: customerData.region || '',
+
+    usageType: customerData.technicalDetails?.usageTypeId ? `Type ${customerData.technicalDetails.usageTypeId}` : '',
+    referredBy: customerData.referredBy || '',
+    referralContactNo: '',
+    groupName: customerData.groupName || '',
+    mikrotikId: '',
+    sessionIp: customerData.technicalDetails?.ipAddress || '',
+    houseFrontPicture: customerData.houseFrontPictureUrl || '',
+    accountBalance: customerData.billingAccount?.accountBalance || 0,
+    housingStatus: customerData.housingStatus || '',
+    location: customerData.location || '',
+    addressCoordinates: customerData.addressCoordinates || '',
+  };
+};
+
 const Discounts: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
@@ -40,6 +93,12 @@ const Discounts: React.FC = () => {
   const sidebarStartWidthRef = useRef<number>(0);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [isDiscountFormModalOpen, setIsDiscountFormModalOpen] = useState<boolean>(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 50;
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -141,8 +200,80 @@ const Discounts: React.FC = () => {
     });
   }, [discountRecords, selectedLocation, searchQuery]);
 
+  // Reset page when search or location changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedLocation]);
+
+  const paginatedRecords = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredDiscountRecords.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredDiscountRecords, currentPage]);
+
+  const totalPages = Math.ceil(filteredDiscountRecords.length / itemsPerPage);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const PaginationControls = () => {
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredDiscountRecords.length)}</span> of <span className="font-medium">{filteredDiscountRecords.length}</span> results
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300'))
+              }`}
+          >
+            Previous
+          </button>
+          <div className="flex items-center space-x-1">
+            <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Page {currentPage} of {totalPages}
+            </span>
+          </div>
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300'))
+              }`}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const handleRecordClick = (record: DiscountRecord) => {
     setSelectedDiscount(record);
+    setSelectedCustomer(null); // Clear customer view when switching records
+  };
+
+  const handleViewCustomer = async (accountNo: string) => {
+    setIsLoadingDetails(true);
+    try {
+      const detail = await getCustomerDetail(accountNo);
+      if (detail) {
+        setSelectedCustomer(detail);
+      }
+    } catch (err) {
+      console.error('Error fetching customer details:', err);
+    } finally {
+      setIsLoadingDetails(false);
+    }
   };
 
   const handleCloseDetails = () => {
@@ -204,9 +335,9 @@ const Discounts: React.FC = () => {
   };
 
   return (
-    <div className={`h-full flex flex-col md:flex-row overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    <div className={`h-full flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
-      <div className={`md:border-r border-t md:border-t-0 flex-shrink-0 flex flex-col order-2 md:order-1 relative ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+      <div className={`hidden md:flex border-r flex-shrink-0 flex flex-col relative ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
         }`} style={{ width: `${sidebarWidth}px` }}>
         <div className={`p-4 border-b flex-shrink-0 hidden md:block ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
@@ -313,11 +444,11 @@ const Discounts: React.FC = () => {
         />
       </div>
 
-      <div className={`flex-1 overflow-hidden order-1 md:order-2 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      <div className={`flex-1 overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
         }`}>
         <div className="flex flex-col h-full">
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto">
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-y-auto">
               {isLoading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
@@ -336,16 +467,16 @@ const Discounts: React.FC = () => {
                   <button
                     onClick={handleRefresh}
                     className={`mt-4 px-4 py-2 rounded ${isDarkMode
-                        ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                       }`}>
                     Retry
                   </button>
                 </div>
               ) : (
                 <div className="space-y-0">
-                  {filteredDiscountRecords.length > 0 ? (
-                    filteredDiscountRecords.map((record) => (
+                  {paginatedRecords.length > 0 ? (
+                    paginatedRecords.map((record) => (
                       <div
                         key={record.id}
                         onClick={() => handleRecordClick(record)}
@@ -379,17 +510,44 @@ const Discounts: React.FC = () => {
                 </div>
               )}
             </div>
+            {!isLoading && !error && filteredDiscountRecords.length > 0 && <PaginationControls />}
           </div>
         </div>
       </div>
 
       {selectedDiscount && (
-        <div className="flex-shrink-0 overflow-hidden order-3">
+        <div className="flex-shrink-0 overflow-hidden">
           <DiscountDetails
-            discountRecord={selectedDiscount}
+            discountRecord={selectedDiscount as any}
             onClose={handleCloseDetails}
             onApproveSuccess={handleRefresh}
+            onViewCustomer={handleViewCustomer}
           />
+        </div>
+      )}
+
+      {(selectedCustomer || isLoadingDetails) && (
+        <div className="flex-shrink-0 overflow-hidden">
+          {isLoadingDetails ? (
+            <div className={`w-[600px] h-full flex items-center justify-center border-l ${isDarkMode
+              ? 'bg-gray-900 text-white border-white border-opacity-30'
+              : 'bg-white text-gray-900 border-gray-300'
+              }`}>
+              <div className="text-center">
+                <div
+                  className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+                  style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
+                ></div>
+                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
+              </div>
+            </div>
+          ) : selectedCustomer ? (
+            <BillingDetails
+              billingRecord={convertCustomerDataToBillingDetail(selectedCustomer)}
+              onlineStatusRecords={[]}
+              onClose={() => setSelectedCustomer(null)}
+            />
+          ) : null}
         </div>
       )}
 

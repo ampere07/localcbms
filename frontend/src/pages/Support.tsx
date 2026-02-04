@@ -258,8 +258,8 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
                   value={selectedConcern}
                   onChange={(e) => setSelectedConcern(e.target.value)}
                   className={`w-full px-3 py-2 rounded border focus:outline-none focus:ring-1 ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     }`}
                   style={{
                     '--tw-ring-color': colorPalette?.primary || '#ea580c'
@@ -283,8 +283,8 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
                   placeholder="Describe your issue..."
                   rows={5}
                   className={`w-full px-3 py-2 rounded border focus:outline-none focus:ring-1 resize-none ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700 placeholder-gray-500'
-                      : 'bg-white text-gray-900 border-gray-300 placeholder-gray-400'
+                    ? 'bg-gray-800 text-white border-gray-700 placeholder-gray-500'
+                    : 'bg-white text-gray-900 border-gray-300 placeholder-gray-400'
                     }`}
                   style={{
                     '--tw-ring-color': colorPalette?.primary || '#ea580c'
@@ -320,8 +320,8 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
 
               {submitMessage && (
                 <div className={`mt-3 p-3 rounded text-sm text-center ${submitMessage.includes('Failed') || submitMessage.includes('limit') || submitMessage.includes('not found')
-                    ? isDarkMode ? 'bg-red-900/50 text-red-200' : 'bg-red-100 text-red-700'
-                    : isDarkMode ? 'bg-green-900/50 text-green-200' : 'bg-green-100 text-green-700'
+                  ? isDarkMode ? 'bg-red-900/50 text-red-200' : 'bg-red-100 text-red-700'
+                  : isDarkMode ? 'bg-green-900/50 text-green-200' : 'bg-green-100 text-green-700'
                   }`}>
                   {submitMessage}
                 </div>
@@ -331,8 +331,8 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
             <button
               onClick={handleRequestPlanUpdate}
               className={`w-full mt-4 py-3 rounded font-medium border-2 transition-colors ${isDarkMode
-                  ? 'border-gray-700 text-gray-300 hover:bg-gray-800'
-                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                ? 'border-gray-700 text-gray-300 hover:bg-gray-800'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
             >
               <Upload className="inline mr-2" size={16} />
@@ -397,8 +397,8 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
                             </td>
                             <td className={`py-4 px-3`}>
                               <div className={`inline-flex items-center px-3 py-2 rounded ${request.visitInfo.status === 'Done'
-                                  ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/50'
-                                  : isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'
+                                ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/50'
+                                : isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'
                                 }`}>
                                 <CheckCircle className="mr-1" size={14} />
                                 {request.visitInfo.status}
@@ -472,8 +472,8 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
               <button
                 onClick={() => setShowConfirmModal(false)}
                 className={`flex-1 py-2 px-4 rounded font-medium transition-colors ${isDarkMode
-                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
               >
                 Cancel
