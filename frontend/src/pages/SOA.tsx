@@ -756,6 +756,7 @@ const SOA: React.FC = () => {
           <SOADetails
             soaRecord={selectedRecord}
             onViewCustomer={handleViewCustomer}
+            onClose={handleCloseDetails}
           />
         </div>
       )}

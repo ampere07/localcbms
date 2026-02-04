@@ -39,9 +39,10 @@ interface InvoiceRecord {
 interface InvoiceDetailsProps {
   invoiceRecord: InvoiceRecord;
   onViewCustomer?: (accountNo: string) => void;
+  onClose?: () => void;
 }
 
-const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord, onViewCustomer }) => {
+const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord, onViewCustomer, onClose }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
@@ -188,10 +189,12 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord, onViewCu
           {invoiceRecord.invoiceNo || '2508182' + invoiceRecord.id}
         </h1>
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <button className={`p-2 rounded transition-colors ${isDarkMode
-            ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-            }`}>
+          <button
+            onClick={onClose}
+            className={`p-2 rounded transition-colors ${isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              }`}>
             <X size={18} />
           </button>
         </div>

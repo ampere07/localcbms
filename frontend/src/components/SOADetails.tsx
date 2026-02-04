@@ -39,9 +39,10 @@ interface SOARecord {
 interface SOADetailsProps {
   soaRecord: SOARecord;
   onViewCustomer?: (accountNo: string) => void;
+  onClose?: () => void;
 }
 
-const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer }) => {
+const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onClose }) => {
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
@@ -110,8 +111,8 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer }) =>
 
   return (
     <div className={`h-full flex flex-col border-l relative ${isDarkMode
-        ? 'bg-gray-900 text-white border-white border-opacity-30'
-        : 'bg-white text-gray-900 border-gray-300'
+      ? 'bg-gray-900 text-white border-white border-opacity-30'
+      : 'bg-white text-gray-900 border-gray-300'
       }`} style={{ width: `${detailsWidth}px` }}>
       <div
         className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
@@ -131,8 +132,8 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer }) =>
         onMouseDown={handleMouseDownResize}
       />
       <div className={`px-4 py-3 flex items-center justify-between border-b ${isDarkMode
-          ? 'bg-gray-800 border-gray-700'
-          : 'bg-gray-100 border-gray-200'
+        ? 'bg-gray-800 border-gray-700'
+        : 'bg-gray-100 border-gray-200'
         }`}>
         <h1 className={`text-lg font-semibold truncate pr-4 min-w-0 flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
           }`}>
@@ -143,17 +144,19 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer }) =>
             onClick={handleOpenGDrive}
             disabled={!soaRecord.printLink}
             className={`p-2 rounded transition-colors ${isDarkMode
-                ? 'text-gray-400 hover:text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed'
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed'
               }`}
             title={soaRecord.printLink ? 'Open SOA in Google Drive' : 'No Google Drive link available'}
           >
             <ExternalLink size={18} />
           </button>
-          <button className={`p-2 rounded transition-colors ${isDarkMode
+          <button
+            onClick={onClose}
+            className={`p-2 rounded transition-colors ${isDarkMode
               ? 'text-gray-400 hover:text-white hover:bg-gray-700'
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-            }`}>
+              }`}>
             <X size={18} />
           </button>
         </div>

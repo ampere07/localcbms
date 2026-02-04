@@ -727,6 +727,7 @@ const Invoice: React.FC = () => {
           <InvoiceDetails
             invoiceRecord={selectedRecord as any}
             onViewCustomer={handleViewCustomer}
+            onClose={handleCloseDetails}
           />
         </div>
       )}
