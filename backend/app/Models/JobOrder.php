@@ -48,9 +48,7 @@ class JobOrder extends Model
         'installation_landmark',
         'pppoe_username',
         'pppoe_password',
-        'created_by_user_id',
         'created_by_user_email',
-        'updated_by_user_id',
         'updated_by_user_email',
     ];
 

@@ -667,22 +667,9 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
 
         await updateApplication(applicationData.id.toString(), applicationUpdateData);
       } catch (appError: any) {
-        const errorMsg = appError.response?.data?.message || appError.message || 'Unknown error';
-        setPendingJobOrder(result.data);
-        setModal({
-          isOpen: true,
-          type: 'warning',
-          title: 'Partial Success',
-          message: `Warning: Job order was saved but application promo update failed!\n\nError: ${errorMsg}\n\nPlease update the promo manually in the applications table.`,
-          onConfirm: () => {
-            onSave(pendingJobOrder!);
-            setPendingJobOrder(null);
-            onClose();
-            setModal({ ...modal, isOpen: false });
-          }
-        });
-        setLoading(false);
-        return;
+        // Silently log promo update failures to avoid blocking the user
+        // with the "Partial Success" modal, as the Job Order itself was created.
+        console.error('Application promo update failed:', appError);
       }
 
       clearInterval(progressInterval);
@@ -795,8 +782,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
               <button
                 onClick={handleCancel}
                 className={`px-4 py-2 rounded text-sm transition-colors ${isDarkMode
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                   }`}
               >
                 Cancel
@@ -842,8 +829,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     value={formData.timestamp}
                     onChange={(e) => handleInputChange('timestamp', e.target.value)}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                        ? 'bg-gray-800 text-white border-gray-700'
-                        : 'bg-white text-gray-900 border-gray-300'
+                      ? 'bg-gray-800 text-white border-gray-700'
+                      : 'bg-white text-gray-900 border-gray-300'
                       } ${errors.timestamp ? 'border-red-500' : ''}`}
                   />
                   <Calendar className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
@@ -862,8 +849,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     value={formData.groupName}
                     onChange={(e) => handleInputChange('groupName', e.target.value)}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode
-                        ? 'bg-gray-800 text-white border-gray-700'
-                        : 'bg-white text-gray-900 border-gray-300'
+                      ? 'bg-gray-800 text-white border-gray-700'
+                      : 'bg-white text-gray-900 border-gray-300'
                       } ${errors.groupName ? 'border-red-500' : ''}`}
                   >
                     <option value="">Select Affiliate</option>
@@ -892,8 +879,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     value={formData.status}
                     onChange={(e) => handleInputChange('status', e.target.value)}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode
-                        ? 'bg-gray-800 text-white border-gray-700'
-                        : 'bg-white text-gray-900 border-gray-300'
+                      ? 'bg-gray-800 text-white border-gray-700'
+                      : 'bg-white text-gray-900 border-gray-300'
                       } ${errors.status ? 'border-red-500' : ''}`}
                   >
                     <option value="" disabled>Select Status</option>
@@ -915,8 +902,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   value={formData.referredBy}
                   onChange={(e) => handleInputChange('referredBy', e.target.value)}
                   className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     }`}
                 />
               </div>
@@ -933,8 +920,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   value={formData.firstName}
                   onChange={(e) => handleInputChange('firstName', e.target.value)}
                   className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     } ${errors.firstName ? 'border-red-500' : ''}`}
                 />
                 {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
@@ -949,8 +936,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   onChange={(e) => handleInputChange('middleInitial', e.target.value)}
                   maxLength={1}
                   className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     }`}
                 />
               </div>
@@ -965,8 +952,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   value={formData.lastName}
                   onChange={(e) => handleInputChange('lastName', e.target.value)}
                   className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     } ${errors.lastName ? 'border-red-500' : ''}`}
                 />
                 {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
@@ -982,8 +969,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   value={formData.contactNumber}
                   onChange={(e) => handleInputChange('contactNumber', e.target.value)}
                   className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     } ${errors.contactNumber ? 'border-red-500' : ''}`}
                 />
                 {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
@@ -999,8 +986,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     } ${errors.email ? 'border-red-500' : ''}`}
                 />
                 {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
@@ -1018,8 +1005,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   value={formData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
                   className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     } ${errors.address ? 'border-red-500' : ''}`}
                 />
                 {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
@@ -1035,8 +1022,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     value={formData.region}
                     onChange={(e) => handleInputChange('region', e.target.value)}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode
-                        ? 'bg-gray-800 text-white border-gray-700'
-                        : 'bg-white text-gray-900 border-gray-300'
+                      ? 'bg-gray-800 text-white border-gray-700'
+                      : 'bg-white text-gray-900 border-gray-300'
                       } ${errors.region ? 'border-red-500' : ''}`}
                   >
                     <option value="">Select Region</option>
@@ -1066,8 +1053,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     onChange={(e) => handleInputChange('city', e.target.value)}
                     disabled={!formData.region}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
-                        ? 'bg-gray-800 text-white border-gray-700'
-                        : 'bg-white text-gray-900 border-gray-300'
+                      ? 'bg-gray-800 text-white border-gray-700'
+                      : 'bg-white text-gray-900 border-gray-300'
                       } ${errors.city ? 'border-red-500' : ''}`}
                   >
                     <option value="">{formData.region ? 'Select City' : 'Select Region First'}</option>
@@ -1097,8 +1084,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     onChange={(e) => handleInputChange('barangay', e.target.value)}
                     disabled={!formData.city}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
-                        ? 'bg-gray-800 text-white border-gray-700'
-                        : 'bg-white text-gray-900 border-gray-300'
+                      ? 'bg-gray-800 text-white border-gray-700'
+                      : 'bg-white text-gray-900 border-gray-300'
                       } ${errors.barangay ? 'border-red-500' : ''}`}
                   >
                     <option value="">{formData.city ? 'Select Barangay' : 'Select City First'}</option>
@@ -1128,8 +1115,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     onChange={(e) => handleInputChange('location', e.target.value)}
                     disabled={!formData.barangay}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
-                        ? 'bg-gray-800 text-white border-gray-700'
-                        : 'bg-white text-gray-900 border-gray-300'
+                      ? 'bg-gray-800 text-white border-gray-700'
+                      : 'bg-white text-gray-900 border-gray-300'
                       } ${errors.location ? 'border-red-500' : ''}`}
                   >
                     <option value="">{formData.barangay ? 'Select Location' : 'Select Barangay First'}</option>
@@ -1160,8 +1147,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     value={formData.choosePlan}
                     onChange={(e) => handleInputChange('choosePlan', e.target.value)}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode
-                        ? 'bg-gray-800 text-white border-gray-700'
-                        : 'bg-white text-gray-900 border-gray-300'
+                      ? 'bg-gray-800 text-white border-gray-700'
+                      : 'bg-white text-gray-900 border-gray-300'
                       } ${errors.choosePlan ? 'border-red-500' : ''}`}
                   >
                     <option value="">Select Plan</option>
@@ -1196,8 +1183,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     value={formData.promo}
                     onChange={(e) => handleInputChange('promo', e.target.value)}
                     className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode
-                        ? 'bg-gray-800 text-white border-gray-700'
-                        : 'bg-white text-gray-900 border-gray-300'
+                      ? 'bg-gray-800 text-white border-gray-700'
+                      : 'bg-white text-gray-900 border-gray-300'
                       }`}
                   >
                     <option value="">Select Promo</option>
@@ -1224,8 +1211,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   onChange={(e) => handleInputChange('remarks', e.target.value)}
                   rows={3}
                   className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     }`}
                 />
               </div>
@@ -1272,8 +1259,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                       type="button"
                       onClick={() => handleNumberChange('contractTemplate', false)}
                       className={`px-3 py-2 border-l transition-colors ${isDarkMode
-                          ? 'text-gray-400 hover:text-white border-gray-700'
-                          : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                        ? 'text-gray-400 hover:text-white border-gray-700'
+                        : 'text-gray-600 hover:text-gray-900 border-gray-300'
                         }`}
                     >
                       <Minus size={16} />
@@ -1282,8 +1269,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                       type="button"
                       onClick={() => handleNumberChange('contractTemplate', true)}
                       className={`px-3 py-2 border-l transition-colors ${isDarkMode
-                          ? 'text-gray-400 hover:text-white border-gray-700'
-                          : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                        ? 'text-gray-400 hover:text-white border-gray-700'
+                        : 'text-gray-600 hover:text-gray-900 border-gray-300'
                         }`}
                     >
                       <Plus size={16} />
@@ -1316,8 +1303,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                       onClick={() => handleNumberChange('billingDay', false)}
                       disabled={formData.isLastDayOfMonth}
                       className={`px-3 py-2 border-l transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
-                          ? 'text-gray-400 hover:text-white border-gray-700'
-                          : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                        ? 'text-gray-400 hover:text-white border-gray-700'
+                        : 'text-gray-600 hover:text-gray-900 border-gray-300'
                         }`}
                     >
                       <Minus size={16} />
@@ -1327,8 +1314,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                       onClick={() => handleNumberChange('billingDay', true)}
                       disabled={formData.isLastDayOfMonth}
                       className={`px-3 py-2 border-l transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
-                          ? 'text-gray-400 hover:text-white border-gray-700'
-                          : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                        ? 'text-gray-400 hover:text-white border-gray-700'
+                        : 'text-gray-600 hover:text-gray-900 border-gray-300'
                         }`}
                     >
                       <Plus size={16} />
@@ -1373,8 +1360,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                       value={formData.onsiteStatus}
                       onChange={(e) => handleInputChange('onsiteStatus', e.target.value)}
                       className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode
-                          ? 'bg-gray-800 text-white border-gray-700'
-                          : 'bg-white text-gray-900 border-gray-300'
+                        ? 'bg-gray-800 text-white border-gray-700'
+                        : 'bg-white text-gray-900 border-gray-300'
                         } ${errors.onsiteStatus ? 'border-red-500' : ''}`}
                     >
                       <option value="In Progress">In Progress</option>
@@ -1400,8 +1387,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                       value={formData.assignedEmail}
                       onChange={(e) => handleInputChange('assignedEmail', e.target.value)}
                       className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode
-                          ? 'bg-gray-800 text-white border-gray-700'
-                          : 'bg-white text-gray-900 border-gray-300'
+                        ? 'bg-gray-800 text-white border-gray-700'
+                        : 'bg-white text-gray-900 border-gray-300'
                         } ${errors.assignedEmail ? 'border-red-500' : ''}`}
                     >
                       <option value="">Select Assigned Email</option>
@@ -1431,8 +1418,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   value={formData.modifiedBy}
                   readOnly
                   className={`w-full px-3 py-2 border rounded cursor-not-allowed ${isDarkMode
-                      ? 'bg-gray-700 border-gray-700 text-gray-400'
-                      : 'bg-gray-100 border-gray-300 text-gray-600'
+                    ? 'bg-gray-700 border-gray-700 text-gray-400'
+                    : 'bg-gray-100 border-gray-300 text-gray-600'
                     }`}
                   title="Auto-populated with logged-in user"
                 />
@@ -1449,8 +1436,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     value={formData.modifiedDate}
                     readOnly
                     className={`w-full px-3 py-2 border rounded cursor-not-allowed ${isDarkMode
-                        ? 'bg-gray-700 border-gray-700 text-gray-400'
-                        : 'bg-gray-100 border-gray-300 text-gray-600'
+                      ? 'bg-gray-700 border-gray-700 text-gray-400'
+                      : 'bg-gray-100 border-gray-300 text-gray-600'
                       }`}
                     title="Auto-populated with current timestamp"
                   />
@@ -1467,8 +1454,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   value={formData.installationLandmark}
                   onChange={(e) => handleInputChange('installationLandmark', e.target.value)}
                   className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     }`}
                 />
               </div>
@@ -1503,8 +1490,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                       <button
                         onClick={modal.onCancel}
                         className={`px-4 py-2 rounded transition-colors ${isDarkMode
-                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                           }`}
                       >
                         Cancel
