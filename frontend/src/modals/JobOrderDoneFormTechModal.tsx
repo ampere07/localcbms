@@ -238,7 +238,13 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
   };
 
   const isGoogleDriveUrl = (url: string | null): boolean => {
-    return url ? url.includes('drive.google.com') : false;
+    if (!url) return false;
+    return url.includes('drive.google.com') || url.includes('docs.google.com');
+  };
+
+  const isCloudUrl = (url: string | null): boolean => {
+    if (!url) return false;
+    return url.startsWith('http') && !url.includes('localhost') && !url.includes('127.0.0.1');
   };
 
   const ImagePreview: React.FC<{
@@ -250,6 +256,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     const [imageLoadError, setImageLoadError] = useState(false);
     const isGDrive = isGoogleDriveUrl(imageUrl);
     const isBlobUrl = imageUrl?.startsWith('blob:');
+    const isCloud = isCloudUrl(imageUrl);
 
     return (
       <div>
@@ -268,53 +275,58 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
             }}
             className="absolute inset-0 opacity-0 cursor-pointer z-10"
           />
-          {imageUrl ? (
+          {imageUrl && !imageLoadError ? (
             <div className="relative w-full h-full">
-              {isBlobUrl || (!isGDrive && !imageLoadError) ? (
+              {isBlobUrl ? (
                 <img
                   src={imageUrl}
                   alt={label}
                   className="w-full h-full object-contain"
                   onError={() => setImageLoadError(true)}
                 />
-              ) : (
+              ) : isCloud ? (
                 <div className={`w-full h-full flex flex-col items-center justify-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
+                  <Camera size={48} className="mb-2 opacity-50" />
+                  <span className={`text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {isGDrive ? 'Image stored in Google Drive' : 'Image stored in Cloud'}
+                  </span>
+                  <a
+                    href={imageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium hover:underline z-20"
+                    style={{ color: colorPalette?.primary || '#ea580c' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    View in {isGDrive ? 'Drive' : 'Source'}
+                  </a>
+                </div>
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center">
                   <Camera size={32} />
-                  <span className="text-sm mt-2 text-center px-4">Image stored in Google Drive</span>
-                  {imageUrl && (
-                    <a
-                      href={imageUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs mt-2 hover:underline z-20"
-                      style={{ color: colorPalette?.primary || '#ea580c' }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      View in Drive
-                    </a>
-                  )}
+                  <span className="text-sm mt-2">Invalid image source</span>
                 </div>
               )}
-              <div className="absolute bottom-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center pointer-events-none">
-                <Camera className="mr-1" size={14} />Uploaded
+              <div className="absolute bottom-3 right-3 bg-[#22c55e] text-white px-3 py-1.5 rounded-md text-sm font-medium flex items-center shadow-lg pointer-events-none z-30">
+                <Camera className="mr-2" size={16} />Uploaded
               </div>
             </div>
           ) : (
             <div className={`w-full h-full flex flex-col items-center justify-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>
               <Camera size={32} />
-              <span className="text-sm mt-2">Click to upload</span>
+              <span className="text-sm mt-2 font-medium">Click to upload</span>
             </div>
           )}
         </div>
         {error && (
           <div className="flex items-center mt-1">
             <div
-              className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+              className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2 shadow-sm"
               style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
             >!</div>
-            <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+            <p className="text-xs font-medium" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
           </div>
         )}
       </div>
@@ -824,6 +836,25 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 ...prev,
                 ...newFormData
               }));
+
+              // Initialize image previews from database values (only if they are actual URLs)
+              const safeConvert = (val: any) => {
+                const url = val || '';
+                if (url && typeof url === 'string' && url.startsWith('http')) {
+                  return convertGoogleDriveUrl(url);
+                }
+                return null;
+              };
+
+              setImagePreviews({
+                signedContractImage: safeConvert(jobOrderData.signed_contract_image_url || jobOrderData.Signed_Contract_Image_URL),
+                setupImage: safeConvert(jobOrderData.setup_image_url || jobOrderData.Setup_Image_URL),
+                boxReadingImage: safeConvert(jobOrderData.box_reading_image_url || jobOrderData.Box_Reading_Image_URL),
+                routerReadingImage: safeConvert(jobOrderData.router_reading_image_url || jobOrderData.Router_Reading_Image_URL),
+                portLabelImage: safeConvert(jobOrderData.port_label_image_url || jobOrderData.Port_Label_Image_URL),
+                clientSignatureImage: safeConvert(jobOrderData.client_signature_url || jobOrderData.Client_Signature_URL),
+                speedTestImage: safeConvert(jobOrderData.speedtest_image_url || jobOrderData.Speedtest_Image_URL)
+              });
             }
           } else {
             loadDefaultFormData();
@@ -864,6 +895,25 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
           ...prev,
           ...newFormData
         }));
+
+        // Initialize image previews from database values (only if they are actual URLs)
+        const safeConvertDefault = (val: any) => {
+          const url = val || '';
+          if (url && typeof url === 'string' && url.startsWith('http')) {
+            return convertGoogleDriveUrl(url);
+          }
+          return null;
+        };
+
+        setImagePreviews({
+          signedContractImage: safeConvertDefault(jobOrderData.signed_contract_image_url || jobOrderData.Signed_Contract_Image_URL),
+          setupImage: safeConvertDefault(jobOrderData.setup_image_url || jobOrderData.Setup_Image_URL),
+          boxReadingImage: safeConvertDefault(jobOrderData.box_reading_image_url || jobOrderData.Box_Reading_Image_URL),
+          routerReadingImage: safeConvertDefault(jobOrderData.router_reading_image_url || jobOrderData.Router_Reading_Image_URL),
+          portLabelImage: safeConvertDefault(jobOrderData.port_label_image_url || jobOrderData.Port_Label_Image_URL),
+          clientSignatureImage: safeConvertDefault(jobOrderData.client_signature_url || jobOrderData.Client_Signature_URL),
+          speedTestImage: safeConvertDefault(jobOrderData.speedtest_image_url || jobOrderData.Speedtest_Image_URL)
+        });
       };
 
       fetchApplicationData();
