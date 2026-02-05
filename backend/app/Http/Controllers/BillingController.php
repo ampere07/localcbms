@@ -14,7 +14,7 @@ class BillingController extends Controller
     public function index(): JsonResponse
     {
         try {
-            $billingData = BillingAccount::with(['customer', 'technicalDetails'])
+            $billingData = BillingAccount::with(['customer', 'technicalDetails', 'onlineStatus'])
                 ->get()
                 ->map(function ($billingAccount) {
                     $customer = $billingAccount->customer;
@@ -68,6 +68,7 @@ class BillingController extends Controller
                         'Plan' => $customer ? $customer->desired_plan : null,
                         'Provider' => null,
                         'LCPNAPPORT' => $technicalDetail ? ($technicalDetail->lcpnap . ($technicalDetail->port ? '-' . $technicalDetail->port : '')) : null,
+                        'Online_Session_Status' => $billingAccount->onlineStatus ? $billingAccount->onlineStatus->session_status : null,
                     ];
                 });
 
@@ -91,7 +92,7 @@ class BillingController extends Controller
     public function show($id): JsonResponse
     {
         try {
-            $billingAccount = BillingAccount::with(['customer', 'technicalDetails'])->findOrFail($id);
+            $billingAccount = BillingAccount::with(['customer', 'technicalDetails', 'onlineStatus'])->findOrFail($id);
             $customer = $billingAccount->customer;
             $technicalDetail = $billingAccount->technicalDetails->first();
             
@@ -149,6 +150,7 @@ class BillingController extends Controller
                 'Plan' => $customer ? $customer->desired_plan : null,
                 'Provider' => null,
                 'LCPNAPPORT' => $technicalDetail ? ($technicalDetail->lcpnap . ($technicalDetail->port ? '-' . $technicalDetail->port : '')) : null,
+                'Online_Session_Status' => $billingAccount->onlineStatus ? $billingAccount->onlineStatus->session_status : null,
             ];
 
             return response()->json([

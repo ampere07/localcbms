@@ -18,7 +18,7 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     address: customerData.address,
     status: customerData.billingAccount?.billingStatusId === 2 ? 'Active' : 'Inactive',
     balance: customerData.billingAccount?.accountBalance || 0,
-    onlineStatus: customerData.billingAccount?.billingStatusId === 2 ? 'Online' : 'Offline',
+    onlineStatus: customerData.onlineSessionStatus || (customerData.billingAccount?.billingStatusId === 2 ? 'Online' : 'Offline'),
     cityId: null,
     regionId: null,
     timestamp: customerData.updatedAt || '',
@@ -618,15 +618,16 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     switch (columnKey) {
       // Basic fields
       case 'status':
+        const isOnline = ['Online', 'online', 'Active', 'active', 'Connected', 'connected'].includes(record.onlineStatus);
         return (
           <div className="flex items-center space-x-2">
             <Circle
-              className={`h-3 w-3 ${record.onlineStatus === 'Online'
+              className={`h-3 w-3 ${isOnline
                 ? 'text-green-400 fill-green-400'
                 : 'text-gray-400 fill-gray-400'
                 }`}
             />
-            <span className={`text-xs ${record.onlineStatus === 'Online'
+            <span className={`text-xs ${isOnline
               ? 'text-green-400'
               : 'text-gray-400'
               }`}>
@@ -1404,9 +1405,9 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                                 </div>
                                 <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
                                   <Circle
-                                    className={`h-3 w-3 ${record.onlineStatus === 'Online' ? 'text-green-400 fill-green-400' : 'text-gray-400 fill-gray-400'}`}
+                                    className={`h-3 w-3 ${['Online', 'online', 'Active', 'active', 'Connected', 'connected'].includes(record.onlineStatus) ? 'text-green-400 fill-green-400' : 'text-gray-400 fill-gray-400'}`}
                                   />
-                                  <span className={`text-sm ${record.onlineStatus === 'Online' ? 'text-green-400' : 'text-gray-400'}`}>
+                                  <span className={`text-sm ${['Online', 'online', 'Active', 'active', 'Connected', 'connected'].includes(record.onlineStatus) ? 'text-green-400' : 'text-gray-400'}`}>
                                     {record.onlineStatus}
                                   </span>
                                 </div>
