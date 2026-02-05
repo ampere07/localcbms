@@ -22,7 +22,7 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     cityId: null,
     regionId: null,
     timestamp: customerData.updatedAt || '',
-    billingStatus: customerData.billingAccount?.billingStatusId ? `Status ${customerData.billingAccount.billingStatusId}` : '',
+    billingStatus: customerData.billingAccount?.billingStatusName || (customerData.billingAccount?.billingStatusId ? `Status ${customerData.billingAccount.billingStatusId}` : ''),
     dateInstalled: customerData.billingAccount?.dateInstalled || '',
     contactNumber: customerData.contactNumberPrimary,
     secondContactNumber: customerData.contactNumberSecondary || '',

@@ -64,4 +64,9 @@ class BillingAccount extends Model
     {
         return $this->hasOne(OnlineStatus::class, 'account_id');
     }
+
+    public function billingStatus()
+    {
+        return $this->belongsTo(BillingStatus::class, 'billing_status_id');
+    }
 }

@@ -493,8 +493,8 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Address Coordinates</span>
             <div className={`w-full h-64 border rounded overflow-hidden relative ${isDarkMode
-                ? 'border-gray-700'
-                : 'border-gray-300'
+              ? 'border-gray-700'
+              : 'border-gray-300'
               }`} style={{ zIndex: 1 }}>
               <MapContainer
                 center={[lat, lng]}

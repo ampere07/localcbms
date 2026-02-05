@@ -28,6 +28,7 @@ export interface CustomerDetailData {
     dateInstalled?: string;
     billingDay: number;
     billingStatusId: number;
+    billingStatusName?: string;
     accountBalance: number;
     balanceUpdateDate?: string;
   };

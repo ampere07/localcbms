@@ -1290,7 +1290,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   <input
                     type="number"
                     min="1"
-                    max="30"
+                    max="28"
                     value={formData.billingDay}
                     onChange={(e) => handleInputChange('billingDay', e.target.value)}
                     disabled={formData.isLastDayOfMonth}
