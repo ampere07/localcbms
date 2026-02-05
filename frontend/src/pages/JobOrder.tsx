@@ -511,6 +511,10 @@ const JobOrderPage: React.FC = () => {
 
   const handleRowClick = (jobOrder: JobOrder) => {
     setSelectedJobOrder(jobOrder);
+    // Ensure we are in orders view mode when a row is clicked on desktop
+    if (window.innerWidth >= 768) {
+      setMobileView('orders');
+    }
   };
 
   const handleToggleColumn = (columnKey: string) => {
@@ -660,6 +664,18 @@ const JobOrderPage: React.FC = () => {
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isResizingSidebar]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      // If we move to desktop view, ensure we are not stuck in mobile 'details' view
+      if (window.innerWidth >= 768 && mobileView === 'details') {
+        setMobileView('orders');
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [mobileView]);
 
   const handleMouseDownSidebarResize = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -1521,7 +1537,7 @@ const JobOrderPage: React.FC = () => {
         </div>
       )}
 
-      {selectedJobOrder && mobileView !== 'details' && (
+      {selectedJobOrder && (mobileView !== 'details' || window.innerWidth >= 768) && (
         <div className="hidden md:block flex-shrink-0 overflow-hidden">
           <JobOrderDetails
             jobOrder={selectedJobOrder}

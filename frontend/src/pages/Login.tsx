@@ -262,262 +262,262 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           }
         }
       `}</style>
-    <div style={{
-      display: 'flex',
-      minHeight: '100vh',
-      backgroundColor: '#f3f4f6'
-    }}>
       <div style={{
         display: 'flex',
-        width: '100%',
-        maxWidth: '1200px',
-        margin: 'auto',
-        backgroundColor: '#ffffff',
-        borderRadius: '16px',
-        overflow: 'hidden',
-        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)'
-      }} className="login-container">
+        minHeight: '100vh',
+        backgroundColor: '#f3f4f6'
+      }}>
         <div style={{
-          flex: 1,
-          background: 'linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%)',
-          padding: '60px 50px',
           display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          borderTopRightRadius: '16px',
-          borderBottomRightRadius: '16px',
-          boxShadow: '4px 0 15px rgba(0, 0, 0, 0.1)'
-        }} className="login-left">
-          <div style={{ marginBottom: '40px' }}>
-            <h1 style={{
-              fontSize: '32px',
-              fontWeight: '700',
-              color: '#ffffff',
-              marginBottom: '10px'
-            }}>
-              Welcome Back
-            </h1>
-            <p style={{
-              fontSize: '14px',
-              color: '#ffffff',
-              opacity: 0.9,
-              fontWeight: '700'
-            }}>
-              Please login to your account.
-            </p>
+          width: '100%',
+          maxWidth: '1200px',
+          margin: 'auto',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          overflow: 'hidden',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)'
+        }} className="login-container">
+          <div style={{
+            flex: 1,
+            background: 'linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%)',
+            padding: '60px 50px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            borderTopRightRadius: '16px',
+            borderBottomRightRadius: '16px',
+            boxShadow: '4px 0 15px rgba(0, 0, 0, 0.1)'
+          }} className="login-left">
+            <div style={{ marginBottom: '40px' }}>
+              <h1 style={{
+                fontSize: '32px',
+                fontWeight: '700',
+                color: '#ffffff',
+                marginBottom: '10px'
+              }}>
+                Welcome Back
+              </h1>
+              <p style={{
+                fontSize: '14px',
+                color: '#ffffff',
+                opacity: 0.9,
+                fontWeight: '700'
+              }}>
+                Please login to your account.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: '24px' }}>
+                <input
+                  type="text"
+                  value={accountNo}
+                  onChange={(e) => setAccountNo(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    color: '#111827',
+                    fontSize: '15px',
+                    outline: 'none',
+                    fontWeight: '600'
+                  }}
+                  placeholder="Username or Email"
+                />
+              </div>
+
+              <div style={{ marginBottom: '32px' }}>
+                <input
+                  type="password"
+                  value={mobileNo}
+                  onChange={(e) => setMobileNo(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    color: '#111827',
+                    fontSize: '15px',
+                    outline: 'none',
+                    fontWeight: '600'
+                  }}
+                  placeholder="Password"
+                />
+              </div>
+
+              {error && (
+                <div style={{
+                  color: '#dc2626',
+                  marginBottom: '20px',
+                  fontSize: '14px',
+                  backgroundColor: '#fee2e2',
+                  padding: '12px',
+                  borderRadius: '6px'
+                }}>
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  backgroundColor: isLoading ? '#6b7280' : '#ffffff',
+                  color: isLoading ? '#ffffff' : '#6d28d9',
+                  border: 'none',
+                  borderRadius: '30px',
+                  fontSize: '16px',
+                  fontWeight: '700',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                }}
+                onMouseEnter={(e) => {
+                  if (!isLoading) {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isLoading) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+                  }
+                }}
+              >
+                {isLoading ? 'LOGGING IN...' : 'SECURE LOGIN'}
+                {!isLoading && <ArrowRight size={20} />}
+              </button>
+
+              <div style={{
+                textAlign: 'center',
+                marginTop: '20px'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotPassword(true);
+                    setError('');
+                  }}
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    margin: '0 auto'
+                  }}
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            </form>
           </div>
 
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '24px' }}>
-              <input
-                type="text"
-                value={accountNo}
-                onChange={(e) => setAccountNo(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '14px',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  color: '#111827',
-                  fontSize: '15px',
-                  outline: 'none',
-                  fontWeight: '600'
-                }}
-                placeholder="Username or Email"
-              />
-            </div>
-
-            <div style={{ marginBottom: '32px' }}>
-              <input
-                type="password"
-                value={mobileNo}
-                onChange={(e) => setMobileNo(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '14px',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  color: '#111827',
-                  fontSize: '15px',
-                  outline: 'none',
-                  fontWeight: '600'
-                }}
-                placeholder="Password"
-              />
-            </div>
-
-            {error && (
-              <div style={{
-                color: '#dc2626',
-                marginBottom: '20px',
+          <div style={{
+            flex: 1,
+            backgroundColor: '#ffffff',
+            padding: '60px 50px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }} className="login-right">
+            <div style={{
+              textAlign: 'center',
+              marginBottom: '40px'
+            }}>
+              {logoUrl && (
+                <img
+                  src={logoUrl}
+                  alt="Logo"
+                  style={{
+                    height: '120px',
+                    objectFit: 'contain',
+                    marginBottom: '10px'
+                  }}
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              )}
+              <p style={{
                 fontSize: '14px',
-                backgroundColor: '#fee2e2',
-                padding: '12px',
-                borderRadius: '6px'
+                fontWeight: '600',
+                color: '#6b7280',
+                marginTop: '10px'
               }}>
-                {error}
-              </div>
-            )}
+                Powered by <span style={{ color: '#6d28d9' }}>Sync</span>
+              </p>
+            </div>
+
+            <div style={{
+              textAlign: 'center',
+              marginBottom: '30px'
+            }}>
+              <h2 style={{
+                fontSize: '36px',
+                fontWeight: '700',
+                marginBottom: '15px',
+                color: '#6d28d9'
+              }}>
+                New Here?
+              </h2>
+              <p style={{
+                fontSize: '16px',
+                color: '#6b7280'
+              }}>
+                Apply online in just 2 minutes.
+              </p>
+            </div>
 
             <button
-              type="submit"
-              disabled={isLoading}
+              type="button"
+              onClick={() => {
+                window.open('https://apply.atssfiber.ph', '_blank');
+              }}
               style={{
-                width: '100%',
-                padding: '16px',
-                backgroundColor: isLoading ? '#6b7280' : '#ffffff',
-                color: isLoading ? '#ffffff' : '#6d28d9',
+                padding: '16px 48px',
+                backgroundColor: '#6d28d9',
+                color: '#ffffff',
                 border: 'none',
                 borderRadius: '30px',
                 fontSize: '16px',
                 fontWeight: '700',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.2s',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                cursor: 'pointer',
+                transition: 'transform 0.2s',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
               }}
               onMouseEnter={(e) => {
-                if (!isLoading) {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
-                }
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';
               }}
               onMouseLeave={(e) => {
-                if (!isLoading) {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
-                }
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
               }}
             >
-              {isLoading ? 'LOGGING IN...' : 'SECURE LOGIN'}
-              {!isLoading && <ArrowRight size={20} />}
+              APPLY NOW
             </button>
-
-            <div style={{
-              textAlign: 'center',
-              marginTop: '20px'
-            }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForgotPassword(true);
-                  setError('');
-                }}
-                style={{
-                  backgroundColor: 'transparent',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  textDecoration: 'none',
-                  fontWeight: '700',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  margin: '0 auto'
-                }}
-              >
-                Forgot Password?
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <div style={{
-          flex: 1,
-          backgroundColor: '#ffffff',
-          padding: '60px 50px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }} className="login-right">
-          <div style={{
-            textAlign: 'center',
-            marginBottom: '40px'
-          }}>
-            {logoUrl && (
-              <img
-                src={logoUrl}
-                alt="Logo"
-                style={{
-                  height: '120px',
-                  objectFit: 'contain',
-                  marginBottom: '10px'
-                }}
-                crossOrigin="anonymous"
-                referrerPolicy="no-referrer"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            )}
-            <p style={{
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#6b7280',
-              marginTop: '10px'
-            }}>
-              Powered by <span style={{ color: '#6d28d9' }}>Sync</span>
-            </p>
           </div>
-
-          <div style={{
-            textAlign: 'center',
-            marginBottom: '30px'
-          }}>
-            <h2 style={{
-              fontSize: '36px',
-              fontWeight: '700',
-              marginBottom: '15px',
-              color: '#6d28d9'
-            }}>
-              New Here?
-            </h2>
-            <p style={{
-              fontSize: '16px',
-              color: '#6b7280'
-            }}>
-              Apply online in just 2 minutes.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              window.open('https://apply.atssfiber.ph', '_blank');
-            }}
-            style={{
-              padding: '16px 48px',
-              backgroundColor: '#6d28d9',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '30px',
-              fontSize: '16px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'transform 0.2s',
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-            }}
-          >
-            APPLY NOW
-          </button>
         </div>
       </div>
-    </div>
     </>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
+import {
   X, ExternalLink, Edit, Settings
 } from 'lucide-react';
 import { updateJobOrder, approveJobOrder } from '../services/jobOrderService';
@@ -99,7 +99,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   useEffect(() => {
     localStorage.setItem(FIELD_ORDER_KEY, JSON.stringify(fieldOrder));
   }, [fieldOrder]);
-  
+
   useEffect(() => {
     const checkDarkMode = () => {
       const theme = localStorage.getItem('theme');
@@ -128,7 +128,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     };
     fetchColorPalette();
   }, []);
-  
+
   useEffect(() => {
     const authData = localStorage.getItem('authData');
     if (authData) {
@@ -140,7 +140,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       }
     }
   }, []);
-  
+
   useEffect(() => {
     const fetchBillingStatuses = async () => {
       try {
@@ -152,16 +152,16 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     };
     fetchBillingStatuses();
   }, []);
-  
+
   useEffect(() => {
     if (!isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
-      
+
       const diff = startXRef.current - e.clientX;
       const newWidth = Math.max(600, Math.min(1200, startWidthRef.current + diff));
-      
+
       setDetailsWidth(newWidth);
     };
 
@@ -184,10 +184,10 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     startXRef.current = e.clientX;
     startWidthRef.current = detailsWidth;
   };
-  
+
   const getBillingStatusName = (statusId?: number | null): string => {
     if (!statusId) return 'Not Set';
-    
+
     if (billingStatuses.length === 0) {
       const defaultStatuses: { [key: number]: string } = {
         1: 'In Progress',
@@ -198,11 +198,11 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       };
       return defaultStatuses[statusId] || 'Loading...';
     }
-    
+
     const status = billingStatuses.find(s => s.id === statusId);
     return status ? status.status_name : `Unknown (ID: ${statusId})`;
   };
-  
+
   const formatDate = (dateStr?: string | null): string => {
     if (!dateStr) return 'Not scheduled';
     try {
@@ -211,7 +211,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       return dateStr;
     }
   };
-  
+
   const formatPrice = (price?: string | number | null): string => {
     if (price === null || price === undefined) return '₱0.00';
     const numPrice = typeof price === 'string' ? parseFloat(price) : price;
@@ -248,13 +248,13 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       jobOrder.City,
       jobOrder.Region
     ].filter(Boolean);
-    
+
     return addressParts.length > 0 ? addressParts.join(', ') : 'No address provided';
   };
 
   const getStatusColor = (status: string | undefined | null, type: 'onsite' | 'billing') => {
     if (!status) return 'text-gray-400';
-    
+
     if (type === 'onsite') {
       switch (status.toLowerCase()) {
         case 'done':
@@ -292,7 +292,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       }
     }
   };
-  
+
   const handleDoneClick = () => {
     if (userRole === 'technician') {
       setIsDoneTechModalOpen(true);
@@ -308,11 +308,11 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const handleDoneSave = async (formData: any) => {
     try {
       setLoading(true);
-      
+
       if (!jobOrder.id) {
         throw new Error('Cannot update job order: Missing ID');
       }
-      
+
       await updateJobOrder(jobOrder.id, {
         Onsite_Status: formData.onsiteStatus,
         Modified_By: formData.modifiedBy,
@@ -321,7 +321,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         Contract_Template: formData.contractTemplate,
         Assigned_Email: formData.assignedEmail
       });
-      
+
       setSuccessMessage('Job Order updated successfully!');
       setShowSuccessModal(true);
       setIsDoneModalOpen(false);
@@ -336,11 +336,11 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const handleEditSave = async (formData: any) => {
     try {
       setLoading(true);
-      
+
       if (!jobOrder.id) {
         throw new Error('Cannot update job order: Missing ID');
       }
-      
+
       await updateJobOrder(jobOrder.id, {
         Referred_By: formData.referredBy,
         Date_Installed: formData.dateInstalled,
@@ -380,7 +380,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         Visit_With_Other: formData.visitWithOther,
         Status_Remarks: formData.statusRemarks
       });
-      
+
       setSuccessMessage('Job Order updated successfully!');
       setShowSuccessModal(true);
       setIsEditModalOpen(false);
@@ -391,32 +391,32 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       setLoading(false);
     }
   };
-  
+
   const handleApproveClick = () => {
     setIsApprovalModalOpen(true);
   };
-  
+
   const handleApproveConfirm = async () => {
     try {
       setLoading(true);
-      
+
       if (!jobOrder.id) {
         throw new Error('Cannot approve job order: Missing ID');
       }
-      
+
       const response = await approveJobOrder(jobOrder.id);
-      
+
       if (response.success) {
         const accountNumber = response.data?.account_number || 'N/A';
         const contactNumber = response.data?.contact_number_primary || 'N/A';
         const userCreated = response.data?.user_created;
-        
+
         let message = 'Job Order approved successfully! Customer, billing account, and technical details have been created.';
-        
+
         if (userCreated) {
           message += `\n\nCustomer Login Credentials:\nUsername: ${accountNumber}\nPassword: ${contactNumber}`;
         }
-        
+
         setSuccessMessage(message);
         setShowSuccessModal(true);
         setIsApprovalModalOpen(false);
@@ -434,30 +434,30 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       setLoading(false);
     }
   };
-  
+
   const shouldShowApproveButton = () => {
     const onsiteStatus = (jobOrder.Onsite_Status || '').toLowerCase();
     const billingStatusId = jobOrder.billing_status_id || jobOrder.Billing_Status_ID;
     const isAdministrator = userRole === 'administrator';
-    
+
     return onsiteStatus === 'done' && billingStatusId === 1 && isAdministrator;
   };
-  
+
   const handleStatusUpdate = async (newStatus: string) => {
     try {
       setLoading(true);
-      
+
       if (!jobOrder.id) {
         throw new Error('Cannot update job order: Missing ID');
       }
-      
-      await updateJobOrder(jobOrder.id, { 
+
+      await updateJobOrder(jobOrder.id, {
         Onsite_Status: newStatus,
         Modified_By: 'current_user@ampere.com',
       });
-      
+
       jobOrder.Onsite_Status = newStatus;
-      
+
       setSuccessMessage(`Status updated to ${newStatus}`);
       setShowSuccessModal(true);
     } catch (err: any) {
@@ -769,8 +769,8 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           <div className={baseFieldClass}>
             <div className={labelClass}>Date Installed:</div>
             <div className={valueClass}>
-              {jobOrder.Date_Installed || jobOrder.date_installed 
-                ? formatDate(jobOrder.Date_Installed || jobOrder.date_installed) 
+              {jobOrder.Date_Installed || jobOrder.date_installed
+                ? formatDate(jobOrder.Date_Installed || jobOrder.date_installed)
                 : 'Not installed yet'}
             </div>
           </div>
@@ -866,7 +866,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                 {jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url || 'No image available'}
               </span>
               {(jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url) && (
-                <button 
+                <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
                   onClick={() => window.open(jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url || '')}
                 >
@@ -886,7 +886,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                 {jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image || 'No image available'}
               </span>
               {(jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image) && (
-                <button 
+                <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
                   onClick={() => window.open(jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image || '')}
                 >
@@ -906,7 +906,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                 {jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL || 'No image available'}
               </span>
               {(jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL) && (
-                <button 
+                <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
                   onClick={() => window.open(jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL || '')}
                 >
@@ -926,7 +926,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                 {jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL || 'No image available'}
               </span>
               {(jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL) && (
-                <button 
+                <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
                   onClick={() => window.open(jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL || '')}
                 >
@@ -946,7 +946,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                 {jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL || 'No image available'}
               </span>
               {(jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL) && (
-                <button 
+                <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
                   onClick={() => window.open(jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL || '')}
                 >
@@ -966,7 +966,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                 {jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL || 'No image available'}
               </span>
               {(jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL) && (
-                <button 
+                <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
                   onClick={() => window.open(jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL || '')}
                 >
@@ -986,7 +986,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                 {jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture || 'No image available'}
               </span>
               {(jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture) && (
-                <button 
+                <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
                   onClick={() => window.open(jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture || '')}
                 >
@@ -1001,48 +1001,42 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return null;
     }
   };
-  
+
   return (
-    <div 
-      className={`h-full flex flex-col overflow-hidden ${!isMobile ? 'md:border-l' : ''} relative w-full md:w-auto ${
-        isDarkMode ? 'bg-gray-950 border-white border-opacity-30' : 'bg-gray-50 border-gray-300'
-      }`}
+    <div
+      className={`h-full flex flex-col overflow-hidden ${!isMobile ? 'md:border-l' : ''} relative w-full md:w-auto ${isDarkMode ? 'bg-gray-950 border-white border-opacity-30' : 'bg-gray-50 border-gray-300'
+        }`}
       style={!isMobile && window.innerWidth >= 768 ? { width: `${detailsWidth}px` } : undefined}
     >
       {!isMobile && (
         <div
-          className={`hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${
-            isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
-          }`}
+          className={`hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
+            }`}
           onMouseDown={handleMouseDownResize}
         />
       )}
-      <div className={`p-3 flex items-center justify-between border-b ${
-        isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-      }`}>
+      <div className={`p-3 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
         <div className="flex items-center flex-1 min-w-0">
-          <h2 className={`font-medium truncate ${isMobile ? 'max-w-[200px] text-sm' : ''} ${
-            isDarkMode ? 'text-white' : 'text-gray-900'
-          }`}>{getClientFullName()}</h2>
-          {loading && <div className={`ml-3 animate-pulse text-sm flex-shrink-0 ${
-            isDarkMode ? 'text-orange-500' : 'text-orange-600'
-          }`}>Loading...</div>}
+          <h2 className={`font-medium truncate ${isMobile ? 'max-w-[200px] text-sm' : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{getClientFullName()}</h2>
+          {loading && <div className={`ml-3 animate-pulse text-sm flex-shrink-0 ${isDarkMode ? 'text-orange-500' : 'text-orange-600'
+            }`}>Loading...</div>}
         </div>
-        
+
         <div className="flex items-center space-x-3">
           {userRole !== 'technician' && (
             <>
-              <button className={`p-1 rounded-sm border flex items-center justify-center ${
-                isDarkMode
-                  ? 'bg-gray-800 hover:bg-gray-700 text-white border-gray-700'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900 border-gray-300'
-              }`}>
+              <button className={`p-1 rounded-sm border flex items-center justify-center ${isDarkMode
+                ? 'bg-gray-800 hover:bg-gray-700 text-white border-gray-700'
+                : 'bg-gray-200 hover:bg-gray-300 text-gray-900 border-gray-300'
+                }`}>
                 <ExternalLink size={16} />
               </button>
             </>
           )}
           {shouldShowApproveButton() && (
-            <button 
+            <button
               className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-sm flex items-center"
               onClick={handleApproveClick}
               disabled={loading}
@@ -1050,8 +1044,8 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
               <span>Approve</span>
             </button>
           )}
-          <button 
-            className="text-white px-3 py-1 rounded-sm flex items-center transition-colors"
+          <button
+            className="text-white px-3 py-1 rounded-sm flex items-center transition-colors text-sm md:text-base font-medium"
             style={{
               backgroundColor: colorPalette?.primary || '#ea580c'
             }}
@@ -1066,9 +1060,9 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             onClick={handleDoneClick}
             disabled={loading}
           >
-            <span className="hidden md:inline">Done</span>
+            <span>Done</span>
           </button>
-          
+
           <div className="relative">
             <button
               onClick={() => setShowFieldSettings(!showFieldSettings)}
@@ -1078,17 +1072,14 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
               <Settings size={16} />
             </button>
             {showFieldSettings && (
-              <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${
-                isDarkMode
-                  ? 'bg-gray-800 border-gray-700'
-                  : 'bg-white border-gray-200'
-              }`}>
-                <div className={`px-4 py-3 border-b flex items-center justify-between ${
-                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${isDarkMode
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-gray-200'
                 }`}>
-                  <h3 className={`font-semibold ${
-                    isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>Field Visibility & Order</h3>
+                <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                  }`}>
+                  <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>Field Visibility & Order</h3>
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={selectAllFields}
@@ -1113,9 +1104,8 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                   </div>
                 </div>
                 <div className="p-2">
-                  <div className={`text-xs mb-2 px-2 ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`}>
+                  <div className={`text-xs mb-2 px-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
                     Drag to reorder fields
                   </div>
                   {fieldOrder.map((fieldKey, index) => (
@@ -1126,13 +1116,11 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                       onDragOver={handleDragOver}
                       onDrop={() => handleDrop(index)}
                       onDragEnd={handleDragEnd}
-                      className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-move transition-colors ${
-                        isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                      } ${
-                        draggedIndex === index
+                      className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-move transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                        } ${draggedIndex === index
                           ? isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
                           : ''
-                      }`}
+                        }`}
                     >
                       <input
                         type="checkbox"
@@ -1141,12 +1129,10 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                         onClick={(e) => e.stopPropagation()}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
-                      <span className={`text-xs ${
-                        isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                      }`}>☰</span>
-                      <span className={`text-sm ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
+                      <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                        }`}>☰</span>
+                      <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
                         {getFieldLabel(fieldKey)}
                       </span>
                     </div>
@@ -1155,8 +1141,8 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
               </div>
             )}
           </div>
-          
-          <button 
+
+          <button
             onClick={onClose}
             className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
             aria-label="Close"
@@ -1165,20 +1151,18 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           </button>
         </div>
       </div>
-      
+
       {userRole !== 'technician' && (
-        <div className={`py-3 border-b ${
-          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-200'
-        }`}>
+        <div className={`py-3 border-b ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-200'
+          }`}>
           <div className="flex items-center justify-center px-4">
-            <button 
+            <button
               onClick={handleEditClick}
               disabled={loading}
-              className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${
-                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
-              }`}
+              className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
+                }`}
             >
-              <div 
+              <div
                 className="p-2 rounded-full transition-colors"
                 style={{
                   backgroundColor: loading ? (isDarkMode ? '#4b5563' : '#9ca3af') : (colorPalette?.primary || '#ea580c')
@@ -1196,28 +1180,25 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
               >
                 <Edit className="text-white" size={18} />
               </div>
-              <span className={`text-xs mt-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Edit</span>
+              <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Edit</span>
             </button>
           </div>
         </div>
       )}
 
       {error && (
-        <div className={`p-3 m-3 rounded ${
-          isDarkMode 
-            ? 'bg-red-900 bg-opacity-20 border border-red-700 text-red-400'
-            : 'bg-red-100 border border-red-300 text-red-700'
-        }`}>
+        <div className={`p-3 m-3 rounded ${isDarkMode
+          ? 'bg-red-900 bg-opacity-20 border border-red-700 text-red-400'
+          : 'bg-red-100 border border-red-300 text-red-700'
+          }`}>
           {error}
         </div>
       )}
-      
+
       <div className="flex-1 overflow-y-auto">
-        <div className={`max-w-2xl mx-auto py-6 px-4 ${
-          isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-        }`}>
+        <div className={`max-w-2xl mx-auto py-6 px-4 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+          }`}>
           <div className="space-y-4">
             {fieldOrder.map((fieldKey) => (
               <React.Fragment key={fieldKey}>
