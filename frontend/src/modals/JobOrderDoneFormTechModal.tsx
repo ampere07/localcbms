@@ -1432,109 +1432,83 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         const validItems = orderItems.filter(item => {
           const quantity = parseInt(item.quantity);
           const isValid = item.itemId && item.itemId.trim() !== '' && !isNaN(quantity) && quantity > 0;
-
           return isValid;
         });
 
+        console.log('[SAVE ITEMS] Valid items found:', validItems.length, validItems);
+
         if (validItems.length > 0) {
           try {
+            // Ensure we have a numeric ID
+            const numericJobOrderId = parseInt((jobOrderData.JobOrder_ID || jobOrderData.id || 0).toString());
+            console.log('[SAVE ITEMS] Using Job Order ID:', numericJobOrderId);
+
+            if (!numericJobOrderId || isNaN(numericJobOrderId)) {
+              throw new Error('Invalid Job Order ID for items saving');
+            }
+
             // Get existing items from database
-            const existingItemsResponse = await apiClient.get<{ success: boolean; data: any[] }>(`/job-order-items?job_order_id=${jobOrderId}`);
+            const existingItemsResponse = await apiClient.get<{ success: boolean; data: any[] }>(`/job-order-items?job_order_id=${numericJobOrderId}`);
 
             if (existingItemsResponse.data.success && Array.isArray(existingItemsResponse.data.data)) {
               const existingItems = existingItemsResponse.data.data;
+              console.log('[SAVE ITEMS] Existing items count:', existingItems.length);
 
-              console.log('[SAVE ITEMS] Existing items from database:', existingItems);
-
-              // Create a map of existing items by item_name for quick lookup
               const existingItemsMap = new Map();
               existingItems.forEach((item: any) => {
                 existingItemsMap.set(item.item_name, item);
               });
 
-              console.log('[SAVE ITEMS] Valid items to process:', validItems);
-
-              // Track which items were processed for updates
+              const itemsToUpdate = [];
+              const itemsToCreate = [];
               const processedItemNames = new Set<string>();
 
-              // Update or create items
               for (const item of validItems) {
-                const existingItem = existingItemsMap.get(item.itemId);
                 processedItemNames.add(item.itemId);
+                const existingItem = existingItemsMap.get(item.itemId);
 
                 if (existingItem) {
-                  // Update existing item
-                  console.log(`[SAVE ITEMS] Updating item: ${item.itemId} (ID: ${existingItem.id})`);
-                  try {
-                    const updateResult = await apiClient.put(`/job-order-items/${existingItem.id}`, {
-                      quantity: parseInt(item.quantity)
-                    });
-                    console.log(`[SAVE ITEMS] Update successful for ${item.itemId}:`, updateResult.data);
-                  } catch (updateErr: any) {
-                    console.error('Failed to update item:', updateErr);
-                    saveMessages.push({
-                      type: 'warning',
-                      text: `Failed to update item ${item.itemId}: ${updateErr.message || 'Unknown error'}`
-                    });
-                  }
+                  itemsToUpdate.push({ id: existingItem.id, item_name: item.itemId, quantity: parseInt(item.quantity) });
                 } else {
-                  // Create new item
-                  console.log(`[SAVE ITEMS] Creating new item: ${item.itemId}`);
-                  try {
-                    const createResult = await apiClient.post('/job-order-items', {
-                      job_order_id: parseInt(jobOrderId.toString()),
-                      item_name: item.itemId,
-                      quantity: parseInt(item.quantity)
-                    });
-                    console.log(`[SAVE ITEMS] Create successful for ${item.itemId}:`, createResult.data);
-                  } catch (createErr: any) {
-                    console.error('Failed to create item:', createErr);
-                    saveMessages.push({
-                      type: 'warning',
-                      text: `Failed to create item ${item.itemId}: ${createErr.message || 'Unknown error'}`
-                    });
-                  }
+                  itemsToCreate.push({ job_order_id: numericJobOrderId, item_name: item.itemId, quantity: parseInt(item.quantity) });
                 }
               }
 
-              // Delete items that are no longer in the form
-              console.log('[SAVE ITEMS] Checking for items to delete...');
+              // Update existing items
+              for (const item of itemsToUpdate) {
+                console.log(`[SAVE ITEMS] Updating: ${item.item_name}`, item);
+                await apiClient.put(`/job-order-items/${item.id}`, { quantity: item.quantity });
+              }
+
+              // Create new items in batch
+              if (itemsToCreate.length > 0) {
+                console.log('[SAVE ITEMS] Batch creating:', itemsToCreate);
+                await apiClient.post('/job-order-items', { items: itemsToCreate });
+              }
+
+              // Delete removed items
               for (const existingItem of existingItems) {
                 if (!processedItemNames.has(existingItem.item_name)) {
-                  console.log(`[SAVE ITEMS] Deleting removed item: ${existingItem.item_name} (ID: ${existingItem.id})`);
-                  try {
-                    await apiClient.delete(`/job-order-items/${existingItem.id}`);
-                    console.log(`[SAVE ITEMS] Delete successful for ${existingItem.item_name}`);
-                  } catch (deleteErr: any) {
-                    console.error('[SAVE ITEMS] Failed to delete item:', deleteErr);
-                  }
+                  console.log(`[SAVE ITEMS] Deleting removed item: ${existingItem.item_name}`);
+                  await apiClient.delete(`/job-order-items/${existingItem.id}`);
                 }
               }
-              console.log('[SAVE ITEMS] All items processed successfully');
             } else {
-              // No existing items, create all new items
-              for (const item of validItems) {
-                try {
-                  await apiClient.post('/job-order-items', {
-                    job_order_id: parseInt(jobOrderId.toString()),
-                    item_name: item.itemId,
-                    quantity: parseInt(item.quantity)
-                  });
-                } catch (createErr: any) {
-                  console.error('Failed to create item:', createErr);
-                  saveMessages.push({
-                    type: 'warning',
-                    text: `Failed to create item ${item.itemId}: ${createErr.message || 'Unknown error'}`
-                  });
-                }
-              }
+              // Fallback: Create all as new if GET failed or returned no success
+              const itemsToCreate = validItems.map(item => ({
+                job_order_id: numericJobOrderId,
+                item_name: item.itemId,
+                quantity: parseInt(item.quantity)
+              }));
+              console.log('[SAVE ITEMS] Fallback batch creation:', itemsToCreate);
+              await apiClient.post('/job-order-items', { items: itemsToCreate });
             }
+            console.log('[SAVE ITEMS] Items processing completed successfully');
           } catch (itemsError: any) {
-            const errorMsg = itemsError.response?.data?.message || itemsError.message || 'Unknown error';
-            console.error('Items operation failed:', errorMsg);
+            console.error('[SAVE ITEMS] ERROR:', itemsError);
             saveMessages.push({
               type: 'warning',
-              text: `Items operation warning: ${errorMsg}`
+              text: `Items saving warning: ${itemsError.message || 'Check connection'}`
             });
           }
         }
