@@ -21,4 +21,9 @@ class BillingStatus extends Model
     {
         return $this->hasMany(BillingAccount::class, 'billing_status_id');
     }
+
+    public function jobOrders()
+    {
+        return $this->hasMany(JobOrder::class, 'billing_status_id');
+    }
 }

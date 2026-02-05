@@ -28,6 +28,7 @@ class BillingController extends Controller
                         'Billing_Status_ID' => $billingAccount->billing_status_id,
                         'Billing_Status_Name' => $billingAccount->billingStatus ? $billingAccount->billingStatus->status_name : null,
                         'Account_Balance' => $billingAccount->account_balance,
+                        'account_balance' => $billingAccount->account_balance,
                         'Balance_Update_Date' => $billingAccount->balance_update_date ? $billingAccount->balance_update_date->format('Y-m-d H:i:s') : null,
                         
                         'First_Name' => $customer ? $customer->first_name : null,
@@ -62,7 +63,7 @@ class BillingController extends Controller
                         'LCPNAP' => $technicalDetail ? $technicalDetail->lcpnap : null,
                         'Usage_Type' => $technicalDetail ? $technicalDetail->usage_type : null,
                         
-                        'Status' => $billingAccount->billingStatus ? $billingAccount->billingStatus->status_name : 'Inactive',
+                        'Status' => $billingAccount->billing_status_id == 1 ? 'Active' : ($billingAccount->billingStatus ? $billingAccount->billingStatus->status_name : 'Inactive'),
                         'Modified_By' => $customer ? $customer->updated_by : null,
                         'Modified_Date' => $billingAccount->updated_at ? $billingAccount->updated_at->format('Y-m-d H:i:s') : null,
                         
@@ -111,6 +112,7 @@ class BillingController extends Controller
                 'Billing_Status_ID' => $billingAccount->billing_status_id,
                 'Billing_Status_Name' => $billingAccount->billingStatus ? $billingAccount->billingStatus->status_name : null,
                 'Account_Balance' => $billingAccount->account_balance,
+                'account_balance' => $billingAccount->account_balance,
                 'Balance_Update_Date' => $billingAccount->balance_update_date ? $billingAccount->balance_update_date->format('Y-m-d H:i:s') : null,
                 
                 'First_Name' => $customer ? $customer->first_name : null,
@@ -145,7 +147,7 @@ class BillingController extends Controller
                 'LCPNAP' => $technicalDetail ? $technicalDetail->lcpnap : null,
                 'Usage_Type' => $technicalDetail ? $technicalDetail->usage_type : null,
                 
-                'Status' => $billingAccount->billingStatus ? $billingAccount->billingStatus->status_name : 'Inactive',
+                'Status' => $billingAccount->billing_status_id == 1 ? 'Active' : ($billingAccount->billingStatus ? $billingAccount->billingStatus->status_name : 'Inactive'),
                 'Modified_By' => $customer ? $customer->updated_by : null,
                 'Modified_Date' => $billingAccount->updated_at ? $billingAccount->updated_at->format('Y-m-d H:i:s') : null,
                 

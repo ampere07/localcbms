@@ -742,7 +742,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
           (record.address ? (record.address.length > 25 ? `${record.address.substring(0, 25)}...` : record.address) : '-');
       case 'computedStatus':
         return (record as any).computedStatus ||
-          `${record.status || 'Inactive'} | P ${record.balance.toFixed(0)}`;
+          `${record.status || 'Inactive'} | P ${record.balance.toFixed(2)}`;
       case 'computedAccountNo':
         return (record as any).computedAccountNo ||
           `${record.applicationId} | ${record.customerName}${record.address ? (' | ' + record.address.substring(0, 10) + '...') : ''}`;

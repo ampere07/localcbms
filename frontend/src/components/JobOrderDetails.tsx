@@ -440,7 +440,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     const billingStatusId = jobOrder.billing_status_id || jobOrder.Billing_Status_ID;
     const isAdministrator = userRole === 'administrator';
 
-    return onsiteStatus === 'done' && billingStatusId === 1 && isAdministrator;
+    return onsiteStatus === 'done' && billingStatusId !== 1 && isAdministrator;
   };
 
   const handleStatusUpdate = async (newStatus: string) => {

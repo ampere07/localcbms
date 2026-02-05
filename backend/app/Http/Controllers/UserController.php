@@ -22,6 +22,10 @@ class UserController extends Controller
                     $q->where('role_name', 'LIKE', '%' . $roleName . '%');
                 });
             }
+
+            if ($request->has('role_id')) {
+                $query->where('role_id', $request->input('role_id'));
+            }
             
             $users = $query->get();
             return response()->json([

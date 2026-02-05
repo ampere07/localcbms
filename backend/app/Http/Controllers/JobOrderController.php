@@ -262,7 +262,7 @@ class JobOrderController extends Controller
             
             // Set default values if not provided
             if (!isset($data['billing_status_id'])) {
-                $data['billing_status_id'] = 1; // Default to pending/initial status
+                $data['billing_status_id'] = 2; // Default to pending/initial status (assuming 1 is Active)
             }
             
             if (!isset($data['onsite_status'])) {
@@ -762,7 +762,7 @@ class JobOrderController extends Controller
                 'account_balance' => $installationFee,
                 'balance_update_date' => now(),
                 'billing_day' => $jobOrder->billing_day,
-                'billing_status_id' => 2,
+                'billing_status_id' => 1,
                 'created_by' => $defaultUserId,
                 'updated_by' => $defaultUserId,
             ]);
@@ -812,11 +812,7 @@ class JobOrderController extends Controller
                 'updated_by' => $defaultUserId,
             ]);
 
-            OnlineStatus::create([
-                'account_id' => $billingAccount->id,
-                'account_no' => $accountNumber,
-                'username' => $usernameForTechnical,
-            ]);
+
 
             // Generate PPPoE credentials using pattern-based service
             \Log::info('=== STARTING PPPOE CREDENTIAL GENERATION ===', [
@@ -858,6 +854,13 @@ class JobOrderController extends Controller
             if (empty($pppoePassword)) {
                 throw new \Exception('Failed to generate PPPoE password');
             }
+
+            OnlineStatus::create([
+                'account_id' => $billingAccount->id,
+                'account_no' => $accountNumber,
+                'username' => $pppoeUsername,
+                'session_status' => '',
+            ]);
             
             \Log::info('PPPoE credentials generated successfully', [
                 'job_order_id' => $id,
@@ -870,7 +873,7 @@ class JobOrderController extends Controller
             ]);
 
             $jobOrder->update([
-                'billing_status_id' => 2,
+                'billing_status_id' => 1,
                 'account_id' => $billingAccount->id,
                 'pppoe_username' => $pppoeUsername,
                 'pppoe_password' => $pppoePassword,
