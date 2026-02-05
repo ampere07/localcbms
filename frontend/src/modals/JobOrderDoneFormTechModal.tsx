@@ -8,7 +8,7 @@ import { routerModelService, RouterModel } from '../services/routerModelService'
 import { getAllPorts, Port } from '../services/portService';
 import { getAllLCPNAPs, LCPNAP } from '../services/lcpnapService';
 import { getAllVLANs, VLAN } from '../services/vlanService';
-import { getAllGroups, Group } from '../services/groupService';
+
 import { getAllUsageTypes, UsageType } from '../services/usageTypeService';
 import { getAllInventoryItems, InventoryItem } from '../services/inventoryItemService';
 import { createJobOrderItems, JobOrderItem, deleteJobOrderItems } from '../services/jobOrderItemService';
@@ -43,7 +43,7 @@ interface JobOrderDoneFormData {
   connectionType: string;
   routerModel: string;
   modemSN: string;
-  groupName: string;
+
   region: string;
   city: string;
   barangay: string;
@@ -138,7 +138,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     connectionType: '',
     routerModel: '',
     modemSN: '',
-    groupName: '',
+
     region: '',
     city: '',
     barangay: '',
@@ -182,13 +182,10 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
   const [lcpnaps, setLcpnaps] = useState<LCPNAP[]>([]);
   const [ports, setPorts] = useState<Port[]>([]);
   const [vlans, setVlans] = useState<VLAN[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
+
   const [usageTypes, setUsageTypes] = useState<UsageType[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [regions, setRegions] = useState<Region[]>([]);
-  const [allCities, setAllCities] = useState<City[]>([]);
-  const [allBarangays, setAllBarangays] = useState<Barangay[]>([]);
-  const [allLocations, setAllLocations] = useState<LocationDetail[]>([]);
+
   const [orderItems, setOrderItems] = useState<OrderItem[]>([{ itemId: '', quantity: '' }]);
   const [imagePreviews, setImagePreviews] = useState<{
     signedContractImage: string | null;
@@ -568,23 +565,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     fetchVlans();
   }, [isOpen]);
 
-  useEffect(() => {
-    const fetchGroups = async () => {
-      if (isOpen) {
-        try {
-          const response = await getAllGroups();
-          if (response.success && Array.isArray(response.data)) {
-            setGroups(response.data);
-          } else {
-            setGroups([]);
-          }
-        } catch (error) {
-          setGroups([]);
-        }
-      }
-    };
-    fetchGroups();
-  }, [isOpen]);
+
 
   useEffect(() => {
     const fetchUsageTypes = async () => {
@@ -626,85 +607,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     fetchInventoryItems();
   }, [isOpen]);
 
-  useEffect(() => {
-    const fetchRegions = async () => {
-      if (isOpen) {
-        try {
-          const fetchedRegions = await getRegions();
 
-          if (Array.isArray(fetchedRegions)) {
-            setRegions(fetchedRegions);
-          } else {
-            setRegions([]);
-          }
-        } catch (error) {
-          setRegions([]);
-        }
-      }
-    };
-
-    fetchRegions();
-  }, [isOpen]);
-
-  useEffect(() => {
-    const fetchAllCities = async () => {
-      if (isOpen) {
-        try {
-          const fetchedCities = await getCities();
-
-          if (Array.isArray(fetchedCities)) {
-            setAllCities(fetchedCities);
-          } else {
-            setAllCities([]);
-          }
-        } catch (error) {
-          setAllCities([]);
-        }
-      }
-    };
-
-    fetchAllCities();
-  }, [isOpen]);
-
-  useEffect(() => {
-    const fetchAllBarangays = async () => {
-      if (isOpen) {
-        try {
-          const response = await barangayService.getAll();
-
-          if (response.success && Array.isArray(response.data)) {
-            setAllBarangays(response.data);
-          } else {
-            setAllBarangays([]);
-          }
-        } catch (error) {
-          setAllBarangays([]);
-        }
-      }
-    };
-
-    fetchAllBarangays();
-  }, [isOpen]);
-
-  useEffect(() => {
-    const fetchAllLocations = async () => {
-      if (isOpen) {
-        try {
-          const response = await locationDetailService.getAll();
-
-          if (response.success && Array.isArray(response.data)) {
-            setAllLocations(response.data);
-          } else {
-            setAllLocations([]);
-          }
-        } catch (error) {
-          setAllLocations([]);
-        }
-      }
-    };
-
-    fetchAllLocations();
-  }, [isOpen]);
 
   useEffect(() => {
     const fetchTechnicians = async () => {
@@ -813,7 +716,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 connectionType: getValue(jobOrderData.Connection_Type || jobOrderData.connection_type, 'connectionType'),
                 routerModel: getValue(jobOrderData.Router_Model || jobOrderData.router_model, 'routerModel'),
                 modemSN: getValue(jobOrderData.Modem_SN || jobOrderData.modem_sn, 'modemSN'),
-                groupName: getValue(jobOrderData.group_name || jobOrderData.Group_Name, 'groupName'),
+
                 lcpnap: getValue(jobOrderData.LCPNAP || jobOrderData.lcpnap, 'lcpnap'),
                 port: getValue(jobOrderData.PORT || jobOrderData.port, 'port'),
                 vlan: getValue(jobOrderData.VLAN || jobOrderData.vlan, 'vlan'),
@@ -872,7 +775,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
           connectionType: getValue(jobOrderData.Connection_Type || jobOrderData.connection_type, 'connectionType'),
           routerModel: getValue(jobOrderData.Router_Model || jobOrderData.router_model, 'routerModel'),
           modemSN: getValue(jobOrderData.Modem_SN || jobOrderData.modem_sn, 'modemSN'),
-          groupName: getValue(jobOrderData.group_name || jobOrderData.Group_Name, 'groupName'),
+
           lcpnap: getValue(jobOrderData.LCPNAP || jobOrderData.lcpnap, 'lcpnap'),
           port: getValue(jobOrderData.PORT || jobOrderData.port, 'port'),
           vlan: getValue(jobOrderData.VLAN || jobOrderData.vlan, 'vlan'),
@@ -1038,7 +941,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
 
     if (!formData.choosePlan.trim()) newErrors.choosePlan = 'Choose Plan is required';
     if (!formData.onsiteStatus.trim()) newErrors.onsiteStatus = 'Onsite Status is required';
-    if (!formData.groupName.trim()) newErrors.groupName = 'Group is required';
+
     if (!formData.region.trim()) newErrors.region = 'Region is required';
     if (!formData.city.trim()) newErrors.city = 'City is required';
     if (!formData.barangay.trim()) newErrors.barangay = 'Barangay is required';
@@ -1214,7 +1117,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         jobOrderUpdateData.onsite_remarks = updatedFormData.onsiteRemarks;
         jobOrderUpdateData.address_coordinates = updatedFormData.addressCoordinates || '';
         jobOrderUpdateData.onsite_status = 'Done';
-        jobOrderUpdateData.group_name = updatedFormData.groupName;
+
 
         console.log('[SAVE DEBUG] Address Coordinates:', updatedFormData.addressCoordinates);
 
@@ -1379,7 +1282,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
 
       if (updatedFormData.onsiteStatus === 'In Progress') {
         jobOrderUpdateData.onsite_status = 'In Progress';
-        jobOrderUpdateData.group_name = updatedFormData.groupName;
+
       }
 
       console.log('[API CALL] ========================================');
@@ -1603,30 +1506,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
 
   const fullName = `${jobOrderData?.First_Name || jobOrderData?.first_name || ''} ${jobOrderData?.Middle_Initial || jobOrderData?.middle_initial || ''} ${jobOrderData?.Last_Name || jobOrderData?.last_name || ''}`.trim();
 
-  const getFilteredCities = () => {
-    if (!formData.region) return [];
-    const selectedRegion = regions.find(reg => reg.name === formData.region);
-    if (!selectedRegion) return [];
-    return allCities.filter(city => city.region_id === selectedRegion.id);
-  };
 
-  const getFilteredBarangays = () => {
-    if (!formData.city) return [];
-    const selectedCity = allCities.find(city => city.name === formData.city);
-    if (!selectedCity) return [];
-    return allBarangays.filter(brgy => brgy.city_id === selectedCity.id);
-  };
-
-  const getFilteredLocations = () => {
-    if (!formData.barangay) return [];
-    const selectedBarangay = allBarangays.find(brgy => brgy.barangay === formData.barangay);
-    if (!selectedBarangay) return [];
-    return allLocations.filter(loc => loc.barangay_id === selectedBarangay.id);
-  };
-
-  const filteredCities = getFilteredCities();
-  const filteredBarangays = getFilteredBarangays();
-  const filteredLocations = getFilteredLocations();
 
   return (
     <>
@@ -1727,10 +1607,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
           <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
             }`}>
             <div className="flex items-center space-x-3">
-              <button onClick={onClose} className={`${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                }`}>
-                <X size={24} />
-              </button>
+
               <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>{fullName}</h2>
             </div>
@@ -1842,169 +1719,62 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
               )}
             </div>
 
+
+
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Affiliate<span className="text-red-500">*</span></label>
-              <div className="relative">
-                <select value={formData.groupName} onChange={(e) => handleInputChange('groupName', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.groupName ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                  <option value="">Select Affiliate</option>
-                  {formData.groupName && !groups.some(g => g.group_name === formData.groupName) && (
-                    <option value={formData.groupName}>{formData.groupName}</option>
-                  )}
-                  {groups.map((group) => (
-                    <option key={group.id} value={group.group_name}>
-                      {group.group_name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-              </div>
-              {errors.groupName && (
-                <div className="flex items-center mt-1">
-                  <div
-                    className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                  >!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.groupName}</p>
-                </div>
-              )}
+                }`}>Region</label>
+              <input
+                type="text"
+                value={formData.region}
+                readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none cursor-not-allowed opacity-75 ${isDarkMode
+                  ? 'bg-gray-700 border-gray-600 text-gray-300'
+                  : 'bg-gray-100 border-gray-300 text-gray-600'
+                  }`}
+              />
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Region<span className="text-red-500">*</span></label>
-              <div className="relative">
-                <select value={formData.region} onChange={(e) => handleInputChange('region', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.region ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                  <option value="">Select Region</option>
-                  {formData.region && !regions.some(reg => reg.name === formData.region) && (
-                    <option value={formData.region}>{formData.region}</option>
-                  )}
-                  {regions.map((region) => (
-                    <option key={region.id} value={region.name}>
-                      {region.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-              </div>
-              {errors.region && (
-                <div className="flex items-center mt-1">
-                  <div
-                    className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                  >!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.region}</p>
-                </div>
-              )}
+                }`}>City</label>
+              <input
+                type="text"
+                value={formData.city}
+                readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none cursor-not-allowed opacity-75 ${isDarkMode
+                  ? 'bg-gray-700 border-gray-600 text-gray-300'
+                  : 'bg-gray-100 border-gray-300 text-gray-600'
+                  }`}
+              />
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>City<span className="text-red-500">*</span></label>
-              <div className="relative">
-                <select
-                  value={formData.city}
-                  onChange={(e) => handleInputChange('city', e.target.value)}
-                  disabled={!formData.region}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    } ${errors.city ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}
-                >
-                  <option value="">{formData.region ? 'Select City' : 'Select Region First'}</option>
-                  {formData.city && !filteredCities.some(city => city.name === formData.city) && (
-                    <option value={formData.city}>{formData.city}</option>
-                  )}
-                  {filteredCities.map((city) => (
-                    <option key={city.id} value={city.name}>
-                      {city.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-              </div>
-              {errors.city && (
-                <div className="flex items-center mt-1">
-                  <div
-                    className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                  >!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.city}</p>
-                </div>
-              )}
+                }`}>Barangay</label>
+              <input
+                type="text"
+                value={formData.barangay}
+                readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none cursor-not-allowed opacity-75 ${isDarkMode
+                  ? 'bg-gray-700 border-gray-600 text-gray-300'
+                  : 'bg-gray-100 border-gray-300 text-gray-600'
+                  }`}
+              />
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Barangay<span className="text-red-500">*</span></label>
-              <div className="relative">
-                <select
-                  value={formData.barangay}
-                  onChange={(e) => handleInputChange('barangay', e.target.value)}
-                  disabled={!formData.city}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    } ${errors.barangay ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}
-                >
-                  <option value="">{formData.city ? 'Select Barangay' : 'Select City First'}</option>
-                  {formData.barangay && !filteredBarangays.some(brgy => brgy.barangay === formData.barangay) && (
-                    <option value={formData.barangay}>{formData.barangay}</option>
-                  )}
-                  {filteredBarangays.map((barangay) => (
-                    <option key={barangay.id} value={barangay.barangay}>
-                      {barangay.barangay}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-              </div>
-              {errors.barangay && (
-                <div className="flex items-center mt-1">
-                  <div
-                    className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                  >!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.barangay}</p>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Location<span className="text-red-500">*</span></label>
-              <div className="relative">
-                <select
-                  value={formData.location}
-                  onChange={(e) => handleInputChange('location', e.target.value)}
-                  disabled={!formData.barangay}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    } ${errors.location ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}
-                >
-                  <option value="">{formData.barangay ? 'Select Location' : 'Select Barangay First'}</option>
-                  {formData.location && !filteredLocations.some(loc => loc.location_name === formData.location) && (
-                    <option value={formData.location}>{formData.location}</option>
-                  )}
-                  {filteredLocations.map((location) => (
-                    <option key={location.id} value={location.location_name}>
-                      {location.location_name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-              </div>
-              {errors.location && (
-                <div className="flex items-center mt-1">
-                  <div
-                    className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                  >!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.location}</p>
-                </div>
-              )}
+                }`}>Location</label>
+              <input
+                type="text"
+                value={formData.location}
+                readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none cursor-not-allowed opacity-75 ${isDarkMode
+                  ? 'bg-gray-700 border-gray-600 text-gray-300'
+                  : 'bg-gray-100 border-gray-300 text-gray-600'
+                  }`}
+              />
             </div>
 
             {formData.onsiteStatus === 'Done' && (

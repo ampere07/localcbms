@@ -126,7 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       allowedRoles: ['administrator', 'technician'],
       children: [
         { id: 'application-management', label: 'Application', icon: FileCheck, allowedRoles: ['administrator'] },
-        { id: 'application-visit', label: 'Application Visit', icon: MapPin, allowedRoles: ['administrator', 'technician'] },
+        // { id: 'application-visit', label: 'Application Visit', icon: MapPin, allowedRoles: ['administrator', 'technician'] },
         { id: 'promo-list', label: 'Promo', icon: Tag, allowedRoles: ['administrator'] },
         { id: 'plan-list', label: 'Plan', icon: List, allowedRoles: ['administrator'] },
         { id: 'location-list', label: 'Location', icon: MapPin, allowedRoles: ['administrator'] },
@@ -308,9 +308,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   };
 
   return (
-    <div className={`${isCollapsed ? 'w-16' : 'w-64'
+    <div className={`${isCollapsed ? 'w-0 border-none' : 'w-64 border-r'
       } h-full ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
-      } border-r flex flex-col transition-all duration-300 ease-in-out overflow-hidden`}>
+      } flex flex-col transition-all duration-300 ease-in-out overflow-hidden`}>
       <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden scrollbar-none">
         {filteredMenuItems.map(item => renderMenuItem(item))}
       </nav>

@@ -30,7 +30,7 @@ interface ModalConfig {
 
 interface JOFormData {
   timestamp: string;
-  groupName: string;
+
   status: string;
   referredBy: string;
   firstName: string;
@@ -83,7 +83,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
 
   const [formData, setFormData] = useState<JOFormData>({
     timestamp: new Date().toLocaleString('sv-SE').replace(' ', ' '),
-    groupName: '',
+
     status: '',
     referredBy: '',
     firstName: '',
@@ -486,9 +486,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
       newErrors.timestamp = 'Timestamp is required';
     }
 
-    if (!formData.groupName.trim()) {
-      newErrors.groupName = 'Group is required';
-    }
+
 
     if (!formData.status.trim()) {
       newErrors.status = 'Status is required';
@@ -601,7 +599,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
       onsite_remarks: toNullIfEmpty(data.remarks),
       contract_link: null,
       username: null,
-      group_name: toNullIfEmpty(data.groupName),
+      group_name: null,
       house_front_picture_url: applicationData?.house_front_picture_url || null,
       installation_landmark: toNullIfEmpty(data.installationLandmark),
       created_by_user_email: data.modifiedBy,
@@ -662,7 +660,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
 
       try {
         const applicationUpdateData: any = {
-          promo: updatedFormData.promo || null
+          promo: updatedFormData.promo || null,
+          status: 'In Progress'
         };
 
         await updateApplication(applicationData.id.toString(), applicationUpdateData);
@@ -762,7 +761,10 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
         <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
           <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'
             }`}>
-            <Loader2 className="w-20 h-20 text-orange-500 animate-spin" />
+            <Loader2
+              className="w-20 h-20 animate-spin"
+              style={{ color: colorPalette?.primary || '#ea580c' }}
+            />
             <div className="text-center">
               <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>{loadingPercentage}%</p>
@@ -837,36 +839,6 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     }`} size={20} />
                 </div>
                 {errors.timestamp && <p className="text-red-500 text-xs mt-1">{errors.timestamp}</p>}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                  Affiliate<span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={formData.groupName}
-                    onChange={(e) => handleInputChange('groupName', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
-                      } ${errors.groupName ? 'border-red-500' : ''}`}
-                  >
-                    <option value="">Select Affiliate</option>
-                    {formData.groupName && !groups.some(g => g.group_name === formData.groupName) && (
-                      <option value={formData.groupName}>{formData.groupName}</option>
-                    )}
-                    {groups.map((group) => (
-                      <option key={group.id} value={group.group_name}>
-                        {group.group_name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                    }`} size={20} />
-                </div>
-                {errors.groupName && <p className="text-red-500 text-xs mt-1">{errors.groupName}</p>}
               </div>
 
               <div>
@@ -1471,7 +1443,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
             {modal.type === 'loading' ? (
               <div className="text-center">
                 <div className="flex justify-center mb-4">
-                  <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-orange-500"></div>
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#ea580c' }}></div>
                 </div>
                 <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}>{modal.title}</h3>

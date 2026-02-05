@@ -6,12 +6,11 @@ import { updateApplication } from '../services/applicationService';
 import { userService } from '../services/userService';
 import { planService, Plan } from '../services/planService';
 import { routerModelService, RouterModel } from '../services/routerModelService';
-import { getAllGroups, Group } from '../services/groupService';
+import { statusRemarksService, StatusRemark } from '../services/statusRemarksService';
 import { getAllLCPNAPs, LCPNAP } from '../services/lcpnapService';
 import { getAllPorts, Port } from '../services/portService';
 import { getAllVLANs, VLAN } from '../services/vlanService';
 import { getAllUsageTypes, UsageType } from '../services/usageTypeService';
-import { statusRemarksService, StatusRemark } from '../services/statusRemarksService';
 import { getRegions, getCities, City } from '../services/cityService';
 import { barangayService, Barangay } from '../services/barangayService';
 import { locationDetailService, LocationDetail } from '../services/locationDetailService';
@@ -206,7 +205,6 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([{ itemId: '', quantity: '' }]);
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
   const [routerModels, setRouterModels] = useState<RouterModel[]>([]);
   const [vlans, setVlans] = useState<VLAN[]>([]);
   const [usageTypes, setUsageTypes] = useState<UsageType[]>([]);
@@ -390,26 +388,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
     fetchPlans();
   }, [isOpen]);
 
-  useEffect(() => {
-    const fetchGroups = async () => {
-      if (isOpen) {
-        try {
-          const response = await getAllGroups();
 
-          if (response.success && Array.isArray(response.data)) {
-            setGroups(response.data);
-          } else {
-            setGroups([]);
-          }
-        } catch (error) {
-          console.error('Error fetching Groups:', error);
-          setGroups([]);
-        }
-      }
-    };
-
-    fetchGroups();
-  }, [isOpen]);
 
   useEffect(() => {
     const fetchRouterModels = async () => {
@@ -751,7 +730,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
                 connectionType: jobOrderData.Connection_Type || jobOrderData.connection_type || '',
                 routerModel: jobOrderData.Router_Model || jobOrderData.router_model || '',
                 modemSN: jobOrderData.Modem_SN || jobOrderData.modem_sn || '',
-                groupName: appData.group_name || jobOrderData.group_name || jobOrderData.Group_Name || jobOrderData.Group || jobOrderData.group || '',
+
                 lcpnap: jobOrderData.LCPNAP || jobOrderData.lcpnap || '',
                 port: jobOrderData.PORT || jobOrderData.port || '',
                 vlan: jobOrderData.VLAN || jobOrderData.vlan || '',
@@ -801,7 +780,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
           connectionType: jobOrderData.Connection_Type || jobOrderData.connection_type || '',
           routerModel: jobOrderData.Router_Model || jobOrderData.router_model || '',
           modemSN: jobOrderData.Modem_SN || jobOrderData.modem_sn || '',
-          groupName: jobOrderData.Group || jobOrderData.group || '',
+
           lcpnap: jobOrderData.LCPNAP || jobOrderData.lcpnap || '',
           port: jobOrderData.PORT || jobOrderData.port || '',
           vlan: jobOrderData.VLAN || jobOrderData.vlan || '',
@@ -1020,7 +999,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
     if (!formData.location.trim()) newErrors.location = 'Location is required';
     if (!formData.choosePlan.trim()) newErrors.choosePlan = 'Choose Plan is required';
     if (!formData.status.trim()) newErrors.status = 'Status is required';
-    if (!formData.groupName.trim()) newErrors.groupName = 'Group is required';
+
     if (!formData.username.trim()) newErrors.username = 'Username is required';
 
     if (formData.status === 'Confirmed') {
@@ -1360,10 +1339,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
           <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
             }`}>
             <div className="flex items-center space-x-3">
-              <button onClick={onClose} className={`transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                }`}>
-                <X size={24} />
-              </button>
+
               <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>
                 {formData.firstName} {formData.middleInitial} {formData.lastName}
@@ -1778,28 +1754,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
               </>
             )}
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Affiliate<span className="text-red-500">*</span></label>
-              <div className="relative">
-                <select value={formData.groupName} onChange={(e) => handleInputChange('groupName', e.target.value)} className={`w-full px-3 py-2 border rounded appearance-none ${errors.groupName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}>
-                  <option value="">Select Affiliate</option>
-                  {formData.groupName && !groups.some(g => g.group_name === formData.groupName) && (
-                    <option value={formData.groupName}>{formData.groupName} (Current)</option>
-                  )}
-                  {groups.map((group) => (
-                    <option key={group.id} value={group.group_name}>
-                      {group.group_name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-              </div>
-              {errors.groupName && <p className="text-red-500 text-xs mt-1">{errors.groupName}</p>}
-            </div>
+
 
             {formData.status === 'Confirmed' && formData.onsiteStatus === 'Done' && formData.connectionType === 'Fiber' && (
               <>

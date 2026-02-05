@@ -1583,7 +1583,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           fullName: billingRecord.customerName,
           contactNumber: billingRecord.contactNumber || '',
           plan: billingRecord.plan || '',
-          provider: billingRecord.provider || '',
           username: billingRecord.username || '',
           emailAddress: billingRecord.emailAddress || billingRecord.email || ''
         }}

@@ -5,7 +5,7 @@ import { DCNoticeProvider } from '../contexts/DCNoticeContext';
 import { StaggeredPaymentProvider } from '../contexts/StaggeredPaymentContext';
 import { DiscountProvider } from '../contexts/DiscountContext';
 import { ApplicationProvider } from '../contexts/ApplicationContext';
-import { ApplicationVisitProvider } from '../contexts/ApplicationVisitContext';
+// import { ApplicationVisitProvider } from '../contexts/ApplicationVisitContext';
 import { JobOrderProvider } from '../contexts/JobOrderContext';
 import { ServiceOrderProvider } from '../contexts/ServiceOrderContext';
 import DCNotice from './DCNotice';
@@ -34,7 +34,7 @@ import TransactionList from './TransactionList';
 import PaymentPortal from './PaymentPortal';
 import JobOrder from './JobOrder';
 import ServiceOrder from './ServiceOrder';
-import ApplicationVisit from './ApplicationVisit';
+// import ApplicationVisit from './ApplicationVisit';
 import LocationList from './LocationList';
 import PlanList from './PlanList';
 import PromoList from './PromoList';
@@ -232,8 +232,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 return <JobOrder />;
             case 'service-order':
                 return <ServiceOrder />;
-            case 'application-visit':
-                return <ApplicationVisit />;
+            // case 'application-visit':
+            //     return <ApplicationVisit />;
             case 'location-list':
                 return <LocationList />;
             case 'plan-list':
@@ -320,61 +320,61 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                                     <StaggeredPaymentProvider>
                                         <DiscountProvider>
                                             <ApplicationProvider>
-                                                <ApplicationVisitProvider>
-                                                    <JobOrderProvider>
-                                                        <ServiceOrderProvider>
-                                                            <div className={`h-screen flex flex-col overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-                                                                }`}>
-                                                                {/* Fixed Header */}
-                                                                <div className="flex-shrink-0">
-                                                                    <Header
-                                                                        onSearch={handleSearch}
-                                                                        onToggleSidebar={toggleSidebar}
-                                                                        onNavigate={handleSectionChange}
-                                                                        onLogout={onLogout}
-                                                                        activeSection={activeSection}
+                                                {/* <ApplicationVisitProvider> */}
+                                                <JobOrderProvider>
+                                                    <ServiceOrderProvider>
+                                                        <div className={`h-screen flex flex-col overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+                                                            }`}>
+                                                            {/* Fixed Header */}
+                                                            <div className="flex-shrink-0">
+                                                                <Header
+                                                                    onSearch={handleSearch}
+                                                                    onToggleSidebar={toggleSidebar}
+                                                                    onNavigate={handleSectionChange}
+                                                                    onLogout={onLogout}
+                                                                    activeSection={activeSection}
+                                                                />
+                                                            </div>
+
+                                                            {/* Main Content Area with Fixed Sidebar and Scrollable Content */}
+                                                            <div className="flex-1 flex overflow-hidden">
+                                                                {/* Mobile Overlay */}
+                                                                {isMobileMenuOpen && (
+                                                                    <div
+                                                                        className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+                                                                        onClick={closeMobileMenu}
                                                                     />
-                                                                </div>
+                                                                )}
 
-                                                                {/* Main Content Area with Fixed Sidebar and Scrollable Content */}
-                                                                <div className="flex-1 flex overflow-hidden">
-                                                                    {/* Mobile Overlay */}
-                                                                    {isMobileMenuOpen && (
-                                                                        <div
-                                                                            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-                                                                            onClick={closeMobileMenu}
-                                                                        />
-                                                                    )}
-
-                                                                    {/* Fixed Sidebar */}
-                                                                    {showSidebar && (
-                                                                        <div className={`flex-shrink-0 fixed md:relative z-50 transition-all duration-300 top-0 md:top-auto left-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-                                                                            } md:translate-x-0 h-screen md:h-auto`}>
-                                                                            <div className="h-full md:h-full">
-                                                                                <Sidebar
-                                                                                    activeSection={activeSection}
-                                                                                    onSectionChange={handleSectionChange}
-                                                                                    onLogout={onLogout}
-                                                                                    isCollapsed={sidebarCollapsed}
-                                                                                    userRole={userData?.role || ''}
-                                                                                    userEmail={userData?.email || ''}
-                                                                                />
-                                                                            </div>
+                                                                {/* Fixed Sidebar */}
+                                                                {showSidebar && (
+                                                                    <div className={`flex-shrink-0 fixed md:relative z-50 transition-all duration-300 top-0 md:top-auto left-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+                                                                        } md:translate-x-0 h-screen md:h-auto`}>
+                                                                        <div className="h-full md:h-full">
+                                                                            <Sidebar
+                                                                                activeSection={activeSection}
+                                                                                onSectionChange={handleSectionChange}
+                                                                                onLogout={onLogout}
+                                                                                isCollapsed={sidebarCollapsed}
+                                                                                userRole={userData?.role || ''}
+                                                                                userEmail={userData?.email || ''}
+                                                                            />
                                                                         </div>
-                                                                    )}
+                                                                    </div>
+                                                                )}
 
-                                                                    {/* Scrollable Content Area Only */}
-                                                                    <div className={`flex-1 overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-                                                                        }`}>
-                                                                        <div className="h-full overflow-y-auto">
-                                                                            {renderContent()}
-                                                                        </div>
+                                                                {/* Scrollable Content Area Only */}
+                                                                <div className={`flex-1 overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+                                                                    }`}>
+                                                                    <div className="h-full overflow-y-auto">
+                                                                        {renderContent()}
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        </ServiceOrderProvider>
-                                                    </JobOrderProvider>
-                                                </ApplicationVisitProvider>
+                                                        </div>
+                                                    </ServiceOrderProvider>
+                                                </JobOrderProvider>
+                                                {/* </ApplicationVisitProvider> */}
                                             </ApplicationProvider>
                                         </DiscountProvider>
                                     </StaggeredPaymentProvider>

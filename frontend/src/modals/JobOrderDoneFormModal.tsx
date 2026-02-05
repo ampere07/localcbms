@@ -9,10 +9,8 @@ import { routerModelService, RouterModel } from '../services/routerModelService'
 import { getAllPorts, Port } from '../services/portService';
 import { getAllLCPNAPs, LCPNAP } from '../services/lcpnapService';
 import { getAllVLANs, VLAN } from '../services/vlanService';
-import { getAllGroups, Group } from '../services/groupService';
 import { getAllUsageTypes, UsageType } from '../services/usageTypeService';
-import { getAllInventoryItems, InventoryItem } from '../services/inventoryItemService';
-import { createJobOrderItems, JobOrderItem } from '../services/jobOrderItemService';
+
 import { getRegions, getCities, City } from '../services/cityService';
 import { barangayService, Barangay } from '../services/barangayService';
 import { locationDetailService, LocationDetail } from '../services/locationDetailService';
@@ -72,7 +70,7 @@ interface JobOrderDoneFormData {
   contractLink: string;
   contractTemplate: string;
   assignedEmail: string;
-  itemName1: string;
+
   visit_by: string;
   visit_with: string;
   visit_with_other: string;
@@ -80,10 +78,7 @@ interface JobOrderDoneFormData {
   ip: string;
 }
 
-interface OrderItem {
-  itemId: string;
-  quantity: string;
-}
+
 
 const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
   isOpen,
@@ -189,7 +184,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
     contractLink: '',
     contractTemplate: '1',
     assignedEmail: '',
-    itemName1: '',
+
     visit_by: '',
     visit_with: '',
     visit_with_other: '',
@@ -205,14 +200,14 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
   const [lcpnaps, setLcpnaps] = useState<LCPNAP[]>([]);
   const [ports, setPorts] = useState<Port[]>([]);
   const [vlans, setVlans] = useState<VLAN[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
+
   const [usageTypes, setUsageTypes] = useState<UsageType[]>([]);
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+
   const [regions, setRegions] = useState<Region[]>([]);
   const [allCities, setAllCities] = useState<City[]>([]);
   const [allBarangays, setAllBarangays] = useState<Barangay[]>([]);
   const [allLocations, setAllLocations] = useState<LocationDetail[]>([]);
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([{ itemId: '', quantity: '' }]);
+
   const [imagePreviews, setImagePreviews] = useState<{
     signedContractImage: string | null;
     setupImage: string | null;
@@ -426,7 +421,6 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) {
-      setOrderItems([{ itemId: '', quantity: '' }]);
       Object.values(imagePreviews).forEach(url => {
         if (url && url.startsWith('blob:')) {
           URL.revokeObjectURL(url);
@@ -435,88 +429,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
     }
   }, [isOpen, imagePreviews]);
 
-  useEffect(() => {
-    const fetchJobOrderItems = async () => {
-      if (isOpen && jobOrderData) {
-        const jobOrderId = jobOrderData.id || jobOrderData.JobOrder_ID;
-        if (jobOrderId) {
-          try {
-            console.log('========== FETCHING JOB ORDER ITEMS ==========');
-            console.log('Fetching job order items for job order:', jobOrderId);
-            const response = await apiClient.get(`/job-order-items?job_order_id=${jobOrderId}`);
-            const data = response.data as { success: boolean; data: any[] };
 
-            console.log('Job Order Items Response:', data);
-
-            if (data.success && Array.isArray(data.data)) {
-              const items = data.data;
-              console.log('Loaded job order items from API:', items);
-
-              if (items.length > 0) {
-                const uniqueItems = new Map();
-
-                items.forEach((item: any) => {
-                  const key = item.item_name;
-                  if (uniqueItems.has(key)) {
-                    const existing = uniqueItems.get(key);
-                    uniqueItems.set(key, {
-                      itemId: item.item_name || '',
-                      quantity: (parseInt(existing.quantity) + parseInt(item.quantity || 0)).toString()
-                    });
-                  } else {
-                    uniqueItems.set(key, {
-                      itemId: item.item_name || '',
-                      quantity: item.quantity ? item.quantity.toString() : ''
-                    });
-                  }
-                });
-
-                const formattedItems = Array.from(uniqueItems.values());
-                formattedItems.push({ itemId: '', quantity: '' });
-
-                console.log('Formatted unique items:', formattedItems);
-                setOrderItems(formattedItems);
-                console.log('Set order items to:', formattedItems);
-              } else {
-                setOrderItems([{ itemId: '', quantity: '' }]);
-              }
-            }
-            console.log('============================================');
-          } catch (error) {
-            console.error('Error fetching job order items:', error);
-            setOrderItems([{ itemId: '', quantity: '' }]);
-          }
-        }
-      }
-    };
-
-    fetchJobOrderItems();
-  }, [isOpen, jobOrderData]);
-
-  useEffect(() => {
-    const fetchInventoryItems = async () => {
-      if (isOpen) {
-        try {
-          console.log('Loading inventory items from database...');
-          const response = await getAllInventoryItems();
-          console.log('Inventory Items API Response:', response);
-
-          if (response.success && Array.isArray(response.data)) {
-            setInventoryItems(response.data);
-            console.log('Loaded Inventory Items:', response.data.length);
-          } else {
-            console.warn('Unexpected Inventory Items response structure:', response);
-            setInventoryItems([]);
-          }
-        } catch (error) {
-          console.error('Error fetching Inventory Items:', error);
-          setInventoryItems([]);
-        }
-      }
-    };
-
-    fetchInventoryItems();
-  }, [isOpen]);
 
   useEffect(() => {
     const fetchRegions = async () => {
@@ -677,30 +590,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
     fetchVlans();
   }, [isOpen]);
 
-  useEffect(() => {
-    const fetchGroups = async () => {
-      if (isOpen) {
-        try {
-          console.log('Loading groups from database...');
-          const response = await getAllGroups();
-          console.log('Group API Response:', response);
 
-          if (response.success && Array.isArray(response.data)) {
-            setGroups(response.data);
-            console.log('Loaded Groups:', response.data.length);
-          } else {
-            console.warn('Unexpected Group response structure:', response);
-            setGroups([]);
-          }
-        } catch (error) {
-          console.error('Error fetching Groups:', error);
-          setGroups([]);
-        }
-      }
-    };
-
-    fetchGroups();
-  }, [isOpen]);
 
   useEffect(() => {
     const fetchUsageTypes = async () => {
@@ -836,7 +726,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
         contractLink: '',
         contractTemplate: '1',
         assignedEmail: '',
-        itemName1: '',
+
         visit_by: '',
         visit_with: '',
         visit_with_other: '',
@@ -896,7 +786,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
                 contractLink: jobOrderData.Contract_Link || jobOrderData.contract_link || '',
                 contractTemplate: (jobOrderData.Contract_Template || jobOrderData.contract_template || '1').toString(),
                 assignedEmail: jobOrderData.Assigned_Email || jobOrderData.assigned_email || '',
-                itemName1: jobOrderData.Item_Name_1 || jobOrderData.item_name_1 || '',
+
                 visit_by: jobOrderData.Visit_By || jobOrderData.visit_by || '',
                 visit_with: jobOrderData.Visit_With || jobOrderData.visit_with || '',
                 visit_with_other: jobOrderData.Visit_With_Other || jobOrderData.visit_with_other || '',
@@ -947,7 +837,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
           contractLink: jobOrderData.Contract_Link || jobOrderData.contract_link || '',
           contractTemplate: (jobOrderData.Contract_Template || jobOrderData.contract_template || '1').toString(),
           assignedEmail: jobOrderData.Assigned_Email || jobOrderData.assigned_email || '',
-          itemName1: jobOrderData.Item_Name_1 || jobOrderData.item_name_1 || '',
+
           visit_by: jobOrderData.Visit_By || jobOrderData.visit_by || '',
           visit_with: jobOrderData.Visit_With || jobOrderData.visit_with || '',
           visit_with_other: jobOrderData.Visit_With_Other || jobOrderData.visit_with_other || '',
@@ -1051,22 +941,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
     });
   };
 
-  const handleItemChange = (index: number, field: 'itemId' | 'quantity', value: string) => {
-    const newOrderItems = [...orderItems];
-    newOrderItems[index][field] = value;
-    setOrderItems(newOrderItems);
 
-    if (field === 'itemId' && value && index === orderItems.length - 1) {
-      setOrderItems([...newOrderItems, { itemId: '', quantity: '' }]);
-    }
-  };
-
-  const handleRemoveItem = (index: number) => {
-    if (orderItems.length > 1) {
-      const newOrderItems = orderItems.filter((_, i) => i !== index);
-      setOrderItems(newOrderItems);
-    }
-  };
 
   const showMessageModal = (title: string, messages: Array<{ type: 'success' | 'warning' | 'error'; text: string }>) => {
     setModalContent({ title, messages });
@@ -1100,7 +975,8 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
     if (!formData.location.trim()) newErrors.location = 'Location is required';
     if (!formData.choosePlan.trim()) newErrors.choosePlan = 'Choose Plan is required';
     if (!formData.status.trim()) newErrors.status = 'Status is required';
-    if (!formData.groupName.trim()) newErrors.groupName = 'Group is required';
+    if (!formData.status.trim()) newErrors.status = 'Status is required';
+    if (!formData.username.trim()) newErrors.username = 'Username is required';
     if (!formData.username.trim()) newErrors.username = 'Username is required';
 
     if (formData.status === 'Confirmed') {
@@ -1125,19 +1001,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
 
         }
 
-        const validItems = orderItems.filter(item => item.itemId && item.quantity);
-        if (validItems.length === 0) {
-          newErrors.items = 'At least one item with quantity is required';
-        } else {
-          for (let i = 0; i < validItems.length; i++) {
-            if (!validItems[i].itemId) {
-              newErrors[`item_${i}`] = 'Item is required';
-            }
-            if (!validItems[i].quantity || parseInt(validItems[i].quantity) <= 0) {
-              newErrors[`quantity_${i}`] = 'Valid quantity is required';
-            }
-          }
-        }
+
 
         if (!formData.onsiteRemarks.trim()) newErrors.onsiteRemarks = 'Onsite Remarks is required';
 
@@ -1504,88 +1368,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
         text: 'Job order updated successfully'
       });
 
-      if (updatedFormData.status === 'Confirmed' && updatedFormData.onsiteStatus === 'Done') {
-        console.log('========== ITEMS BEFORE FILTERING ==========');
-        console.log('Total order items count:', orderItems.length);
-        orderItems.forEach((item, index) => {
-          console.log(`Item ${index + 1}:`, {
-            itemId: item.itemId,
-            quantity: item.quantity,
-            quantity_parsed: parseInt(item.quantity)
-          });
-        });
-        console.log('==========================================');
 
-        const validItems = orderItems.filter(item => {
-          const quantity = parseInt(item.quantity);
-          const isValid = item.itemId && item.itemId.trim() !== '' && !isNaN(quantity) && quantity > 0;
-          console.log(`Validating item - itemId: "${item.itemId}", quantity: "${item.quantity}", isValid: ${isValid}`);
-          return isValid;
-        });
-
-        console.log('Filtered valid items:', validItems);
-
-        if (validItems.length > 0) {
-          console.log('========== DELETING EXISTING ITEMS ==========');
-          try {
-            console.log('Fetching existing items for job order:', jobOrderId);
-            const existingItemsResponse = await apiClient.get<{ success: boolean; data: any[] }>(`/job-order-items?job_order_id=${jobOrderId}`);
-
-            if (existingItemsResponse.data.success && existingItemsResponse.data.data.length > 0) {
-              const existingItems = existingItemsResponse.data.data;
-              console.log('Found', existingItems.length, 'existing items to delete');
-
-              for (const item of existingItems) {
-                try {
-                  await apiClient.delete(`/job-order-items/${item.id}`);
-                  console.log('Deleted item ID:', item.id);
-                } catch (deleteErr) {
-                  console.warn('Failed to delete item ID:', item.id, deleteErr);
-                }
-              }
-
-              console.log('All existing items deleted successfully');
-            } else {
-              console.log('No existing items to delete');
-            }
-          } catch (deleteError: any) {
-            console.error('Error deleting existing items:', deleteError);
-            console.warn('Continuing with item creation despite delete error');
-          }
-          console.log('============================================');
-
-          const jobOrderItems: JobOrderItem[] = validItems.map(item => {
-            return {
-              job_order_id: parseInt(jobOrderId.toString()),
-              item_name: item.itemId,
-              quantity: parseInt(item.quantity)
-            };
-          });
-
-          console.log('Sending job order items to API:', jobOrderItems);
-
-          try {
-            const itemsResponse = await createJobOrderItems(jobOrderItems);
-
-            if (!itemsResponse.success) {
-              throw new Error(itemsResponse.message || 'Failed to create job order items');
-            }
-
-            console.log('Job order items created successfully:', itemsResponse);
-          } catch (itemsError: any) {
-            console.error('Error creating job order items:', itemsError);
-            const errorMsg = itemsError.response?.data?.message || itemsError.message || 'Unknown error';
-            saveMessages.push({
-              type: 'error',
-              text: `Failed to save items: ${errorMsg}`
-            });
-            setLoading(false);
-            setShowLoadingModal(false);
-            showMessageModal('Save Results', saveMessages);
-            return;
-          }
-        }
-      }
 
       if (applicationId) {
         const applicationUpdateData: any = {
@@ -1756,10 +1539,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
           <div className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
             } px-6 py-4 flex items-center justify-between border-b`}>
             <div className="flex items-center space-x-3">
-              <button onClick={onClose} className={`${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                }`}>
-                <X size={24} />
-              </button>
+
               <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>
                 {`${formData.firstName} ${formData.middleInitial} ${formData.lastName}`}
@@ -2142,27 +1922,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
               </>
             )}
 
-            <div>
-              <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                } mb-2`}>Affiliate<span className="text-red-500">*</span></label>
-              <div className="relative">
-                <select value={formData.groupName} onChange={(e) => handleInputChange('groupName', e.target.value)} className={`w-full px-3 py-2 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } border ${errors.groupName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'} rounded focus:outline-none focus:border-orange-500 appearance-none`}>
-                  <option value="">Select Affiliate</option>
-                  {formData.groupName && !groups.some(g => g.group_name === formData.groupName) && (
-                    <option value={formData.groupName}>{formData.groupName}</option>
-                  )}
-                  {groups.map((group) => (
-                    <option key={group.id} value={group.group_name}>
-                      {group.group_name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  } pointer-events-none`} size={20} />
-              </div>
-              {errors.groupName && <p className="text-red-500 text-xs mt-1">{errors.groupName}</p>}
-            </div>
+
 
             {formData.status === 'Confirmed' && formData.onsiteStatus === 'Done' && formData.connectionType === 'Fiber' && (
               <>
@@ -2443,71 +2203,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
                       error={errors.speedTestImage}
                     />
 
-                    <div>
-                      <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        } mb-2`}>Items<span className="text-red-500">*</span></label>
-                      {orderItems.map((item, index) => (
-                        <div key={index} className="mb-3">
-                          <div className="flex items-start gap-2">
-                            <div className="flex-1">
-                              <div className="relative">
-                                <select
-                                  value={item.itemId}
-                                  onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}
-                                  className={`w-full px-3 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-                                    } border rounded focus:outline-none focus:border-orange-500 appearance-none`}
-                                >
-                                  <option value="">Select Item {index + 1}</option>
-                                  {inventoryItems.map((invItem) => (
-                                    <option key={invItem.id} value={invItem.item_name}>
-                                      {invItem.item_name}
-                                    </option>
-                                  ))}
-                                </select>
-                                <ChevronDown className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                                  } pointer-events-none`} size={20} />
-                              </div>
-                              {errors[`item_${index}`] && (
-                                <p className="text-orange-500 text-xs mt-1">{errors[`item_${index}`]}</p>
-                              )}
-                            </div>
 
-                            {item.itemId && (
-                              <div className="w-32">
-                                <input
-                                  type="number"
-                                  value={item.quantity}
-                                  onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                                  placeholder="Qty"
-                                  min="1"
-                                  className={`w-full px-3 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-                                    } border rounded focus:outline-none focus:border-orange-500`}
-                                />
-                                {errors[`quantity_${index}`] && (
-                                  <p className="text-orange-500 text-xs mt-1">{errors[`quantity_${index}`]}</p>
-                                )}
-                              </div>
-                            )}
-
-                            {orderItems.length > 1 && item.itemId && (
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveItem(index)}
-                                className="p-2 text-red-500 hover:text-red-400"
-                              >
-                                <X size={20} />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      {errors.items && (
-                        <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                          <p className="text-orange-500 text-xs">{errors.items}</p>
-                        </div>
-                      )}
-                    </div>
                   </>
                 )}
 

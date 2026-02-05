@@ -35,7 +35,7 @@ interface ServiceOrderEditFormData {
   contactNumber: string;
   emailAddress: string;
   plan: string;
-  affiliate: string;
+
   username: string;
   connectionType: string;
   routerModemSN: string;
@@ -119,7 +119,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     contactNumber: '',
     emailAddress: '',
     plan: '',
-    affiliate: '',
+
     username: '',
     connectionType: '',
     routerModemSN: '',
@@ -128,7 +128,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     port: '',
     vlan: '',
     supportStatus: 'In Progress',
-    visitStatus: '',
+    visitStatus: 'In Progress',
     repairCategory: '',
     visitBy: '',
     visitWith: '',
@@ -417,7 +417,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         contactNumber: serviceOrderData.contactNumber || serviceOrderData.contact_number || '',
         emailAddress: serviceOrderData.emailAddress || serviceOrderData.email_address || '',
         plan: serviceOrderData.plan || '',
-        affiliate: serviceOrderData.affiliate || serviceOrderData.group_name || '',
+
         username: serviceOrderData.username || '',
         connectionType: serviceOrderData.connectionType || serviceOrderData.connection_type || '',
         routerModemSN: serviceOrderData.routerModemSN || serviceOrderData.router_modem_sn || '',
@@ -426,7 +426,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         port: serviceOrderData.port || '',
         vlan: serviceOrderData.vlan || '',
         supportStatus: serviceOrderData.supportStatus || serviceOrderData.support_status || 'In Progress',
-        visitStatus: serviceOrderData.visitStatus || serviceOrderData.visit_status || '',
+        visitStatus: serviceOrderData.visitStatus || serviceOrderData.visit_status || 'In Progress',
         repairCategory: serviceOrderData.repairCategory || serviceOrderData.repair_category || '',
         visitBy: serviceOrderData.visitBy || serviceOrderData.visit_by || '',
         visitWith: serviceOrderData.visitWith || serviceOrderData.visit_with || '',
@@ -695,7 +695,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         contact_number: updatedFormData.contactNumber,
         email_address: updatedFormData.emailAddress,
         plan: updatedFormData.plan,
-        group_name: updatedFormData.affiliate,
+
         username: updatedFormData.username,
         connection_type: updatedFormData.connectionType,
         router_modem_sn: updatedFormData.routerModemSN,
@@ -836,10 +836,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
           <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
             }`}>
             <div className="flex items-center space-x-3">
-              <button onClick={onClose} className={`${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                }`}>
-                <X size={24} />
-              </button>
+
               <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>
                 {serviceOrderData?.ticket_id || serviceOrderData?.id} | {formData.fullName}
@@ -931,8 +928,9 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 type="text"
                 value={formData.fullName}
                 onChange={(e) => handleInputChange('fullName', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.fullName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.fullName ? 'border-red-500' : ''}`}
+                readOnly
               />
               {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
             </div>
@@ -944,8 +942,9 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 type="text"
                 value={formData.contactNumber}
                 onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.contactNumber ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.contactNumber ? 'border-red-500' : ''}`}
+                readOnly
               />
               {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
             </div>
@@ -957,8 +956,9 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 type="email"
                 value={formData.emailAddress}
                 onChange={(e) => handleInputChange('emailAddress', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.emailAddress ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.emailAddress ? 'border-red-500' : ''}`}
+                readOnly
               />
               {errors.emailAddress && <p className="text-red-500 text-xs mt-1">{errors.emailAddress}</p>}
             </div>
@@ -977,18 +977,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               {errors.plan && <p className="text-red-500 text-xs mt-1">{errors.plan}</p>}
             </div>
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Affiliate</label>
-              <input
-                type="text"
-                value={formData.affiliate}
-                onChange={(e) => handleInputChange('affiliate', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
-                  }`}
-                readOnly
-              />
-            </div>
+
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
@@ -2031,71 +2020,73 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               </>
             )}
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Items<span className="text-red-500">*</span></label>
-              {orderItems.map((item, index) => (
-                <div key={index} className="mb-3">
-                  <div className="flex items-start gap-2">
-                    <div className="flex-1">
-                      <div className="relative">
-                        <select
-                          value={item.itemId}
-                          onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                            }`}
-                        >
-                          <option value="">Select Item {index + 1}</option>
-                          {inventoryItems.map((invItem) => (
-                            <option key={invItem.id} value={invItem.item_name}>
-                              {invItem.item_name}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`} size={20} />
-                      </div>
-                      {errors[`item_${index}`] && (
-                        <p className="text-orange-500 text-xs mt-1">{errors[`item_${index}`]}</p>
-                      )}
-                    </div>
-
-                    {item.itemId && (
-                      <div className="w-32">
-                        <input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                          placeholder="Qty"
-                          min="1"
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                            }`}
-                        />
-                        {errors[`quantity_${index}`] && (
-                          <p className="text-orange-500 text-xs mt-1">{errors[`quantity_${index}`]}</p>
+            {currentUser?.role_id !== 1 && (
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>Items<span className="text-red-500">*</span></label>
+                {orderItems.map((item, index) => (
+                  <div key={index} className="mb-3">
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <div className="relative">
+                          <select
+                            value={item.itemId}
+                            onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}
+                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                              }`}
+                          >
+                            <option value="">Select Item {index + 1}</option>
+                            {inventoryItems.map((invItem) => (
+                              <option key={invItem.id} value={invItem.item_name}>
+                                {invItem.item_name}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} size={20} />
+                        </div>
+                        {errors[`item_${index}`] && (
+                          <p className="text-orange-500 text-xs mt-1">{errors[`item_${index}`]}</p>
                         )}
                       </div>
-                    )}
 
-                    {orderItems.length > 1 && item.itemId && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(index)}
-                        className="p-2 text-red-500 hover:text-red-400"
-                      >
-                        <X size={20} />
-                      </button>
-                    )}
+                      {item.itemId && (
+                        <div className="w-32">
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                            placeholder="Qty"
+                            min="1"
+                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                              }`}
+                          />
+                          {errors[`quantity_${index}`] && (
+                            <p className="text-orange-500 text-xs mt-1">{errors[`quantity_${index}`]}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {orderItems.length > 1 && item.itemId && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(index)}
+                          className="p-2 text-red-500 hover:text-red-400"
+                        >
+                          <X size={20} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-              {errors.items && (
-                <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                  <p className="text-orange-500 text-xs">{errors.items}</p>
-                </div>
-              )}
-            </div>
+                ))}
+                {errors.items && (
+                  <div className="flex items-center mt-1">
+                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
+                    <p className="text-orange-500 text-xs">{errors.items}</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'

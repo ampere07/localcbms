@@ -11,6 +11,8 @@ import JobOrderEditFormModal from '../modals/JobOrderEditFormModal';
 import ApprovalConfirmationModal from '../modals/ApprovalConfirmationModal';
 import ConfirmationModal from '../modals/MoveToJoModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { getApplication } from '../services/applicationService';
+import { Application } from '../types/application';
 
 const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, onRefresh, isMobile = false }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -23,6 +25,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
   const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
   const [userRole, setUserRole] = useState<string>('');
+  const [applicationData, setApplicationData] = useState<Application | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
@@ -154,6 +157,24 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   }, []);
 
   useEffect(() => {
+    const fetchApplicationData = async () => {
+      const appId = jobOrder.application_id || jobOrder.Application_ID || jobOrder.account_id;
+      if (appId) {
+        try {
+          const app = await getApplication(appId.toString());
+          setApplicationData(app);
+        } catch (error) {
+          console.error('Error fetching application data:', error);
+        }
+      }
+    };
+
+    if (jobOrder) {
+      fetchApplicationData();
+    }
+  }, [jobOrder]);
+
+  useEffect(() => {
     if (!isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -233,23 +254,49 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   };
 
   const getClientFullName = (): string => {
-    return [
-      jobOrder.First_Name || '',
-      jobOrder.Middle_Initial ? jobOrder.Middle_Initial + '.' : '',
-      jobOrder.Last_Name || ''
-    ].filter(Boolean).join(' ').trim() || 'Unknown Client';
+    const joName = [
+      jobOrder.First_Name || jobOrder.first_name || '',
+      jobOrder.Middle_Initial || jobOrder.middle_initial ? (jobOrder.Middle_Initial || jobOrder.middle_initial) + '.' : '',
+      jobOrder.Last_Name || jobOrder.last_name || ''
+    ].filter(Boolean).join(' ').trim();
+
+    if (joName) return joName;
+
+    if (applicationData) {
+      return [
+        applicationData.first_name || '',
+        applicationData.middle_initial ? applicationData.middle_initial + '.' : '',
+        applicationData.last_name || ''
+      ].filter(Boolean).join(' ').trim();
+    }
+
+    return 'Unknown Client';
   };
 
   const getClientFullAddress = (): string => {
-    const addressParts = [
-      jobOrder.Installation_Address || jobOrder.Address,
-      jobOrder.Location,
-      jobOrder.Barangay,
-      jobOrder.City,
-      jobOrder.Region
+    const joAddressParts = [
+      jobOrder.Installation_Address || jobOrder.installation_address || jobOrder.Address || jobOrder.address,
+      jobOrder.Location || jobOrder.location,
+      jobOrder.Barangay || jobOrder.barangay,
+      jobOrder.City || jobOrder.city,
+      jobOrder.Region || jobOrder.region
     ].filter(Boolean);
 
-    return addressParts.length > 0 ? addressParts.join(', ') : 'No address provided';
+    if (joAddressParts.length > 0) return joAddressParts.join(', ');
+
+    if (applicationData) {
+      const appAddressParts = [
+        applicationData.installation_address,
+        applicationData.location,
+        applicationData.barangay,
+        applicationData.city,
+        applicationData.region
+      ].filter(Boolean);
+
+      if (appAddressParts.length > 0) return appAddressParts.join(', ');
+    }
+
+    return 'No address provided';
   };
 
   const getStatusColor = (status: string | undefined | null, type: 'onsite' | 'billing') => {
@@ -568,7 +615,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Timestamp:</div>
-            <div className={valueClass}>{formatDate(jobOrder.Create_DateTime || jobOrder.created_at)}</div>
+            <div className={valueClass}>{formatDate(jobOrder.Create_DateTime || jobOrder.created_at || jobOrder.timestamp)}</div>
           </div>
         );
 
@@ -576,7 +623,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Job Order #:</div>
-            <div className={valueClass}>{jobOrder.id || 'N/A'}</div>
+            <div className={valueClass}>{jobOrder.id || jobOrder.JobOrder_ID || (applicationData ? 'App-' + applicationData.id : 'N/A')}</div>
           </div>
         );
 
@@ -584,7 +631,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Referred By:</div>
-            <div className={valueClass}>{jobOrder.Referred_By || 'None'}</div>
+            <div className={valueClass}>{jobOrder.Referred_By || jobOrder.referred_by || (applicationData?.referred_by) || 'None'}</div>
           </div>
         );
 
@@ -601,7 +648,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           <div className={baseFieldClass}>
             <div className={labelClass}>Contact Number:</div>
             <div className={valueClass}>
-              {jobOrder.Contact_Number || 'Not provided'}
+              {jobOrder.Contact_Number || jobOrder.mobile_number || (applicationData?.mobile_number) || 'Not provided'}
             </div>
           </div>
         );
@@ -611,7 +658,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           <div className={baseFieldClass}>
             <div className={labelClass}>Second Contact Number:</div>
             <div className={valueClass}>
-              {jobOrder.Second_Contact_Number || 'Not provided'}
+              {jobOrder.Second_Contact_Number || jobOrder.secondary_mobile_number || (applicationData?.secondary_mobile_number) || 'Not provided'}
             </div>
           </div>
         );
@@ -621,7 +668,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           <div className={baseFieldClass}>
             <div className={labelClass}>Email Address:</div>
             <div className={valueClass}>
-              {jobOrder.Email_Address || 'Not provided'}
+              {jobOrder.Email_Address || jobOrder.email_address || (applicationData?.email_address) || 'Not provided'}
             </div>
           </div>
         );
@@ -655,7 +702,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           <div className={baseFieldClass}>
             <div className={labelClass}>Choose Plan:</div>
             <div className={valueClass}>
-              {jobOrder.Desired_Plan || jobOrder.Choose_Plan || 'Not specified'}
+              {jobOrder.Desired_Plan || jobOrder.desired_plan || jobOrder.Choose_Plan || jobOrder.choose_plan || (applicationData?.desired_plan) || 'Not specified'}
             </div>
           </div>
         );
@@ -664,7 +711,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Status Remarks:</div>
-            <div className={valueClass}>{jobOrder.Status_Remarks || 'No remarks'}</div>
+            <div className={valueClass}>{jobOrder.Status_Remarks || jobOrder.status_remarks || 'No remarks'}</div>
           </div>
         );
 
@@ -672,7 +719,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Remarks:</div>
-            <div className={valueClass}>{jobOrder.Remarks || 'No remarks'}</div>
+            <div className={valueClass}>{jobOrder.Remarks || jobOrder.onsite_remarks || 'No remarks'}</div>
           </div>
         );
 
@@ -680,7 +727,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Installation Landmark:</div>
-            <div className={valueClass}>{jobOrder.Installation_Landmark || 'Not provided'}</div>
+            <div className={valueClass}>{jobOrder.Installation_Landmark || jobOrder.installation_landmark || jobOrder.landmark || (applicationData?.landmark) || 'Not provided'}</div>
           </div>
         );
 
@@ -688,7 +735,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Connection Type:</div>
-            <div className={valueClass}>{jobOrder.Connection_Type || 'Not specified'}</div>
+            <div className={valueClass}>{jobOrder.Connection_Type || jobOrder.connection_type || 'Not specified'}</div>
           </div>
         );
 
@@ -744,7 +791,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Username:</div>
-            <div className={valueClass}>{jobOrder.Username || jobOrder.username || 'Not provided'}</div>
+            <div className={valueClass}>{jobOrder.Username || jobOrder.username || jobOrder.pppoe_username || 'Not provided'}</div>
           </div>
         );
 
@@ -769,7 +816,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           <div className={baseFieldClass}>
             <div className={labelClass}>Date Installed:</div>
             <div className={valueClass}>
-              {jobOrder.Date_Installed || jobOrder.date_installed
+              {(jobOrder.Date_Installed || jobOrder.date_installed)
                 ? formatDate(jobOrder.Date_Installed || jobOrder.date_installed)
                 : 'Not installed yet'}
             </div>

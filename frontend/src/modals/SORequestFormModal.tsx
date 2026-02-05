@@ -15,7 +15,7 @@ interface SORequestFormModalProps {
     fullName: string;
     contactNumber: string;
     plan: string;
-    provider: string;
+
     username: string;
     emailAddress?: string;
   };
@@ -56,7 +56,7 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
     fullName: '',
     contactNumber: '',
     plan: '',
-    provider: '',
+
     username: '',
     concern: '',
     concernRemarks: '',
@@ -107,7 +107,7 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
         fullName: customerData?.fullName || '',
         contactNumber: customerData?.contactNumber || '',
         plan: customerData?.plan || '',
-        provider: customerData?.provider || '',
+
         username: customerData?.username || '',
         accountEmail: customerData?.emailAddress || '',
         concern: '',
@@ -221,7 +221,7 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
       fullName: '',
       contactNumber: '',
       plan: '',
-      provider: '',
+
       username: '',
       accountEmail: '',
       concern: '',
@@ -242,23 +242,21 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
 
   return (
     <>
-      <LoadingModal 
-        isOpen={loading} 
-        message="Saving SO request..." 
-        percentage={loadingPercentage} 
+      <LoadingModal
+        isOpen={loading}
+        message="Saving SO request..."
+        percentage={loadingPercentage}
       />
-      
+
       {showSuccess && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
-          <div className={`rounded-lg p-6 max-w-sm w-full mx-4 ${
-            isDarkMode ? 'bg-gray-800' : 'bg-white'
-          }`}>
+          <div className={`rounded-lg p-6 max-w-sm w-full mx-4 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
             <div className="flex flex-col items-center">
               <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
-              <p className={`text-center mb-6 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>SO Request created successfully!</p>
-              
+              <p className={`text-center mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>SO Request created successfully!</p>
+
               <button
                 onClick={handleSuccessClose}
                 className="px-6 py-2 text-white rounded transition-colors"
@@ -282,23 +280,19 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
           </div>
         </div>
       )}
-      
+
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-        <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${
-          isDarkMode ? 'bg-gray-900' : 'bg-white'
-        }`}>
-          <div className={`px-6 py-4 flex items-center justify-between border-b ${
-            isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
+        <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
           }`}>
-            <h2 className={`text-xl font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>SO Request</h2>
+          <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
+            }`}>
+            <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>SO Request</h2>
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleCancel}
-                className={`px-4 py-2 rounded text-sm text-white ${
-                  isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-400 hover:bg-gray-500'
-                }`}
+                className={`px-4 py-2 rounded text-sm text-white ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-400 hover:bg-gray-500'
+                  }`}
               >
                 Cancel
               </button>
@@ -329,171 +323,132 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
                   'Save'
                 )}
               </button>
-              <button
-                onClick={onClose}
-                className={`transition-colors ${
-                  isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <X size={24} />
-              </button>
+
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Ticket ID<span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.ticketId}
                 readOnly
-                className={`w-full px-3 py-2 border rounded cursor-not-allowed ${
-                  isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-gray-100 border-gray-300 text-gray-500'
-                }`}
+                className={`w-full px-3 py-2 border rounded cursor-not-allowed ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-400' : 'bg-gray-100 border-gray-300 text-gray-500'
+                  }`}
               />
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Account No.<span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.accountNo}
                 readOnly
-                className={`w-full px-3 py-2 border rounded cursor-not-allowed ${
-                  isDarkMode ? 'bg-gray-800 text-red-400' : 'bg-gray-100 text-red-600'
-                } ${
-                  errors.accountNo ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                }`}
+                className={`w-full px-3 py-2 border rounded cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-red-400' : 'bg-gray-100 text-red-600'
+                  } ${errors.accountNo ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  }`}
               />
               {errors.accountNo && <p className="text-red-500 text-xs mt-1">{errors.accountNo}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Date Installed<span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
                 value={formData.dateInstalled}
                 onChange={(e) => handleInputChange('dateInstalled', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-red-500 ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${
-                  errors.dateInstalled ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                }`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-red-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  } ${errors.dateInstalled ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  }`}
               />
               {errors.dateInstalled && <p className="text-red-500 text-xs mt-1">{errors.dateInstalled}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Full Name<span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.fullName}
                 onChange={(e) => handleInputChange('fullName', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-red-500 ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${
-                  errors.fullName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                }`}
+                readOnly
+                className={`w-full px-3 py-2 border rounded cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.fullName ? 'border-red-500' : ''
+                  }`}
               />
               {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Contact Number<span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.contactNumber}
                 onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-red-500 ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${
-                  errors.contactNumber ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                }`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-red-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  } ${errors.contactNumber ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  }`}
               />
               {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Plan<span className="text-red-500">*</span>
               </label>
-              <div className={`px-3 py-2 border rounded ${
-                isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
-              }`}>
+              <div className={`px-3 py-2 border rounded ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+                }`}>
                 {formData.plan || 'No plan'}
               </div>
               {errors.plan && <p className="text-red-500 text-xs mt-1">{errors.plan}</p>}
             </div>
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Affiliate
-              </label>
-              <div className={`px-3 py-2 border rounded ${
-                isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
-              }`}>
-                {formData.provider || 'No affiliate'}
-              </div>
-            </div>
+
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Username<span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.username}
                 onChange={(e) => handleInputChange('username', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-red-500 ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${
-                  errors.username ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                }`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-red-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  } ${errors.username ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  }`}
               />
               {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Concern<span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <select
                   value={formData.concern}
                   onChange={(e) => handleInputChange('concern', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-red-500 appearance-none ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${
-                    errors.concern ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-red-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    } ${errors.concern ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    }`}
                 >
                   <option value="">Select Concern</option>
                   {concerns.map(concern => (
@@ -502,26 +457,23 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`} size={20} />
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
               </div>
               {errors.concern && <p className="text-red-500 text-xs mt-1">{errors.concern}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Concern Remarks<span className="text-red-500">*</span>
               </label>
               <textarea
                 value={formData.concernRemarks}
                 onChange={(e) => handleInputChange('concernRemarks', e.target.value)}
                 rows={4}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-red-500 resize-none ${
-                  isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                }`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-red-500 resize-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                  }`}
                 placeholder="Enter concern details..."
               />
             </div>
