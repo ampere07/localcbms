@@ -15,7 +15,7 @@ class JobOrder extends Model
         'date_installed',
         'installation_fee',
         'billing_day',
-        'billing_status_id',
+        'billing_status',
         'modem_router_sn',
         'router_model',
         'group_name',
@@ -62,7 +62,6 @@ class JobOrder extends Model
     protected $casts = [
         'installation_fee' => 'decimal:2',
         'billing_day' => 'integer',
-        'billing_status_id' => 'integer',
         'timestamp' => 'datetime',
         'date_installed' => 'date',
     ];

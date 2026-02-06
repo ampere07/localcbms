@@ -484,10 +484,10 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
 
   const shouldShowApproveButton = () => {
     const onsiteStatus = (jobOrder.Onsite_Status || '').toLowerCase();
-    const billingStatusId = jobOrder.billing_status_id || jobOrder.Billing_Status_ID;
+    const billingStatus = (jobOrder.billing_status || jobOrder.Billing_Status || '').toLowerCase();
     const isAdministrator = userRole === 'administrator';
 
-    return onsiteStatus === 'done' && billingStatusId !== 1 && isAdministrator;
+    return onsiteStatus === 'done' && billingStatus !== 'done' && isAdministrator;
   };
 
   const handleStatusUpdate = async (newStatus: string) => {
@@ -685,7 +685,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Billing Status:</div>
-            <div className={valueClass}>{getBillingStatusName(jobOrder.billing_status_id || jobOrder.Billing_Status_ID)}</div>
+            <div className={valueClass}>{jobOrder.billing_status || jobOrder.Billing_Status || 'Not Set'}</div>
           </div>
         );
 
@@ -1091,24 +1091,26 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
               <span>Approve</span>
             </button>
           )}
-          <button
-            className="text-white px-3 py-1 rounded-sm flex items-center transition-colors text-sm md:text-base font-medium"
-            style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
-            }}
-            onMouseEnter={(e) => {
-              if (colorPalette?.accent) {
-                e.currentTarget.style.backgroundColor = colorPalette.accent;
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
-            }}
-            onClick={handleDoneClick}
-            disabled={loading}
-          >
-            <span>Done</span>
-          </button>
+          {!(jobOrder.Onsite_Status && jobOrder.Onsite_Status.toLowerCase() === 'done') && (
+            <button
+              className="text-white px-3 py-1 rounded-sm flex items-center transition-colors text-sm md:text-base font-medium"
+              style={{
+                backgroundColor: colorPalette?.primary || '#ea580c'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+              }}
+              onClick={handleDoneClick}
+              disabled={loading}
+            >
+              <span>Done</span>
+            </button>
+          )}
 
           <div className="relative">
             <button

@@ -592,7 +592,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
       timestamp: formattedTimestamp,
       installation_fee: data.installationFee || 0,
       billing_day: data.isLastDayOfMonth ? 0 : (parseInt(data.billingDay) || 30),
-      billing_status_id: 1,
+      billing_status: 'In Progress',
       modem_router_sn: toNullIfEmpty(data.contractTemplate),
       onsite_status: data.onsiteStatus || 'In Progress',
       assigned_email: toNullIfEmpty(data.assignedEmail),

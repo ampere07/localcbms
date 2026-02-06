@@ -873,7 +873,7 @@ class JobOrderController extends Controller
             ]);
 
             $jobOrder->update([
-                'billing_status_id' => 1,
+                'billing_status' => 'Done',
                 'account_id' => $billingAccount->id,
                 'pppoe_username' => $pppoeUsername,
                 'pppoe_password' => $pppoePassword,
@@ -883,7 +883,7 @@ class JobOrderController extends Controller
             \Log::info('PPPoE credentials saved to job_orders table', [
                 'job_order_id' => $id,
                 'table' => 'job_orders',
-                'columns_updated' => ['pppoe_username', 'pppoe_password', 'billing_status_id', 'account_id'],
+                'columns_updated' => ['pppoe_username', 'pppoe_password', 'billing_status', 'account_id'],
                 'pppoe_username_saved' => $pppoeUsername
             ]);
 
