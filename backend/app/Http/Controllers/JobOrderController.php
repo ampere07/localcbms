@@ -789,9 +789,17 @@ class JobOrderController extends Controller
                 }
             }
 
-            $lcpnapValue = $jobOrder->lcpnap;
-            $lcpValue = $jobOrder->lcpnapLocation->lcp ?? null;
-            $napValue = $jobOrder->lcpnapLocation->nap ?? null;
+            $usernameForTechnical = \DB::table('billing_accounts')->where('account_no', $accountNumber)->value('username');
+
+            // Manual lookup for LCPNAP Location to ensure trimming
+            $lcpnapValue = trim($jobOrder->lcpnap);
+            $lcpnapData = LCPNAPLocation::where('lcpnap_name', $lcpnapValue)
+                                      ->orWhere('id', $lcpnapValue)
+                                      ->first();
+
+            $lcpValue = trim($lcpnapData->lcp ?? '');
+            $napValue = trim($lcpnapData->nap ?? '');
+            $portValue = $jobOrder->port ?? '';
 
             $technicalDetail = TechnicalDetail::create([
                 'account_id' => $billingAccount->id,
@@ -804,7 +812,7 @@ class JobOrderController extends Controller
                 'ip_address' => $jobOrder->ip_address,
                 'lcp' => $lcpValue,
                 'nap' => $napValue,
-                'port' => $jobOrder->port,
+                'port' => $portValue,
                 'vlan' => $jobOrder->vlan,
                 'lcpnap' => $jobOrder->lcpnap,
                 'usage_type' => $jobOrder->usage_type,
@@ -824,15 +832,7 @@ class JobOrderController extends Controller
             
             $pppoeService = new PppoeUsernameService();
             
-            $lcpnapValue = $jobOrder->lcpnap;
-            $lcpnapData = LCPNAPLocation::where('lcpnap_name', trim($lcpnapValue))
-                                      ->orWhere('id', trim($lcpnapValue))
-                                      ->first();
-            
-            $lcpValue = $lcpnapData->lcp ?? '';
-            $napValue = $lcpnapData->nap ?? '';
-            $portValue = $jobOrder->port ?? '';
-
+            // Using the already fetched and trimmed technical info
             $customerData = [
                 'first_name' => $application->first_name ?? '',
                 'middle_initial' => $application->middle_initial ?? '',
@@ -1387,13 +1387,13 @@ class JobOrderController extends Controller
             $radiusError = null;
 
             // Fetch LCP/NAP details regardless of whether credentials exist
-            $lcpnapValue = $jobOrder->lcpnap;
-            $lcpnapData = LCPNAPLocation::where('lcpnap_name', trim($lcpnapValue))
+            $lcpnapValue = trim($jobOrder->lcpnap);
+            $lcpnapData = LCPNAPLocation::where('lcpnap_name', $lcpnapValue)
                                       ->orWhere('id', $lcpnapValue)
                                       ->first();
 
-            $lcpValue = $lcpnapData->lcp ?? '';
-            $napValue = $lcpnapData->nap ?? '';
+            $lcpValue = trim($lcpnapData->lcp ?? '');
+            $napValue = trim($lcpnapData->nap ?? '');
             $portValue = $jobOrder->port ?? '';
 
             if (!$credentialsExist) {
@@ -1415,9 +1415,9 @@ class JobOrderController extends Controller
                     'middle_initial' => $application->middle_initial ?? '',
                     'last_name' => $application->last_name ?? '',
                     'mobile_number' => $application->mobile_number ?? '',
-                    'lcp' => trim($lcpValue),
-                    'nap' => trim($napValue),
-                    'port' => trim($portValue),
+                    'lcp' => $lcpValue,
+                    'nap' => $napValue,
+                    'port' => $portValue,
                 ];
                 
                 $pppoeUsername = $pppoeService->generateUniqueUsername($customerData, $id);

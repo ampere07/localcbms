@@ -432,6 +432,15 @@ const Invoice: React.FC = () => {
     switch (columnKey) {
       case 'id':
         return record.id;
+      case 'status':
+        return (
+          <span className={`${record.status === 'Unpaid' ? 'text-red-500' :
+            record.status === 'Paid' ? 'text-green-500' :
+              'text-yellow-500'
+            }`}>
+            {record.status}
+          </span>
+        );
       case 'accountNo':
         return <span className="text-red-400">{record.accountNo}</span>;
       case 'invoiceDate':
@@ -452,15 +461,6 @@ const Invoice: React.FC = () => {
         return `₱ ${(record.receivedPayment ?? 0).toFixed(2)}`;
       case 'dueDate':
         return record.dueDate || '-';
-      case 'status':
-        return (
-          <span className={`${record.status === 'Unpaid' ? 'text-red-500' :
-            record.status === 'Paid' ? 'text-green-500' :
-              'text-yellow-500'
-            }`}>
-            {record.status}
-          </span>
-        );
       case 'paymentPortalLogRef':
         return record.paymentPortalLogRef || 'NULL';
       case 'transactionId':

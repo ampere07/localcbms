@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  X, ExternalLink, Edit, FileCheck, Settings 
+import {
+  X, ExternalLink, Edit, Settings
 } from 'lucide-react';
 import ServiceOrderEditModal from '../modals/ServiceOrderEditModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -161,10 +161,10 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
-      
+
       const diff = startXRef.current - e.clientX;
       const newWidth = Math.max(600, Math.min(1200, startWidthRef.current + diff));
-      
+
       setDetailsWidth(newWidth);
     };
 
@@ -292,7 +292,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
 
   const getStatusColor = (status: string | undefined, type: 'support' | 'visit'): string => {
     if (!status) return 'text-gray-400';
-    
+
     if (type === 'support') {
       switch (status.toLowerCase()) {
         case 'resolved':
@@ -329,38 +329,31 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
   };
 
   const renderField = (label: string, value: any) => (
-    <div className={`flex py-2 ${
-      isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
-    }`}>
-      <div className={`w-40 text-sm ${
-        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-      }`}>{label}</div>
-      <div className={`flex-1 ${
-        isDarkMode ? 'text-white' : 'text-gray-900'
+    <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
       }`}>
+      <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+        }`}>{label}</div>
+      <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+        }`}>
         {value || '-'}
       </div>
     </div>
   );
 
   const renderImageField = (label: string, url: string | undefined, displayText: string) => (
-    <div className={`flex py-2 ${
-      isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
-    }`}>
-      <div className={`w-40 text-sm ${
-        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-      }`}>{label}</div>
-      <div className={`flex-1 flex items-center min-w-0 ${
-        isDarkMode ? 'text-white' : 'text-gray-900'
+    <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
       }`}>
+      <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+        }`}>{label}</div>
+      <div className={`flex-1 flex items-center min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
+        }`}>
         <span className="truncate mr-2" title={url}>
           {url ? displayText : '-'}
         </span>
         {url && (
-          <button 
-            className={`flex-shrink-0 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}
+          <button
+            className={`flex-shrink-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}
             onClick={() => window.open(url, '_blank')}
           >
             <ExternalLink size={16} />
@@ -380,12 +373,10 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
         return renderField('Timestamp', serviceOrder.timestamp);
       case 'accountNumber':
         return (
-          <div className={`flex py-2 ${
-            isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Account No.</div>
+          <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+            }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Account No.</div>
             <div className="text-red-500 flex-1">
               {serviceOrder.accountNumber} | {serviceOrder.fullName} | {serviceOrder.fullAddress}
             </div>
@@ -427,15 +418,12 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
         return renderField('Concern Remarks', serviceOrder.concernRemarks);
       case 'visitStatus':
         return (
-          <div className={`flex py-2 ${
-            isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Visit Status</div>
-            <div className={`flex-1 font-bold uppercase ${
-              getStatusColor(serviceOrder.visitStatus, 'visit')
+          <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
             }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Visit Status</div>
+            <div className={`flex-1 font-bold uppercase ${getStatusColor(serviceOrder.visitStatus, 'visit')
+              }`}>
               {serviceOrder.visitStatus || '-'}
             </div>
           </div>
@@ -462,15 +450,12 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
         return renderField('Support Remarks', serviceOrder.supportRemarks);
       case 'supportStatus':
         return (
-          <div className={`flex py-2 ${
-            isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Support Status</div>
-            <div className={`flex-1 font-bold uppercase ${
-              getStatusColor(serviceOrder.supportStatus, 'support')
+          <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
             }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Support Status</div>
+            <div className={`flex-1 font-bold uppercase ${getStatusColor(serviceOrder.supportStatus, 'support')
+              }`}>
               {serviceOrder.supportStatus || '-'}
             </div>
           </div>
@@ -496,12 +481,10 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'serviceCharge':
         return (
           <div className="flex py-2">
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Service Charge</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{serviceOrder.serviceCharge}</div>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Service Charge</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{serviceOrder.serviceCharge}</div>
           </div>
         );
       default:
@@ -510,36 +493,29 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
   };
 
   return (
-    <div className={`h-full flex flex-col overflow-hidden relative ${!isMobile ? 'border-l' : ''} ${
-      isDarkMode
-        ? 'bg-gray-950 border-white border-opacity-30'
-        : 'bg-white border-gray-300'
-    }`} style={!isMobile ? { width: `${detailsWidth}px` } : undefined}>
+    <div className={`h-full flex flex-col overflow-hidden relative ${!isMobile ? 'border-l' : ''} ${isDarkMode
+      ? 'bg-gray-950 border-white border-opacity-30'
+      : 'bg-white border-gray-300'
+      }`} style={!isMobile ? { width: `${detailsWidth}px` } : undefined}>
       {!isMobile && (
         <div
-          className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${
-            isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
-          }`}
+          className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
+            }`}
           onMouseDown={handleMouseDownResize}
         />
       )}
-      <div className={`p-3 flex items-center justify-between border-b ${
-        isDarkMode
-          ? 'bg-gray-800 border-gray-700'
-          : 'bg-gray-100 border-gray-200'
-      }`}>
+      <div className={`p-3 flex items-center justify-between border-b ${isDarkMode
+        ? 'bg-gray-800 border-gray-700'
+        : 'bg-gray-100 border-gray-200'
+        }`}>
         <div className="flex items-center">
-          <h2 className={`font-medium truncate ${isMobile ? 'max-w-[200px] text-sm' : 'max-w-md'} ${
-            isDarkMode ? 'text-white' : 'text-gray-900'
-          }`}>{serviceOrder.accountNumber} | {serviceOrder.fullName} | {serviceOrder.contactAddress}</h2>
+          <h2 className={`font-medium truncate ${isMobile ? 'max-w-[200px] text-sm' : 'max-w-md'} ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{serviceOrder.accountNumber} | {serviceOrder.fullName} | {serviceOrder.contactAddress}</h2>
         </div>
-        
+
         <div className="flex items-center space-x-3">
-          <button className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}>
-            <FileCheck size={16} />
-          </button>
-          <button 
-            className="text-white px-3 py-1 rounded-sm flex items-center" 
+          <button
+            className="text-white px-3 py-1 rounded-sm flex items-center"
             style={{
               backgroundColor: colorPalette?.primary || '#ea580c'
             }}
@@ -556,7 +532,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
             <Edit size={16} className="mr-1" />
             <span>Edit</span>
           </button>
-          
+
           <div className="relative">
             <button
               onClick={() => setShowFieldSettings(!showFieldSettings)}
@@ -566,17 +542,14 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
               <Settings size={16} />
             </button>
             {showFieldSettings && (
-              <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${
-                isDarkMode
-                  ? 'bg-gray-800 border-gray-700'
-                  : 'bg-white border-gray-200'
-              }`}>
-                <div className={`px-4 py-3 border-b flex items-center justify-between ${
-                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${isDarkMode
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-gray-200'
                 }`}>
-                  <h3 className={`font-semibold ${
-                    isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>Field Visibility & Order</h3>
+                <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                  }`}>
+                  <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>Field Visibility & Order</h3>
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={selectAllFields}
@@ -601,9 +574,8 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
                   </div>
                 </div>
                 <div className="p-2">
-                  <div className={`text-xs mb-2 px-2 ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`}>
+                  <div className={`text-xs mb-2 px-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
                     Drag to reorder fields
                   </div>
                   {fieldOrder.map((fieldKey, index) => (
@@ -614,13 +586,11 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
                       onDragOver={handleDragOver}
                       onDrop={() => handleDrop(index)}
                       onDragEnd={handleDragEnd}
-                      className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-move transition-colors ${
-                        isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                      } ${
-                        draggedIndex === index
+                      className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-move transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                        } ${draggedIndex === index
                           ? isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
                           : ''
-                      }`}
+                        }`}
                     >
                       <input
                         type="checkbox"
@@ -629,12 +599,10 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
                         onClick={(e) => e.stopPropagation()}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
-                      <span className={`text-xs ${
-                        isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                      }`}>☰</span>
-                      <span className={`text-sm ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
+                      <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                        }`}>☰</span>
+                      <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
                         {getFieldLabel(fieldKey)}
                       </span>
                     </div>
@@ -643,8 +611,8 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
               </div>
             )}
           </div>
-          
-          <button 
+
+          <button
             onClick={onClose}
             className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
             aria-label="Close"
@@ -653,11 +621,10 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
           </button>
         </div>
       </div>
-      
+
       <div className="flex-1 overflow-y-auto">
-        <div className={`mx-auto py-1 px-4 ${
-          isDarkMode ? 'bg-gray-950' : 'bg-white'
-        }`}>
+        <div className={`mx-auto py-1 px-4 ${isDarkMode ? 'bg-gray-950' : 'bg-white'
+          }`}>
           <div className="space-y-1">
             {fieldOrder.map((fieldKey) => (
               <React.Fragment key={fieldKey}>

@@ -98,10 +98,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
 
-  // Refresh data silently on mount
-  useEffect(() => {
-    silentRefresh();
-  }, [silentRefresh]);
+
 
   // Dark mode synchronization logic
   useEffect(() => {
@@ -641,6 +638,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                       <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>Date Processed</th>
                       <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Status</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>Account No.</th>
                       <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>Received Payment</th>
@@ -656,8 +655,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                         }`}>Reference No.</th>
                       <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>Remarks</th>
-                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Status</th>
                       <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>Transaction Type</th>
                       <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'

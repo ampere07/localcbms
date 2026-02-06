@@ -18,10 +18,11 @@ type DisplayMode = 'card' | 'table';
 
 const allColumns = [
   { key: 'timestamp', label: 'Timestamp', width: 'min-w-40' },
+  { key: 'billingStatusId', label: 'Billing Status ID', width: 'min-w-32' },
+  { key: 'onsiteStatus', label: 'Onsite Status', width: 'min-w-32' },
   { key: 'dateInstalled', label: 'Date Installed', width: 'min-w-36' },
   { key: 'installationFee', label: 'Installation Fee', width: 'min-w-32' },
   { key: 'billingDay', label: 'Billing Day', width: 'min-w-28' },
-  { key: 'billingStatusId', label: 'Billing Status ID', width: 'min-w-32' },
   { key: 'modemRouterSN', label: 'Modem/Router SN', width: 'min-w-36' },
   { key: 'routerModel', label: 'Router Model', width: 'min-w-32' },
   { key: 'groupName', label: 'Group Name', width: 'min-w-32' },
@@ -36,7 +37,6 @@ const allColumns = [
   { key: 'visitBy', label: 'Visit By', width: 'min-w-32' },
   { key: 'visitWith', label: 'Visit With', width: 'min-w-32' },
   { key: 'visitWithOther', label: 'Visit With Other', width: 'min-w-32' },
-  { key: 'onsiteStatus', label: 'Onsite Status', width: 'min-w-32' },
   { key: 'onsiteRemarks', label: 'Onsite Remarks', width: 'min-w-40' },
   { key: 'statusRemarks', label: 'Status Remarks', width: 'min-w-40' },
   { key: 'addressCoordinates', label: 'Address Coordinates', width: 'min-w-40' },
@@ -374,10 +374,11 @@ const JobOrderPage: React.FC = () => {
     const getVal = (jo: JobOrder, key: string) => {
       switch (key) {
         case 'timestamp': return jo.Timestamp || jo.timestamp || '';
+        case 'billingStatusId': return jo.billing_status_id || jo.Billing_Status_ID || '';
+        case 'onsiteStatus': return jo.Onsite_Status || jo.onsite_status || '';
         case 'dateInstalled': return jo.Date_Installed || jo.date_installed || '';
         case 'installationFee': return jo.Installation_Fee || jo.installation_fee || 0;
         case 'billingDay': return jo.Billing_Day ?? jo.billing_day ?? 0;
-        case 'billingStatusId': return jo.billing_status_id || jo.Billing_Status_ID || '';
         case 'modemRouterSN': return jo.Modem_Router_SN || jo.modem_router_sn || '';
         case 'routerModel': return jo.Router_Model || jo.router_model || '';
         case 'groupName': return jo.group_name || jo.Group_Name || '';
@@ -392,7 +393,6 @@ const JobOrderPage: React.FC = () => {
         case 'visitBy': return jo.Visit_By || jo.visit_by || '';
         case 'visitWith': return jo.Visit_With || jo.visit_with || '';
         case 'visitWithOther': return jo.Visit_With_Other || jo.visit_with_other || '';
-        case 'onsiteStatus': return jo.Onsite_Status || jo.onsite_status || '';
         case 'onsiteRemarks': return jo.Onsite_Remarks || jo.onsite_remarks || '';
         case 'statusRemarks': return jo.Status_Remarks || jo.status_remarks || '';
         case 'fullName': return getClientFullName(jo);

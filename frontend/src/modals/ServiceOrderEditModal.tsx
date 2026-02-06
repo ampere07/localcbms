@@ -1751,28 +1751,69 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>Item Name 1<span className="text-red-500">*</span></label>
-                      <div className="relative">
-                        <select
-                          value={formData.itemName1}
-                          onChange={(e) => handleInputChange('itemName1', e.target.value)}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                            } ${errors.itemName1 ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                        >
-                          <option value="">Select Item</option>
-                          {inventoryItems.map((invItem) => (
-                            <option key={invItem.id} value={invItem.item_name}>
-                              {invItem.item_name}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`} size={20} />
-                      </div>
-                      {errors.itemName1 && (
+                        }`}>Items<span className="text-red-500">*</span></label>
+                      {orderItems.map((item, index) => (
+                        <div key={index} className="mb-3">
+                          <div className="flex items-start gap-2">
+                            <div className="flex-1">
+                              <div className="relative">
+                                <select
+                                  value={item.itemId}
+                                  onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}
+                                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                                    }`}
+                                >
+                                  <option value="">Select Item {index + 1}</option>
+                                  {inventoryItems.map((invItem) => (
+                                    <option key={invItem.id} value={invItem.item_name}>
+                                      {invItem.item_name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                  }`} size={20} />
+                              </div>
+                              {errors[`item_${index}`] && (
+                                <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors[`item_${index}`]}</p>
+                              )}
+                            </div>
+
+                            {item.itemId && (
+                              <div className="w-32">
+                                <input
+                                  type="number"
+                                  value={item.quantity}
+                                  onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                                  placeholder="Qty"
+                                  min="1"
+                                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                                    }`}
+                                />
+                                {errors[`quantity_${index}`] && (
+                                  <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors[`quantity_${index}`]}</p>
+                                )}
+                              </div>
+                            )}
+
+                            {orderItems.length > 1 && item.itemId && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveItem(index)}
+                                className="p-2 text-red-500 hover:text-red-400"
+                              >
+                                <X size={20} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {errors.items && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                          <p className="text-orange-500 text-xs">This entry is required</p>
+                          <div
+                            className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                            style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                          >!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.items}</p>
                         </div>
                       )}
                     </div>
@@ -2020,73 +2061,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               </>
             )}
 
-            {currentUser?.role_id !== 1 && (
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>Items<span className="text-red-500">*</span></label>
-                {orderItems.map((item, index) => (
-                  <div key={index} className="mb-3">
-                    <div className="flex items-start gap-2">
-                      <div className="flex-1">
-                        <div className="relative">
-                          <select
-                            value={item.itemId}
-                            onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}
-                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                              }`}
-                          >
-                            <option value="">Select Item {index + 1}</option>
-                            {inventoryItems.map((invItem) => (
-                              <option key={invItem.id} value={invItem.item_name}>
-                                {invItem.item_name}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`} size={20} />
-                        </div>
-                        {errors[`item_${index}`] && (
-                          <p className="text-orange-500 text-xs mt-1">{errors[`item_${index}`]}</p>
-                        )}
-                      </div>
 
-                      {item.itemId && (
-                        <div className="w-32">
-                          <input
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                            placeholder="Qty"
-                            min="1"
-                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                              }`}
-                          />
-                          {errors[`quantity_${index}`] && (
-                            <p className="text-orange-500 text-xs mt-1">{errors[`quantity_${index}`]}</p>
-                          )}
-                        </div>
-                      )}
-
-                      {orderItems.length > 1 && item.itemId && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(index)}
-                          className="p-2 text-red-500 hover:text-red-400"
-                        >
-                          <X size={20} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {errors.items && (
-                  <div className="flex items-center mt-1">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                    <p className="text-orange-500 text-xs">{errors.items}</p>
-                  </div>
-                )}
-              </div>
-            )}
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'

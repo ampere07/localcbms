@@ -222,9 +222,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 return <Customer initialSearchQuery={customerInitialSearch} autoOpenAccountNo={customerAutoOpenAccountNo} />;
             case 'transaction-list':
                 return (
-                    <TransactionProvider>
-                        <TransactionList onNavigate={(section, search) => handleSectionChange(section, search)} />
-                    </TransactionProvider>
+                    <TransactionList onNavigate={(section, search) => handleSectionChange(section, search)} />
                 );
             case 'payment-portal':
                 return <PaymentPortal />;

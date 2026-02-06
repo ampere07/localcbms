@@ -56,6 +56,11 @@ interface ServiceOrderContextType {
     error: string | null;
     refreshServiceOrders: () => Promise<void>;
     silentRefresh: () => Promise<void>;
+    fetchNextPage: () => Promise<void>;
+    setSearchQuery: (query: string) => void;
+    searchQuery: string;
+    hasMore: boolean;
+    currentPage: number;
     lastUpdated: Date | null;
 }
 
@@ -129,15 +134,21 @@ export const ServiceOrderProvider: React.FC<ServiceOrderProviderProps> = ({ chil
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const [hasMore, setHasMore] = useState<boolean>(true);
+    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [isFetchingNextPage, setIsFetchingNextPage] = useState<boolean>(false);
 
-    const fetchServiceOrders = useCallback(async (force = false, silent = false) => {
-        // If we have data and not forced, skip fetching
-        if (!force && serviceOrders.length > 0) {
+    const fetchServiceOrders = useCallback(async (page = 1, force = false, silent = false, query = searchQuery) => {
+        // If we have data and not forced and it's first page, skip fetching
+        if (page === 1 && !force && serviceOrders.length > 0 && query === searchQuery) {
             return;
         }
 
-        if (!silent) {
+        if (page === 1 && !silent) {
             setIsLoading(true);
+        } else if (page > 1) {
+            setIsFetchingNextPage(true);
         }
 
         try {
@@ -156,8 +167,8 @@ export const ServiceOrderProvider: React.FC<ServiceOrderProviderProps> = ({ chil
                 }
             }
 
-            // Fetch service orders
-            const response = await getServiceOrders(assignedEmail);
+            // Fetch service orders with pagination
+            const response = (await getServiceOrders(assignedEmail, page, 50, query)) as any;
 
             if (!response.success) {
                 throw new Error(response.message || 'Failed to fetch service orders');
@@ -165,40 +176,65 @@ export const ServiceOrderProvider: React.FC<ServiceOrderProviderProps> = ({ chil
 
             if (response.success && Array.isArray(response.data)) {
                 const orders = response.data.map(transformServiceOrder);
-                setServiceOrders(orders);
+
+                if (page === 1) {
+                    setServiceOrders(orders);
+                } else {
+                    setServiceOrders(prev => [...prev, ...orders]);
+                }
+
+                if (response.pagination) {
+                    setHasMore(response.pagination.has_more);
+                    setCurrentPage(response.pagination.current_page);
+                } else {
+                    // Fallback for older API versions if any
+                    setHasMore(false);
+                }
+
                 setLastUpdated(new Date());
                 setError(null);
             } else {
-                setServiceOrders([]);
+                if (page === 1) {
+                    setServiceOrders([]);
+                }
+                setHasMore(false);
                 setError(null);
             }
         } catch (err: any) {
             console.error('Failed to fetch service orders:', err);
             if (!silent) {
                 setError(err.message || 'Failed to load service orders. Please try again.');
-                // Don't clear data on error if we have it
-                if (serviceOrders.length === 0) {
-                    setServiceOrders([]);
-                }
             }
         } finally {
             setIsLoading(false);
+            setIsFetchingNextPage(false);
         }
-    }, [serviceOrders.length]);
+    }, [serviceOrders.length, searchQuery]);
 
     const refreshServiceOrders = useCallback(async () => {
-        await fetchServiceOrders(true, false);
+        setCurrentPage(1);
+        await fetchServiceOrders(1, true, false);
     }, [fetchServiceOrders]);
 
     const silentRefresh = useCallback(async () => {
-        await fetchServiceOrders(true, true);
+        await fetchServiceOrders(1, true, true);
+    }, [fetchServiceOrders]);
+
+    const fetchNextPage = useCallback(async () => {
+        if (!hasMore || isLoading || isFetchingNextPage) return;
+        await fetchServiceOrders(currentPage + 1, true, false);
+    }, [currentPage, hasMore, isLoading, isFetchingNextPage, fetchServiceOrders]);
+
+    const handleSearch = useCallback((query: string) => {
+        setSearchQuery(query);
+        setCurrentPage(1);
+        fetchServiceOrders(1, true, false, query);
     }, [fetchServiceOrders]);
 
     // Initial fetch effect
     useEffect(() => {
-        // Only fetch if empty, otherwise let the logic decide
         if (serviceOrders.length === 0) {
-            fetchServiceOrders(false, false);
+            fetchServiceOrders(1, false, false);
         }
     }, [fetchServiceOrders, serviceOrders.length]);
 
@@ -206,10 +242,15 @@ export const ServiceOrderProvider: React.FC<ServiceOrderProviderProps> = ({ chil
         <ServiceOrderContext.Provider
             value={{
                 serviceOrders,
-                isLoading,
+                isLoading: isLoading || isFetchingNextPage,
                 error,
                 refreshServiceOrders,
                 silentRefresh,
+                fetchNextPage,
+                setSearchQuery: handleSearch,
+                searchQuery,
+                hasMore,
+                currentPage,
                 lastUpdated
             }}
         >

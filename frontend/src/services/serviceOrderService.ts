@@ -70,14 +70,21 @@ export const createServiceOrder = async (serviceOrderData: Partial<ServiceOrderD
   }
 };
 
-export const getServiceOrders = async (assignedEmail?: string) => {
+export const getServiceOrders = async (assignedEmail?: string, page: number = 1, limit: number = 50, search: string = '') => {
   try {
-    const params: { assigned_email?: string; user_role?: string } = {};
-    
+    const params: { assigned_email?: string; user_role?: string; page: number; limit: number; search?: string } = {
+      page,
+      limit
+    };
+
     if (assignedEmail) {
       params.assigned_email = assignedEmail;
     }
-    
+
+    if (search) {
+      params.search = search;
+    }
+
     const authData = localStorage.getItem('authData');
     if (authData) {
       try {
@@ -89,7 +96,7 @@ export const getServiceOrders = async (assignedEmail?: string) => {
         console.error('Failed to parse authData:', err);
       }
     }
-    
+
     const response = await apiClient.get<ApiResponse<ServiceOrderData[]>>('/service-orders', { params });
     return response.data;
   } catch (error) {

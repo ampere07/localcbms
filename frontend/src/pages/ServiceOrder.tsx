@@ -18,16 +18,16 @@ type MobileView = 'locations' | 'orders' | 'details';
 
 const allColumns = [
   { key: 'timestamp', label: 'Timestamp', width: 'min-w-40' },
+  { key: 'supportStatus', label: 'Support Status', width: 'min-w-32' },
+  { key: 'visitStatus', label: 'Visit Status', width: 'min-w-32' },
   { key: 'fullName', label: 'Full Name', width: 'min-w-40' },
   { key: 'contactNumber', label: 'Contact Number', width: 'min-w-36' },
   { key: 'fullAddress', label: 'Full Address', width: 'min-w-56' },
   { key: 'concern', label: 'Concern', width: 'min-w-36' },
   { key: 'concernRemarks', label: 'Concern Remarks', width: 'min-w-48' },
   { key: 'requestedBy', label: 'Requested By', width: 'min-w-36' },
-  { key: 'supportStatus', label: 'Support Status', width: 'min-w-32' },
   { key: 'assignedEmail', label: 'Assigned Email', width: 'min-w-48' },
   { key: 'repairCategory', label: 'Repair Category', width: 'min-w-36' },
-  { key: 'visitStatus', label: 'Visit Status', width: 'min-w-32' },
   { key: 'modifiedBy', label: 'Modified By', width: 'min-w-32' },
   { key: 'modifiedDate', label: 'Modified Date', width: 'min-w-40' }
 ];
@@ -335,6 +335,14 @@ const ServiceOrderPage: React.FC = () => {
             aValue = a.timestamp || '';
             bValue = b.timestamp || '';
             break;
+          case 'supportStatus':
+            aValue = a.supportStatus || '';
+            bValue = b.supportStatus || '';
+            break;
+          case 'visitStatus':
+            aValue = a.visitStatus || '';
+            bValue = b.visitStatus || '';
+            break;
           case 'fullName':
             aValue = a.fullName || '';
             bValue = b.fullName || '';
@@ -359,10 +367,6 @@ const ServiceOrderPage: React.FC = () => {
             aValue = a.requestedBy || '';
             bValue = b.requestedBy || '';
             break;
-          case 'supportStatus':
-            aValue = a.supportStatus || '';
-            bValue = b.supportStatus || '';
-            break;
           case 'assignedEmail':
             aValue = a.assignedEmail || '';
             bValue = b.assignedEmail || '';
@@ -370,10 +374,6 @@ const ServiceOrderPage: React.FC = () => {
           case 'repairCategory':
             aValue = a.repairCategory || '';
             bValue = b.repairCategory || '';
-            break;
-          case 'visitStatus':
-            aValue = a.visitStatus || '';
-            bValue = b.visitStatus || '';
             break;
           case 'modifiedBy':
             aValue = a.modifiedBy || '';
@@ -655,6 +655,10 @@ const ServiceOrderPage: React.FC = () => {
     switch (columnKey) {
       case 'timestamp':
         return serviceOrder.timestamp;
+      case 'supportStatus':
+        return <StatusText status={serviceOrder.supportStatus} type="support" />;
+      case 'visitStatus':
+        return <StatusText status={serviceOrder.visitStatus} type="visit" />;
       case 'fullName':
         return serviceOrder.fullName;
       case 'contactNumber':
@@ -667,14 +671,10 @@ const ServiceOrderPage: React.FC = () => {
         return serviceOrder.concernRemarks || '-';
       case 'requestedBy':
         return serviceOrder.requestedBy || '-';
-      case 'supportStatus':
-        return <StatusText status={serviceOrder.supportStatus} type="support" />;
       case 'assignedEmail':
         return serviceOrder.assignedEmail || '-';
       case 'repairCategory':
         return serviceOrder.repairCategory || '-';
-      case 'visitStatus':
-        return <StatusText status={serviceOrder.visitStatus} type="visit" />;
       case 'modifiedBy':
         return serviceOrder.modifiedBy || '-';
       case 'modifiedDate':
