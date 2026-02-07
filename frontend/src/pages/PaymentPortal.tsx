@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Globe, Search, ChevronDown } from 'lucide-react';
 import PaymentPortalDetails from '../components/PaymentPortalDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
-import { paymentPortalLogsService, PaymentPortalLog } from '../services/paymentPortalLogsService';
-import { usePaymentPortalContext, PaymentPortalRecord } from '../contexts/PaymentPortalContext';
+import { usePaymentPortalStore } from '../store/paymentPortalStore';
+import { PaymentPortalLog as PaymentPortalRecord } from '../services/paymentPortalLogsService';
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
@@ -68,12 +68,19 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
 };
 
 const PaymentPortal: React.FC = () => {
-  const { paymentPortalRecords: records, isLoading: loading, error, silentRefresh } = usePaymentPortalContext();
+  const {
+    paymentPortalRecords: records,
+    totalCount,
+    isLoading: loading,
+    error,
+    fetchPaymentPortalRecords,
+    refreshPaymentPortalRecords
+  } = usePaymentPortalStore();
+
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedRecord, setSelectedRecord] = useState<PaymentPortalRecord | null>(null);
-  // Removed local records, loading, error state
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
@@ -81,16 +88,6 @@ const PaymentPortal: React.FC = () => {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
-
-  // Format date function
-  const formatDate = (dateStr?: string): string => {
-    if (!dateStr) return 'No date';
-    try {
-      return new Date(dateStr).toLocaleString();
-    } catch (e) {
-      return dateStr;
-    }
-  };
 
   // Format currency function
   const formatCurrency = (amount: number) => {
@@ -132,8 +129,8 @@ const PaymentPortal: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    silentRefresh();
-  }, [silentRefresh]);
+    fetchPaymentPortalRecords();
+  }, [fetchPaymentPortalRecords]);
 
 
   // Generate location items with counts based on real data
@@ -141,7 +138,7 @@ const PaymentPortal: React.FC = () => {
     {
       id: 'all',
       name: 'All',
-      count: records.length
+      count: totalCount || records.length
     }
   ];
 
@@ -191,7 +188,15 @@ const PaymentPortal: React.FC = () => {
     return filteredRecords.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredRecords, currentPage]);
 
-  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+  // Use totalCount for total pages if no filter/search is active
+  const totalDisplayCount = useMemo(() => {
+    if (searchQuery || selectedLocation !== 'all') {
+      return filteredRecords.length;
+    }
+    return Math.max(totalCount, records.length);
+  }, [filteredRecords.length, totalCount, records.length, searchQuery, selectedLocation]);
+
+  const totalPages = Math.ceil(totalDisplayCount / itemsPerPage);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -205,7 +210,7 @@ const PaymentPortal: React.FC = () => {
     return (
       <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
         <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredRecords.length)}</span> of <span className="font-medium">{filteredRecords.length}</span> results
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -455,7 +460,7 @@ const PaymentPortal: React.FC = () => {
                   <tbody className={`${isDarkMode ? 'bg-gray-900 divide-y divide-gray-800' : 'bg-white divide-y divide-gray-200'
                     }`}>
                     {paginatedRecords.length > 0 ? (
-                      paginatedRecords.map((record) => (
+                      paginatedRecords.map((record: PaymentPortalRecord) => (
                         <tr
                           key={record.id}
                           className={`cursor-pointer ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
@@ -505,9 +510,11 @@ const PaymentPortal: React.FC = () => {
                       <tr>
                         <td colSpan={10} className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                           }`}>
-                          {records.length > 0
+                          {filteredRecords.length > 0
                             ? 'No payment portal records found matching your filters'
-                            : 'No payment portal records found.'}
+                            : (totalCount > records.length)
+                              ? 'Loading more records... please wait.'
+                              : 'No payment portal records found.'}
                         </td>
                       </tr>
                     )}

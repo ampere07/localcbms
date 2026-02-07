@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CreditCard, Search, Circle } from 'lucide-react';
 import BillingDetails from '../components/CustomerDetails';
-import { getBillingRecords, BillingRecord } from '../services/billingService';
+import { useBillingStore } from '../store/billingStore';
+import { BillingRecord } from '../services/billingService';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
 import { getCities, City } from '../services/cityService';
@@ -42,7 +43,7 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     barangay: customerData.barangay || '',
     city: customerData.city || '',
     region: customerData.region || '',
-    
+
     usageType: customerData.technicalDetails?.usageTypeId ? `Type ${customerData.technicalDetails.usageTypeId}` : '',
     referredBy: customerData.referredBy || '',
     referralContactNo: '',
@@ -69,12 +70,10 @@ const BillingListView: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
-  const [billingRecords, setBillingRecords] = useState<BillingRecord[]>([]);
+  const { billingRecords, totalCount, isLoading, error, fetchBillingRecords, refreshBillingRecords } = useBillingStore();
   const [cities, setCities] = useState<City[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [displayMode, setDisplayMode] = useState<DisplayMode>('table');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -116,14 +115,14 @@ const BillingListView: React.FC = () => {
         setDropdownOpen(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [dropdownRef]);
-  
+
   // Fetch location data
   useEffect(() => {
     const fetchLocationData = async () => {
@@ -140,29 +139,14 @@ const BillingListView: React.FC = () => {
         setRegions([]);
       }
     };
-    
+
     fetchLocationData();
   }, []);
 
   // Fetch billing data
   useEffect(() => {
-    const fetchBillingData = async () => {
-      try {
-        setIsLoading(true);
-        const data = await getBillingRecords();
-        setBillingRecords(data);
-        setError(null);
-      } catch (err) {
-        console.error('Failed to fetch billing records:', err);
-        setError('Failed to load billing records. Please try again.');
-        setBillingRecords([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchBillingData();
-  }, []);
+    fetchBillingRecords();
+  }, [fetchBillingRecords]);
 
   // Memoize city name lookup for performance
   const getCityName = useMemo(() => {
@@ -182,7 +166,7 @@ const BillingListView: React.FC = () => {
         count: billingRecords.length
       }
     ];
-    
+
     // Add cities with counts
     cities.forEach((city) => {
       const cityCount = billingRecords.filter(record => record.cityId === city.id).length;
@@ -199,14 +183,14 @@ const BillingListView: React.FC = () => {
   // Memoize filtered records for performance
   const filteredBillingRecords = useMemo(() => {
     return billingRecords.filter(record => {
-      const matchesLocation = selectedLocation === 'all' || 
-                             record.cityId === Number(selectedLocation);
-      
-      const matchesSearch = searchQuery === '' || 
-                           record.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           record.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           record.applicationId.includes(searchQuery);
-      
+      const matchesLocation = selectedLocation === 'all' ||
+        record.cityId === Number(selectedLocation);
+
+      const matchesSearch = searchQuery === '' ||
+        record.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.applicationId.includes(searchQuery);
+
       return matchesLocation && matchesSearch;
     });
   }, [billingRecords, selectedLocation, searchQuery]);
@@ -220,7 +204,6 @@ const BillingListView: React.FC = () => {
       setSelectedCustomer(customerData);
     } catch (error) {
       console.error('Failed to fetch customer details:', error);
-      setError('Failed to load customer details');
     } finally {
       setIsLoadingDetails(false);
     }
@@ -231,21 +214,11 @@ const BillingListView: React.FC = () => {
   };
 
   const handleRefresh = async () => {
-    try {
-      setIsLoading(true);
-      const data = await getBillingRecords();
-      setBillingRecords(data);
-      setError(null);
-    } catch (err) {
-      console.error('Failed to refresh billing records:', err);
-      setError('Failed to refresh billing records. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+    await refreshBillingRecords();
   };
 
   const toggleColumn = (columnKey: string) => {
-    setVisibleColumns(prev => 
+    setVisibleColumns(prev =>
       prev.includes(columnKey)
         ? prev.filter(col => col !== columnKey)
         : [...prev, columnKey]
@@ -257,18 +230,16 @@ const BillingListView: React.FC = () => {
       case 'status':
         return (
           <div className="flex items-center space-x-2">
-            <Circle 
-              className={`h-3 w-3 ${
-                record.onlineStatus === 'Online' 
-                  ? 'text-green-400 fill-green-400' 
-                  : 'text-gray-400 fill-gray-400'
-              }`} 
+            <Circle
+              className={`h-3 w-3 ${record.onlineStatus === 'Online'
+                ? 'text-green-400 fill-green-400'
+                : 'text-gray-400 fill-gray-400'
+                }`}
             />
-            <span className={`text-xs ${
-              record.onlineStatus === 'Online' 
-                ? 'text-green-400' 
-                : 'text-gray-400'
-            }`}>
+            <span className={`text-xs ${record.onlineStatus === 'Online'
+              ? 'text-green-400'
+              : 'text-gray-400'
+              }`}>
               {record.onlineStatus}
             </span>
           </div>
@@ -331,22 +302,20 @@ const BillingListView: React.FC = () => {
             <button
               key={location.id}
               onClick={() => setSelectedLocation(location.id)}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
-                selectedLocation === location.id
-                  ? 'bg-orange-500 bg-opacity-20 text-orange-400'
-                  : 'text-gray-300'
-              }`}
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${selectedLocation === location.id
+                ? 'bg-orange-500 bg-opacity-20 text-orange-400'
+                : 'text-gray-300'
+                }`}
             >
               <div className="flex items-center">
                 <CreditCard className="h-4 w-4 mr-2" />
                 <span className="capitalize">{location.name}</span>
               </div>
               {location.count > 0 && (
-                <span className={`px-2 py-1 rounded-full text-xs ${
-                  selectedLocation === location.id
-                    ? 'bg-orange-600 text-white'
-                    : 'bg-gray-700 text-gray-300'
-                }`}>
+                <span className={`px-2 py-1 rounded-full text-xs ${selectedLocation === location.id
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-gray-700 text-gray-300'
+                  }`}>
                   {location.count}
                 </span>
               )}
@@ -380,8 +349,8 @@ const BillingListView: React.FC = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
-                  <div className="absolute right-0 mt-1 w-36 bg-gray-800 border border-gray-700 rounded shadow-lg z-10" 
-                       style={{ display: dropdownOpen ? 'block' : 'none' }}>
+                  <div className="absolute right-0 mt-1 w-36 bg-gray-800 border border-gray-700 rounded shadow-lg z-10"
+                    style={{ display: dropdownOpen ? 'block' : 'none' }}>
                     <button
                       onClick={() => {
                         setDisplayMode('card');
@@ -412,7 +381,7 @@ const BillingListView: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto">
               {isLoading ? (
@@ -426,7 +395,7 @@ const BillingListView: React.FC = () => {
               ) : error ? (
                 <div className="px-4 py-12 text-center text-red-400">
                   <p>{error}</p>
-                  <button 
+                  <button
                     onClick={handleRefresh}
                     className="mt-4 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
                     Retry
@@ -440,9 +409,8 @@ const BillingListView: React.FC = () => {
                         {displayedColumns.map((column, index) => (
                           <th
                             key={column.key}
-                            className={`text-left py-3 px-3 text-gray-400 font-normal bg-gray-800 ${column.width} whitespace-nowrap ${
-                              index < displayedColumns.length - 1 ? 'border-r border-gray-700' : ''
-                            }`}
+                            className={`text-left py-3 px-3 text-gray-400 font-normal bg-gray-800 ${column.width} whitespace-nowrap ${index < displayedColumns.length - 1 ? 'border-r border-gray-700' : ''
+                              }`}
                           >
                             {column.label}
                           </th>
@@ -452,19 +420,17 @@ const BillingListView: React.FC = () => {
                     <tbody>
                       {filteredBillingRecords.length > 0 ? (
                         filteredBillingRecords.map((record) => (
-                          <tr 
-                            key={record.id} 
-                            className={`border-b border-gray-800 hover:bg-gray-900 cursor-pointer transition-colors ${
-                              selectedCustomer?.billingAccount?.accountNo === record.applicationId ? 'bg-gray-800' : ''
-                            }`}
+                          <tr
+                            key={record.id}
+                            className={`border-b border-gray-800 hover:bg-gray-900 cursor-pointer transition-colors ${selectedCustomer?.billingAccount?.accountNo === record.applicationId ? 'bg-gray-800' : ''
+                              }`}
                             onClick={() => handleRowClick(record)}
                           >
                             {displayedColumns.map((column, index) => (
                               <td
                                 key={column.key}
-                                className={`py-4 px-3 text-white whitespace-nowrap ${
-                                  index < displayedColumns.length - 1 ? 'border-r border-gray-800' : ''
-                                }`}
+                                className={`py-4 px-3 text-white whitespace-nowrap ${index < displayedColumns.length - 1 ? 'border-r border-gray-800' : ''
+                                  }`}
                               >
                                 {renderCellValue(record, column.key)}
                               </td>

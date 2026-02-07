@@ -45,7 +45,7 @@ export interface InvoiceResponse {
 }
 
 export const invoiceService = {
-  async getAllInvoices(fastMode: boolean = false, page: number = 1, perPage: number = 100): Promise<InvoiceRecord[]> {
+  async getAllInvoices(fastMode: boolean = false, page: number = 1, perPage: number = 100): Promise<any> {
     try {
       // Using the dedicated invoice records endpoint that directly queries invoices table
       const response = await apiClient.get<InvoiceResponse>('/invoice-records', {
@@ -55,13 +55,21 @@ export const invoiceService = {
           per_page: perPage
         }
       });
-      if (response.data.success) {
-        return response.data.data;
-      }
-      throw new Error(response.data.message || 'Failed to fetch invoices');
+
+      return {
+        success: response.data.success,
+        data: response.data.data || [],
+        total: (response.data as any).total || (response.data.data ? response.data.data.length : 0),
+        message: response.data.message
+      };
     } catch (error) {
       console.error('Error fetching invoice records:', error);
-      throw error;
+      return {
+        success: false,
+        data: [],
+        total: 0,
+        message: error instanceof Error ? error.message : 'Failed to fetch invoices'
+      };
     }
   },
 

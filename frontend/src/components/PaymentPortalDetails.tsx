@@ -11,7 +11,7 @@ import { relatedDataColumns } from '../config/relatedDataColumns';
 
 interface PaymentPortalDetailsProps {
   record: {
-    id: string;
+    id: string | number;
     reference_no: string;
     account_id: number | string;
     total_amount: number;

@@ -42,6 +42,8 @@ export interface PaymentPortalLog {
 export interface PaymentPortalLogsResponse {
   status: string;
   data: PaymentPortalLog[];
+  total?: number;
+  count?: number;
 }
 
 export interface PaymentPortalLogResponse {
@@ -58,11 +60,13 @@ export const paymentPortalLogsService = {
     account_no?: string;
     city?: string;
     search?: string;
-  }): Promise<PaymentPortalLog[]> => {
+    limit?: number;
+    offset?: number;
+  }): Promise<any> => {
     try {
       const authData = localStorage.getItem('authData');
       let token = '';
-      
+
       if (authData) {
         const parsed = JSON.parse(authData);
         token = parsed.token || '';
@@ -79,10 +83,21 @@ export const paymentPortalLogsService = {
         }
       );
 
-      return response.data.data || [];
+      return {
+        success: response.data.status === 'success',
+        data: response.data.data || [],
+        total: response.data.total || 0,
+        count: response.data.count || 0
+      };
     } catch (error: any) {
       console.error('Error fetching payment portal logs:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || 'Failed to fetch payment portal logs');
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to fetch payment portal logs',
+        data: [],
+        total: 0,
+        count: 0
+      };
     }
   },
 
@@ -93,7 +108,7 @@ export const paymentPortalLogsService = {
     try {
       const authData = localStorage.getItem('authData');
       let token = '';
-      
+
       if (authData) {
         const parsed = JSON.parse(authData);
         token = parsed.token || '';
@@ -123,7 +138,7 @@ export const paymentPortalLogsService = {
     try {
       const authData = localStorage.getItem('authData');
       let token = '';
-      
+
       if (authData) {
         const parsed = JSON.parse(authData);
         token = parsed.token || '';

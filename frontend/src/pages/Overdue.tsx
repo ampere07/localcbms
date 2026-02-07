@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
-import { useOverdueContext } from '../contexts/OverdueContext';
+import { useOverdueStore } from '../store/overdueStore';
 import { Overdue } from '../services/overdueService';
 
 const OverduePage: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const { overdueRecords, isLoading, error, refreshOverdueRecords, silentRefresh } = useOverdueContext();
+  const { overdueRecords, totalCount, isLoading, error, fetchOverdueRecords, refreshOverdueRecords } = useOverdueStore();
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   // Pagination State
@@ -59,8 +59,8 @@ const OverduePage: React.FC = () => {
 
   // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
-    silentRefresh();
-  }, [silentRefresh]);
+    fetchOverdueRecords();
+  }, [fetchOverdueRecords]);
 
   const handleRefresh = async () => {
     await refreshOverdueRecords();
@@ -80,7 +80,14 @@ const OverduePage: React.FC = () => {
     return filteredRecords.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredRecords, currentPage]);
 
-  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+  const totalDisplayCount = React.useMemo(() => {
+    if (selectedDate === 'All' && searchQuery === '') {
+      return totalCount;
+    }
+    return filteredRecords.length;
+  }, [filteredRecords.length, totalCount, selectedDate, searchQuery]);
+
+  const totalPages = Math.ceil(totalDisplayCount / itemsPerPage);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -94,7 +101,7 @@ const OverduePage: React.FC = () => {
     return (
       <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
         <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredRecords.length)}</span> of <span className="font-medium">{filteredRecords.length}</span> results
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -310,9 +317,13 @@ const OverduePage: React.FC = () => {
                   </div>
                 </>
               ) : (
-                <div className={`h-full flex items-center justify-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                <div className={`h-full px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
-                  No items
+                  {filteredRecords.length > 0
+                    ? 'No Overdue records found matching your filters'
+                    : (totalCount > overdueRecords.length)
+                      ? 'Loading more records... please wait.'
+                      : 'No Overdue records found.'}
                 </div>
               )}
             </div>

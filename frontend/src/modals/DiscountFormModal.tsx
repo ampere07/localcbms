@@ -3,7 +3,7 @@ import { X, ChevronDown, Minus, Plus } from 'lucide-react';
 import LoadingModal from '../components/LoadingModal';
 import * as discountService from '../services/discountService';
 import { userService } from '../services/userService';
-import { getBillingRecords } from '../services/billingService';
+import { useBillingStore } from '../store/billingStore';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface DiscountFormModalProps {
@@ -50,7 +50,7 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [users, setUsers] = useState<any[]>([]);
-  const [billingAccounts, setBillingAccounts] = useState<any[]>([]);
+  const { billingRecords: billingAccounts, fetchBillingRecords } = useBillingStore();
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
@@ -113,7 +113,7 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
         const response = await userService.getAllUsers();
         if (response.success && response.data) {
           setUsers(response.data);
-          
+
           const authData = localStorage.getItem('authData');
           if (authData) {
             const userData = JSON.parse(authData);
@@ -134,12 +134,7 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
     };
 
     const fetchBillingAccounts = async () => {
-      try {
-        const accounts = await getBillingRecords();
-        setBillingAccounts(accounts);
-      } catch (error) {
-        console.error('Error fetching billing accounts:', error);
-      }
+      fetchBillingRecords();
     };
 
     if (isOpen) {
@@ -214,10 +209,10 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
 
   const handleSave = async () => {
     console.log('Discount save button clicked!', formData);
-    
+
     const isValid = validateForm();
     console.log('Discount form validation result:', isValid);
-    
+
     if (!isValid) {
       console.log('Discount form validation failed. Errors:', errors);
       alert('Please fill in all required fields before saving.');
@@ -228,9 +223,9 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
     setLoadingPercentage(0);
     try {
       console.log('Creating discount with data:', formData);
-      
+
       setLoadingPercentage(20);
-      
+
       const payload: discountService.DiscountData = {
         account_no: formData.accountNo!,
         discount_amount: parseFloat(formData.discountAmount) || 0,
@@ -241,13 +236,13 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
         approved_by_user_id: formData.approvedByUserId!,
         remarks: formData.remarks || ''
       };
-      
+
       setLoadingPercentage(50);
       const result = await discountService.create(payload);
-      
+
       setLoadingPercentage(100);
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       alert('Discount created successfully!');
       onSave(formData);
       onClose();
@@ -271,7 +266,7 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
       account.middleInitial || '',
       account.lastName || ''
     ].filter(Boolean).join(' ');
-    
+
     const addressParts = [
       account.address || '',
       account.location || '',
@@ -279,29 +274,29 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
       account.city || '',
       account.region || ''
     ].filter(Boolean).join(', ');
-    
+
     const accountNumber = account.accountNo || account.account_no || '';
     const searchText = `${accountNumber} ${fullName || account.customerName} ${addressParts}`.toLowerCase();
-    
+
     return searchText.includes(accountSearchQuery.toLowerCase());
   });
 
   // Get selected account display text
   const getSelectedAccountText = () => {
     if (!formData.accountNo) return 'Select Account';
-    
+
     const account = billingAccounts.find(
       (acc) => (acc.accountNo || acc.account_no) === formData.accountNo
     );
-    
+
     if (!account) return formData.accountNo;
-    
+
     const fullName = [
       account.firstName || '',
       account.middleInitial || '',
       account.lastName || ''
     ].filter(Boolean).join(' ');
-    
+
     const addressParts = [
       account.address || '',
       account.location || '',
@@ -309,7 +304,7 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
       account.city || '',
       account.region || ''
     ].filter(Boolean).join(', ');
-    
+
     return `${formData.accountNo} | ${fullName || account.customerName} | ${addressParts}`;
   };
 
@@ -317,32 +312,28 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
 
   return (
     <>
-      <LoadingModal 
-        isOpen={loading} 
-        message="Saving discount..." 
-        percentage={loadingPercentage} 
+      <LoadingModal
+        isOpen={loading}
+        message="Saving discount..."
+        percentage={loadingPercentage}
       />
-      
+
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-        <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${
-          isDarkMode ? 'bg-gray-900' : 'bg-white'
-        }`}>
-          <div className={`px-6 py-4 flex items-center justify-between border-b ${
-            isDarkMode
+        <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+          }`}>
+          <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
               ? 'bg-gray-800 border-gray-700'
               : 'bg-gray-100 border-gray-300'
-          }`}>
-            <h2 className={`text-xl font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Discounted Form</h2>
+            }`}>
+            <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Discounted Form</h2>
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleCancel}
-                className={`px-4 py-2 rounded text-sm ${
-                  isDarkMode
+                className={`px-4 py-2 rounded text-sm ${isDarkMode
                     ? 'bg-gray-700 hover:bg-gray-600 text-white'
                     : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                }`}
+                  }`}
               >
                 Cancel
               </button>
@@ -382,57 +373,49 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Account No.<span className="text-red-500">*</span>
               </label>
               <div className="relative" ref={accountDropdownRef}>
                 {/* Custom Searchable Dropdown */}
                 <div
-                  className={`w-full px-3 py-2 border rounded cursor-pointer ${
-                    errors.accountNo ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded cursor-pointer ${errors.accountNo ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    }`}
                   onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={`truncate ${
-                      !formData.accountNo ? (isDarkMode ? 'text-gray-400' : 'text-gray-500') : ''
-                    }`}>
+                    <span className={`truncate ${!formData.accountNo ? (isDarkMode ? 'text-gray-400' : 'text-gray-500') : ''
+                      }`}>
                       {getSelectedAccountText()}
                     </span>
-                    <ChevronDown className={`flex-shrink-0 ml-2 ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`} size={20} />
+                    <ChevronDown className={`flex-shrink-0 ml-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
                   </div>
                 </div>
-                
+
                 {/* Dropdown Menu */}
                 {isAccountDropdownOpen && (
-                  <div className={`absolute z-50 w-full mt-1 border rounded shadow-lg max-h-80 overflow-hidden ${
-                    isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
-                  }`}>
-                    {/* Search Input */}
-                    <div className={`p-2 border-b ${
-                      isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                  <div className={`absolute z-50 w-full mt-1 border rounded shadow-lg max-h-80 overflow-hidden ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
                     }`}>
+                    {/* Search Input */}
+                    <div className={`p-2 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                      }`}>
                       <input
                         type="text"
                         placeholder="Search accounts..."
                         value={accountSearchQuery}
                         onChange={(e) => setAccountSearchQuery(e.target.value)}
-                        className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                          isDarkMode
+                        className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
                             ? 'bg-gray-900 border-gray-600 text-white placeholder-gray-400'
                             : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                        }`}
+                          }`}
                         onClick={(e) => e.stopPropagation()}
                         autoFocus
                       />
                     </div>
-                    
+
                     {/* Options List */}
                     <div className="max-h-64 overflow-y-auto">
                       {filteredBillingAccounts.length > 0 ? (
@@ -442,7 +425,7 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                             account.middleInitial || '',
                             account.lastName || ''
                           ].filter(Boolean).join(' ');
-                          
+
                           const addressParts = [
                             account.address || '',
                             account.location || '',
@@ -450,20 +433,18 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                             account.city || '',
                             account.region || ''
                           ].filter(Boolean).join(', ');
-                          
+
                           const accountNumber = account.accountNo || account.account_no || '';
                           const displayText = `${accountNumber} | ${fullName || account.customerName} | ${addressParts}`;
-                          
+
                           return (
                             <div
                               key={account.id}
-                              className={`px-3 py-2 cursor-pointer ${
-                                isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                              } ${
-                                formData.accountNo === accountNumber
+                              className={`px-3 py-2 cursor-pointer ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                                } ${formData.accountNo === accountNumber
                                   ? (isDarkMode ? 'bg-gray-700' : 'bg-gray-100')
                                   : ''
-                              }`}
+                                }`}
                               onClick={() => {
                                 handleInputChange('accountNo', accountNumber);
                                 setIsAccountDropdownOpen(false);
@@ -477,18 +458,16 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                                   {' | '}{fullName || account.customerName}
                                 </span>
                               </div>
-                              <div className={`text-xs truncate ${
-                                isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                              }`}>
+                              <div className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                                }`}>
                                 {addressParts}
                               </div>
                             </div>
                           );
                         })
                       ) : (
-                        <div className={`px-3 py-4 text-center text-sm ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                        }`}>
+                        <div className={`px-3 py-4 text-center text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                          }`}>
                           No accounts found
                         </div>
                       )}
@@ -500,20 +479,18 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Discount Status
               </label>
               <div className="relative">
                 <select
                   value={formData.status}
                   onChange={(e) => handleInputChange('status', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-pointer ${
-                    isDarkMode
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-pointer ${isDarkMode
                       ? 'bg-gray-800 border-gray-700 text-white'
                       : 'bg-white border-gray-300 text-gray-900'
-                  }`}
+                    }`}
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 >
                   <option value="Pending" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Pending</option>
@@ -526,9 +503,8 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Discount Amount<span className="text-red-500">*</span>
               </label>
               <div className="flex items-center">
@@ -537,33 +513,29 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                     type="text"
                     value={`₱ ${formData.discountAmount}`}
                     onChange={(e) => handleInputChange('discountAmount', e.target.value.replace('₱ ', '').replace(/[^0-9.]/g, ''))}
-                    className={`w-full px-3 py-2 border rounded-l focus:outline-none focus:border-orange-500 ${
-                      errors.discountAmount ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                    } ${
-                      isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-l focus:outline-none focus:border-orange-500 ${errors.discountAmount ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      }`}
                   />
                 </div>
                 <div className="flex flex-col">
                   <button
                     type="button"
                     onClick={() => handleDiscountAmountChange('decrease')}
-                    className={`px-3 py-1 border border-l-0 text-sm ${
-                      isDarkMode
+                    className={`px-3 py-1 border border-l-0 text-sm ${isDarkMode
                         ? 'bg-gray-700 hover:bg-gray-600 text-white border-gray-700'
                         : 'bg-gray-200 hover:bg-gray-300 text-gray-900 border-gray-300'
-                    }`}
+                      }`}
                   >
                     <Minus size={16} />
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDiscountAmountChange('increase')}
-                    className={`px-3 py-1 border border-l-0 border-t-0 rounded-r text-sm ${
-                      isDarkMode
+                    className={`px-3 py-1 border border-l-0 border-t-0 rounded-r text-sm ${isDarkMode
                         ? 'bg-gray-700 hover:bg-gray-600 text-white border-gray-700'
                         : 'bg-gray-200 hover:bg-gray-300 text-gray-900 border-gray-300'
-                    }`}
+                      }`}
                   >
                     <Plus size={16} />
                   </button>
@@ -573,9 +545,8 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Processed By<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -586,11 +557,9 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                     handleInputChange('processedByUserId', value ? parseInt(value) : null);
                   }}
                   disabled
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed opacity-60 ${
-                    errors.processedByUserId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed opacity-60 ${errors.processedByUserId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    }`}
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 >
                   <option value="" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Select Processor</option>
@@ -606,9 +575,8 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Approved By<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -618,11 +586,9 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                     const value = e.target.value;
                     handleInputChange('approvedByUserId', value ? parseInt(value) : null);
                   }}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-pointer ${
-                    errors.approvedByUserId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-pointer ${errors.approvedByUserId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    }`}
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 >
                   <option value="" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Select Approver</option>
@@ -638,20 +604,18 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Remarks
               </label>
               <textarea
                 value={formData.remarks}
                 onChange={(e) => handleInputChange('remarks', e.target.value)}
                 rows={4}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${
-                  isDarkMode
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode
                     ? 'bg-gray-800 border-gray-700 text-white'
                     : 'bg-white border-gray-300 text-gray-900'
-                }`}
+                  }`}
               />
             </div>
           </div>

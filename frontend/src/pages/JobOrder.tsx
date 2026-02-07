@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, Search, ChevronDown, ListFilter, ArrowUp, ArrowDown, Menu, X, ArrowLeft, RefreshCw, Filter } from 'lucide-react';
+import { FileText, Search, ChevronDown, ListFilter, ArrowUp, ArrowDown, Menu, X, RefreshCw, Filter } from 'lucide-react';
 import JobOrderDetails from '../components/JobOrderDetails';
 import JobOrderFunnelFilter from '../components/filters/JobOrderFunnelFilter';
-import { useJobOrderContext } from '../contexts/JobOrderContext';
+import { useJobOrderStore } from '../store/jobOrderStore';
 import { getCities, City } from '../services/cityService';
 import { getBillingStatuses, BillingStatus } from '../services/lookupService';
 import { JobOrder } from '../types/jobOrder';
@@ -83,7 +83,7 @@ const JobOrderPage: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedJobOrder, setSelectedJobOrder] = useState<JobOrder | null>(null);
-  const { jobOrders, isLoading, error, refreshJobOrders, silentRefresh } = useJobOrderContext();
+  const { jobOrders, isLoading, error, fetchJobOrders, refreshJobOrders, silentRefresh, hasMore, currentPage } = useJobOrderStore();
   const [cities, setCities] = useState<City[]>([]);
   const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -125,7 +125,7 @@ const JobOrderPage: React.FC = () => {
     return {};
   });
 
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  // No need for internal currentPage as it's managed by store
   const itemsPerPage = 50;
 
   useEffect(() => {
@@ -139,12 +139,11 @@ const JobOrderPage: React.FC = () => {
     };
 
     fetchColorPalette();
-    fetchColorPalette();
   }, []);
 
   // Reset page when filters change
   useEffect(() => {
-    setCurrentPage(1);
+    // We could potentially call fetchJobOrders with page 1 here if we want server-side filtering
   }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection]);
 
   useEffect(() => {
@@ -184,26 +183,6 @@ const JobOrderPage: React.FC = () => {
     return `₱${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const getBillingStatusName = (statusId?: number | null): string => {
-    if (!statusId) return '-';
-
-    if (billingStatuses.length === 0) {
-      const defaultStatuses: { [key: number]: string } = {
-        1: 'In Progress',
-        2: 'Active',
-        3: 'Suspended',
-        4: 'Cancelled',
-        5: 'Overdue'
-      };
-      return defaultStatuses[statusId] || '-';
-    }
-
-    const status = billingStatuses.find(s => s.id === statusId);
-    return status ? status.status_name : '-';
-  };
-
-  const [userEmail, setUserEmail] = useState<string>('');
-  const [userRoleId, setUserRoleId] = useState<number | null>(null);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -228,9 +207,8 @@ const JobOrderPage: React.FC = () => {
       try {
         const userData = JSON.parse(authData);
         setUserRole(userData.role || '');
-        setUserEmail(userData.email || '');
-        setUserRoleId(userData.role_id || null);
       } catch (error) {
+        console.error('Failed to parse auth data:', error);
       }
     }
   }, []);
@@ -254,12 +232,32 @@ const JobOrderPage: React.FC = () => {
 
   // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
-    silentRefresh();
+    const authData = localStorage.getItem('authData');
+    let email: string | undefined;
+    if (authData) {
+      try {
+        const userData = JSON.parse(authData);
+        if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
+          email = userData.email;
+        }
+      } catch (err) { }
+    }
+    silentRefresh(email);
   }, [silentRefresh]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await refreshJobOrders();
+    const authData = localStorage.getItem('authData');
+    let email: string | undefined;
+    if (authData) {
+      try {
+        const userData = JSON.parse(authData);
+        if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
+          email = userData.email;
+        }
+      } catch (err) { }
+    }
+    await refreshJobOrders(email);
     setIsRefreshing(false);
   };
 
@@ -426,8 +424,18 @@ const JobOrderPage: React.FC = () => {
   const totalPages = Math.ceil(sortedJobOrders.length / itemsPerPage);
 
   const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
+    if (newPage >= 1 && (newPage <= totalPages || hasMore)) {
+      const authData = localStorage.getItem('authData');
+      let email: string | undefined;
+      if (authData) {
+        try {
+          const userData = JSON.parse(authData);
+          if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
+            email = userData.email;
+          }
+        } catch (err) { }
+      }
+      fetchJobOrders(newPage, itemsPerPage, searchQuery, email);
     }
   };
 

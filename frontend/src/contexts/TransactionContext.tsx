@@ -56,7 +56,13 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 setTransactions(allData);
 
                 try {
-                    sessionStorage.setItem('transactions', JSON.stringify(allData));
+                    const jsonData = JSON.stringify(allData);
+                    // Only store if roughly under 4.5MB to avoid QuotaExceededError
+                    if (jsonData.length < 4500000) {
+                        sessionStorage.setItem('transactions', jsonData);
+                    } else {
+                        console.warn('Transactions data too large for session storage, skipping cache.');
+                    }
                 } catch (e) {
                     console.error('Failed to save to session storage', e);
                 }

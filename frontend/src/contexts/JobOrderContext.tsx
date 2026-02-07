@@ -58,14 +58,14 @@ export const JobOrderProvider: React.FC<JobOrderProviderProps> = ({ children }) 
             }
 
             // Fetch job orders
-            const response = await getJobOrders(assignedEmail);
+            const response = await getJobOrders(false, 1, 10000, '', assignedEmail);
 
             if (!response.success) {
                 throw new Error(response.message || 'Failed to fetch job orders');
             }
 
-            if (response.success && Array.isArray(response.data)) {
-                setJobOrders(response.data);
+            if (response.success && Array.isArray(response.jobOrders)) {
+                setJobOrders(response.jobOrders);
                 setLastUpdated(new Date());
                 setError(null);
             } else {

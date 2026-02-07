@@ -4,7 +4,7 @@ import InvoiceDetails from '../components/InvoiceDetails';
 
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { paymentService, PendingPayment } from '../services/paymentService';
-import { useInvoiceContext, InvoiceRecordUI } from '../contexts/InvoiceContext';
+import { useInvoiceStore, InvoiceRecordUI } from '../store/invoiceStore';
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
@@ -64,7 +64,7 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
 };
 
 const Invoice: React.FC = () => {
-  const { invoiceRecords, isLoading, error, silentRefresh } = useInvoiceContext();
+  const { invoiceRecords, totalCount, isLoading, error, fetchInvoiceRecords, refreshInvoiceRecords } = useInvoiceStore();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -196,10 +196,8 @@ const Invoice: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    silentRefresh();
-    // Only run once on mount to avoid potential re-render loops with context functions
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    fetchInvoiceRecords();
+  }, [fetchInvoiceRecords]);
 
 
 
@@ -229,7 +227,14 @@ const Invoice: React.FC = () => {
     return filteredRecords.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredRecords, currentPage]);
 
-  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+  const totalDisplayCount = useMemo(() => {
+    if (selectedDate === 'All' && searchQuery === '') {
+      return totalCount;
+    }
+    return filteredRecords.length;
+  }, [filteredRecords.length, totalCount, selectedDate, searchQuery]);
+
+  const totalPages = Math.ceil(totalDisplayCount / itemsPerPage);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -243,7 +248,7 @@ const Invoice: React.FC = () => {
     return (
       <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
         <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredRecords.length)}</span> of <span className="font-medium">{filteredRecords.length}</span> results
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -304,7 +309,7 @@ const Invoice: React.FC = () => {
   };
 
   const handleRefresh = async () => {
-    await silentRefresh();
+    await refreshInvoiceRecords();
   };
 
   const handlePayNow = async () => {
@@ -707,7 +712,11 @@ const Invoice: React.FC = () => {
                           <tr>
                             <td colSpan={displayColumns.length} className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                               }`}>
-                              No Invoice records found matching your filters
+                              {filteredRecords.length > 0
+                                ? 'No Invoice records found matching your filters'
+                                : (totalCount > invoiceRecords.length)
+                                  ? 'Loading more records... please wait.'
+                                  : 'No Invoice records found.'}
                             </td>
                           </tr>
                         )}

@@ -4,7 +4,7 @@ import TransactionListDetails from '../components/TransactionListDetails';
 import { transactionService } from '../services/transactionService';
 import LoadingModal from '../components/LoadingModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
-import { useTransactionContext } from '../contexts/TransactionContext';
+import { useTransactionStore } from '../store/transactionStore';
 import { Transaction } from '../types/transaction';
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
@@ -71,7 +71,14 @@ interface TransactionListProps {
 }
 
 const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
-  const { transactions, isLoading: loading, error, silentRefresh } = useTransactionContext();
+  const { transactions, totalCount, isLoading: loading, error, silentRefresh, fetchTransactions } = useTransactionStore();
+
+  // Fetch data on mount if empty
+  useEffect(() => {
+    if (transactions.length === 0) {
+      fetchTransactions();
+    }
+  }, [fetchTransactions, transactions.length]);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -163,7 +170,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     {
       id: 'all',
       name: 'All',
-      count: transactions.length
+      count: Math.max(totalCount, transactions.length)
     }
   ];
 
@@ -211,7 +218,15 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     return filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredTransactions, currentPage]);
 
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  // Use totalCount for total pages if no filter/search is active
+  const totalDisplayCount = useMemo(() => {
+    if (searchQuery || selectedLocation !== 'all') {
+      return filteredTransactions.length;
+    }
+    return Math.max(totalCount, transactions.length);
+  }, [filteredTransactions.length, totalCount, transactions.length, searchQuery, selectedLocation]);
+
+  const totalPages = Math.ceil(totalDisplayCount / itemsPerPage);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -225,7 +240,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     return (
       <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
         <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredTransactions.length)}</span> of <span className="font-medium">{filteredTransactions.length}</span> results
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -761,9 +776,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                       <tr>
                         <td colSpan={isBatchApproveMode ? 21 : 20} className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                           }`}>
-                          {transactions.length > 0
+                          {filteredTransactions.length > 0
                             ? 'No transactions found matching your filters'
-                            : 'No transactions found.'}
+                            : (totalCount > transactions.length)
+                              ? 'Loading more records... please wait.'
+                              : 'No transactions found.'}
                         </td>
                       </tr>
                     )}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, ChevronRight, Tag } from 'lucide-react';
 import DiscountDetails from '../components/DiscountDetails';
 import DiscountFormModal from '../modals/DiscountFormModal';
-import { useDiscountContext, DiscountRecord } from '../contexts/DiscountContext';
+import { useDiscountStore, DiscountRecord } from '../store/discountStore';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
@@ -84,7 +84,7 @@ const Discounts: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedDiscount, setSelectedDiscount] = useState<DiscountRecord | null>(null);
-  const { discountRecords, isLoading, error, refreshDiscountRecords, silentRefresh } = useDiscountContext();
+  const { discountRecords, isLoading, error, refreshDiscounts, silentRefresh } = useDiscountStore();
   const [cities, setCities] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
   const [sidebarWidth, setSidebarWidth] = useState<number>(256);
@@ -281,7 +281,7 @@ const Discounts: React.FC = () => {
   };
 
   const handleRefresh = async () => {
-    await refreshDiscountRecords();
+    await refreshDiscounts();
   };
 
   useEffect(() => {

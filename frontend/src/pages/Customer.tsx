@@ -8,7 +8,7 @@ import { getCities, City } from '../services/cityService';
 import { getRegions, Region } from '../services/regionService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import CustomerFunnelFilter from '../filter/CustomerFunnelFilter';
-import { useBillingContext } from '../contexts/BillingContext';
+import { useBillingStore } from '../store/billingStore';
 
 const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
   return {
@@ -145,7 +145,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>(initialSearchQuery || '');
-  const { billingRecords, isLoading: isTableLoading, error: contextError, refreshBillingRecords, silentRefresh } = useBillingContext();
+  const { billingRecords, totalCount, isLoading: isTableLoading, error: contextError, fetchBillingRecords, refreshBillingRecords } = useBillingStore();
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
   const [cities, setCities] = useState<City[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
@@ -264,8 +264,8 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
 
   // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
-    silentRefresh();
-  }, [silentRefresh]);
+    fetchBillingRecords();
+  }, [fetchBillingRecords]);
 
   // Sync initialSearchQuery
   useEffect(() => {
@@ -327,7 +327,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       {
         id: 'all',
         name: 'All',
-        count: billingRecords.length
+        count: totalCount || billingRecords.length
       }
     ];
 
@@ -528,6 +528,13 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     return filtered;
   }, [billingRecords, selectedLocation, searchQuery, sortColumn, sortDirection, activeFilters]);
 
+  const totalDisplayCount = useMemo(() => {
+    if (selectedLocation === 'all' && searchQuery === '' && Object.keys(activeFilters).length === 0) {
+      return totalCount;
+    }
+    return filteredBillingRecords.length;
+  }, [filteredBillingRecords.length, totalCount, selectedLocation, searchQuery, activeFilters]);
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
@@ -543,7 +550,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     return filteredBillingRecords.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredBillingRecords, currentPage]);
 
-  const totalPages = Math.ceil(filteredBillingRecords.length / itemsPerPage);
+  const totalPages = Math.ceil(totalDisplayCount / itemsPerPage);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -558,7 +565,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     return (
       <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
         <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredBillingRecords.length)}</span> of <span className="font-medium">{filteredBillingRecords.length}</span> results
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -1418,7 +1425,11 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                       ) : (
                         <div className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                           }`}>
-                          No customer records found matching your filters
+                          {filteredBillingRecords.length > 0
+                            ? 'No customer records found matching your filters'
+                            : (totalCount > billingRecords.length)
+                              ? 'Loading more records... please wait.'
+                              : 'No customer records found'}
                         </div>
                       )}
                     </div>
@@ -1524,7 +1535,11 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                                   ? 'text-gray-400 border-gray-800'
                                   : 'text-gray-600 border-gray-200'
                                   }`}>
-                                  No customer records found matching your filters
+                                  {filteredBillingRecords.length > 0
+                                    ? 'No customer records found matching your filters'
+                                    : (totalCount > billingRecords.length)
+                                      ? 'Loading more records... please wait.'
+                                      : 'No customer records found'}
                                 </td>
                               </tr>
                             )}

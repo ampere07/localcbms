@@ -3,7 +3,8 @@ import { FileText, Search, ListFilter, ChevronDown, ArrowUp, ArrowDown, Menu, X,
 import ApplicationDetails from '../components/ApplicationDetails';
 import AddApplicationModal from '../modals/AddApplicationModal';
 import ApplicationFunnelFilter from '../filter/ApplicationFunnelFilter';
-import { useApplicationContext, Application } from '../contexts/ApplicationContext';
+import { useApplicationStore } from '../store/applicationStore';
+import { Application } from '../types/application';
 import { getCities, City } from '../services/cityService';
 import { getRegions, Region } from '../services/regionService';
 import { locationEvents, LOCATION_EVENTS } from '../services/locationEvents';
@@ -46,7 +47,7 @@ const ApplicationManagement: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
-  const { applications, isLoading, error, refreshApplications, silentRefresh } = useApplicationContext();
+  const { applications, isLoading, error, fetchApplications, refreshApplications, silentRefresh, currentPage, hasMore } = useApplicationStore();
   const [cities, setCities] = useState<City[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [locationDataLoaded, setLocationDataLoaded] = useState<boolean>(false);
@@ -85,7 +86,7 @@ const ApplicationManagement: React.FC = () => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  // No need for internal currentPage as it's managed by store
   const itemsPerPage = 50;
 
   useEffect(() => {
@@ -161,9 +162,8 @@ const ApplicationManagement: React.FC = () => {
 
   // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
-    if (!locationDataLoaded) return;
     silentRefresh();
-  }, [locationDataLoaded, silentRefresh]);
+  }, [silentRefresh]);
 
 
   const handleRefresh = async () => {
@@ -234,8 +234,8 @@ const ApplicationManagement: React.FC = () => {
         selectedLocation === (application.city || '').toLowerCase();
 
       const matchesSearch = searchQuery === '' ||
-        application.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        application.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (application.customer_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (application.installation_address || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (application.timestamp && application.timestamp.includes(searchQuery));
 
       return matchesLocation && matchesSearch;
@@ -258,8 +258,8 @@ const ApplicationManagement: React.FC = () => {
             bValue = b.create_date && b.create_time ? `${b.create_date} ${b.create_time}` : b.timestamp || '';
             break;
           case 'customerName':
-            aValue = a.customerName || '';
-            bValue = b.customerName || '';
+            aValue = a.customer_name || '';
+            bValue = b.customer_name || '';
             break;
           case 'firstName':
             aValue = a.first_name || '';
@@ -361,8 +361,8 @@ const ApplicationManagement: React.FC = () => {
   const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
 
   const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
+    if (newPage >= 1 && (newPage <= totalPages || hasMore)) {
+      fetchApplications(newPage, itemsPerPage, searchQuery);
     }
   };
 
@@ -537,7 +537,7 @@ const ApplicationManagement: React.FC = () => {
       case 'status':
         return application.status || '-';
       case 'customerName':
-        return application.customerName;
+        return application.customer_name;
       case 'firstName':
         return application.first_name || '-';
       case 'middleInitial':
@@ -963,7 +963,7 @@ const ApplicationManagement: React.FC = () => {
                           <div className="flex-1 min-w-0">
                             <div className={`font-medium text-sm mb-1 uppercase ${isDarkMode ? 'text-white' : 'text-gray-900'
                               }`}>
-                              {application.customerName}
+                              {application.customer_name}
                             </div>
                             <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                               }`}>

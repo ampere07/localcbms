@@ -89,6 +89,7 @@ class BillingRecordsController extends Controller
                     'success' => true,
                     'data' => $statementsData->values(),
                     'count' => $statementsData->count(),
+                    'total' => StatementOfAccount::count(), // Added total count for pagination
                     'pagination' => [
                         'current_page' => (int)$page,
                         'per_page' => (int)$perPage,
@@ -146,6 +147,7 @@ class BillingRecordsController extends Controller
                 'success' => true,
                 'data' => $statementsData->values(), // Reset array keys
                 'count' => $statementsData->count(),
+                'total' => StatementOfAccount::count(), // Added total count for pagination
                 'pagination' => [
                     'current_page' => (int)$page,
                     'per_page' => (int)$perPage,
@@ -243,6 +245,7 @@ class BillingRecordsController extends Controller
                     'success' => true,
                     'data' => $invoicesData->values(),
                     'count' => $invoicesData->count(),
+                    'total' => Invoice::count(), // Added total count for pagination
                     'pagination' => [
                         'current_page' => (int)$page,
                         'per_page' => (int)$perPage,
@@ -300,6 +303,7 @@ class BillingRecordsController extends Controller
                 'success' => true,
                 'data' => $invoicesData->values(), // Reset array keys
                 'count' => $invoicesData->count(),
+                'total' => Invoice::count(), // Added total count for pagination
                 'pagination' => [
                     'current_page' => (int)$page,
                     'per_page' => (int)$perPage,

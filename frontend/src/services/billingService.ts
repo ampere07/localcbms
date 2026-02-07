@@ -15,13 +15,15 @@ interface BillingDetailApiResponse {
   status?: string;
 }
 
-export const getBillingRecords = async (): Promise<BillingRecord[]> => {
+export const getBillingRecords = async (page: number = 1, perPage: number = 50): Promise<{ data: BillingRecord[], total: number, hasMore: boolean }> => {
   try {
-    const response = await apiClient.get<any>('/billing');
+    const response = await apiClient.get<any>('/billing', {
+      params: { page, per_page: perPage }
+    });
     const responseData = response.data;
 
     if (responseData?.data && Array.isArray(responseData.data)) {
-      return responseData.data.map((item: any): BillingRecord => ({
+      const data = responseData.data.map((item: any): BillingRecord => ({
         id: item.Account_No || item.id,
         applicationId: item.Account_No || '',
         accountNo: item.Account_No || '',
@@ -63,12 +65,18 @@ export const getBillingRecords = async (): Promise<BillingRecord[]> => {
         region: item.Region || '',
         usageType: item.Usage_Type || item.usage_type || ''
       }));
+
+      return {
+        data,
+        total: responseData.total || data.length,
+        hasMore: responseData.pagination?.has_more || false
+      };
     }
 
-    return [];
+    return { data: [], total: 0, hasMore: false };
   } catch (error) {
     console.error('Error fetching billing records:', error);
-    return [];
+    return { data: [], total: 0, hasMore: false };
   }
 };
 

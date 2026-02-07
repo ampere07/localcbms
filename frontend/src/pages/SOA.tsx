@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search } from 'lucide-react';
 import SOADetails from '../components/SOADetails';
-import { soaService, SOARecord } from '../services/soaService';
+import '../services/soaService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { paymentService, PendingPayment } from '../services/paymentService';
-import { useSOAContext, SOARecordUI } from '../contexts/SOAContext';
+import { useSOAStore, SOARecordUI } from '../store/soaStore';
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
@@ -64,7 +64,14 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
 };
 
 const SOA: React.FC = () => {
-  const { soaRecords, isLoading, error, silentRefresh, refreshSOARecords } = useSOAContext();
+  const { soaRecords, totalCount, isLoading, error, fetchSOARecords, refreshSOARecords } = useSOAStore();
+
+  // Fetch data on mount if empty
+  useEffect(() => {
+    if (soaRecords.length === 0) {
+      fetchSOARecords();
+    }
+  }, [fetchSOARecords, soaRecords.length]);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -137,7 +144,7 @@ const SOA: React.FC = () => {
   // Derive date items from context data instead of fetching separately or static
   const dateItems: Array<{ date: string; id: string }> = useMemo(() => {
     const dates = new Set<string>();
-    soaRecords.forEach(record => {
+    soaRecords.forEach((record: SOARecordUI) => {
       if (record.statementDate) {
         dates.add(record.statementDate);
       }
@@ -195,15 +202,13 @@ const SOA: React.FC = () => {
     fetchColorPalette();
   }, []);
 
-  useEffect(() => {
-    silentRefresh();
-    // Only run once on mount to avoid potential re-render loops with context functions
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Removed automatic silent refresh on mount to favor session storage
+  // and context-managed initial fetch.
+
 
 
   const filteredRecords = useMemo(() => {
-    return soaRecords.filter(record => {
+    return soaRecords.filter((record: SOARecordUI) => {
       const matchesDate = selectedDate === 'All' || record.statementDate === selectedDate;
       const matchesSearch = searchQuery === '' ||
         record.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -225,7 +230,15 @@ const SOA: React.FC = () => {
     return filteredRecords.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredRecords, currentPage]);
 
-  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+  // Use totalCount for total pages if no filter/search is active
+  const totalDisplayCount = useMemo(() => {
+    if (searchQuery || selectedDate !== 'All') {
+      return filteredRecords.length;
+    }
+    return Math.max(totalCount, soaRecords.length);
+  }, [filteredRecords.length, totalCount, soaRecords.length, searchQuery, selectedDate]);
+
+  const totalPages = Math.ceil(totalDisplayCount / itemsPerPage);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -239,7 +252,7 @@ const SOA: React.FC = () => {
     return (
       <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
         <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredRecords.length)}</span> of <span className="font-medium">{filteredRecords.length}</span> results
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -378,10 +391,7 @@ const SOA: React.FC = () => {
     }
   };
 
-  const handleCancelPaymentLink = () => {
-    setShowPaymentLinkModal(false);
-    setPaymentLinkData(null);
-  };
+
 
   const handleResumePendingPayment = () => {
     if (pendingPayment && pendingPayment.payment_url) {
@@ -709,7 +719,7 @@ const SOA: React.FC = () => {
                       </thead>
                       <tbody>
                         {paginatedRecords.length > 0 ? (
-                          paginatedRecords.map((record) => (
+                          paginatedRecords.map((record: SOARecordUI) => (
                             <tr
                               key={record.id}
                               className={`border-b cursor-pointer transition-colors ${isDarkMode
@@ -736,7 +746,11 @@ const SOA: React.FC = () => {
                           <tr>
                             <td colSpan={displayColumns.length} className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                               }`}>
-                              No SOA records found matching your filters
+                              {filteredRecords.length > 0
+                                ? 'No SOA records found matching your filters'
+                                : (totalCount > soaRecords.length)
+                                  ? 'Loading more records... please wait.'
+                                  : 'No SOA records found.'}
                             </td>
                           </tr>
                         )}
@@ -746,7 +760,7 @@ const SOA: React.FC = () => {
                 </>
               )}
             </div>
-            {!isLoading && !error && filteredRecords.length > 0 && <PaginationControls />}
+            <PaginationControls />
           </div>
         </div>
       </div>

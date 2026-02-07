@@ -68,7 +68,8 @@ class OverdueApiController extends Controller
                     'pagination' => [
                         'current_page' => (int) $page,
                         'per_page' => (int) $limit,
-                        'has_more' => $hasMore
+                        'has_more' => $hasMore,
+                        'total' => Overdue::count()
                     ]
                 ]);
             }
@@ -110,7 +111,8 @@ class OverdueApiController extends Controller
                 'pagination' => [
                     'current_page' => (int) $page,
                     'per_page' => (int) $limit,
-                    'has_more' => $hasMore
+                    'has_more' => $hasMore,
+                    'total' => Overdue::count()
                 ]
             ]);
 
