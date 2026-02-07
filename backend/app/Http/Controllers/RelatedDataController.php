@@ -17,7 +17,7 @@ class RelatedDataController extends Controller
         try {
             $invoices = DB::table('invoices')
                 ->where('account_no', $accountNo)
-                ->orderBy('created_at', 'desc')
+                ->orderBy('invoice_date', 'desc')
                 ->get();
 
             return response()->json([
@@ -46,9 +46,24 @@ class RelatedDataController extends Controller
     public function getPaymentPortalLogsByAccount(string $accountNo): JsonResponse
     {
         try {
+            // First find the numeric account ID from the account number
+            $billingAccount = DB::table('billing_accounts')
+                ->where('account_no', $accountNo)
+                ->first();
+            
+            if (!$billingAccount) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'count' => 0
+                ]);
+            }
+
             $logs = DB::table('payment_portal_logs')
-                ->where('account_id', $accountNo)
-                ->orderBy('created_at', 'desc')
+                ->where('account_id', $billingAccount->id)
+                ->select(['id', 'total_amount', 'date_time', 'status'])
+                ->orderBy('date_time', 'desc')
+                ->orderBy('updated_at', 'desc')
                 ->get();
 
             return response()->json([
@@ -110,6 +125,7 @@ class RelatedDataController extends Controller
         try {
             $staggered = DB::table('staggered_installation')
                 ->where('account_no', $accountNo)
+                ->select(['id', 'staggered_date', 'staggered_balance', 'monthly_payment', 'modified_date'])
                 ->orderBy('staggered_date', 'desc')
                 ->get();
 
@@ -141,6 +157,8 @@ class RelatedDataController extends Controller
         try {
             $discounts = DB::table('discounts')
                 ->where('account_no', $accountNo)
+                ->select(['id', 'discount_amount', 'status', 'used_date'])
+                ->orderBy('used_date', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -172,7 +190,8 @@ class RelatedDataController extends Controller
         try {
             $serviceOrders = DB::table('service_orders')
                 ->where('account_no', $accountNo)
-                ->orderBy('created_at', 'desc')
+                ->select(['id', 'concern', 'support_status', 'assigned_email', 'timestamp'])
+                ->orderBy('timestamp', 'desc')
                 ->get();
 
             return response()->json([
@@ -201,9 +220,29 @@ class RelatedDataController extends Controller
     public function getReconnectionLogsByAccount(string $accountNo): JsonResponse
     {
         try {
+            // First find the numeric account ID from the account number
+            $billingAccount = DB::table('billing_accounts')
+                ->where('account_no', $accountNo)
+                ->first();
+            
+            if (!$billingAccount) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'count' => 0
+                ]);
+            }
+
             $logs = DB::table('reconnection_logs')
-                ->where('account_id', $accountNo)
-                ->orderBy('created_at', 'desc')
+                ->leftJoin('plan_list', 'reconnection_logs.plan_id', '=', 'plan_list.id')
+                ->where('reconnection_logs.account_id', $billingAccount->id)
+                ->select([
+                    'reconnection_logs.id',
+                    'reconnection_logs.reconnection_fee',
+                    'reconnection_logs.created_at',
+                    'plan_list.plan_name'
+                ])
+                ->orderBy('reconnection_logs.created_at', 'desc')
                 ->get();
 
             return response()->json([
@@ -232,8 +271,22 @@ class RelatedDataController extends Controller
     public function getDisconnectedLogsByAccount(string $accountNo): JsonResponse
     {
         try {
+            // First find the numeric account ID from the account number
+            $billingAccount = DB::table('billing_accounts')
+                ->where('account_no', $accountNo)
+                ->first();
+            
+            if (!$billingAccount) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'count' => 0
+                ]);
+            }
+
             $logs = DB::table('disconnected_logs')
-                ->where('account_id', $accountNo)
+                ->where('account_id', $billingAccount->id)
+                ->select(['id', 'remarks', 'created_at'])
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -263,9 +316,23 @@ class RelatedDataController extends Controller
     public function getDetailsUpdateLogsByAccount(string $accountNo): JsonResponse
     {
         try {
+            // First find the numeric account ID from the account number
+            $billingAccount = DB::table('billing_accounts')
+                ->where('account_no', $accountNo)
+                ->first();
+            
+            if (!$billingAccount) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'count' => 0
+                ]);
+            }
+
             $logs = DB::table('details_update_logs')
-                ->where('account_id', $accountNo)
-                ->orderBy('created_at', 'desc')
+                ->where('account_id', $billingAccount->id)
+                ->select(['id', 'old_details', 'new_details', 'updated_at', 'updated_by_user_id'])
+                ->orderBy('updated_at', 'desc')
                 ->get();
 
             return response()->json([
@@ -294,9 +361,33 @@ class RelatedDataController extends Controller
     public function getPlanChangeLogsByAccount(string $accountNo): JsonResponse
     {
         try {
+            // First find the numeric account ID from the account number
+            $billingAccount = DB::table('billing_accounts')
+                ->where('account_no', $accountNo)
+                ->first();
+            
+            if (!$billingAccount) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'count' => 0
+                ]);
+            }
+
             $logs = DB::table('plan_change_logs')
-                ->where('account_id', $accountNo)
-                ->orderBy('created_at', 'desc')
+                ->leftJoin('plan_list as old_plans', 'plan_change_logs.old_plan_id', '=', 'old_plans.id')
+                ->leftJoin('plan_list as new_plans', 'plan_change_logs.new_plan_id', '=', 'new_plans.id')
+                ->where('plan_change_logs.account_id', $billingAccount->id)
+                ->select([
+                    'plan_change_logs.id',
+                    'plan_change_logs.status',
+                    'plan_change_logs.date_changed',
+                    'plan_change_logs.date_used',
+                    'plan_change_logs.created_at',
+                    'old_plans.plan_name as old_plan_name',
+                    'new_plans.plan_name as new_plan_name'
+                ])
+                ->orderBy('plan_change_logs.created_at', 'desc')
                 ->get();
 
             return response()->json([
@@ -327,7 +418,8 @@ class RelatedDataController extends Controller
         try {
             $logs = DB::table('service_charge_logs')
                 ->where('account_no', $accountNo)
-                ->orderBy('created_at', 'desc')
+                ->select(['id', 'service_charge', 'status', 'date_used'])
+                ->orderBy('date_used', 'desc')
                 ->get();
 
             return response()->json([
@@ -356,8 +448,22 @@ class RelatedDataController extends Controller
     public function getChangeDueLogsByAccount(string $accountNo): JsonResponse
     {
         try {
+            // First find the numeric account ID from the account number
+            $billingAccount = DB::table('billing_accounts')
+                ->where('account_no', $accountNo)
+                ->first();
+            
+            if (!$billingAccount) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'count' => 0
+                ]);
+            }
+
             $logs = DB::table('change_due_logs')
-                ->where('account_id', $accountNo)
+                ->where('account_id', $billingAccount->id)
+                ->select(['id', 'previous_date', 'changed_date', 'added_balance', 'remarks', 'created_at'])
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -387,8 +493,22 @@ class RelatedDataController extends Controller
     public function getSecurityDepositsByAccount(string $accountNo): JsonResponse
     {
         try {
+            // First find the numeric account ID from the account number
+            $billingAccount = DB::table('billing_accounts')
+                ->where('account_no', $accountNo)
+                ->first();
+            
+            if (!$billingAccount) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'count' => 0
+                ]);
+            }
+
             $deposits = DB::table('security_deposits')
-                ->where('account_id', $accountNo)
+                ->where('account_id', $billingAccount->id)
+                ->select(['id', 'amount', 'status', 'payment_date', 'reference_no', 'created_by', 'created_at'])
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -405,6 +525,46 @@ class RelatedDataController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch security deposits',
+                'error' => $e->getMessage(),
+                'data' => [],
+                'count' => 0
+            ], 500);
+        }
+    }
+
+    /**
+     * Get related statement of accounts by account number
+     */
+    public function getStatementOfAccountsByAccount(string $accountNo): JsonResponse
+    {
+        try {
+            $soas = DB::table('statement_of_accounts')
+                ->where('account_no', $accountNo)
+                ->select([
+                    'id',
+                    'statement_date',
+                    'balance_from_previous_bill',
+                    'payment_received_previous',
+                    'remaining_balance_previous',
+                    'amount_due',
+                    'total_amount_due'
+                ])
+                ->orderBy('statement_date', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $soas,
+                'count' => $soas->count()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching statement of accounts for account: ' . $accountNo, [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch statement of accounts',
                 'error' => $e->getMessage(),
                 'data' => [],
                 'count' => 0

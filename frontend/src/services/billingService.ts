@@ -54,7 +54,7 @@ export const getBillingRecords = async (page: number = 1, perPage: number = 50):
         port: item.PORT || '',
         vlan: item.VLAN || '',
         billingDay: item.Billing_Day === 'Every end of month' ? 0 : (item.Billing_Day || 0),
-        totalPaid: 0,
+        totalPaid: item.Total_Paid || 0,
         provider: item.Provider || '',
         lcp: item.LCP || '',
         nap: item.NAP || '',
@@ -63,7 +63,8 @@ export const getBillingRecords = async (page: number = 1, perPage: number = 50):
         barangay: item.Barangay || '',
         city: item.City || '',
         region: item.Region || '',
-        usageType: item.Usage_Type || item.usage_type || ''
+        usageType: item.Usage_Type || item.usage_type || '',
+        lcpnapport: item.LCP_NAP_PORT || item.LCPNAPPORT || ''
       }));
 
       return {
@@ -115,7 +116,7 @@ export const getBillingRecordDetails = async (id: string): Promise<BillingDetail
         port: item.PORT || '',
         vlan: item.VLAN || '',
         billingDay: item.Billing_Day === 'Every end of month' ? 0 : (item.Billing_Day || 0),
-        totalPaid: 0,
+        totalPaid: item.Total_Paid || 0,
         provider: item.Provider || '',
         lcp: item.LCP || '',
         nap: item.NAP || '',

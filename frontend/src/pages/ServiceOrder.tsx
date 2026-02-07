@@ -37,7 +37,8 @@ const ServiceOrderPage: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedServiceOrder, setSelectedServiceOrder] = useState<ServiceOrder | null>(null);
-  const { serviceOrders, isLoading, error, fetchServiceOrders, refreshServiceOrders, silentRefresh, currentPage, hasMore } = useServiceOrderStore();
+  const { serviceOrders, isLoading, error, fetchServiceOrders, refreshServiceOrders, silentRefresh, hasMore } = useServiceOrderStore();
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [cities, setCities] = useState<City[]>([]);
   const [userRole, setUserRole] = useState<string>('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
@@ -96,13 +97,10 @@ const ServiceOrderPage: React.FC = () => {
   }, []);
 
   // Reset page logic handled by fetchServiceOrders on triggers where necessary
+  // Reset page when filters change
   useEffect(() => {
-    // When search query changes, trigger a new fetch
-    const timeoutId = setTimeout(() => {
-      fetchServiceOrders(1, itemsPerPage, searchQuery, false);
-    }, 500);
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery, fetchServiceOrders]);
+    setCurrentPage(1);
+  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection]);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -404,8 +402,8 @@ const ServiceOrderPage: React.FC = () => {
   const totalPages = Math.ceil(filteredServiceOrders.length / itemsPerPage);
 
   const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && (newPage <= totalPages || hasMore)) {
-      fetchServiceOrders(newPage, itemsPerPage, searchQuery, false);
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
     }
   };
 

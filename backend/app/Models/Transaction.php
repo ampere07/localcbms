@@ -45,6 +45,11 @@ class Transaction extends Model
         return $this->belongsTo(User::class, 'processed_by_user_id');
     }
 
+    public function paymentMethodInfo()
+    {
+        return $this->belongsTo(PaymentMethod::class, 'payment_method');
+    }
+
 
 
     public function invoices()

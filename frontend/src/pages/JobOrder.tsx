@@ -83,7 +83,8 @@ const JobOrderPage: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedJobOrder, setSelectedJobOrder] = useState<JobOrder | null>(null);
-  const { jobOrders, isLoading, error, fetchJobOrders, refreshJobOrders, silentRefresh, hasMore, currentPage } = useJobOrderStore();
+  const { jobOrders, isLoading, error, fetchJobOrders, refreshJobOrders, silentRefresh, hasMore } = useJobOrderStore();
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [cities, setCities] = useState<City[]>([]);
   const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -143,7 +144,7 @@ const JobOrderPage: React.FC = () => {
 
   // Reset page when filters change
   useEffect(() => {
-    // We could potentially call fetchJobOrders with page 1 here if we want server-side filtering
+    setCurrentPage(1);
   }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection]);
 
   useEffect(() => {
@@ -424,18 +425,8 @@ const JobOrderPage: React.FC = () => {
   const totalPages = Math.ceil(sortedJobOrders.length / itemsPerPage);
 
   const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && (newPage <= totalPages || hasMore)) {
-      const authData = localStorage.getItem('authData');
-      let email: string | undefined;
-      if (authData) {
-        try {
-          const userData = JSON.parse(authData);
-          if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
-            email = userData.email;
-          }
-        } catch (err) { }
-      }
-      fetchJobOrders(newPage, itemsPerPage, searchQuery, email);
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
     }
   };
 

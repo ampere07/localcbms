@@ -47,6 +47,7 @@ export interface CustomerDetailData {
     vlan?: string;
     lcpnap?: string;
     usageTypeId?: number;
+    usageType?: string;
   };
 
   createdAt?: string;

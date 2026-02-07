@@ -164,6 +164,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   };
 
   const handleScheduleVisit = async () => {
+    if (loading) return;
     try {
       setLoading(true);
 
@@ -197,6 +198,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   };
 
   const handleConfirmStatusChange = async () => {
+    if (loading) return;
     try {
       setLoading(true);
 
@@ -870,8 +872,8 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             </button>
             {showFieldSettings && (
               <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700'
-                  : 'bg-white border-gray-200'
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-gray-200'
                 }`}>
                 <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
                   }`}>
@@ -1054,8 +1056,8 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
 
       {error && (
         <div className={`p-3 m-3 rounded ${isDarkMode
-            ? 'bg-red-900 bg-opacity-20 border border-red-700 text-red-400'
-            : 'bg-red-100 border border-red-300 text-red-700'
+          ? 'bg-red-900 bg-opacity-20 border border-red-700 text-red-400'
+          : 'bg-red-100 border border-red-300 text-red-700'
           }`}>
           {error}
         </div>

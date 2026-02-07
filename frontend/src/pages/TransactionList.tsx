@@ -733,11 +733,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                             )}
                             <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                               }`}>{formatDate(transaction.date_processed)}</td>
+                            <td className="px-4 py-3 whitespace-nowrap"><StatusText status={transaction.status} /></td>
                             <td className="px-4 py-3 whitespace-nowrap text-red-400 font-medium">{transaction.account?.account_no || '-'}</td>
                             <td className={`px-4 py-3 whitespace-nowrap font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                               }`}>{formatCurrency(transaction.received_payment)}</td>
                             <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                              }`}>{transaction.payment_method}</td>
+                              }`}>{transaction.payment_method_info?.payment_method || transaction.payment_method}</td>
                             <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                               }`}>{transaction.processed_by_user || '-'}</td>
                             <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
@@ -748,7 +749,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                               }`}>{transaction.reference_no}</td>
                             <td className={`px-4 py-3 max-w-xs truncate ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                               }`}>{transaction.remarks || 'No remarks'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap"><StatusText status={transaction.status} /></td>
                             <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                               }`}>{transaction.transaction_type}</td>
                             <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'

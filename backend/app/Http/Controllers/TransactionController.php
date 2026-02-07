@@ -18,7 +18,7 @@ class TransactionController extends Controller
             $limit = request()->input('limit');
             $offset = request()->input('offset');
 
-            $query = Transaction::with(['account.customer', 'account.technicalDetails', 'processedByUser'])
+            $query = Transaction::with(['account.customer', 'account.technicalDetails', 'processedByUser', 'paymentMethodInfo'])
                 ->orderBy('created_at', 'desc')
                 ->orderBy('id', 'desc');
 
@@ -145,7 +145,7 @@ class TransactionController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Transaction created successfully',
-                'data' => $transaction->load(['account.customer', 'account.technicalDetails', 'processedByUser'])
+                'data' => $transaction->load(['account.customer', 'account.technicalDetails', 'processedByUser', 'paymentMethodInfo'])
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
@@ -178,7 +178,7 @@ class TransactionController extends Controller
     public function show(string $id): JsonResponse
     {
         try {
-            $transaction = Transaction::with(['account.customer', 'account.technicalDetails', 'processedByUser'])
+            $transaction = Transaction::with(['account.customer', 'account.technicalDetails', 'processedByUser', 'paymentMethodInfo'])
                 ->findOrFail($id);
 
             return response()->json([

@@ -56,6 +56,7 @@ export const useApplicationStore = create<ApplicationState>((set, get) => ({
 
                 set((state) => ({
                     applications: page === 1 ? newApps : [...state.applications, ...newApps],
+                    totalCount: fastResponse.applications?.length || state.totalCount,
                     hasMore: fastResponse.pagination?.has_more ?? false,
                     currentPage: page,
                     isLoading: false

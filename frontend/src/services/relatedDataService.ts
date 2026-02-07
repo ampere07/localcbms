@@ -256,6 +256,25 @@ export const relatedDataService = {
     }
   },
 
+  // Fetch related statement of accounts by account number
+  getRelatedStatementOfAccounts: async (accountNo: string): Promise<ApiResponse> => {
+    try {
+      const response = await apiClient.get<ApiResponse>(`/statement-of-accounts/by-account/${accountNo}`);
+      return {
+        success: true,
+        data: response.data.data || [],
+        count: response.data.count || 0
+      };
+    } catch (error: any) {
+      console.error('Error fetching statement of accounts:', error);
+      return {
+        success: false,
+        data: [],
+        message: error.response?.data?.message || 'Failed to fetch statement of accounts'
+      };
+    }
+  },
+
   // Fetch related inventory logs by item ID
   getRelatedInventoryLogs: async (itemId: string | number): Promise<ApiResponse> => {
     try {

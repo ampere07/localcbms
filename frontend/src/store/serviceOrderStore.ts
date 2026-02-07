@@ -107,6 +107,7 @@ interface ServiceOrderState {
     error: string | null;
     hasMore: boolean;
     currentPage: number;
+    totalCount: number;
     searchQuery: string;
     lastUpdated: Date | null;
 
@@ -121,6 +122,7 @@ export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
     error: null,
     hasMore: true,
     currentPage: 1,
+    totalCount: 0,
     searchQuery: '',
     lastUpdated: null,
 
@@ -151,6 +153,7 @@ export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
 
                 set((state) => ({
                     serviceOrders: page === 1 ? orders : [...state.serviceOrders, ...orders],
+                    totalCount: response.pagination?.total || orders.length,
                     hasMore: response.pagination?.has_more ?? false,
                     currentPage: response.pagination?.current_page ?? page,
                     searchQuery: query,

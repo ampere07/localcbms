@@ -2951,6 +2951,7 @@ Route::get('/plan-change-logs/by-account/{accountNo}', [RelatedDataController::c
 Route::get('/service-charge-logs/by-account/{accountNo}', [RelatedDataController::class, 'getServiceChargeLogsByAccount']);
 Route::get('/change-due-logs/by-account/{accountNo}', [RelatedDataController::class, 'getChangeDueLogsByAccount']);
 Route::get('/security-deposits/by-account/{accountNo}', [RelatedDataController::class, 'getSecurityDepositsByAccount']);
+Route::get('/statement-of-accounts/by-account/{accountNo}', [RelatedDataController::class, 'getStatementOfAccountsByAccount']);
 
 // Inventory Related Data Routes
 Route::get('/inventory-logs/by-item/{itemId}', [InventoryRelatedDataController::class, 'getInventoryLogsByItem']);

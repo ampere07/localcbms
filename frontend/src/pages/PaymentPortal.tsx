@@ -467,39 +467,49 @@ const PaymentPortal: React.FC = () => {
                             } ${selectedRecord?.id === record.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
                           onClick={() => handleRowClick(record)}
                         >
+                          {/* Date Time */}
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>
                             {record.date_time || 'N/A'}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-red-400 font-medium">
-                            {record.accountNo || record.account_id}
+                          {/* Status */}
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <StatusText status={record.status || 'N/A'} />
                           </td>
+                          {/* Transaction Status */}
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <StatusText status={record.transaction_status || 'N/A'} />
+                          </td>
+                          {/* Account No */}
+                          <td className={`px-4 py-3 whitespace-nowrap text-red-400 font-medium`}>
+                            {record.accountNo || record.account_id || 'N/A'}
+                          </td>
+                          {/* Received Payment */}
                           <td className={`px-4 py-3 whitespace-nowrap font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                             }`}>
                             {formatCurrency(record.total_amount || 0)}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <StatusText status={record.status || 'N/A'} />
-                          </td>
+                          {/* Reference No */}
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>
                             {record.reference_no || 'N/A'}
                           </td>
+                          {/* Contact No */}
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>
                             {record.contactNo || 'N/A'}
                           </td>
+                          {/* Account Balance */}
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>
                             {formatCurrency(record.accountBalance || 0)}
                           </td>
+                          {/* Checkout ID */}
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>
                             {record.checkout_id || 'N/A'}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <StatusText status={record.transaction_status || 'N/A'} />
-                          </td>
+                          {/* Provider */}
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>
                             {record.provider || 'N/A'}

@@ -37,6 +37,7 @@ export const useJobOrderStore = create<JobOrderState>((set, get) => ({
 
                 set((state) => ({
                     jobOrders: page === 1 ? newJobOrders : [...state.jobOrders, ...newJobOrders],
+                    totalCount: fastResponse.jobOrders?.length || state.totalCount,
                     hasMore: fastResponse.pagination?.has_more ?? false,
                     currentPage: page,
                     isLoading: false

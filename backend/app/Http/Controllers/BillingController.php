@@ -18,7 +18,23 @@ class BillingController extends Controller
             $perPage = $request->get('per_page', 50);
             $page = $request->get('page', 1);
 
-            $query = BillingAccount::with(['customer', 'technicalDetails', 'onlineStatus', 'billingStatus']);
+            // Pre-calculate transactions total for 'done' status
+            $transactions = \DB::table('transactions')
+                ->where('status', 'done')
+                ->select('account_no', \DB::raw('SUM(received_payment) as total'))
+                ->groupBy('account_no')
+                ->get()
+                ->pluck('total', 'account_no');
+
+            // Pre-calculate payment portal logs total for 'success' status
+            $portalLogs = \DB::table('payment_portal_logs')
+                ->where('status', 'success')
+                ->select('account_id', \DB::raw('SUM(total_amount) as total'))
+                ->groupBy('account_id')
+                ->get()
+                ->pluck('total', 'account_id');
+
+            $query = BillingAccount::with(['customer.group', 'technicalDetails', 'onlineStatus', 'billingStatus']);
 
             // Fetch one extra record to check if there are more pages
             $billingAccounts = $query
@@ -32,9 +48,12 @@ class BillingController extends Controller
                 $billingAccounts = $billingAccounts->slice(0, $perPage);
             }
 
-            $billingData = $billingAccounts->map(function ($billingAccount) {
+            $billingData = $billingAccounts->map(function ($billingAccount) use ($transactions, $portalLogs) {
                 $customer = $billingAccount->customer;
                 $technicalDetail = $billingAccount->technicalDetails->first();
+                $accNo = $billingAccount->account_no;
+                
+                $totalPaid = ($transactions[$accNo] ?? 0) + ($portalLogs[$accNo] ?? 0);
                 
                 return [
                     'id' => $billingAccount->id,
@@ -78,14 +97,16 @@ class BillingController extends Controller
                     'VLAN' => $technicalDetail ? $technicalDetail->vlan : null,
                     'LCPNAP' => $technicalDetail ? $technicalDetail->lcpnap : null,
                     'Usage_Type' => $technicalDetail ? $technicalDetail->usage_type : null,
-                    
+                    'Referred_By' => $customer ? $customer->referred_by : null,
+                    'Second_Contact_Number' => $customer ? $customer->contact_number_secondary : null,
                     'Status' => $billingAccount->billing_status_id == 1 ? 'Active' : ($billingAccount->billingStatus ? $billingAccount->billingStatus->status_name : 'Inactive'),
                     'Modified_By' => $customer ? $customer->updated_by : null,
                     'Modified_Date' => $billingAccount->updated_at ? $billingAccount->updated_at->format('Y-m-d H:i:s') : null,
                     
                     'Plan' => $customer ? $customer->desired_plan : null,
-                    'Provider' => null,
-                    'LCPNAPPORT' => $technicalDetail ? ($technicalDetail->lcpnap . ($technicalDetail->port ? '-' . $technicalDetail->port : '')) : null,
+                    'Provider' => $customer ? $customer->group_name : null,
+                    'Total_Paid' => $totalPaid,
+                    'LCPNAPPORT' => $technicalDetail ? (trim(($technicalDetail->lcpnap ?? '') . ' ' . ($technicalDetail->port ?? ''))) : null,
                     'Online_Session_Status' => $billingAccount->onlineStatus ? $billingAccount->onlineStatus->session_status : null,
                 ];
             });
@@ -116,7 +137,7 @@ class BillingController extends Controller
     public function show($id): JsonResponse
     {
         try {
-            $billingAccount = BillingAccount::with(['customer', 'technicalDetails', 'onlineStatus', 'billingStatus'])->findOrFail($id);
+            $billingAccount = BillingAccount::with(['customer.group', 'technicalDetails', 'onlineStatus', 'billingStatus'])->findOrFail($id);
             $customer = $billingAccount->customer;
             $technicalDetail = $billingAccount->technicalDetails->first();
             
@@ -125,6 +146,22 @@ class BillingController extends Controller
                 'house_front_picture_url' => $customer ? $customer->house_front_picture_url : 'null',
                 'raw_customer' => $customer ? $customer->toArray() : 'null'
             ]);
+            
+            $accNo = $billingAccount->account_no;
+            
+            // Calculate total paid from transactions table (status = 'done')
+            $transactionsPaid = \DB::table('transactions')
+                ->where('account_no', $accNo)
+                ->where('status', 'done')
+                ->sum('received_payment');
+            
+            // Calculate total paid from payment_portal_logs table (status = 'success')
+            $portalPaid = \DB::table('payment_portal_logs')
+                ->where('account_id', $accNo)
+                ->where('status', 'success')
+                ->sum('total_amount');
+            
+            $totalPaid = ($transactionsPaid ?? 0) + ($portalPaid ?? 0);
             
             $data = [
                 'id' => $billingAccount->id,
@@ -168,14 +205,16 @@ class BillingController extends Controller
                 'VLAN' => $technicalDetail ? $technicalDetail->vlan : null,
                 'LCPNAP' => $technicalDetail ? $technicalDetail->lcpnap : null,
                 'Usage_Type' => $technicalDetail ? $technicalDetail->usage_type : null,
-                
+                'Referred_By' => $customer ? $customer->referred_by : null,
+                'Second_Contact_Number' => $customer ? $customer->contact_number_secondary : null,
                 'Status' => $billingAccount->billing_status_id == 1 ? 'Active' : ($billingAccount->billingStatus ? $billingAccount->billingStatus->status_name : 'Inactive'),
                 'Modified_By' => $customer ? $customer->updated_by : null,
                 'Modified_Date' => $billingAccount->updated_at ? $billingAccount->updated_at->format('Y-m-d H:i:s') : null,
                 
                 'Plan' => $customer ? $customer->desired_plan : null,
-                'Provider' => null,
-                'LCPNAPPORT' => $technicalDetail ? ($technicalDetail->lcpnap . ($technicalDetail->port ? '-' . $technicalDetail->port : '')) : null,
+                'Provider' => $customer ? $customer->group_name : null,
+                'Total_Paid' => $totalPaid,
+                'LCPNAPPORT' => $technicalDetail ? (trim(($technicalDetail->lcpnap ?? '') . ' ' . ($technicalDetail->port ?? ''))) : null,
                 'Online_Session_Status' => $billingAccount->onlineStatus ? $billingAccount->onlineStatus->session_status : null,
             ];
 

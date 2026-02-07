@@ -27,6 +27,10 @@ interface Transaction {
   image_url: string | null;
   created_at: string;
   updated_at: string;
+  payment_method_info?: {
+    id: number;
+    payment_method: string;
+  };
   account?: {
     id: number;
     account_no: string;
@@ -367,7 +371,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
               {renderField('Payment Date', formatDate(transaction.payment_date))}
               {renderField('Date Processed', formatDate(transaction.date_processed))}
               {renderField('Processed By', transaction.processed_by_user, true)}
-              {renderField('Payment Method', transaction.payment_method, true)}
+              {renderField('Payment Method', transaction.payment_method_info?.payment_method || transaction.payment_method, true)}
               {renderField('Reference No.', transaction.reference_no)}
               {renderField('OR No.', transaction.or_no)}
               {renderField('Remarks', transaction.remarks || 'No remarks')}

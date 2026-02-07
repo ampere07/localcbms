@@ -39,6 +39,7 @@ export interface BillingRecord {
   city?: string;
   region?: string;
   usageType?: string;
+  lcpnapport?: string;
 }
 
 export interface BillingDetailRecord extends BillingRecord {

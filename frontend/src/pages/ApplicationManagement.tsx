@@ -47,7 +47,8 @@ const ApplicationManagement: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
-  const { applications, isLoading, error, fetchApplications, refreshApplications, silentRefresh, currentPage, hasMore } = useApplicationStore();
+  const { applications, isLoading, error, fetchApplications, refreshApplications, silentRefresh, hasMore } = useApplicationStore();
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [cities, setCities] = useState<City[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [locationDataLoaded, setLocationDataLoaded] = useState<boolean>(false);
@@ -86,7 +87,6 @@ const ApplicationManagement: React.FC = () => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-  // No need for internal currentPage as it's managed by store
   const itemsPerPage = 50;
 
   useEffect(() => {
@@ -360,9 +360,14 @@ const ApplicationManagement: React.FC = () => {
 
   const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLocation, searchQuery, sortColumn, sortDirection]);
+
   const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && (newPage <= totalPages || hasMore)) {
-      fetchApplications(newPage, itemsPerPage, searchQuery);
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
     }
   };
 

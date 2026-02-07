@@ -36,8 +36,8 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     port: customerData.technicalDetails?.port || '',
     vlan: customerData.technicalDetails?.vlan || '',
     billingDay: customerData.billingAccount?.billingDay || 0,
-    totalPaid: 0,
-    provider: '',
+    totalPaid: (customerData as any).total_paid || 0,
+    provider: customerData.groupName || '',
     lcp: customerData.technicalDetails?.lcp || '',
     nap: customerData.technicalDetails?.nap || '',
     modifiedBy: '',
@@ -46,7 +46,7 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     city: customerData.city || '',
     region: customerData.region || '',
 
-    usageType: customerData.technicalDetails?.usageTypeId ? `Type ${customerData.technicalDetails.usageTypeId}` : '',
+    usageType: customerData.technicalDetails?.usageType || '',
     referredBy: customerData.referredBy || '',
     referralContactNo: '',
     groupName: customerData.groupName || '',
@@ -57,6 +57,7 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     housingStatus: customerData.housingStatus || '',
     location: customerData.location || '',
     addressCoordinates: customerData.addressCoordinates || '',
+    lcpnapport: `${customerData.technicalDetails?.lcpnap || ''} ${customerData.technicalDetails?.port || ''}`.trim(),
   };
 };
 
@@ -102,38 +103,11 @@ const allColumns = [
   { key: 'referredBy', label: 'Referred By', width: 'min-w-36' },
   { key: 'secondContactNumber', label: 'Second Contact Number', width: 'min-w-40' },
   { key: 'referrersAccountNumber', label: 'Referrer\'s Account Number', width: 'min-w-44' },
-  { key: 'relatedInvoices', label: 'Related Invoices', width: 'min-w-36' },
-  { key: 'relatedStatementOfAccount', label: 'Related Statement of Account', width: 'min-w-52' },
-  { key: 'relatedDiscounts', label: 'Related Discounts', width: 'min-w-36' },
-  { key: 'relatedStaggeredInstallation', label: 'Related Staggered Installation', width: 'min-w-52' },
-  { key: 'relatedStaggeredPayments', label: 'Related Staggered Payments', width: 'min-w-52' },
-  { key: 'relatedOverdues', label: 'Related Overdues', width: 'min-w-36' },
-  { key: 'relatedDCNotices', label: 'Related DC Notices', width: 'min-w-40' },
-  { key: 'relatedServiceOrders', label: 'Related Service Orders', width: 'min-w-44' },
-  { key: 'relatedDisconnectedLogs', label: 'Related Disconnected Logs', width: 'min-w-48' },
-  { key: 'relatedReconnectionLogs', label: 'Related Reconnection Logs', width: 'min-w-48' },
-  { key: 'relatedChangeDueLogs', label: 'Related Change Due Logs', width: 'min-w-48' },
-  { key: 'relatedTransactions', label: 'Related Transactions', width: 'min-w-40' },
-  { key: 'relatedDetailsUpdateLogs', label: 'Related Details Update Logs', width: 'min-w-48' },
-  { key: 'computedAddress', label: '_ComputedAddress', width: 'min-w-40' },
-  { key: 'computedStatus', label: '_ComputedStatus', width: 'min-w-36' },
-  { key: 'relatedAdvancedPayments', label: 'Related Advanced Payments', width: 'min-w-48' },
-  { key: 'relatedPaymentPortalLogs', label: 'Related Payment Portal Logs', width: 'min-w-48' },
-  { key: 'relatedInventoryLogs', label: 'Related Inventory Logs', width: 'min-w-44' },
-  { key: 'computedAccountNo', label: '_ComputedAccountNo', width: 'min-w-44' },
-  { key: 'relatedOnlineStatus', label: 'Related Online Status', width: 'min-w-44' },
   { key: 'group', label: 'Group', width: 'min-w-28' },
   { key: 'mikrotikId', label: 'Mikrotik ID', width: 'min-w-32' },
   { key: 'sessionIP', label: 'Session IP', width: 'min-w-32' },
-  { key: 'relatedBorrowedLogs', label: 'Related Borrowed Logs', width: 'min-w-44' },
-  { key: 'relatedPlanChangeLogs', label: 'Related Plan Change Logs', width: 'min-w-48' },
-  { key: 'relatedServiceChargeLogs', label: 'Related Service Charge Logs', width: 'min-w-48' },
-  { key: 'relatedAdjustedAccountLogs', label: 'Related Adjusted Account Logs', width: 'min-w-52' },
   { key: 'referralContactNo', label: 'Referral Contact No.', width: 'min-w-40' },
-  { key: 'logs', label: 'Logs', width: 'min-w-24' },
-  { key: 'relatedSecurityDeposits', label: 'Related Security Deposits', width: 'min-w-48' },
-  { key: 'relatedApprovedTransactions', label: 'Related Approved Transaction', width: 'min-w-52' },
-  { key: 'relatedAttachments', label: 'Related Attachments', width: 'min-w-40' }
+  { key: 'logs', label: 'Logs', width: 'min-w-24' }
 ];
 
 interface CustomerProps {

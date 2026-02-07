@@ -35,6 +35,29 @@ class CustomerDetailController extends Controller
                 ], 404);
             }
             
+            // Calculate total paid from transactions table (status = 'done')
+            $transactionsPaid = \DB::table('transactions')
+                ->where('account_no', $accountNo)
+                ->where('status', 'done')
+                ->sum('received_payment');
+            
+            // Calculate total paid from payment_portal_logs table (status = 'success')
+            $portalPaid = \DB::table('payment_portal_logs')
+                ->where('account_id', $billingAccount->id)
+                ->where('status', 'success')
+                ->sum('total_amount');
+            
+            // Total paid is the sum of both
+            $totalPaid = ($transactionsPaid ?? 0) + ($portalPaid ?? 0);
+            
+            \Log::info('CustomerDetailController - Payment calculation:', [
+                'account_no' => $accountNo,
+                'billing_account_id' => $billingAccount->id,
+                'transactions_paid' => $transactionsPaid,
+                'portal_paid' => $portalPaid,
+                'total_paid' => $totalPaid
+            ]);
+            
             $data = [
                 'id' => $customer->id,
                 'firstName' => $customer->first_name,
@@ -54,9 +77,10 @@ class CustomerDetailController extends Controller
                 'referredBy' => $customer->referred_by,
                 'desiredPlan' => $customer->desired_plan,
                 'houseFrontPictureUrl' => $customer->house_front_picture_url,
-                'groupName' => $customer->group_name ?? ($customer->group ? $customer->group->name : null),
+                'groupName' => $customer->group_name,
                 'createdBy' => $customer->created_by,
                 'updatedBy' => $customer->updated_by,
+                'totalPaid' => $totalPaid,
                 
                 'billingAccount' => [
                     'id' => $billingAccount->id,
@@ -88,6 +112,7 @@ class CustomerDetailController extends Controller
                     'vlan' => $technicalDetail->vlan,
                     'lcpnap' => $technicalDetail->lcpnap,
                     'usageTypeId' => $technicalDetail->usage_type_id,
+                    'usageType' => $technicalDetail->usage_type,
                     'createdBy' => $technicalDetail->created_by,
                     'updatedBy' => $technicalDetail->updated_by,
                 ] : null,

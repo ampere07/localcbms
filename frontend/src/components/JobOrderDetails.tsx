@@ -28,6 +28,9 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const [applicationData, setApplicationData] = useState<Application | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
+  const [showLoadingModal, setShowLoadingModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
@@ -353,6 +356,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   };
 
   const handleDoneSave = async (formData: any) => {
+    if (loading) return;
     try {
       setLoading(true);
 
@@ -381,6 +385,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   };
 
   const handleEditSave = async (formData: any) => {
+    if (loading) return;
     try {
       setLoading(true);
 
@@ -444,8 +449,11 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   };
 
   const handleApproveConfirm = async () => {
+    if (loading) return;
     try {
       setLoading(true);
+      setIsApprovalModalOpen(false);
+      setShowLoadingModal(true);
 
       if (!jobOrder.id) {
         throw new Error('Cannot approve job order: Missing ID');
@@ -464,9 +472,9 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           message += `\n\nCustomer Login Credentials:\nUsername: ${accountNumber}\nPassword: ${contactNumber}`;
         }
 
+        setShowLoadingModal(false);
         setSuccessMessage(message);
         setShowSuccessModal(true);
-        setIsApprovalModalOpen(false);
         if (onRefresh) {
           onRefresh();
         }
@@ -475,7 +483,9 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         throw new Error(response.message || 'Failed to approve job order');
       }
     } catch (err: any) {
-      setError(`Failed to approve job order: ${err.message}`);
+      setShowLoadingModal(false);
+      setErrorMessage(`Failed to approve job order: ${err.message}`);
+      setShowErrorModal(true);
       console.error('Approve error:', err);
     } finally {
       setLoading(false);
@@ -491,6 +501,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   };
 
   const handleStatusUpdate = async (newStatus: string) => {
+    if (loading) return;
     try {
       setLoading(true);
 
@@ -1295,8 +1306,40 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         onConfirm={() => setShowSuccessModal(false)}
         onCancel={() => setShowSuccessModal(false)}
       />
+
+      {/* Loading Modal */}
+      {showLoadingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className={`rounded-lg shadow-2xl w-full max-w-md p-8 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+            <div className="flex flex-col items-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-t-2 mb-4"
+                style={{ borderColor: colorPalette?.primary || '#ea580c' }}
+              ></div>
+              <h2 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Processing Approval</h2>
+              <p className={`text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                Please wait while we approve the job order and create customer records...
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Modal */}
+      <ConfirmationModal
+        isOpen={showErrorModal}
+        title="Error"
+        message={errorMessage}
+        confirmText="OK"
+        cancelText="Close"
+        onConfirm={() => setShowErrorModal(false)}
+        onCancel={() => setShowErrorModal(false)}
+      />
     </div>
   );
 };
 
 export default JobOrderDetails;
+

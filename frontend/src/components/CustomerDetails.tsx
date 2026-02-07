@@ -248,6 +248,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       // Fetch all related data
       const fetchPromises = [
         { key: 'invoices', fn: relatedDataService.getRelatedInvoices },
+        { key: 'statementOfAccounts', fn: relatedDataService.getRelatedStatementOfAccounts },
         { key: 'paymentPortalLogs', fn: relatedDataService.getRelatedPaymentPortalLogs },
         { key: 'transactions', fn: relatedDataService.getRelatedTransactions },
         { key: 'staggered', fn: relatedDataService.getRelatedStaggered },
@@ -1159,7 +1160,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                           <td className={`px-4 py-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
                             }`}>{invoice.status || 'N/A'}</td>
                           <td className={`px-4 py-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>{invoice.created_at || invoice.date || 'N/A'}</td>
+                            }`}>{invoice.invoice_date ? (invoice.invoice_date.includes(' ') ? invoice.invoice_date.split(' ')[0] : invoice.invoice_date) : (invoice.created_at ? (invoice.created_at.includes(' ') ? invoice.created_at.split(' ')[0] : invoice.created_at) : (invoice.date || 'N/A'))}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1169,6 +1170,47 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 <div className={`text-center py-8 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
                   }`}>No items</div>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* Related Statement of Accounts */}
+        <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}>
+            <div className="flex items-center space-x-2">
+              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Related Statement of Accounts</span>
+              <span className={`text-xs px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 text-white' : 'bg-gray-300 text-gray-900'}`}>{relatedDataCounts.statementOfAccounts}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleExpandModalOpen('statementOfAccounts');
+                }}
+                className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'}`}
+              >
+                {expandedSections.statementOfAccounts ? 'Collapse' : 'Expand'}
+              </button>
+              <button onClick={() => toggleSection('statementOfAccounts')} className="flex items-center">
+                {expandedSections.statementOfAccounts ? (
+                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+                ) : (
+                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {expandedSections.statementOfAccounts && (
+            <div className="px-6 pb-4">
+              <RelatedDataTable
+                data={relatedData.statementOfAccounts}
+                columns={relatedDataColumns.statementOfAccounts}
+                isDarkMode={isDarkMode}
+              />
+              <div className="flex justify-end">
+                <button className={isDarkMode ? 'text-red-400 hover:text-red-300 text-sm' : 'text-red-600 hover:text-red-700 text-sm'}>Add</button>
+              </div>
             </div>
           )}
         </div>
@@ -1218,7 +1260,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                     <thead>
                       <tr>
                         <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Transaction ID</th>
+                          }`}>ID</th>
                         <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                           }`}>Amount</th>
                         <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -1232,13 +1274,13 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                       {relatedData.paymentPortalLogs.map((log: any, index: number) => (
                         <tr key={index} className={isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'}>
                           <td className={`px-4 py-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>{log.transaction_id || log.id}</td>
+                            }`}>{log.id}</td>
                           <td className={`px-4 py-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>₱{log.amount || '0.00'}</td>
+                            }`}>₱{parseFloat(log.total_amount || '0').toFixed(2)}</td>
                           <td className={`px-4 py-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
                             }`}>{log.status || 'N/A'}</td>
                           <td className={`px-4 py-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>{log.created_at || log.date || 'N/A'}</td>
+                            }`}>{log.date_time ? (log.date_time.includes(' ') ? log.date_time.split(' ')[0] : log.date_time) : 'N/A'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1421,6 +1463,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           )}
         </div>
         {[
+          { key: 'statementOfAccounts', label: 'Related Statement of Accounts', dataKey: 'statementOfAccounts' },
           { key: 'serviceOrders', label: 'Related Service Orders', dataKey: 'serviceOrders' },
           { key: 'reconnectionLogs', label: 'Related Reconnection Logs', dataKey: 'reconnectionLogs' },
           { key: 'disconnectedLogs', label: 'Related Disconnected Logs', dataKey: 'disconnectedLogs' },
