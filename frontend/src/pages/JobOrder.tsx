@@ -18,7 +18,7 @@ type DisplayMode = 'card' | 'table';
 
 const allColumns = [
   { key: 'timestamp', label: 'Timestamp', width: 'min-w-40' },
-  { key: 'billingStatusId', label: 'Billing Status ID', width: 'min-w-32' },
+  { key: 'billingStatus', label: 'Billing Status', width: 'min-w-32' },
   { key: 'onsiteStatus', label: 'Onsite Status', width: 'min-w-32' },
   { key: 'dateInstalled', label: 'Date Installed', width: 'min-w-36' },
   { key: 'installationFee', label: 'Installation Fee', width: 'min-w-32' },
@@ -372,7 +372,7 @@ const JobOrderPage: React.FC = () => {
     const getVal = (jo: JobOrder, key: string) => {
       switch (key) {
         case 'timestamp': return jo.Timestamp || jo.timestamp || '';
-        case 'billingStatusId': return jo.billing_status_id || jo.Billing_Status_ID || '';
+        case 'billingStatus': return jo.billing_status || jo.Billing_Status || '';
         case 'onsiteStatus': return jo.Onsite_Status || jo.onsite_status || '';
         case 'dateInstalled': return jo.Date_Installed || jo.date_installed || '';
         case 'installationFee': return jo.Installation_Fee || jo.installation_fee || 0;
@@ -698,7 +698,7 @@ const JobOrderPage: React.FC = () => {
     return value;
   };
 
-  const renderCellValue = (jobOrder: JobOrder, columnKey: string): string => {
+  const renderCellValue = (jobOrder: JobOrder, columnKey: string): React.ReactNode => {
     switch (columnKey) {
       case 'timestamp':
         return formatDate(jobOrder.Timestamp || jobOrder.timestamp);
@@ -712,8 +712,8 @@ const JobOrderPage: React.FC = () => {
         const dayValue = Number(billingDay);
         if (isNaN(dayValue)) return '-';
         return dayValue === 0 ? String(getLastDayOfMonth()) : String(dayValue);
-      case 'billingStatusId':
-        return getValue(jobOrder.billing_status_id || jobOrder.Billing_Status_ID);
+      case 'billingStatus':
+        return <StatusText status={jobOrder.billing_status || jobOrder.Billing_Status} type="billing" />;
       case 'modemRouterSN':
         return getValue(jobOrder.Modem_Router_SN || jobOrder.modem_router_sn);
       case 'routerModel':
@@ -743,7 +743,7 @@ const JobOrderPage: React.FC = () => {
       case 'visitWithOther':
         return getValue(jobOrder.Visit_With_Other || jobOrder.visit_with_other);
       case 'onsiteStatus':
-        return jobOrder.Onsite_Status || jobOrder.onsite_status || '-';
+        return <StatusText status={jobOrder.Onsite_Status || jobOrder.onsite_status} type="onsite" />;
       case 'onsiteRemarks':
         return getValue(jobOrder.Onsite_Remarks || jobOrder.onsite_remarks);
       case 'statusRemarks':
@@ -1457,23 +1457,26 @@ const JobOrderPage: React.FC = () => {
                               }`}
                             onClick={() => window.innerWidth < 768 ? handleMobileRowClick(jobOrder) : handleRowClick(jobOrder)}
                           >
-                            {filteredColumns.map((column, index) => (
-                              <td
-                                key={column.key}
-                                className={`py-4 px-3 ${isDarkMode
-                                  ? `text-white ${index < filteredColumns.length - 1 ? 'border-r border-gray-800' : ''}`
-                                  : `text-gray-900 ${index < filteredColumns.length - 1 ? 'border-r border-gray-200' : ''}`
-                                  }`}
-                                style={{
-                                  width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
-                                  maxWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
-                                }}
-                              >
-                                <div className="truncate" title={renderCellValue(jobOrder, column.key)}>
-                                  {renderCellValue(jobOrder, column.key)}
-                                </div>
-                              </td>
-                            ))}
+                            {filteredColumns.map((column, index) => {
+                              const cellValue = renderCellValue(jobOrder, column.key);
+                              return (
+                                <td
+                                  key={column.key}
+                                  className={`py-4 px-3 ${isDarkMode
+                                    ? `text-white ${index < filteredColumns.length - 1 ? 'border-r border-gray-800' : ''}`
+                                    : `text-gray-900 ${index < filteredColumns.length - 1 ? 'border-r border-gray-200' : ''}`
+                                    }`}
+                                  style={{
+                                    width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
+                                    maxWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
+                                  }}
+                                >
+                                  <div className="truncate" title={typeof cellValue === 'string' ? cellValue : undefined}>
+                                    {cellValue}
+                                  </div>
+                                </td>
+                              );
+                            })}
                           </tr>
                         ))
                       ) : (

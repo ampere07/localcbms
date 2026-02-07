@@ -4,7 +4,7 @@ export interface JobOrder {
   id?: string | number;
   JobOrder_ID?: string;
   Application_ID?: string;
-  
+
   // Timestamps
   Timestamp?: string | null;
   StartTimeStamp?: string | null;
@@ -14,7 +14,7 @@ export interface JobOrder {
   Modified_Date?: string | null;
   Created_At?: string;
   Updated_At?: string | null;
-  
+
   // Personal Information
   First_Name?: string | null;
   Middle_Initial?: string | null;
@@ -25,7 +25,7 @@ export interface JobOrder {
   Secondary_Mobile_Number?: string | null;
   Email_Address?: string | null;
   Applicant_Email_Address?: string | null;
-  
+
   // Address Information
   Address?: string | null;
   Location?: string | null;
@@ -35,7 +35,7 @@ export interface JobOrder {
   Region?: string | null;
   Installation_Landmark?: string | null;
   Coordinates?: string | null;
-  
+
   // Service Information
   Choose_Plan?: string | null;
   Desired_Plan?: string | null;
@@ -46,7 +46,7 @@ export interface JobOrder {
   pppoe_password?: string | null;
   PPPoE_Username?: string | null;
   PPPoE_Password?: string | null;
-  
+
   // Contract and Billing
   Contract_Template?: string | null;
   Contract_Link?: string | null;
@@ -54,7 +54,8 @@ export interface JobOrder {
   Billing_Day?: string | null;
   Preferred_Day?: string | null;
   Billing_Status?: string | null;
-  
+  billing_status?: string | null;
+
   // Technical Information
   Modem_Router_SN?: string | null;
   Router_Model?: string | null;
@@ -67,13 +68,13 @@ export interface JobOrder {
   Port?: string | null;
   Label?: string | null;
   IP?: string | null;
-  
+
   // Status Information
   Status?: string | null;
   Onsite_Status?: string | null;
   Billing_Status_ID?: number | null;
   billing_status_id?: number | null;
-  
+
   // Assignment and Tracking
   Assigned_Email?: string | null;
   Visit_By?: string | null;
@@ -83,13 +84,13 @@ export interface JobOrder {
   Verified_By?: string | null;
   Modified_By?: string | null;
   Created_By?: string | null;
-  
+
   // Remarks and Notes
   Remarks?: string | null;
   JO_Remarks?: string | null;
   Status_Remarks?: string | null;
   Onsite_Remarks?: string | null;
-  
+
   // Images and Documents
   Setup_Image?: string | null;
   Speedtest_Image?: string | null;
@@ -99,7 +100,7 @@ export interface JobOrder {
   Router_Reading_Image?: string | null;
   House_Front_Picture?: string | null;
   Image?: string | null;
-  
+
   // Additional Fields
   Renter?: string | null;
   Installation?: string | null;
@@ -107,7 +108,7 @@ export interface JobOrder {
   Account_No?: string | null;
   Account_Number?: string | null;
   Referrers?: string | null;
-  
+
   // Flexible property for additional fields
   [key: string]: any;
 }
@@ -124,7 +125,7 @@ export interface JobOrderDetailsProps {
 }
 
 // Create status type definitions
-export type JobOrderStatus = 
+export type JobOrderStatus =
   | 'Pending'
   | 'Confirmed'
   | 'In Progress'
@@ -132,14 +133,14 @@ export type JobOrderStatus =
   | 'Cancelled'
   | 'On Hold';
 
-export type OnsiteStatus = 
+export type OnsiteStatus =
   | 'Not Started'
   | 'In Progress'
   | 'Completed'
   | 'Cancelled'
   | 'Pending';
 
-export type BillingStatus = 
+export type BillingStatus =
   | 'Pending'
   | 'Active'
   | 'Suspended'
