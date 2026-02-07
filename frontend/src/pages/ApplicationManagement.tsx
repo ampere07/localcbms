@@ -926,7 +926,7 @@ const ApplicationManagement: React.FC = () => {
 
           {/* Applications List Container */}
           <div className="flex-1 overflow-hidden flex flex-col">
-            <div className="flex-1 overflow-y-auto">
+            <div className={`flex-1 ${displayMode === 'table' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
               {isLoading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
@@ -1007,91 +1007,93 @@ const ApplicationManagement: React.FC = () => {
                   </div>
                 )
               ) : (
-                <div className="overflow-x-auto overflow-y-hidden">
-                  <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
-                    <thead>
-                      <tr className={`border-b sticky top-0 z-20 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
-                        }`}>
-                        {filteredColumns.map((column, index) => (
-                          <th
-                            key={column.key}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, column.key)}
-                            onDragOver={(e) => handleDragOver(e, column.key)}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleDrop(e, column.key)}
-                            onDragEnd={handleDragEnd}
-                            className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
-                              } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''} ${draggedColumn === column.key ? 'opacity-50' : ''
-                              } ${dragOverColumn === column.key ? 'bg-orange-500 bg-opacity-20' : ''
-                              }`}
-                            style={{ width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined }}
-                            onMouseEnter={() => setHoveredColumn(column.key)}
-                            onMouseLeave={() => setHoveredColumn(null)}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span>{column.label}</span>
-                              {(hoveredColumn === column.key || sortColumn === column.key) && (
-                                <button
-                                  onClick={() => handleSort(column.key)}
-                                  className="ml-2 transition-colors"
-                                >
-                                  {sortColumn === column.key && sortDirection === 'desc' ? (
-                                    <ArrowDown className="h-4 w-4" style={{ color: colorPalette?.primary || '#fb923c' }} />
-                                  ) : (
-                                    <ArrowUp className="h-4 w-4 text-gray-400" style={{
-                                      color: sortColumn === column.key ? (colorPalette?.primary || '#fb923c') : undefined
-                                    }} />
-                                  )}
-                                </button>
+                <div className="h-full relative flex flex-col">
+                  <div className="flex-1 overflow-auto">
+                    <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
+                      <thead>
+                        <tr className={`border-b sticky top-0 z-20 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
+                          }`}>
+                          {filteredColumns.map((column, index) => (
+                            <th
+                              key={column.key}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, column.key)}
+                              onDragOver={(e) => handleDragOver(e, column.key)}
+                              onDragLeave={handleDragLeave}
+                              onDrop={(e) => handleDrop(e, column.key)}
+                              onDragEnd={handleDragEnd}
+                              className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
+                                } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''} ${draggedColumn === column.key ? 'opacity-50' : ''
+                                } ${dragOverColumn === column.key ? 'bg-orange-500 bg-opacity-20' : ''
+                                }`}
+                              style={{ width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined }}
+                              onMouseEnter={() => setHoveredColumn(column.key)}
+                              onMouseLeave={() => setHoveredColumn(null)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span>{column.label}</span>
+                                {(hoveredColumn === column.key || sortColumn === column.key) && (
+                                  <button
+                                    onClick={() => handleSort(column.key)}
+                                    className="ml-2 transition-colors"
+                                  >
+                                    {sortColumn === column.key && sortDirection === 'desc' ? (
+                                      <ArrowDown className="h-4 w-4" style={{ color: colorPalette?.primary || '#fb923c' }} />
+                                    ) : (
+                                      <ArrowUp className="h-4 w-4 text-gray-400" style={{
+                                        color: sortColumn === column.key ? (colorPalette?.primary || '#fb923c') : undefined
+                                      }} />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                              {index < filteredColumns.length - 1 && (
+                                <div
+                                  className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 group-hover:bg-gray-600"
+                                  onMouseDown={(e) => handleMouseDownResize(e, column.key)}
+                                />
                               )}
-                            </div>
-                            {index < filteredColumns.length - 1 && (
-                              <div
-                                className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 group-hover:bg-gray-600"
-                                onMouseDown={(e) => handleMouseDownResize(e, column.key)}
-                              />
-                            )}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedApplications.length > 0 ? (
-                        paginatedApplications.map((application) => (
-                          <tr
-                            key={application.id}
-                            className={`border-b cursor-pointer transition-colors ${isDarkMode ? 'border-gray-800 hover:bg-gray-900' : 'border-gray-200 hover:bg-gray-50'
-                              } ${selectedApplication?.id === application.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
-                            onClick={() => handleRowClick(application)}
-                          >
-                            {filteredColumns.map((column, index) => (
-                              <td
-                                key={column.key}
-                                className={`py-4 px-3 ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'
-                                  }`}
-                                style={{
-                                  width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
-                                  maxWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
-                                }}
-                              >
-                                <div className="truncate" title={String(renderCellValue(application, column.key))}>
-                                  {renderCellDisplay(application, column.key)}
-                                </div>
-                              </td>
-                            ))}
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${isDarkMode ? 'text-gray-400 border-gray-800' : 'text-gray-600 border-gray-200'
-                            }`}>
-                            No applications found matching your filters
-                          </td>
+                            </th>
+                          ))}
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {paginatedApplications.length > 0 ? (
+                          paginatedApplications.map((application) => (
+                            <tr
+                              key={application.id}
+                              className={`border-b cursor-pointer transition-colors ${isDarkMode ? 'border-gray-800 hover:bg-gray-900' : 'border-gray-200 hover:bg-gray-50'
+                                } ${selectedApplication?.id === application.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
+                              onClick={() => handleRowClick(application)}
+                            >
+                              {filteredColumns.map((column, index) => (
+                                <td
+                                  key={column.key}
+                                  className={`py-4 px-3 ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                    }`}
+                                  style={{
+                                    width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
+                                    maxWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
+                                  }}
+                                >
+                                  <div className="truncate" title={String(renderCellValue(application, column.key))}>
+                                    {renderCellDisplay(application, column.key)}
+                                  </div>
+                                </td>
+                              ))}
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${isDarkMode ? 'text-gray-400 border-gray-800' : 'text-gray-600 border-gray-200'
+                              }`}>
+                              No applications found matching your filters
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>

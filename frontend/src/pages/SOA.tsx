@@ -671,7 +671,7 @@ const SOA: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-hidden flex flex-col">
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-hidden">
               {isLoading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
@@ -698,64 +698,66 @@ const SOA: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  <div className="overflow-x-auto overflow-y-hidden">
-                    <table className="w-max min-w-full text-sm border-separate border-spacing-0">
-                      <thead>
-                        <tr className={`border-b sticky top-0 z-10 ${isDarkMode
-                          ? 'border-gray-700 bg-gray-800'
-                          : 'border-gray-200 bg-gray-100'
-                          }`}>
-                          {displayColumns.map((column, index) => (
-                            <th
-                              key={column.key}
-                              className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap ${isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
-                                } ${index < displayColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''
-                                }`}
-                            >
-                              {column.label}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedRecords.length > 0 ? (
-                          paginatedRecords.map((record: SOARecordUI) => (
-                            <tr
-                              key={record.id}
-                              className={`border-b cursor-pointer transition-colors ${isDarkMode
-                                ? 'border-gray-800 hover:bg-gray-900'
-                                : 'border-gray-200 hover:bg-gray-50'
-                                } ${selectedRecord?.id === record.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''
-                                } ${userRole === 'customer' ? '' : 'cursor-pointer'
-                                }`}
-                              onClick={() => handleRowClick(record)}
-                            >
-                              {displayColumns.map((column, index) => (
-                                <td
-                                  key={column.key}
-                                  className={`py-4 px-3 whitespace-nowrap ${isDarkMode ? 'text-white' : 'text-gray-900'
-                                    } ${index < displayColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''
-                                    }`}
-                                >
-                                  {renderCellValue(record, column.key)}
-                                </td>
-                              ))}
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={displayColumns.length} className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`}>
-                              {filteredRecords.length > 0
-                                ? 'No SOA records found matching your filters'
-                                : (totalCount > soaRecords.length)
-                                  ? 'Loading more records... please wait.'
-                                  : 'No SOA records found.'}
-                            </td>
+                  <div className="h-full relative flex flex-col">
+                    <div className="flex-1 overflow-auto">
+                      <table className="w-max min-w-full text-sm border-separate border-spacing-0">
+                        <thead>
+                          <tr className={`border-b sticky top-0 z-10 ${isDarkMode
+                            ? 'border-gray-700 bg-gray-800'
+                            : 'border-gray-200 bg-gray-100'
+                            }`}>
+                            {displayColumns.map((column, index) => (
+                              <th
+                                key={column.key}
+                                className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap ${isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
+                                  } ${index < displayColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''
+                                  }`}
+                              >
+                                {column.label}
+                              </th>
+                            ))}
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {paginatedRecords.length > 0 ? (
+                            paginatedRecords.map((record: SOARecordUI) => (
+                              <tr
+                                key={record.id}
+                                className={`border-b cursor-pointer transition-colors ${isDarkMode
+                                  ? 'border-gray-800 hover:bg-gray-900'
+                                  : 'border-gray-200 hover:bg-gray-50'
+                                  } ${selectedRecord?.id === record.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''
+                                  } ${userRole === 'customer' ? '' : 'cursor-pointer'
+                                  }`}
+                                onClick={() => handleRowClick(record)}
+                              >
+                                {displayColumns.map((column, index) => (
+                                  <td
+                                    key={column.key}
+                                    className={`py-4 px-3 whitespace-nowrap ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                      } ${index < displayColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''
+                                      }`}
+                                  >
+                                    {renderCellValue(record, column.key)}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={displayColumns.length} className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                }`}>
+                                {filteredRecords.length > 0
+                                  ? 'No SOA records found matching your filters'
+                                  : (totalCount > soaRecords.length)
+                                    ? 'Loading more records... please wait.'
+                                    : 'No SOA records found.'}
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </>
               )}
