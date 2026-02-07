@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { FileText, Search, Circle, X, ListFilter, ArrowUp, ArrowDown, Menu, Filter, RefreshCw } from 'lucide-react';
+import { FileText, Search, X, ListFilter, ArrowUp, ArrowDown, Menu, Filter, RefreshCw } from 'lucide-react';
 import ServiceOrderDetails from '../components/ServiceOrderDetails';
 import ServiceOrderFunnelFilter from '../components/filters/ServiceOrderFunnelFilter';
-import { useServiceOrderContext, type ServiceOrder } from '../contexts/ServiceOrderContext';
+import { useServiceOrderStore, type ServiceOrder } from '../store/serviceOrderStore';
 import { getCities, City } from '../services/cityService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
@@ -37,10 +37,9 @@ const ServiceOrderPage: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedServiceOrder, setSelectedServiceOrder] = useState<ServiceOrder | null>(null);
-  const { serviceOrders, isLoading, error, refreshServiceOrders, silentRefresh } = useServiceOrderContext();
+  const { serviceOrders, isLoading, error, fetchServiceOrders, refreshServiceOrders, silentRefresh, currentPage, hasMore } = useServiceOrderStore();
   const [cities, setCities] = useState<City[]>([]);
   const [userRole, setUserRole] = useState<string>('');
-  const [userEmail, setUserEmail] = useState<string>('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
@@ -78,17 +77,9 @@ const ServiceOrderPage: React.FC = () => {
     return {};
   });
 
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  // Pagination State - Managed by store
   const itemsPerPage = 50;
 
-  const formatDate = (dateStr?: string): string => {
-    if (!dateStr) return 'Not scheduled';
-    try {
-      return new Date(dateStr).toLocaleString();
-    } catch (e) {
-      return dateStr;
-    }
-  };
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -104,10 +95,14 @@ const ServiceOrderPage: React.FC = () => {
     fetchColorPalette();
   }, []);
 
-  // Reset page when filters change
+  // Reset page logic handled by fetchServiceOrders on triggers where necessary
   useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection]);
+    // When search query changes, trigger a new fetch
+    const timeoutId = setTimeout(() => {
+      fetchServiceOrders(1, itemsPerPage, searchQuery, false);
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, fetchServiceOrders]);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -149,7 +144,6 @@ const ServiceOrderPage: React.FC = () => {
       try {
         const userData = JSON.parse(authData);
         setUserRole(userData.role || '');
-        setUserEmail(userData.email || '');
       } catch (error) {
         console.error('Error parsing auth data:', error);
       }
@@ -399,7 +393,7 @@ const ServiceOrderPage: React.FC = () => {
     }
 
     return filtered;
-  }, [serviceOrders, selectedLocation, searchQuery, sortColumn, sortDirection, activeFilters]);
+  }, [serviceOrders, selectedLocation, searchQuery, sortColumn, sortDirection, activeFilters, userRole]);
 
   // Derived paginated records
   const paginatedServiceOrders = useMemo(() => {
@@ -410,8 +404,8 @@ const ServiceOrderPage: React.FC = () => {
   const totalPages = Math.ceil(filteredServiceOrders.length / itemsPerPage);
 
   const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
+    if (newPage >= 1 && (newPage <= totalPages || hasMore)) {
+      fetchServiceOrders(newPage, itemsPerPage, searchQuery, false);
     }
   };
 
