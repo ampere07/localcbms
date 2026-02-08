@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { login, forgotPassword } from '../services/api';
 import { UserData } from '../types/api';
 import { formUIService } from '../services/formUIService';
-import { settingsColorPaletteService } from '../services/settingsColorPaletteService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { ArrowRight } from 'lucide-react';
 
 interface LoginProps {
@@ -18,6 +18,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotMessage, setForgotMessage] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   const convertGoogleDriveUrl = (url: string): string => {
     if (!url) return '';
@@ -38,6 +39,18 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     };
 
     fetchLogo();
+  }, []);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -118,7 +131,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             marginBottom: '30px'
           }}>
             <h2 style={{
-              color: '#6d28d9',
+              color: colorPalette?.primary || '#6d28d9',
               fontSize: '24px',
               marginBottom: '10px',
               fontWeight: '600'
@@ -150,7 +163,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 style={{
                   width: '100%',
                   padding: '14px',
-                  backgroundColor: '#6d28d9',
+                  backgroundColor: colorPalette?.primary || '#6d28d9',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '30px',
@@ -222,8 +235,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   width: '100%',
                   padding: '14px',
                   backgroundColor: 'transparent',
-                  color: '#6d28d9',
-                  border: '1px solid #6d28d9',
+                  color: colorPalette?.primary || '#6d28d9',
+                  border: `1px solid ${colorPalette?.primary || '#6d28d9'}`,
                   borderRadius: '8px',
                   fontSize: '16px',
                   cursor: 'pointer',
@@ -279,7 +292,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         }} className="login-container">
           <div style={{
             flex: 1,
-            background: 'linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%)',
+            background: `linear-gradient(135deg, ${colorPalette?.primary || '#6d28d9'} 0%, ${colorPalette?.secondary || '#7c3aed'} 100%)`,
             padding: '60px 50px',
             display: 'flex',
             flexDirection: 'column',
@@ -368,7 +381,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   width: '100%',
                   padding: '16px',
                   backgroundColor: isLoading ? '#6b7280' : '#ffffff',
-                  color: isLoading ? '#ffffff' : '#6d28d9',
+                  color: isLoading ? '#ffffff' : (colorPalette?.primary || '#6d28d9'),
                   border: 'none',
                   borderRadius: '30px',
                   fontSize: '16px',
@@ -385,6 +398,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   if (!isLoading) {
                     e.currentTarget.style.transform = 'translateY(-2px)';
                     e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
+                    if (colorPalette?.accent) {
+                      // Optional: change border or text color on hover if needed
+                    }
                   }
                 }}
                 onMouseLeave={(e) => {
@@ -463,7 +479,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 color: '#6b7280',
                 marginTop: '10px'
               }}>
-                Powered by <span style={{ color: '#6d28d9' }}>Sync</span>
+                Powered by <span style={{ color: '#7c3aed' }}>Sync</span>
               </p>
             </div>
 
@@ -475,7 +491,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 fontSize: '36px',
                 fontWeight: '700',
                 marginBottom: '15px',
-                color: '#6d28d9'
+                color: colorPalette?.primary || '#6d28d9'
               }}>
                 New Here?
               </h2>
@@ -494,7 +510,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               }}
               style={{
                 padding: '16px 48px',
-                backgroundColor: '#6d28d9',
+                backgroundColor: colorPalette?.primary || '#6d28d9',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '30px',
@@ -507,10 +523,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
                 e.currentTarget.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';
+                if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#6d28d9';
               }}
             >
               APPLY NOW

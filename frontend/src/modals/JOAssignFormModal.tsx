@@ -408,8 +408,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
   const handleInputChange = (field: keyof JOFormData, value: string | number | boolean) => {
     if (field === 'billingDay') {
       const numValue = parseInt(value as string);
-      if (!isNaN(numValue) && numValue > 30) {
-        // If user tries to type > 30, keep the previous value or do nothing if this is direct input
+      if (!isNaN(numValue) && numValue > 28) {
+        // If user tries to type > 28, keep the previous value or do nothing if this is direct input
         // However, since we are in the handler, preventing the update is sufficient
         return;
       }
@@ -463,7 +463,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
         };
       } else if (field === 'billingDay') {
         const currentValue = parseInt(prev[field]) || 1;
-        const newValue = increment ? Math.min(30, currentValue + 1) : Math.max(1, currentValue - 1);
+        const newValue = increment ? Math.min(28, currentValue + 1) : Math.max(1, currentValue - 1);
         return {
           ...prev,
           [field]: newValue.toString()
@@ -548,8 +548,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     if (!formData.isLastDayOfMonth) {
       if (isNaN(billingDayNum) || billingDayNum < 1) {
         newErrors.billingDay = 'Billing Day must be at least 1';
-      } else if (billingDayNum > 30) {
-        newErrors.billingDay = 'Billing Day cannot exceed 30';
+      } else if (billingDayNum > 28) {
+        newErrors.billingDay = 'Billing Day cannot exceed 28';
       }
     }
 
@@ -591,7 +591,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
       application_id: applicationId,
       timestamp: formattedTimestamp,
       installation_fee: data.installationFee || 0,
-      billing_day: data.isLastDayOfMonth ? 0 : (parseInt(data.billingDay) || 30),
+      billing_day: data.isLastDayOfMonth ? 0 : (parseInt(data.billingDay) || 28),
       billing_status: 'In Progress',
       modem_router_sn: toNullIfEmpty(data.contractTemplate),
       onsite_status: data.onsiteStatus || 'In Progress',
@@ -1310,10 +1310,10 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   </label>
                 </div>
 
-                {parseInt(formData.billingDay) > 30 && !formData.isLastDayOfMonth && (
+                {parseInt(formData.billingDay) > 28 && !formData.isLastDayOfMonth && (
                   <p className="text-orange-500 text-xs mt-1 flex items-center">
                     <span className="mr-1">⚠</span>
-                    Billing Day must be between 1 and 30
+                    Billing Day must be between 1 and 28
                   </p>
                 )}
                 {errors.billingDay && <p className="text-red-500 text-xs mt-1">{errors.billingDay}</p>}
