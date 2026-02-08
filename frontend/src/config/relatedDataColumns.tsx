@@ -38,7 +38,7 @@ export const relatedDataColumns = {
     { key: 'id', label: 'Transaction ID', render: (val: any, row: any) => row.id || row.transaction_id || 'N/A' },
     { key: 'received_payment', label: 'Amount', render: (val: any, row: any) => `₱${parseFloat(row.received_payment || '0').toFixed(2)}` },
     { key: 'transaction_type', label: 'Type' },
-    { key: 'payment_method', label: 'Payment Method', render: (val: any) => val || 'N/A' },
+    { key: 'payment_method', label: 'Payment Method', render: (val: any, row: any) => row.payment_method_name || val || 'N/A' },
     {
       key: 'date_processed',
       label: 'Date',

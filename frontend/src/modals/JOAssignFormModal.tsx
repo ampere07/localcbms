@@ -661,7 +661,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
       try {
         const applicationUpdateData: any = {
           promo: updatedFormData.promo || null,
-          status: 'In Progress'
+          status: 'Scheduled'
         };
 
         await updateApplication(applicationData.id.toString(), applicationUpdateData);

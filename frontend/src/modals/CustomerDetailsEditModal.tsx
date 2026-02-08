@@ -43,9 +43,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [editType, setEditType] = useState<'customer_details' | 'billing_details' | 'technical_details'>(initialEditType);
-  
+
   const [formData, setFormData] = useState<any>({});
-  
+
   const [regions, setRegions] = useState<any[]>([]);
   const [allCities, setAllCities] = useState<City[]>([]);
   const [allBarangays, setAllBarangays] = useState<Barangay[]>([]);
@@ -80,7 +80,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
         }
       }
     };
-    
+
     fetchImageSizeSettings();
   }, [isOpen]);
 
@@ -121,13 +121,13 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
     if (isOpen && recordData) {
       console.log('CustomerDetailsEditModal - recordData:', recordData);
       console.log('CustomerDetailsEditModal - editType:', editType);
-      
+
       if (editType === 'customer_details') {
         // Split customerName into parts if firstName is not available
         let firstName = recordData.firstName || recordData.first_name || '';
         let middleInitial = recordData.middleInitial || recordData.middle_initial || '';
         let lastName = recordData.lastName || recordData.last_name || '';
-        
+
         // If we don't have firstName but have customerName, try to split it
         if (!firstName && recordData.customerName) {
           const nameParts = recordData.customerName.split(' ');
@@ -141,9 +141,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
             firstName = nameParts[0];
           }
         }
-        
+
         const houseFrontPictureUrl = recordData.houseFrontPicture || recordData.house_front_picture || '';
-        
+
         const newFormData = {
           firstName,
           middleInitial,
@@ -162,10 +162,10 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
           groupName: recordData.groupName || recordData.group_name || recordData.group || '',
           houseFrontPicture: houseFrontPictureUrl
         };
-        
+
         console.log('CustomerDetailsEditModal - formData:', newFormData);
         setFormData(newFormData);
-        
+
         const convertedUrl = convertGoogleDriveUrl(houseFrontPictureUrl);
         if (convertedUrl) {
           setImagePreview(convertedUrl);
@@ -189,15 +189,15 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
 
         setFormData({
           dateInstalled: formatDateForInput(recordData.dateInstalled || recordData.date_installed),
-          plan: recordData.plan || '',
+          plan: recordData.plan || recordData.desiredPlan || recordData.desired_plan || recordData.Desired_Plan || '',
           accountBalance: recordData.accountBalance || recordData.account_balance || recordData.balance || '0.00',
           billingDay: (recordData.billingDay !== undefined ? recordData.billingDay : recordData.billing_day) || '',
-          billingStatus: recordData.status || recordData.billing_status || ''
+          billingStatus: recordData.billingStatus || recordData.billingAccount?.billingStatusName || recordData.status || recordData.billing_status || recordData.billingAccount?.billing_status || ''
         });
       } else if (editType === 'technical_details') {
         const lcpnapValue = recordData.lcpnap || recordData.LCPNAP || '';
         const parts = lcpnapValue.split('-');
-        
+
         setFormData({
           username: recordData.username || recordData.pppoe_username || '',
           usernameStatus: recordData.usernameStatus || recordData.username_status || recordData.onlineStatus || recordData.online_status || '',
@@ -229,7 +229,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
             locationDetailService.getAll(),
             getAllGroups()
           ]);
-          
+
           setRegions(Array.isArray(fetchedRegions) ? fetchedRegions : []);
           setAllCities(Array.isArray(fetchedCities) ? fetchedCities : []);
           setAllBarangays(barangaysRes.success && Array.isArray(barangaysRes.data) ? barangaysRes.data : []);
@@ -238,6 +238,17 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
         } else if (editType === 'billing_details') {
           const fetchedPlans = await planService.getAllPlans();
           setPlans(Array.isArray(fetchedPlans) ? fetchedPlans : []);
+
+          // Fix plan field if it matches by name but needs price suffix
+          if (formData.plan) {
+            const matchedPlan = fetchedPlans.find(p => p.name === formData.plan || `${p.name} - P${p.price}` === formData.plan);
+            if (matchedPlan) {
+              const fullPlanName = matchedPlan.price ? `${matchedPlan.name} - P${matchedPlan.price}` : matchedPlan.name;
+              if (fullPlanName !== formData.plan) {
+                setFormData((prev: any) => ({ ...prev, plan: fullPlanName }));
+              }
+            }
+          }
         } else if (editType === 'technical_details') {
           const [fetchedRouterModels, lcpnapsRes, vlansRes, usageTypesRes] = await Promise.all([
             routerModelService.getAllRouterModels(),
@@ -247,7 +258,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
           ]);
 
           setRouterModels(fetchedRouterModels);
-          
+
           if (lcpnapsRes.success && Array.isArray(lcpnapsRes.data)) {
             setLcpnaps(lcpnapsRes.data);
             const uniqueLcps = new Set<string>();
@@ -304,7 +315,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
   const handleInputChange = (field: string, value: any) => {
     setFormData((prev: any) => {
       const newData = { ...prev, [field]: value };
-      
+
       if (editType === 'customer_details') {
         if (field === 'region') {
           newData.city = '';
@@ -332,10 +343,10 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
           }
         }
       }
-      
+
       return newData;
     });
-    
+
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -368,17 +379,17 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
 
   const convertGoogleDriveUrl = (url: string | null | undefined): string | null => {
     if (!url) return null;
-    
+
     const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
     if (fileIdMatch && fileIdMatch[1]) {
       return `https://drive.google.com/uc?export=view&id=${fileIdMatch[1]}`;
     }
-    
+
     const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
     if (idMatch && idMatch[1]) {
       return `https://drive.google.com/uc?export=view&id=${idMatch[1]}`;
     }
-    
+
     return url;
   };
 
@@ -398,43 +409,40 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
 
     return (
       <div>
-        <label className={`block text-sm font-medium mb-2 ${
-          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-        }`}>{label}</label>
-        <div className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer ${
-          isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
-        }`}>
-          <input 
-            type="file" 
-            accept="image/*" 
+        <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>{label}</label>
+        <div className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+          }`}>
+          <input
+            type="file"
+            accept="image/*"
             onChange={(e) => {
               if (e.target.files && e.target.files[0]) {
                 onUpload(e.target.files[0]);
                 setImageLoadError(false);
               }
-            }} 
-            className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+            }}
+            className="absolute inset-0 opacity-0 cursor-pointer z-10"
           />
           {imageUrl ? (
             <div className="relative w-full h-full">
               {isBlobUrl || (!isGDrive && !imageLoadError) ? (
-                <img 
-                  src={imageUrl} 
-                  alt={label} 
+                <img
+                  src={imageUrl}
+                  alt={label}
                   className="w-full h-full object-contain"
                   onError={() => setImageLoadError(true)}
                 />
               ) : (
-                <div className={`w-full h-full flex flex-col items-center justify-center ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`w-full h-full flex flex-col items-center justify-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   <Camera size={32} />
                   <span className="text-sm mt-2 text-center px-4">Image stored in Google Drive</span>
                   {imageUrl && (
-                    <a 
-                      href={imageUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
+                    <a
+                      href={imageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="text-orange-500 text-xs mt-2 hover:underline z-20"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -448,9 +456,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
               </div>
             </div>
           ) : (
-            <div className={`w-full h-full flex flex-col items-center justify-center ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
+            <div className={`w-full h-full flex flex-col items-center justify-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>
               <Camera size={32} />
               <span className="text-sm mt-2">Click to upload</span>
             </div>
@@ -470,12 +477,12 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
     try {
       let processedFile = file;
       const originalSize = (file.size / 1024 / 1024).toFixed(2);
-      
+
       if (activeImageSize && activeImageSize.image_size_value < 100) {
         try {
           const resizedFile = await resizeImage(file, activeImageSize.image_size_value);
           const resizedSize = (resizedFile.size / 1024 / 1024).toFixed(2);
-          
+
           if (resizedFile.size < file.size) {
             processedFile = resizedFile;
             console.log(`[RESIZE SUCCESS] House Front Picture: ${originalSize}MB → ${resizedSize}MB (${activeImageSize.image_size_value}%, saved ${((1 - resizedFile.size / file.size) * 100).toFixed(1)}%)`);
@@ -487,16 +494,16 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
           processedFile = file;
         }
       }
-      
+
       handleInputChange('houseFrontPicture', processedFile);
-      
+
       if (imagePreview && imagePreview.startsWith('blob:')) {
         URL.revokeObjectURL(imagePreview);
       }
-      
+
       const previewUrl = URL.createObjectURL(processedFile);
       setImagePreview(previewUrl);
-      
+
       if (errors.houseFrontPicture) {
         setErrors(prev => {
           const newErrors = { ...prev };
@@ -504,17 +511,17 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
           return newErrors;
         });
       }
-      
+
       console.log(`[STATE UPDATE] houseFrontPicture stored: ${(processedFile.size / 1024 / 1024).toFixed(2)}MB`);
     } catch (error) {
       console.error('[UPLOAD ERROR] House Front Picture:', error);
-      
+
       handleInputChange('houseFrontPicture', file);
-      
+
       if (imagePreview && imagePreview.startsWith('blob:')) {
         URL.revokeObjectURL(imagePreview);
       }
-      
+
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
     }
@@ -540,14 +547,14 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
       if (!formData.username?.trim()) newErrors.username = 'Username is required';
       if (!formData.connectionType?.trim()) newErrors.connectionType = 'Connection Type is required';
       if (!formData.routerModel?.trim()) newErrors.routerModel = 'Router Model is required';
-      
+
       if (formData.connectionType === 'Fiber') {
         if (!formData.lcp?.trim()) newErrors.lcp = 'LCP is required';
         if (!formData.nap?.trim()) newErrors.nap = 'NAP is required';
         if (!formData.port?.trim()) newErrors.port = 'Port is required';
         if (!formData.vlan?.trim()) newErrors.vlan = 'VLAN is required';
       }
-      
+
       if (formData.connectionType === 'Antenna' || formData.connectionType === 'Local') {
         if (!formData.ipAddress?.trim()) newErrors.ipAddress = 'IP Address is required';
       }
@@ -559,7 +566,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
 
   const handleSave = () => {
     const isValid = validateForm();
-    
+
     if (!isValid) {
       setModal({
         isOpen: true,
@@ -589,25 +596,21 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-      <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${
-        isDarkMode ? 'bg-gray-900' : 'bg-white'
-      }`}>
-        <div className={`px-6 py-4 flex items-center justify-between border-b ${
-          isDarkMode
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-gray-100 border-gray-300'
+      <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
         }`}>
-          <h2 className={`text-xl font-semibold ${
-            isDarkMode ? 'text-white' : 'text-gray-900'
-          }`}>{getModalTitle()}</h2>
+        <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-300'
+          }`}>
+          <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{getModalTitle()}</h2>
           <div className="flex items-center space-x-3">
             <button
               onClick={handleCancel}
-              className={`px-4 py-2 rounded text-sm ${
-                isDarkMode
-                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-              }`}
+              className={`px-4 py-2 rounded text-sm ${isDarkMode
+                ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                }`}
             >
               Cancel
             </button>
@@ -648,18 +651,16 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="space-y-4">
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Edit Type</label>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Edit Type</label>
               <div className="relative">
                 <select
                   value={editType}
                   onChange={(e) => setEditType(e.target.value as 'customer_details' | 'billing_details' | 'technical_details')}
-                  className={`w-full px-3 py-2 rounded border appearance-none ${
-                    isDarkMode
-                      ? 'bg-gray-800 border-gray-700 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
-                  } focus:outline-none`}
+                  className={`w-full px-3 py-2 rounded border appearance-none ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    } focus:outline-none`}
                 >
                   <option value="customer_details">Customer Details</option>
                   <option value="billing_details">Billing Details</option>
@@ -689,9 +690,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       e.currentTarget.style.borderColor = errors.firstName ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                      errors.firstName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${errors.firstName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                   />
                   {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
                 </div>
@@ -715,9 +715,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                      isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                      }`}
                   />
                 </div>
 
@@ -739,9 +738,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       e.currentTarget.style.borderColor = errors.lastName ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                      errors.lastName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${errors.lastName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                   />
                   {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
                 </div>
@@ -764,9 +762,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       e.currentTarget.style.borderColor = errors.emailAddress ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                      errors.emailAddress ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${errors.emailAddress ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                   />
                   {errors.emailAddress && <p className="text-red-500 text-xs mt-1">{errors.emailAddress}</p>}
                 </div>
@@ -789,9 +786,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       e.currentTarget.style.borderColor = errors.contactNumberPrimary ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                      errors.contactNumberPrimary ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${errors.contactNumberPrimary ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                   />
                   {errors.contactNumberPrimary && <p className="text-red-500 text-xs mt-1">{errors.contactNumberPrimary}</p>}
                 </div>
@@ -814,9 +810,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                      isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                      }`}
                   />
                 </div>
 
@@ -838,9 +833,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       e.currentTarget.style.borderColor = errors.address ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                      errors.address ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${errors.address ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                   />
                   {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
                 </div>
@@ -863,9 +857,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         e.currentTarget.style.borderColor = errors.region ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                         e.currentTarget.style.boxShadow = 'none';
                       }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
-                        errors.region ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.region ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                     >
                       <option value="">Select Region</option>
                       {formData.region && !regions.some((reg: any) => reg.name === formData.region) && (
@@ -901,9 +894,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         e.currentTarget.style.borderColor = errors.city ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                         e.currentTarget.style.boxShadow = 'none';
                       }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                        errors.city ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.city ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                     >
                       <option value="">{formData.region ? 'Select City' : 'Select Region First'}</option>
                       {formData.city && !filteredCities.some(city => city.name === formData.city) && (
@@ -939,9 +931,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         e.currentTarget.style.borderColor = errors.barangay ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                         e.currentTarget.style.boxShadow = 'none';
                       }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                        errors.barangay ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.barangay ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                     >
                       <option value="">{formData.city ? 'Select Barangay' : 'Select City First'}</option>
                       {formData.barangay && !filteredBarangays.some(brgy => brgy.barangay === formData.barangay) && (
@@ -977,9 +968,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         e.currentTarget.style.borderColor = errors.location ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                         e.currentTarget.style.boxShadow = 'none';
                       }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                        errors.location ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.location ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                     >
                       <option value="">{formData.barangay ? 'Select Location' : 'Select Barangay First'}</option>
                       {formData.location && formData.location.trim() !== '' && !filteredLocations.some(loc => loc.location_name === formData.location) && (
@@ -1014,9 +1004,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                         e.currentTarget.style.boxShadow = 'none';
                       }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
-                        isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-                      }`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                        }`}
                     >
                       <option value="">Select Housing Status</option>
                       <option value="Owned">Owned</option>
@@ -1045,9 +1034,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                      isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                      }`}
                   />
                 </div>
 
@@ -1069,9 +1057,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                         e.currentTarget.style.boxShadow = 'none';
                       }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
-                        isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-                      }`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                        }`}
                     >
                       <option value="">Select Group</option>
                       {formData.groupName && !groups.some(group => group.group_name === formData.groupName) && (
@@ -1103,13 +1090,12 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                     Date Installed
                   </label>
                   <div className="relative">
-                    <input 
-                      type="date" 
-                      value={formData.dateInstalled || ''} 
+                    <input
+                      type="date"
+                      value={formData.dateInstalled || ''}
                       readOnly
-                      className={`w-full px-3 py-2 border rounded focus:outline-none ${
-                        isDarkMode ? 'bg-gray-700 text-gray-400 border-gray-600 cursor-not-allowed' : 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed'
-                      }`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none ${isDarkMode ? 'bg-gray-700 text-gray-400 border-gray-600 cursor-not-allowed' : 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed'
+                        }`}
                     />
                     <Calendar className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} size={20} />
                   </div>
@@ -1120,9 +1106,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                     Plan<span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <select 
-                      value={formData.plan || ''} 
-                      onChange={(e) => handleInputChange('plan', e.target.value)} 
+                    <select
+                      value={formData.plan || ''}
+                      onChange={(e) => handleInputChange('plan', e.target.value)}
                       onFocus={(e) => {
                         if (colorPalette?.primary) {
                           e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1133,17 +1119,16 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         e.currentTarget.style.borderColor = errors.plan ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                         e.currentTarget.style.boxShadow = 'none';
                       }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
-                        errors.plan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.plan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                     >
                       <option value="">Select Plan</option>
                       {formData.plan && !plans.some(plan => {
                         const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
                         return planWithPrice === formData.plan || plan.name === formData.plan;
                       }) && (
-                        <option value={formData.plan}>{formData.plan}</option>
-                      )}
+                          <option value={formData.plan}>{formData.plan}</option>
+                        )}
                       {plans.map((plan) => {
                         const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
                         return (
@@ -1162,13 +1147,12 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                   <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     Account Balance
                   </label>
-                  <input 
-                    type="text" 
-                    value={`₱${formData.accountBalance || '0.00'}`} 
+                  <input
+                    type="text"
+                    value={`₱${formData.accountBalance || '0.00'}`}
                     readOnly
-                    className={`w-full px-3 py-2 border rounded focus:outline-none ${
-                      isDarkMode ? 'bg-gray-700 text-gray-400 border-gray-600 cursor-not-allowed' : 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${isDarkMode ? 'bg-gray-700 text-gray-400 border-gray-600 cursor-not-allowed' : 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed'
+                      }`}
                   />
                 </div>
 
@@ -1176,10 +1160,10 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                   <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     Billing Day
                   </label>
-                  <input 
-                    type="number" 
-                    value={formData.billingDay || ''} 
-                    onChange={(e) => handleInputChange('billingDay', e.target.value)} 
+                  <input
+                    type="number"
+                    value={formData.billingDay || ''}
+                    onChange={(e) => handleInputChange('billingDay', e.target.value)}
                     min="0"
                     max="31"
                     placeholder="0 for end of month, 1-31 for specific day"
@@ -1193,9 +1177,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                      isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                      }`}
                   />
                   <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Enter 0 for end of month billing, or 1-31 for specific day
@@ -1207,9 +1190,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                     Billing Status<span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <select 
-                      value={formData.billingStatus || ''} 
-                      onChange={(e) => handleInputChange('billingStatus', e.target.value)} 
+                    <select
+                      value={formData.billingStatus || ''}
+                      onChange={(e) => handleInputChange('billingStatus', e.target.value)}
                       onFocus={(e) => {
                         if (colorPalette?.primary) {
                           e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1220,9 +1203,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         e.currentTarget.style.borderColor = errors.billingStatus ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                         e.currentTarget.style.boxShadow = 'none';
                       }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
-                        errors.billingStatus ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.billingStatus ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                     >
                       <option value="">Select Billing Status</option>
                       <option value="Active">Active</option>
@@ -1244,10 +1226,10 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                   <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     Username<span className="text-red-500">*</span>
                   </label>
-                  <input 
-                    type="text" 
-                    value={formData.username || ''} 
-                    onChange={(e) => handleInputChange('username', e.target.value)} 
+                  <input
+                    type="text"
+                    value={formData.username || ''}
+                    onChange={(e) => handleInputChange('username', e.target.value)}
                     onFocus={(e) => {
                       if (colorPalette?.primary) {
                         e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1258,9 +1240,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       e.currentTarget.style.borderColor = errors.username ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                      errors.username ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${errors.username ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                   />
                   {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
                 </div>
@@ -1270,9 +1251,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                     Username Status
                   </label>
                   <div className="relative">
-                    <select 
-                      value={formData.usernameStatus || ''} 
-                      onChange={(e) => handleInputChange('usernameStatus', e.target.value)} 
+                    <select
+                      value={formData.usernameStatus || ''}
+                      onChange={(e) => handleInputChange('usernameStatus', e.target.value)}
                       onFocus={(e) => {
                         if (colorPalette?.primary) {
                           e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1283,9 +1264,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                         e.currentTarget.style.boxShadow = 'none';
                       }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
-                        isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                      }`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                        }`}
                     >
                       <option value="">Select Username Status</option>
                       <option value="Online">Online</option>
@@ -1300,14 +1280,13 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                     Connection Type<span className="text-red-500">*</span>
                   </label>
                   <div className="grid grid-cols-3 gap-2">
-                    <button 
-                      type="button" 
-                      onClick={() => handleInputChange('connectionType', 'Antenna')} 
-                      className={`py-2 px-4 rounded border transition-colors duration-200 ${
-                        formData.connectionType === 'Antenna' 
-                          ? 'text-white border-transparent'
-                          : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
-                      }`}
+                    <button
+                      type="button"
+                      onClick={() => handleInputChange('connectionType', 'Antenna')}
+                      className={`py-2 px-4 rounded border transition-colors duration-200 ${formData.connectionType === 'Antenna'
+                        ? 'text-white border-transparent'
+                        : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
+                        }`}
                       style={{
                         backgroundColor: formData.connectionType === 'Antenna' ? (colorPalette?.primary || '#ea580c') : undefined,
                         borderColor: formData.connectionType === 'Antenna' ? (colorPalette?.primary || '#ea580c') : undefined
@@ -1315,14 +1294,13 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                     >
                       Antenna
                     </button>
-                    <button 
-                      type="button" 
-                      onClick={() => handleInputChange('connectionType', 'Fiber')} 
-                      className={`py-2 px-4 rounded border transition-colors duration-200 ${
-                        formData.connectionType === 'Fiber' 
-                          ? 'text-white border-transparent'
-                          : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
-                      }`}
+                    <button
+                      type="button"
+                      onClick={() => handleInputChange('connectionType', 'Fiber')}
+                      className={`py-2 px-4 rounded border transition-colors duration-200 ${formData.connectionType === 'Fiber'
+                        ? 'text-white border-transparent'
+                        : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
+                        }`}
                       style={{
                         backgroundColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#ea580c') : undefined,
                         borderColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#ea580c') : undefined
@@ -1330,14 +1308,13 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                     >
                       Fiber
                     </button>
-                    <button 
-                      type="button" 
-                      onClick={() => handleInputChange('connectionType', 'Local')} 
-                      className={`py-2 px-4 rounded border transition-colors duration-200 ${
-                        formData.connectionType === 'Local' 
-                          ? 'text-white border-transparent'
-                          : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
-                      }`}
+                    <button
+                      type="button"
+                      onClick={() => handleInputChange('connectionType', 'Local')}
+                      className={`py-2 px-4 rounded border transition-colors duration-200 ${formData.connectionType === 'Local'
+                        ? 'text-white border-transparent'
+                        : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
+                        }`}
                       style={{
                         backgroundColor: formData.connectionType === 'Local' ? (colorPalette?.primary || '#ea580c') : undefined,
                         borderColor: formData.connectionType === 'Local' ? (colorPalette?.primary || '#ea580c') : undefined
@@ -1354,9 +1331,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                     Router Model<span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <select 
-                      value={formData.routerModel || ''} 
-                      onChange={(e) => handleInputChange('routerModel', e.target.value)} 
+                    <select
+                      value={formData.routerModel || ''}
+                      onChange={(e) => handleInputChange('routerModel', e.target.value)}
                       onFocus={(e) => {
                         if (colorPalette?.primary) {
                           e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1367,9 +1344,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         e.currentTarget.style.borderColor = errors.routerModel ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                         e.currentTarget.style.boxShadow = 'none';
                       }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
-                        errors.routerModel ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.routerModel ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                     >
                       <option value="">Select Router Model</option>
                       {routerModels.map((model, index) => (
@@ -1387,10 +1363,10 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                   <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     Router Modem SN
                   </label>
-                  <input 
-                    type="text" 
-                    value={formData.routerModemSn || ''} 
-                    onChange={(e) => handleInputChange('routerModemSn', e.target.value)} 
+                  <input
+                    type="text"
+                    value={formData.routerModemSn || ''}
+                    onChange={(e) => handleInputChange('routerModemSn', e.target.value)}
                     onFocus={(e) => {
                       if (colorPalette?.primary) {
                         e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1401,9 +1377,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                      isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                      }`}
                   />
                 </div>
 
@@ -1412,10 +1387,10 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                     <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                       IP Address<span className="text-red-500">*</span>
                     </label>
-                    <input 
-                      type="text" 
-                      value={formData.ipAddress || ''} 
-                      onChange={(e) => handleInputChange('ipAddress', e.target.value)} 
+                    <input
+                      type="text"
+                      value={formData.ipAddress || ''}
+                      onChange={(e) => handleInputChange('ipAddress', e.target.value)}
                       onFocus={(e) => {
                         if (colorPalette?.primary) {
                           e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1426,9 +1401,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         e.currentTarget.style.borderColor = errors.ipAddress ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                         e.currentTarget.style.boxShadow = 'none';
                       }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                        errors.ipAddress ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${errors.ipAddress ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                     />
                     {errors.ipAddress && <p className="text-red-500 text-xs mt-1">{errors.ipAddress}</p>}
                   </div>
@@ -1441,9 +1415,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         LCP<span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <select 
-                          value={formData.lcp || ''} 
-                          onChange={(e) => handleInputChange('lcp', e.target.value)} 
+                        <select
+                          value={formData.lcp || ''}
+                          onChange={(e) => handleInputChange('lcp', e.target.value)}
                           onFocus={(e) => {
                             if (colorPalette?.primary) {
                               e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1454,9 +1428,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                             e.currentTarget.style.borderColor = errors.lcp ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                             e.currentTarget.style.boxShadow = 'none';
                           }}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
-                            errors.lcp ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                          } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                          className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.lcp ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                            } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                         >
                           <option value="">Select LCP</option>
                           {lcpOptions.map((lcp, index) => (
@@ -1475,9 +1448,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         NAP<span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <select 
-                          value={formData.nap || ''} 
-                          onChange={(e) => handleInputChange('nap', e.target.value)} 
+                        <select
+                          value={formData.nap || ''}
+                          onChange={(e) => handleInputChange('nap', e.target.value)}
                           onFocus={(e) => {
                             if (colorPalette?.primary) {
                               e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1488,9 +1461,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                             e.currentTarget.style.borderColor = errors.nap ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                             e.currentTarget.style.boxShadow = 'none';
                           }}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
-                            errors.nap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                          } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                          className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.nap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                            } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                         >
                           <option value="">Select NAP</option>
                           {napOptions.map((nap, index) => (
@@ -1508,13 +1480,12 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                         LCPNAP (Auto-generated)
                       </label>
-                      <input 
-                        type="text" 
-                        value={formData.lcpnap || ''} 
+                      <input
+                        type="text"
+                        value={formData.lcpnap || ''}
                         readOnly
-                        className={`w-full px-3 py-2 border rounded focus:outline-none ${
-                          isDarkMode ? 'bg-gray-700 text-gray-400 border-gray-600 cursor-not-allowed' : 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed'
-                        }`}
+                        className={`w-full px-3 py-2 border rounded focus:outline-none ${isDarkMode ? 'bg-gray-700 text-gray-400 border-gray-600 cursor-not-allowed' : 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed'
+                          }`}
                       />
                       <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         Automatically generated from LCP + NAP
@@ -1526,9 +1497,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         Port<span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <select 
-                          value={formData.port || ''} 
-                          onChange={(e) => handleInputChange('port', e.target.value)} 
+                        <select
+                          value={formData.port || ''}
+                          onChange={(e) => handleInputChange('port', e.target.value)}
                           disabled={!formData.lcpnap}
                           onFocus={(e) => {
                             if (colorPalette?.primary && !e.currentTarget.disabled) {
@@ -1540,9 +1511,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                             e.currentTarget.style.borderColor = errors.port ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                             e.currentTarget.style.boxShadow = 'none';
                           }}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                            errors.port ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                          } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                          className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.port ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                            } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                         >
                           <option value="">{formData.lcpnap ? 'Select Port' : 'Select LCP and NAP first'}</option>
                           {ports.map((port) => (
@@ -1561,9 +1531,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         VLAN<span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <select 
-                          value={formData.vlan || ''} 
-                          onChange={(e) => handleInputChange('vlan', e.target.value)} 
+                        <select
+                          value={formData.vlan || ''}
+                          onChange={(e) => handleInputChange('vlan', e.target.value)}
                           onFocus={(e) => {
                             if (colorPalette?.primary) {
                               e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1574,9 +1544,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                             e.currentTarget.style.borderColor = errors.vlan ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                             e.currentTarget.style.boxShadow = 'none';
                           }}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
-                            errors.vlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                          } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                          className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.vlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                            } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                         >
                           <option value="">Select VLAN</option>
                           {vlans.map((vlan) => (
@@ -1597,9 +1566,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                     Usage Type
                   </label>
                   <div className="relative">
-                    <select 
-                      value={formData.usageType || ''} 
-                      onChange={(e) => handleInputChange('usageType', e.target.value)} 
+                    <select
+                      value={formData.usageType || ''}
+                      onChange={(e) => handleInputChange('usageType', e.target.value)}
                       onFocus={(e) => {
                         if (colorPalette?.primary) {
                           e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1610,9 +1579,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                         e.currentTarget.style.boxShadow = 'none';
                       }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
-                        isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                      }`}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                        }`}
                     >
                       <option value="">Select Usage Type</option>
                       {usageTypes.map((usageType) => (
@@ -1632,11 +1600,10 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
 
       {modal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
-          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${
-            isDarkMode
-              ? 'bg-gray-900 border-gray-700'
-              : 'bg-white border-gray-300'
-          }`}>
+          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode
+            ? 'bg-gray-900 border-gray-700'
+            : 'bg-white border-gray-300'
+            }`}>
             {modal.type === 'loading' ? (
               <div className="text-center">
                 <div className="flex justify-center mb-6">
@@ -1646,22 +1613,19 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
               </div>
             ) : (
               <>
-                <h3 className={`text-lg font-semibold mb-4 ${
-                  isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>{modal.title}</h3>
-                <p className={`mb-6 whitespace-pre-line ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>{modal.message}</p>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>{modal.message}</p>
                 <div className="flex items-center justify-end gap-3">
                   {modal.type === 'confirm' ? (
                     <>
                       <button
                         onClick={modal.onCancel}
-                        className={`px-4 py-2 rounded transition-colors ${
-                          isDarkMode
-                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                        }`}
+                        className={`px-4 py-2 rounded transition-colors ${isDarkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          }`}
                       >
                         Cancel
                       </button>

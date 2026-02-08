@@ -231,6 +231,10 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
 
   const handleSaveJOForm = (formData: JobOrderData) => {
     setShowJOAssignForm(false);
+    if (onApplicationUpdate) {
+      onApplicationUpdate();
+    }
+    onClose();
   };
 
   const handleSaveVisitForm = (formData: ApplicationVisitData) => {

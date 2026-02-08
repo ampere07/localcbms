@@ -163,8 +163,11 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       'routerModemSN',
       'onlineStatus',
       'mikrotikId',
+      'lcp',
+      'nap',
       'lcpnap',
       'vlan',
+      'port',
       'sessionIp'
     ],
     billingDetails: [
@@ -173,7 +176,12 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       'billingDay',
       'plan',
       'accountBalance',
-      'totalPaid'
+      'balanceUpdateDate',
+      'totalPaid',
+      'billingAccountCreatedBy',
+      'billingAccountCreatedAt',
+      'billingAccountUpdatedBy',
+      'billingAccountUpdatedAt'
     ]
   };
 
@@ -378,15 +386,23 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       routerModemSN: 'Router Serial Number',
       onlineStatus: 'Online Status',
       mikrotikId: 'Mikrotik ID',
-      lcpnap: 'LCP NAP PORT',
+      lcp: 'LCP',
+      nap: 'NAP',
+      lcpnap: 'LCP NAP',
       vlan: 'VLAN',
+      port: 'PORT',
       sessionIp: 'SESSION IP',
       accountNumber: 'Account Number',
       billingStatus: 'Billing Status',
       billingDay: 'Billing Day',
       plan: 'Plan',
       accountBalance: 'Account Balance',
-      totalPaid: 'Total Paid'
+      totalPaid: 'Total Paid',
+      balanceUpdateDate: 'Balance Update Date',
+      billingAccountCreatedBy: 'Created By',
+      billingAccountCreatedAt: 'Created At',
+      billingAccountUpdatedBy: 'Updated By',
+      billingAccountUpdatedAt: 'Updated At'
     };
     return labels[fieldKey] || fieldKey;
   };
@@ -457,14 +473,14 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             }`}>{billingRecord.region}</span>
         </div>
       ) : null,
-      referredBy: () => billingRecord.referredBy ? (
+      referredBy: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Referred By</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.referredBy}</span>
+            }`}>{billingRecord.referredBy || '-'}</span>
         </div>
-      ) : null,
+      ),
       addressCoordinates: () => {
         if (!billingRecord.addressCoordinates) return null;
 
@@ -538,55 +554,55 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           </button>
         </div>
       ) : null,
-      usageType: () => billingRecord.usageType ? (
+      usageType: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Usage Type</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.usageType}</span>
+            }`}>{billingRecord.usageType || '-'}</span>
         </div>
-      ) : null,
-      dateInstalled: () => billingRecord.dateInstalled ? (
+      ),
+      dateInstalled: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Date Installed</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.dateInstalled}</span>
+            }`}>{billingRecord.dateInstalled || '-'}</span>
         </div>
-      ) : null,
-      username: () => billingRecord.username ? (
+      ),
+      username: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>PPPOE Username</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.username}</span>
+            }`}>{billingRecord.username || '-'}</span>
         </div>
-      ) : null,
-      connectionType: () => billingRecord.connectionType ? (
+      ),
+      connectionType: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Connection Type</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.connectionType}</span>
+            }`}>{billingRecord.connectionType || '-'}</span>
         </div>
-      ) : null,
-      routerModel: () => billingRecord.routerModel ? (
+      ),
+      routerModel: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Router Model</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.routerModel}</span>
+            }`}>{billingRecord.routerModel || '-'}</span>
         </div>
-      ) : null,
-      routerModemSN: () => billingRecord.routerModemSN ? (
+      ),
+      routerModemSN: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Router Serial Number</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.routerModemSN}</span>
+            }`}>{billingRecord.routerModemSN || '-'}</span>
         </div>
-      ) : null,
-      onlineStatus: () => billingRecord.onlineStatus ? (
+      ),
+      onlineStatus: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Online Status</span>
@@ -594,42 +610,66 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             <div className={`w-2 h-2 rounded-full ${billingRecord.onlineStatus === 'Online' ? 'bg-green-400' : 'bg-red-400'
               }`}></div>
             <span className={`font-medium ${billingRecord.onlineStatus === 'Online' ? 'text-green-400' : 'text-red-400'
-              }`}>{billingRecord.onlineStatus}</span>
+              }`}>{billingRecord.onlineStatus || '-'}</span>
           </div>
         </div>
-      ) : null,
-      mikrotikId: () => billingRecord.mikrotikId ? (
+      ),
+      mikrotikId: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Mikrotik ID</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.mikrotikId}</span>
+            }`}>{billingRecord.mikrotikId || '-'}</span>
         </div>
-      ) : null,
-      lcpnap: () => billingRecord.lcpnap ? (
+      ),
+      lcpnap: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>LCP NAP PORT</span>
+            }`}>LCP NAP</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.lcpnap}</span>
+            }`}>{billingRecord.lcpnap || '-'}</span>
         </div>
-      ) : null,
-      vlan: () => billingRecord.vlan ? (
+      ),
+      lcp: () => (
+        <div className="flex justify-between items-center">
+          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>LCP</span>
+          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{billingRecord.lcp || '-'}</span>
+        </div>
+      ),
+      nap: () => (
+        <div className="flex justify-between items-center">
+          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>NAP</span>
+          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{billingRecord.nap || '-'}</span>
+        </div>
+      ),
+      port: () => (
+        <div className="flex justify-between items-center">
+          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>PORT</span>
+          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{billingRecord.port || '-'}</span>
+        </div>
+      ),
+      vlan: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>VLAN</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.vlan}</span>
+            }`}>{billingRecord.vlan || '-'}</span>
         </div>
-      ) : null,
-      sessionIp: () => (billingRecord.sessionIp || billingRecord.sessionIP) ? (
+      ),
+      sessionIp: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>SESSION IP</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.sessionIp || billingRecord.sessionIP}</span>
+            }`}>{billingRecord.sessionIp || billingRecord.sessionIP || '-'}</span>
         </div>
-      ) : null,
+      ),
       accountNumber: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -643,7 +683,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Billing Status</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.status}</span>
+            }`}>{billingRecord.billingStatus}</span>
         </div>
       ),
       billingDay: () => (
@@ -667,7 +707,47 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Account Balance</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>₱{billingRecord.accountBalance || billingRecord.balance || '0.00'}</span>
+            }`}>₱{(billingRecord.accountBalance ?? billingRecord.balance ?? 0).toFixed(2)}</span>
+        </div>
+      ),
+      billingAccountCreatedBy: () => (
+        <div className="flex justify-between items-center">
+          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Created By</span>
+          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{billingRecord.billingAccountCreatedBy || '-'}</span>
+        </div>
+      ),
+      billingAccountCreatedAt: () => (
+        <div className="flex justify-between items-center">
+          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Created At</span>
+          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{billingRecord.billingAccountCreatedAt || '-'}</span>
+        </div>
+      ),
+      billingAccountUpdatedBy: () => (
+        <div className="flex justify-between items-center">
+          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Updated By</span>
+          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{billingRecord.billingAccountUpdatedBy || '-'}</span>
+        </div>
+      ),
+      billingAccountUpdatedAt: () => (
+        <div className="flex justify-between items-center">
+          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Updated At</span>
+          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{billingRecord.billingAccountUpdatedAt || '-'}</span>
+        </div>
+      ),
+      balanceUpdateDate: () => (
+        <div className="flex justify-between items-center">
+          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Balance Update Date</span>
+          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{billingRecord.balanceUpdateDate || '-'}</span>
         </div>
       ),
       totalPaid: () => (
@@ -675,7 +755,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Total Paid</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>₱{billingRecord.totalPaid || '0.00'}</span>
+            }`}>₱{(billingRecord.totalPaid || 0).toFixed(2)}</span>
         </div>
       )
     };

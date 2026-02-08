@@ -58,6 +58,11 @@ export interface BillingDetailRecord extends BillingRecord {
   // Extended fields for detailed view
   lcpnapport?: string;
   referrersAccountNumber?: string;
+  balanceUpdateDate?: string;
+  billingAccountCreatedBy?: string;
+  billingAccountCreatedAt?: string;
+  billingAccountUpdatedBy?: string;
+  billingAccountUpdatedAt?: string;
   relatedInvoices?: string;
   relatedStatementOfAccount?: string;
   relatedDiscounts?: string;

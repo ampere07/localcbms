@@ -53,7 +53,8 @@ class BillingController extends Controller
                 $technicalDetail = $billingAccount->technicalDetails->first();
                 $accNo = $billingAccount->account_no;
                 
-                $totalPaid = ($transactions[$accNo] ?? 0) + ($portalLogs[$accNo] ?? 0);
+                // Fix: Use ID for portal logs lookup as it is grouped by account_id
+                $totalPaid = ($transactions[$accNo] ?? 0) + ($portalLogs[$billingAccount->id] ?? 0);
                 
                 return [
                     'id' => $billingAccount->id,

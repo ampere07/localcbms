@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\BillingAccount;
 use App\Models\Customer;
 use App\Models\TechnicalDetail;
+use App\Models\LCPNAPLocation;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -21,6 +22,12 @@ class CustomerDetailController extends Controller
             
             $customer = $billingAccount->customer;
             $technicalDetail = $billingAccount->technicalDetails->first();
+
+            // Fetch LCP and NAP from LCPNAPLocation table based on lcpnap name
+            $lcpNapLocation = null;
+            if ($technicalDetail && $technicalDetail->lcpnap) {
+                $lcpNapLocation = LCPNAPLocation::where('lcpnap_name', $technicalDetail->lcpnap)->first();
+            }
             
             \Log::info('CustomerDetailController - Customer found:', [
                 'customer_id' => $customer ? $customer->id : null,
@@ -94,7 +101,9 @@ class CustomerDetailController extends Controller
                     'accountBalance' => $billingAccount->account_balance,
                     'balanceUpdateDate' => $billingAccount->balance_update_date ? $billingAccount->balance_update_date->format('Y-m-d H:i:s') : null,
                     'createdBy' => $billingAccount->created_by,
+                    'createdAt' => $billingAccount->created_at ? $billingAccount->created_at->format('Y-m-d H:i:s') : null,
                     'updatedBy' => $billingAccount->updated_by,
+                    'updatedAt' => $billingAccount->updated_at ? $billingAccount->updated_at->format('Y-m-d H:i:s') : null,
                 ],
                 
                 'technicalDetails' => $technicalDetail ? [
@@ -106,8 +115,8 @@ class CustomerDetailController extends Controller
                     'routerModel' => $technicalDetail->router_model,
                     'routerModemSn' => $technicalDetail->router_modem_sn,
                     'ipAddress' => $technicalDetail->ip_address,
-                    'lcp' => $technicalDetail->lcp,
-                    'nap' => $technicalDetail->nap,
+                    'lcp' => $lcpNapLocation ? $lcpNapLocation->lcp : $technicalDetail->lcp,
+                    'nap' => $lcpNapLocation ? $lcpNapLocation->nap : $technicalDetail->nap,
                     'port' => $technicalDetail->port,
                     'vlan' => $technicalDetail->vlan,
                     'lcpnap' => $technicalDetail->lcpnap,

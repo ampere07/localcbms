@@ -93,8 +93,13 @@ class RelatedDataController extends Controller
     {
         try {
             $transactions = DB::table('transactions')
-                ->where('account_no', $accountNo)
-                ->orderBy('created_at', 'desc')
+                ->leftJoin('payment_methods', 'transactions.payment_method', '=', 'payment_methods.id')
+                ->where('transactions.account_no', $accountNo)
+                ->select([
+                    'transactions.*',
+                    'payment_methods.payment_method as payment_method_name'
+                ])
+                ->orderBy('transactions.created_at', 'desc')
                 ->get();
 
             return response()->json([

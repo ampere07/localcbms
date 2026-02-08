@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { FileText, Search, ChevronDown, ListFilter, ArrowUp, ArrowDown, Menu, X, RefreshCw, Filter } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { FileText, Search, ChevronDown, ChevronRight, ListFilter, ArrowUp, ArrowDown, Menu, X, RefreshCw, Filter } from 'lucide-react';
 import JobOrderDetails from '../components/JobOrderDetails';
 import JobOrderFunnelFilter from '../components/filters/JobOrderFunnelFilter';
 import { useJobOrderStore } from '../store/jobOrderStore';
 import { getCities, City } from '../services/cityService';
+import { getRegions, Region } from '../services/regionService';
+import { barangayService, Barangay } from '../services/barangayService';
 import { getBillingStatuses, BillingStatus } from '../services/lookupService';
 import { JobOrder } from '../types/jobOrder';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -86,6 +88,9 @@ const JobOrderPage: React.FC = () => {
   const { jobOrders, isLoading, error, fetchJobOrders, refreshJobOrders, silentRefresh, hasMore } = useJobOrderStore();
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [cities, setCities] = useState<City[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [barangays, setBarangays] = useState<Barangay[]>([]);
+  const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
   const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [userRole, setUserRole] = useState<string>('');
@@ -214,15 +219,20 @@ const JobOrderPage: React.FC = () => {
     }
   }, []);
 
-  // Fetch cities and billing statuses
+  // Fetch cities, regions, barangays and billing statuses
   useEffect(() => {
     const fetchLookupData = async () => {
       try {
-        const citiesData = await getCities();
-        setCities(citiesData);
-
-        const billingStatusesData = await getBillingStatuses();
-        setBillingStatuses(billingStatusesData);
+        const [citiesData, regionsData, barangaysRes, billingStatusesData] = await Promise.all([
+          getCities(),
+          getRegions(),
+          barangayService.getAll(),
+          getBillingStatuses()
+        ]);
+        setCities(citiesData || []);
+        setRegions(regionsData || []);
+        setBarangays(barangaysRes.success ? barangaysRes.data : []);
+        setBillingStatuses(billingStatusesData || []);
       } catch (err) {
         console.error('Failed to fetch lookup data:', err);
       }
@@ -230,6 +240,26 @@ const JobOrderPage: React.FC = () => {
 
     fetchLookupData();
   }, []);
+
+  // Reset selected location if regions/cities/barangays change and selected location is no longer valid
+  useEffect(() => {
+    if (selectedLocation === 'all') return;
+
+    const [type, name] = selectedLocation.split(':');
+    let isValid = false;
+
+    if (type === 'reg') {
+      isValid = regions.some(r => r.name === name);
+    } else if (type === 'city') {
+      isValid = cities.some(c => c.name === name);
+    } else if (type === 'brgy') {
+      isValid = barangays.some(b => b.barangay === name);
+    }
+
+    if (!isValid) {
+      setSelectedLocation('all');
+    }
+  }, [regions, cities, barangays, selectedLocation]);
 
   // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
@@ -262,6 +292,19 @@ const JobOrderPage: React.FC = () => {
     setIsRefreshing(false);
   };
 
+  const toggleLocationExpansion = (e: React.MouseEvent, locationId: string) => {
+    e.stopPropagation();
+    setExpandedLocations(prev => {
+      const next = new Set(prev);
+      if (next.has(locationId)) {
+        next.delete(locationId);
+      } else {
+        next.add(locationId);
+      }
+      return next;
+    });
+  };
+
   const getClientFullName = (jobOrder: JobOrder): string => {
     return [
       jobOrder.First_Name || jobOrder.first_name || '',
@@ -282,27 +325,72 @@ const JobOrderPage: React.FC = () => {
     return addressParts.length > 0 ? addressParts.join(', ') : '-';
   };
 
-  const locationItems: LocationItem[] = [
-    {
-      id: 'all',
-      name: 'All',
-      count: jobOrders.length
-    }
-  ];
+  const locationItems = useMemo(() => {
+    // Counts for each level
+    const regionCounts: Record<string, number> = {};
+    const cityCounts: Record<string, number> = {};
+    const barangayCounts: Record<string, number> = {};
 
-  cities.forEach(city => {
-    const cityCount = jobOrders.filter(job => {
-      const jobCity = ((job.City || job.city) || '').toLowerCase();
-      const cityName = city.name.toLowerCase();
-      return jobCity.includes(cityName) || cityName.includes(jobCity);
-    }).length;
+    // Initialize counts
+    regions.forEach(r => regionCounts[r.name] = 0);
+    cities.forEach(c => cityCounts[`${c.region_id}_${c.name}`] = 0);
+    barangays.forEach(b => barangayCounts[`${b.city_id}_${b.barangay}`] = 0);
 
-    locationItems.push({
-      id: city.name.toLowerCase(),
-      name: city.name,
-      count: cityCount
+    // Count appearances in job orders
+    jobOrders.forEach(job => {
+      const region = job.Region || job.region;
+      const city = job.City || job.city;
+      const barangay = job.Barangay || job.barangay;
+
+      if (region) regionCounts[region] = (regionCounts[region] || 0) + 1;
+      if (city) {
+        const matchedCity = cities.find(c => c.name === city && regions.find(r => r.id === c.region_id)?.name === region);
+        if (matchedCity) {
+          cityCounts[`${matchedCity.region_id}_${city}`] = (cityCounts[`${matchedCity.region_id}_${city}`] || 0) + 1;
+        } else {
+          // Fallback if region not matched but city exists
+          const cityOnly = cities.find(c => c.name === city);
+          if (cityOnly) {
+            cityCounts[`${cityOnly.region_id}_${city}`] = (cityCounts[`${cityOnly.region_id}_${city}`] || 0) + 1;
+          }
+        }
+      }
+      if (barangay) {
+        const matchedBarangay = barangays.find(b => b.barangay === barangay && cities.find(c => c.id === b.city_id)?.name === city);
+        if (matchedBarangay) {
+          barangayCounts[`${matchedBarangay.city_id}_${barangay}`] = (barangayCounts[`${matchedBarangay.city_id}_${barangay}`] || 0) + 1;
+        } else {
+          // Fallback
+          const barangayOnly = barangays.find(b => b.barangay === barangay);
+          if (barangayOnly) {
+            barangayCounts[`${barangayOnly.city_id}_${barangay}`] = (barangayCounts[`${barangayOnly.city_id}_${barangay}`] || 0) + 1;
+          }
+        }
+      }
     });
-  });
+
+    return {
+      regions: regions.map(r => ({
+        id: `reg:${r.name}`,
+        name: r.name,
+        count: regionCounts[r.name] || 0,
+        cities: cities.filter(c => c.region_id === r.id).map(c => ({
+          id: `city:${c.name}`,
+          name: c.name,
+          regionName: r.name,
+          count: cityCounts[`${r.id}_${c.name}`] || 0,
+          barangays: barangays.filter(b => b.city_id === c.id).map(b => ({
+            id: `brgy:${b.barangay}`,
+            name: b.barangay,
+            cityName: c.name,
+            regionName: r.name,
+            count: barangayCounts[`${c.id}_${b.barangay}`] || 0
+          }))
+        }))
+      })),
+      total: jobOrders.length
+    };
+  }, [regions, cities, barangays, jobOrders]);
 
   // Helper function to apply funnel filters
   const applyFunnelFilters = (orders: JobOrder[], filters: any): JobOrder[] => {
@@ -340,11 +428,20 @@ const JobOrderPage: React.FC = () => {
   };
 
   let filteredJobOrders = jobOrders.filter(jobOrder => {
-    const jobLocation = ((jobOrder.City || jobOrder.city) || '').toLowerCase();
+    let matchesLocation = selectedLocation === 'all';
 
-    const matchesLocation = selectedLocation === 'all' ||
-      jobLocation.includes(selectedLocation) ||
-      selectedLocation.includes(jobLocation);
+    if (!matchesLocation) {
+      if (selectedLocation.startsWith('reg:')) {
+        const regionName = selectedLocation.substring(4);
+        matchesLocation = (jobOrder.Region || jobOrder.region) === regionName;
+      } else if (selectedLocation.startsWith('city:')) {
+        const cityName = selectedLocation.substring(5);
+        matchesLocation = (jobOrder.City || jobOrder.city) === cityName;
+      } else if (selectedLocation.startsWith('brgy:')) {
+        const barangayName = selectedLocation.substring(5);
+        matchesLocation = (jobOrder.Barangay || jobOrder.barangay) === barangayName;
+      }
+    }
 
     const fullName = getClientFullName(jobOrder).toLowerCase();
     const matchesSearch = searchQuery === '' ||
@@ -872,37 +969,122 @@ const JobOrderPage: React.FC = () => {
             </h2>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {locationItems.map((location) => (
-              <button
-                key={location.id}
-                onClick={() => handleLocationSelect(location.id)}
-                className={`w-full flex items-center justify-between px-4 py-4 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
-                style={selectedLocation === location.id ? {
-                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c'
-                } : {
-                  color: isDarkMode ? '#d1d5db' : '#374151'
-                }}
-              >
-                <div className="flex items-center">
-                  <FileText className="h-5 w-5 mr-3" />
-                  <span className="capitalize text-base">{location.name}</span>
-                </div>
-                {location.count > 0 && (
-                  <span
-                    className="px-3 py-1 rounded-full text-sm"
-                    style={selectedLocation === location.id ? {
-                      backgroundColor: colorPalette?.primary || '#ea580c',
-                      color: 'white'
-                    } : {
-                      backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
-                      color: isDarkMode ? '#d1d5db' : '#374151'
-                    }}
-                  >
-                    {location.count}
-                  </span>
-                )}
-              </button>
+            {/* All Level */}
+            <button
+              onClick={() => {
+                setSelectedLocation('all');
+                setMobileView('orders');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-4 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
+              style={selectedLocation === 'all' ? {
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                color: colorPalette?.primary || '#fb923c'
+              } : {
+                color: isDarkMode ? '#d1d5db' : '#374151'
+              }}
+            >
+              <div className="flex items-center">
+                <FileText className="h-5 w-5 mr-3" />
+                <span className="capitalize text-base">All Job Orders</span>
+              </div>
+              <span className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300">
+                {locationItems.total}
+              </span>
+            </button>
+
+            {/* Region Level */}
+            {locationItems.regions.map((region: any) => (
+              <div key={region.id} className="border-b border-gray-800">
+                <button
+                  onClick={() => {
+                    setSelectedLocation(region.id);
+                    setMobileView('orders');
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-4 text-sm transition-colors ${selectedLocation === region.id ? '' : 'text-gray-300'}`}
+                  style={selectedLocation === region.id ? {
+                    backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                    color: colorPalette?.primary || '#fb923c'
+                  } : {}}
+                >
+                  <div className="flex items-center flex-1">
+                    <button
+                      onClick={(e) => toggleLocationExpansion(e, region.id)}
+                      className="p-1 mr-2"
+                    >
+                      {expandedLocations.has(region.id) ? (
+                        <ChevronDown className="h-5 w-5" />
+                      ) : (
+                        <ChevronRight className="h-5 w-5" />
+                      )}
+                    </button>
+                    <FileText className="h-5 w-5 mr-3" />
+                    <span className="capitalize text-base">{region.name}</span>
+                  </div>
+                  {region.count > 0 && (
+                    <span className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300">
+                      {region.count}
+                    </span>
+                  )}
+                </button>
+
+                {/* City Level */}
+                {expandedLocations.has(region.id) && region.cities.map((city: any) => (
+                  <div key={city.id}>
+                    <button
+                      onClick={() => {
+                        setSelectedLocation(city.id);
+                        setMobileView('orders');
+                      }}
+                      className={`w-full flex items-center justify-between pl-12 pr-4 py-3 text-sm transition-colors ${selectedLocation === city.id ? '' : 'text-gray-400'}`}
+                      style={selectedLocation === city.id ? {
+                        backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
+                        color: colorPalette?.primary || '#fb923c'
+                      } : {}}
+                    >
+                      <div className="flex items-center flex-1">
+                        <button
+                          onClick={(e) => toggleLocationExpansion(e, city.id)}
+                          className="p-1 mr-1"
+                        >
+                          {expandedLocations.has(city.id) ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </button>
+                        <span className="text-base">{city.name}</span>
+                      </div>
+                      {city.count > 0 && (
+                        <span className="text-xs opacity-60">{city.count}</span>
+                      )}
+                    </button>
+
+                    {/* Barangay Level */}
+                    {expandedLocations.has(city.id) && city.barangays.map((barangay: any) => (
+                      <button
+                        key={barangay.id}
+                        onClick={() => {
+                          setSelectedLocation(barangay.id);
+                          setMobileView('orders');
+                        }}
+                        className={`w-full flex items-center justify-between pl-20 pr-4 py-2 text-sm transition-colors ${selectedLocation === barangay.id ? '' : 'text-gray-500'}`}
+                        style={selectedLocation === barangay.id ? {
+                          color: colorPalette?.primary || '#fb923c',
+                          fontWeight: 'bold'
+                        } : {}}
+                      >
+                        <div className="flex items-center flex-1">
+                          <span className="w-2 h-2 rounded-full bg-current mr-3 opacity-40"></span>
+                          <span className="text-base">{barangay.name}</span>
+                        </div>
+                        {barangay.count > 0 && (
+                          <span className="text-xs opacity-50">{barangay.count}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
             ))}
           </div>
         </div>
@@ -928,38 +1110,122 @@ const JobOrderPage: React.FC = () => {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto">
-              {locationItems.map((location) => (
-                <button
-                  key={location.id}
-                  onClick={() => handleLocationSelect(location.id)}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
-                  style={selectedLocation === location.id ? {
-                    backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                    color: colorPalette?.primary || '#fb923c',
-                    fontWeight: 500
-                  } : {
-                    color: isDarkMode ? '#d1d5db' : '#374151'
-                  }}
-                >
-                  <div className="flex items-center">
-                    <FileText className="h-4 w-4 mr-2" />
-                    <span className="capitalize">{location.name}</span>
-                  </div>
-                  {location.count > 0 && (
-                    <span
-                      className="px-2 py-1 rounded-full text-xs"
-                      style={selectedLocation === location.id ? {
-                        backgroundColor: colorPalette?.primary || '#ea580c',
-                        color: 'white'
-                      } : {
-                        backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
-                        color: isDarkMode ? '#d1d5db' : '#374151'
-                      }}
-                    >
-                      {location.count}
-                    </span>
-                  )}
-                </button>
+              {/* All Level */}
+              <button
+                onClick={() => {
+                  setSelectedLocation('all');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === 'all' ? '' : 'text-gray-300'}`}
+                style={selectedLocation === 'all' ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#fb923c',
+                  fontWeight: 500
+                } : {}}
+              >
+                <div className="flex items-center">
+                  <FileText className="h-4 w-4 mr-2" />
+                  <span>All Job Orders</span>
+                </div>
+                <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                  {locationItems.total}
+                </span>
+              </button>
+
+              {/* Region Level */}
+              {locationItems.regions.map((region: any) => (
+                <div key={region.id}>
+                  <button
+                    onClick={() => {
+                      setSelectedLocation(region.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === region.id ? '' : 'text-gray-300'}`}
+                    style={selectedLocation === region.id ? {
+                      backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                      color: colorPalette?.primary || '#fb923c',
+                      fontWeight: 500
+                    } : {}}
+                  >
+                    <div className="flex items-center flex-1">
+                      <button
+                        onClick={(e) => toggleLocationExpansion(e, region.id)}
+                        className="p-1 mr-1"
+                      >
+                        {expandedLocations.has(region.id) ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </button>
+                      <FileText className="h-4 w-4 mr-2" />
+                      <span>{region.name}</span>
+                    </div>
+                    {region.count > 0 && (
+                      <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                        {region.count}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* City Level */}
+                  {expandedLocations.has(region.id) && region.cities.map((city: any) => (
+                    <div key={city.id}>
+                      <button
+                        onClick={() => {
+                          setSelectedLocation(city.id);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between pl-10 pr-4 py-2 text-sm transition-colors ${selectedLocation === city.id ? '' : 'text-gray-400'}`}
+                        style={selectedLocation === city.id ? {
+                          backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
+                          color: colorPalette?.primary || '#fb923c'
+                        } : {}}
+                      >
+                        <div className="flex items-center flex-1">
+                          <button
+                            onClick={(e) => toggleLocationExpansion(e, city.id)}
+                            className="p-1 mr-1"
+                          >
+                            {expandedLocations.has(city.id) ? (
+                              <ChevronDown className="h-3 w-3" />
+                            ) : (
+                              <ChevronRight className="h-3 w-3" />
+                            )}
+                          </button>
+                          <span>{city.name}</span>
+                        </div>
+                        {city.count > 0 && (
+                          <span className="text-xs opacity-60">{city.count}</span>
+                        )}
+                      </button>
+
+                      {/* Barangay Level */}
+                      {expandedLocations.has(city.id) && city.barangays.map((barangay: any) => (
+                        <button
+                          key={barangay.id}
+                          onClick={() => {
+                            setSelectedLocation(barangay.id);
+                            setMobileMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between pl-16 pr-4 py-1.5 text-xs transition-colors ${selectedLocation === barangay.id ? '' : 'text-gray-500'}`}
+                          style={selectedLocation === barangay.id ? {
+                            color: colorPalette?.primary || '#fb923c',
+                            fontWeight: 'bold'
+                          } : {}}
+                        >
+                          <div className="flex items-center flex-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-current mr-2 opacity-40"></span>
+                            <span>{barangay.name}</span>
+                          </div>
+                          {barangay.count > 0 && (
+                            <span className="text-[10px] opacity-50">{barangay.count}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               ))}
             </div>
           </div>
@@ -980,41 +1246,139 @@ const JobOrderPage: React.FC = () => {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {locationItems.map((location) => (
-              <button
-                key={location.id}
-                onClick={() => {
-                  setSelectedLocation(location.id);
-                }}
-                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+            {/* All Level */}
+            <button
+              onClick={() => setSelectedLocation('all')}
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                }`}
+              style={selectedLocation === 'all' ? {
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                color: colorPalette?.primary || '#fb923c',
+                fontWeight: 500
+              } : {
+                color: isDarkMode ? '#d1d5db' : '#374151'
+              }}
+            >
+              <div className="flex items-center">
+                <FileText className="h-4 w-4 mr-2" />
+                <span>All Job Orders</span>
+              </div>
+              <span
+                className={`px-2 py-1 rounded-full text-xs ${selectedLocation === 'all'
+                  ? 'text-white'
+                  : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                   }`}
-                style={selectedLocation === location.id ? {
-                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c',
-                  fontWeight: 500
-                } : {
-                  color: isDarkMode ? '#d1d5db' : '#374151'
-                }}
+                style={selectedLocation === 'all' ? {
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                } : {}}
               >
-                <div className="flex items-center">
-                  <FileText className="h-4 w-4 mr-2" />
-                  <span className="capitalize">{location.name}</span>
-                </div>
-                {location.count > 0 && (
-                  <span
-                    className="px-2 py-1 rounded-full text-xs"
-                    style={selectedLocation === location.id ? {
-                      backgroundColor: colorPalette?.primary || '#ea580c',
-                      color: 'white'
-                    } : {
-                      backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
-                      color: isDarkMode ? '#d1d5db' : '#374151'
-                    }}
-                  >
-                    {location.count}
-                  </span>
-                )}
-              </button>
+                {locationItems.total}
+              </span>
+            </button>
+
+            {/* Region Level */}
+            {locationItems.regions.map((region: any) => (
+              <div key={region.id}>
+                <button
+                  onClick={() => setSelectedLocation(region.id)}
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                    }`}
+                  style={selectedLocation === region.id ? {
+                    backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                    color: colorPalette?.primary || '#fb923c',
+                    fontWeight: 500
+                  } : {
+                    color: isDarkMode ? '#d1d5db' : '#374151'
+                  }}
+                >
+                  <div className="flex items-center flex-1">
+                    <button
+                      onClick={(e) => toggleLocationExpansion(e, region.id)}
+                      className="p-1 mr-1"
+                    >
+                      {expandedLocations.has(region.id) ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </button>
+                    <FileText className="h-4 w-4 mr-2" />
+                    <span>{region.name}</span>
+                  </div>
+                  {region.count > 0 && (
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${selectedLocation === region.id
+                        ? 'text-white'
+                        : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                        }`}
+                      style={selectedLocation === region.id ? {
+                        backgroundColor: colorPalette?.primary || '#ea580c'
+                      } : {}}
+                    >
+                      {region.count}
+                    </span>
+                  )}
+                </button>
+
+                {/* City Level */}
+                {expandedLocations.has(region.id) && region.cities.map((city: any) => (
+                  <div key={city.id}>
+                    <button
+                      onClick={() => setSelectedLocation(city.id)}
+                      className={`w-full flex items-center justify-between pl-10 pr-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                        }`}
+                      style={selectedLocation === city.id ? {
+                        backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
+                        color: colorPalette?.primary || '#fb923c',
+                        fontWeight: 500
+                      } : {
+                        color: isDarkMode ? '#9ca3af' : '#4b5563'
+                      }}
+                    >
+                      <div className="flex items-center flex-1">
+                        <button
+                          onClick={(e) => toggleLocationExpansion(e, city.id)}
+                          className="p-1 mr-1"
+                        >
+                          {expandedLocations.has(city.id) ? (
+                            <ChevronDown className="h-3 w-3" />
+                          ) : (
+                            <ChevronRight className="h-3 w-3" />
+                          )}
+                        </button>
+                        <span>{city.name}</span>
+                      </div>
+                      {city.count > 0 && (
+                        <span className="text-xs opacity-60">{city.count}</span>
+                      )}
+                    </button>
+
+                    {/* Barangay Level */}
+                    {expandedLocations.has(city.id) && city.barangays.map((barangay: any) => (
+                      <button
+                        key={barangay.id}
+                        onClick={() => setSelectedLocation(barangay.id)}
+                        className={`w-full flex items-center justify-between pl-16 pr-4 py-1.5 text-xs transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                          }`}
+                        style={selectedLocation === barangay.id ? {
+                          color: colorPalette?.primary || '#fb923c',
+                          fontWeight: 'bold'
+                        } : {
+                          color: isDarkMode ? '#6b7280' : '#6b7280'
+                        }}
+                      >
+                        <div className="flex items-center flex-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-current mr-2 opacity-40"></span>
+                          <span>{barangay.name}</span>
+                        </div>
+                        {barangay.count > 0 && (
+                          <span className="text-[10px] opacity-50">{barangay.count}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
             ))}
           </div>
 

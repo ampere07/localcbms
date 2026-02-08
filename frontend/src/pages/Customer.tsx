@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { CreditCard, Search, Circle, X, ListFilter, ArrowUp, ArrowDown, RefreshCw, Filter } from 'lucide-react';
+import { CreditCard, Search, Circle, X, ListFilter, ArrowUp, ArrowDown, RefreshCw, Filter, ChevronRight, ChevronDown } from 'lucide-react';
 import BillingDetails from '../components/CustomerDetails';
 import { getBillingRecords, BillingRecord } from '../services/billingService';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
 import { getCities, City } from '../services/cityService';
 import { getRegions, Region } from '../services/regionService';
+import { barangayService, Barangay } from '../services/barangayService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import CustomerFunnelFilter from '../filter/CustomerFunnelFilter';
 import { useBillingStore } from '../store/billingStore';
@@ -15,6 +16,9 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     id: customerData.billingAccount?.accountNo || '',
     applicationId: customerData.billingAccount?.accountNo || '',
     customerName: customerData.fullName,
+    firstName: customerData.firstName,
+    middleInitial: customerData.middleInitial,
+    lastName: customerData.lastName,
     address: customerData.address,
     status: customerData.billingAccount?.billingStatusId === 2 ? 'Active' : 'Inactive',
     balance: customerData.billingAccount?.accountBalance || 0,
@@ -58,6 +62,11 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     location: customerData.location || '',
     addressCoordinates: customerData.addressCoordinates || '',
     lcpnapport: `${customerData.technicalDetails?.lcpnap || ''} ${customerData.technicalDetails?.port || ''}`.trim(),
+    balanceUpdateDate: customerData.billingAccount?.balanceUpdateDate || '',
+    billingAccountCreatedBy: (customerData.billingAccount as any)?.createdBy || '',
+    billingAccountCreatedAt: (customerData.billingAccount as any)?.createdAt || '',
+    billingAccountUpdatedBy: (customerData.billingAccount as any)?.updatedBy || '',
+    billingAccountUpdatedAt: (customerData.billingAccount as any)?.updatedAt || '',
   };
 };
 
@@ -127,9 +136,20 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
   const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
+  const [selectedBillingStatus, setSelectedBillingStatus] = useState<string>('');
+  const [selectedAccountBalance, setSelectedAccountBalance] = useState<number | null>(null);
+  const [selectedTotalPaid, setSelectedTotalPaid] = useState<number | null>(null);
+
+  const [barangays, setBarangays] = useState<Barangay[]>([]);
+  const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
+
   const isLoading = isTableLoading || isActionLoading;
   const error = localError || contextError;
   const setError = setLocalError; // Alias for compatibility with existing code
+
+
+
+
 
   const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -145,8 +165,8 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     }
     return allColumns.map(col => col.key);
   });
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortColumn, setSortColumn] = useState<string | null>('accountNo');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
@@ -218,18 +238,21 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
   useEffect(() => {
     const fetchLocationData = async () => {
       try {
-        const [citiesData, regionsData, activePalette] = await Promise.all([
+        const [citiesData, regionsData, barangaysRes, activePalette] = await Promise.all([
           getCities(),
           getRegions(),
+          barangayService.getAll(),
           settingsColorPaletteService.getActive()
         ]);
         setCities(citiesData || []);
         setRegions(regionsData || []);
+        setBarangays(barangaysRes.success ? barangaysRes.data : []);
         setColorPalette(activePalette);
       } catch (err) {
         console.error('Failed to fetch location data:', err);
         setCities([]);
         setRegions([]);
+        setBarangays([]);
       }
     };
 
@@ -268,6 +291,39 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     autoOpen();
   }, [autoOpenAccountNo]);
 
+  const toggleLocationExpansion = (e: React.MouseEvent, locationId: string) => {
+    e.stopPropagation();
+    setExpandedLocations(prev => {
+      const next = new Set(prev);
+      if (next.has(locationId)) {
+        next.delete(locationId);
+      } else {
+        next.add(locationId);
+      }
+      return next;
+    });
+  };
+
+  // Reset selected location if regions change and selected location is no longer valid
+  useEffect(() => {
+    if (selectedLocation === 'all') return;
+
+    const [type, name] = selectedLocation.split(':');
+    let isValid = false;
+
+    if (type === 'reg') {
+      isValid = regions.some(r => r.name === name);
+    } else if (type === 'city') {
+      isValid = cities.some(c => c.name === name);
+    } else if (type === 'brgy') {
+      isValid = barangays.some(b => b.barangay === name);
+    }
+
+    if (!isValid) {
+      setSelectedLocation('all');
+    }
+  }, [regions, cities, barangays, selectedLocation]);
+
   // Memoize city name lookup for performance
   const getCityName = useMemo(() => {
     const cityMap = new Map(cities.map(c => [c.id, c.name]));
@@ -278,44 +334,60 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
   }, [cities]);
 
   // Memoize location items for performance
-  const locationItems: LocationItem[] = useMemo(() => {
-    // Single pass to count cities
+  const locationItems = useMemo(() => {
+    // Counts for each level
+    const regionCounts: Record<string, number> = {};
     const cityCounts: Record<string, number> = {};
+    const barangayCounts: Record<string, number> = {};
 
-    // Initialize counts for all known cities to 0
-    cities.forEach(city => {
-      cityCounts[String(city.id)] = 0;
-    });
+    // Initialize counts
+    regions.forEach(r => regionCounts[r.name] = 0);
+    cities.forEach(c => cityCounts[`${c.region_id}_${c.name}`] = 0);
+    barangays.forEach(b => barangayCounts[`${b.city_id}_${b.barangay}`] = 0);
 
     // Count appearances in billing records
     billingRecords.forEach(record => {
-      if (record.cityId) {
-        const cityIdStr = String(record.cityId);
-        if (cityCounts[cityIdStr] !== undefined) { // Check undefined directly, 0 is falsy
-          cityCounts[cityIdStr]++;
+      if (record.region) regionCounts[record.region] = (regionCounts[record.region] || 0) + 1;
+      if (record.city) {
+        // We might not have cityId in the record, so we try to find it by name if possible
+        // but the record has city string. This is a bit tricky if cities have same name in different regions.
+        // For simplicity, we'll try to match by name if region also matches.
+        const matchedCity = cities.find(c => c.name === record.city && regions.find(r => r.id === c.region_id)?.name === record.region);
+        if (matchedCity) {
+          cityCounts[`${matchedCity.region_id}_${record.city}`] = (cityCounts[`${matchedCity.region_id}_${record.city}`] || 0) + 1;
+        }
+      }
+      if (record.barangay) {
+        // Similar to city, match barangay by name and city name
+        const matchedBarangay = barangays.find(b => b.barangay === record.barangay && cities.find(c => c.id === b.city_id)?.name === record.city);
+        if (matchedBarangay) {
+          barangayCounts[`${matchedBarangay.city_id}_${record.barangay}`] = (barangayCounts[`${matchedBarangay.city_id}_${record.barangay}`] || 0) + 1;
         }
       }
     });
 
-    const items: LocationItem[] = [
-      {
-        id: 'all',
-        name: 'All',
-        count: totalCount || billingRecords.length
-      }
-    ];
-
-    // Add known cities with their counts
-    cities.forEach((city) => {
-      items.push({
-        id: String(city.id),
-        name: city.name,
-        count: cityCounts[String(city.id)] || 0
-      });
-    });
-
-    return items;
-  }, [cities, billingRecords]);
+    return {
+      regions: regions.map(r => ({
+        id: `reg:${r.name}`,
+        name: r.name,
+        count: regionCounts[r.name] || 0,
+        cities: cities.filter(c => c.region_id === r.id).map(c => ({
+          id: `city:${c.name}`,
+          name: c.name,
+          regionName: r.name,
+          count: cityCounts[`${r.id}_${c.name}`] || 0,
+          barangays: barangays.filter(b => b.city_id === c.id).map(b => ({
+            id: `brgy:${b.barangay}`,
+            name: b.barangay,
+            cityName: c.name,
+            regionName: r.name,
+            count: barangayCounts[`${c.id}_${b.barangay}`] || 0
+          }))
+        }))
+      })),
+      total: totalCount || billingRecords.length
+    };
+  }, [regions, cities, barangays, billingRecords, totalCount]);
 
   // Helper function to apply funnel filters
   const applyFunnelFilters = (records: BillingRecord[], filters: any): BillingRecord[] => {
@@ -355,8 +427,17 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
   // Memoize filtered and sorted records for performance
   const filteredBillingRecords = useMemo(() => {
     let filtered = billingRecords.filter(record => {
-      const matchesLocation = selectedLocation === 'all' ||
-        record.cityId === Number(selectedLocation);
+      let matchesLocation = selectedLocation === 'all';
+
+      if (!matchesLocation) {
+        if (selectedLocation.startsWith('reg:')) {
+          matchesLocation = record.region === selectedLocation.substring(4);
+        } else if (selectedLocation.startsWith('city:')) {
+          matchesLocation = record.city === selectedLocation.substring(5);
+        } else if (selectedLocation.startsWith('brgy:')) {
+          matchesLocation = record.barangay === selectedLocation.substring(5);
+        }
+      }
 
       const matchesSearch = searchQuery === '' ||
         record.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -579,6 +660,9 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
   const handleRecordClick = async (record: BillingRecord) => {
     try {
       setIsLoadingDetails(true);
+      setSelectedBillingStatus(record.billingStatus || '');
+      setSelectedAccountBalance(record.balance);
+      setSelectedTotalPaid(record.totalPaid ?? null);
       console.log('Fetching customer detail for account:', record.applicationId);
       const customerData = await getCustomerDetail(record.applicationId);
       console.log('Fetched customer data:', customerData);
@@ -593,6 +677,9 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
 
   const handleCloseDetails = () => {
     setSelectedCustomer(null);
+    setSelectedBillingStatus('');
+    setSelectedAccountBalance(null);
+    setSelectedTotalPaid(null);
   };
 
   const renderCellValue = (record: BillingRecord, columnKey: string) => {
@@ -1072,38 +1159,140 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {locationItems.map((location) => (
-            <button
-              key={location.id}
-              onClick={() => setSelectedLocation(location.id)}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                } ${selectedLocation === location.id
-                  ? ''
-                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          {/* All Level */}
+          <button
+            onClick={() => setSelectedLocation('all')}
+            className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${selectedLocation === 'all'
+                ? ''
+                : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}
+            style={selectedLocation === 'all' ? {
+              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+              color: colorPalette?.primary || '#fb923c'
+            } : {}}
+          >
+            <div className="flex items-center">
+              <CreditCard className="h-4 w-4 mr-2" />
+              <span>All Customers</span>
+            </div>
+            <span
+              className={`px-2 py-1 rounded-full text-xs ${selectedLocation === 'all'
+                ? 'text-white'
+                : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                 }`}
-              style={selectedLocation === location.id ? {
-                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
+              style={selectedLocation === 'all' ? {
+                backgroundColor: colorPalette?.primary || '#ea580c'
               } : {}}
             >
-              <div className="flex items-center">
-                <CreditCard className="h-4 w-4 mr-2" />
-                <span className="capitalize">{location.name}</span>
-              </div>
-              {location.count > 0 && (
-                <span
-                  className={`px-2 py-1 rounded-full text-xs ${selectedLocation === location.id
-                    ? 'text-white'
-                    : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                    }`}
-                  style={selectedLocation === location.id ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c'
-                  } : {}}
-                >
-                  {location.count}
-                </span>
-              )}
-            </button>
+              {locationItems.total}
+            </span>
+          </button>
+
+          {/* Region Level */}
+          {locationItems.regions.map((region) => (
+            <div key={region.id}>
+              <button
+                onClick={() => setSelectedLocation(region.id)}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                  } ${selectedLocation === region.id
+                    ? ''
+                    : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}
+                style={selectedLocation === region.id ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#fb923c'
+                } : {}}
+              >
+                <div className="flex items-center flex-1">
+                  <button
+                    onClick={(e) => toggleLocationExpansion(e, region.id)}
+                    className="p-1 mr-1"
+                  >
+                    {expandedLocations.has(region.id) ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </button>
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  <span>{region.name}</span>
+                </div>
+                {region.count > 0 && (
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs ${selectedLocation === region.id
+                      ? 'text-white'
+                      : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                      }`}
+                    style={selectedLocation === region.id ? {
+                      backgroundColor: colorPalette?.primary || '#ea580c'
+                    } : {}}
+                  >
+                    {region.count}
+                  </span>
+                )}
+              </button>
+
+              {/* City Level */}
+              {expandedLocations.has(region.id) && region.cities.map((city) => (
+                <div key={city.id}>
+                  <button
+                    onClick={() => setSelectedLocation(city.id)}
+                    className={`w-full flex items-center justify-between pl-10 pr-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                      } ${selectedLocation === city.id
+                        ? ''
+                        : isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}
+                    style={selectedLocation === city.id ? {
+                      backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
+                      color: colorPalette?.primary || '#fb923c'
+                    } : {}}
+                  >
+                    <div className="flex items-center flex-1">
+                      <button
+                        onClick={(e) => toggleLocationExpansion(e, city.id)}
+                        className="p-1 mr-1"
+                      >
+                        {expandedLocations.has(city.id) ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                      </button>
+                      <span>{city.name}</span>
+                    </div>
+                    {city.count > 0 && (
+                      <span className="text-xs opacity-60">{city.count}</span>
+                    )}
+                  </button>
+
+                  {/* Barangay Level */}
+                  {expandedLocations.has(city.id) && city.barangays.map((barangay) => (
+                    <button
+                      key={barangay.id}
+                      onClick={() => setSelectedLocation(barangay.id)}
+                      className={`w-full flex items-center justify-between pl-16 pr-4 py-1.5 text-xs transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                        } ${selectedLocation === barangay.id
+                          ? ''
+                          : isDarkMode ? 'text-gray-500' : 'text-gray-500'
+                        }`}
+                      style={selectedLocation === barangay.id ? {
+                        color: colorPalette?.primary || '#fb923c',
+                        fontWeight: 'bold'
+                      } : {}}
+                    >
+                      <div className="flex items-center flex-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-current mr-2 opacity-40"></span>
+                        <span>{barangay.name}</span>
+                      </div>
+                      {barangay.count > 0 && (
+                        <span className="text-[10px] opacity-50">{barangay.count}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
           ))}
         </div>
 
@@ -1547,7 +1736,12 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
             </div>
           ) : selectedCustomer ? (
             <BillingDetails
-              billingRecord={convertCustomerDataToBillingDetail(selectedCustomer)}
+              billingRecord={{
+                ...convertCustomerDataToBillingDetail(selectedCustomer),
+                billingStatus: selectedBillingStatus || convertCustomerDataToBillingDetail(selectedCustomer).billingStatus || 'Active',
+                accountBalance: selectedAccountBalance ?? convertCustomerDataToBillingDetail(selectedCustomer).accountBalance ?? 0,
+                totalPaid: selectedTotalPaid ?? convertCustomerDataToBillingDetail(selectedCustomer).totalPaid ?? 0
+              }}
               onlineStatusRecords={[]}
               onClose={handleCloseDetails}
             />

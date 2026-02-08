@@ -1,11 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Globe, Search, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Globe, Search, ChevronDown, ChevronRight, Menu, X, FileText } from 'lucide-react';
 import PaymentPortalDetails from '../components/PaymentPortalDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { usePaymentPortalStore } from '../store/paymentPortalStore';
 import { PaymentPortalLog as PaymentPortalRecord } from '../services/paymentPortalLogsService';
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
+import { getCities, City } from '../services/cityService';
+import { getRegions, Region } from '../services/regionService';
+import { barangayService, Barangay } from '../services/barangayService';
 import { BillingDetailRecord } from '../types/billing';
 
 // Interfaces for payment portal data (PaymentPortalRecord is imported now)
@@ -85,6 +88,12 @@ const PaymentPortal: React.FC = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
 
+  const [cities, setCities] = useState<City[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [barangays, setBarangays] = useState<Barangay[]>([]);
+  const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
@@ -132,42 +141,121 @@ const PaymentPortal: React.FC = () => {
     fetchPaymentPortalRecords();
   }, [fetchPaymentPortalRecords]);
 
+  // Fetch lookup data
+  useEffect(() => {
+    const fetchLookupData = async () => {
+      try {
+        const [citiesData, regionsData, barangaysRes] = await Promise.all([
+          getCities(),
+          getRegions(),
+          barangayService.getAll()
+        ]);
+        setCities(citiesData || []);
+        setRegions(regionsData || []);
+        setBarangays(barangaysRes.success ? barangaysRes.data : []);
+      } catch (err) {
+        console.error('Failed to fetch lookup data:', err);
+      }
+    };
 
-  // Generate location items with counts based on real data
-  const locationItems: LocationItem[] = [
-    {
-      id: 'all',
-      name: 'All',
-      count: totalCount || records.length
-    }
-  ];
+    fetchLookupData();
+  }, []);
 
-  // Add unique locations from the data
-  const locationSet = new Set<string>();
-  records.forEach(record => {
-    const location = record.city?.toLowerCase();
-    if (location) {
-      locationSet.add(location);
-    }
-  });
-  const uniqueLocations = Array.from(locationSet);
+  const toggleLocationExpansion = (e: React.MouseEvent, locationId: string) => {
+    e.stopPropagation();
+    setExpandedLocations(prev => {
+      const next = new Set(prev);
+      if (next.has(locationId)) {
+        next.delete(locationId);
+      } else {
+        next.add(locationId);
+      }
+      return next;
+    });
+  };
 
-  uniqueLocations.forEach(location => {
-    if (location) {
-      locationItems.push({
-        id: location,
-        name: location.charAt(0).toUpperCase() + location.slice(1),
-        count: records.filter(record =>
-          record.city?.toLowerCase() === location).length
-      });
-    }
-  });
+
+  // Generate location items with hierarchy
+  const locationItems = useMemo(() => {
+    // Counts for each level
+    const regionCounts: Record<string, number> = {};
+    const cityCounts: Record<string, number> = {};
+    const barangayCounts: Record<string, number> = {};
+
+    // Initialize counts
+    regions.forEach(r => regionCounts[r.name] = 0);
+    cities.forEach(c => cityCounts[`${c.region_id}_${c.name}`] = 0);
+    barangays.forEach(b => barangayCounts[`${b.city_id}_${b.barangay}`] = 0);
+
+    // Count appearances in records
+    records.forEach(record => {
+      const city = record.city;
+      const barangay = record.barangay;
+
+      // Find matched city to get region
+      const matchedCity = cities.find(c => c.name === city);
+      if (matchedCity) {
+        const matchedRegion = regions.find(r => r.id === matchedCity.region_id);
+        if (matchedRegion) {
+          regionCounts[matchedRegion.name] = (regionCounts[matchedRegion.name] || 0) + 1;
+        }
+        cityCounts[`${matchedCity.region_id}_${matchedCity.name}`] = (cityCounts[`${matchedCity.region_id}_${matchedCity.name}`] || 0) + 1;
+      }
+
+      if (barangay) {
+        const matchedBarangay = barangays.find(b =>
+          b.barangay === barangay &&
+          (!city || cities.find(c => c.id === b.city_id)?.name === city)
+        );
+        if (matchedBarangay) {
+          barangayCounts[`${matchedBarangay.city_id}_${matchedBarangay.barangay}`] = (barangayCounts[`${matchedBarangay.city_id}_${matchedBarangay.barangay}`] || 0) + 1;
+        }
+      }
+    });
+
+    return {
+      regions: regions.map(r => ({
+        id: `reg:${r.name}`,
+        name: r.name,
+        count: regionCounts[r.name] || 0,
+        cities: cities.filter(c => c.region_id === r.id).map(c => ({
+          id: `city:${c.name}`,
+          name: c.name,
+          regionName: r.name,
+          count: cityCounts[`${r.id}_${c.name}`] || 0,
+          barangays: barangays.filter(b => b.city_id === c.id).map(b => ({
+            id: `brgy:${b.barangay}`,
+            name: b.barangay,
+            cityName: c.name,
+            regionName: r.name,
+            count: barangayCounts[`${c.id}_${b.barangay}`] || 0
+          }))
+        }))
+      })),
+      total: records.length
+    };
+  }, [regions, cities, barangays, records]);
 
   // Filter records based on location and search query
   const filteredRecords = useMemo(() => {
     return records.filter(record => {
-      const recordLocation = record.city?.toLowerCase();
-      const matchesLocation = selectedLocation === 'all' || recordLocation === selectedLocation;
+      let matchesLocation = selectedLocation === 'all';
+
+      if (!matchesLocation) {
+        if (selectedLocation.startsWith('reg:')) {
+          const regionName = selectedLocation.substring(4);
+          // Try to match region via city lookup since record doesn't have region field directly
+          const matchedCity = cities.find(c => c.name === record.city);
+          const matchedRegion = regions.find(r => r.id === matchedCity?.region_id);
+          matchesLocation = matchedRegion?.name === regionName;
+        } else if (selectedLocation.startsWith('city:')) {
+          const cityName = selectedLocation.substring(5);
+          matchesLocation = record.city === cityName;
+        } else if (selectedLocation.startsWith('brgy:')) {
+          const barangayName = selectedLocation.substring(5);
+          matchesLocation = record.barangay === barangayName;
+        }
+      }
 
       const matchesSearch = searchQuery === '' ||
         record.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -176,7 +264,7 @@ const PaymentPortal: React.FC = () => {
 
       return matchesLocation && matchesSearch;
     });
-  }, [records, selectedLocation, searchQuery]);
+  }, [records, selectedLocation, searchQuery, cities, regions]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -308,40 +396,140 @@ const PaymentPortal: React.FC = () => {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {locationItems.map((location) => (
-            <button
-              key={location.id}
-              onClick={() => {
-                setSelectedLocation(location.id);
-              }}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                } ${selectedLocation === location.id
-                  ? ''
-                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          {/* All Level */}
+          <button
+            onClick={() => setSelectedLocation('all')}
+            className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${selectedLocation === 'all'
+                ? ''
+                : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}
+            style={selectedLocation === 'all' ? {
+              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+              color: colorPalette?.primary || '#fb923c'
+            } : {}}
+          >
+            <div className="flex items-center">
+              <Globe className="h-4 w-4 mr-2" />
+              <span>All Records</span>
+            </div>
+            <span
+              className={`px-2 py-1 rounded-full text-xs ${selectedLocation === 'all'
+                ? 'text-white'
+                : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                 }`}
-              style={selectedLocation === location.id ? {
-                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
+              style={selectedLocation === 'all' ? {
+                backgroundColor: colorPalette?.primary || '#ea580c'
               } : {}}
             >
-              <div className="flex items-center">
-                <Globe className="h-4 w-4 mr-2" />
-                <span className="capitalize">{location.name}</span>
-              </div>
-              {location.count > 0 && (
-                <span
-                  className={`px-2 py-1 rounded-full text-xs ${selectedLocation === location.id
-                    ? 'text-white'
-                    : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                    }`}
-                  style={selectedLocation === location.id ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c'
-                  } : {}}
-                >
-                  {location.count}
-                </span>
-              )}
-            </button>
+              {locationItems.total}
+            </span>
+          </button>
+
+          {/* Region Level */}
+          {locationItems.regions.map((region: any) => (
+            <div key={region.id}>
+              <button
+                onClick={() => setSelectedLocation(region.id)}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                  } ${selectedLocation === region.id
+                    ? ''
+                    : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}
+                style={selectedLocation === region.id ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#fb923c'
+                } : {}}
+              >
+                <div className="flex items-center flex-1">
+                  <button
+                    onClick={(e) => toggleLocationExpansion(e, region.id)}
+                    className="p-1 mr-1"
+                  >
+                    {expandedLocations.has(region.id) ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </button>
+                  <Globe className="h-4 w-4 mr-2" />
+                  <span>{region.name}</span>
+                </div>
+                {region.count > 0 && (
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs ${selectedLocation === region.id
+                      ? 'text-white'
+                      : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                      }`}
+                    style={selectedLocation === region.id ? {
+                      backgroundColor: colorPalette?.primary || '#ea580c'
+                    } : {}}
+                  >
+                    {region.count}
+                  </span>
+                )}
+              </button>
+
+              {/* City Level */}
+              {expandedLocations.has(region.id) && region.cities.map((city: any) => (
+                <div key={city.id}>
+                  <button
+                    onClick={() => setSelectedLocation(city.id)}
+                    className={`w-full flex items-center justify-between pl-10 pr-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                      } ${selectedLocation === city.id
+                        ? ''
+                        : isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}
+                    style={selectedLocation === city.id ? {
+                      backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
+                      color: colorPalette?.primary || '#fb923c'
+                    } : {}}
+                  >
+                    <div className="flex items-center flex-1">
+                      <button
+                        onClick={(e) => toggleLocationExpansion(e, city.id)}
+                        className="p-1 mr-1"
+                      >
+                        {expandedLocations.has(city.id) ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                      </button>
+                      <span>{city.name}</span>
+                    </div>
+                    {city.count > 0 && (
+                      <span className="text-xs opacity-60">{city.count}</span>
+                    )}
+                  </button>
+
+                  {/* Barangay Level */}
+                  {expandedLocations.has(city.id) && city.barangays.map((barangay: any) => (
+                    <button
+                      key={barangay.id}
+                      onClick={() => setSelectedLocation(barangay.id)}
+                      className={`w-full flex items-center justify-between pl-16 pr-4 py-1.5 text-xs transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                        } ${selectedLocation === barangay.id
+                          ? ''
+                          : isDarkMode ? 'text-gray-500' : 'text-gray-500'
+                        }`}
+                      style={selectedLocation === barangay.id ? {
+                        color: colorPalette?.primary || '#fb923c',
+                        fontWeight: 'bold'
+                      } : {}}
+                    >
+                      <div className="flex items-center flex-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-current mr-2 opacity-40"></span>
+                        <span>{barangay.name}</span>
+                      </div>
+                      {barangay.count > 0 && (
+                        <span className="text-[10px] opacity-50">{barangay.count}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
           ))}
         </div>
       </div>
@@ -354,6 +542,13 @@ const PaymentPortal: React.FC = () => {
           <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
             }`}>
             <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="md:hidden bg-gray-700 hover:bg-gray-600 text-white p-2 rounded text-sm transition-colors flex items-center justify-center"
+                aria-label="Open filter menu"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
               <div className="relative flex-1">
                 <input
                   type="text"
@@ -536,6 +731,148 @@ const PaymentPortal: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Mobile Overlay Menu */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
+          <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+            }`}>
+            <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Location</h2>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {/* All Level */}
+              <button
+                onClick={() => {
+                  setSelectedLocation('all');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
+                style={selectedLocation === 'all' ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#fb923c',
+                  fontWeight: 500
+                } : {
+                  color: isDarkMode ? '#d1d5db' : '#374151'
+                }}
+              >
+                <div className="flex items-center">
+                  <Globe className="h-4 w-4 mr-2" />
+                  <span>All Records</span>
+                </div>
+                <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                  {locationItems.total}
+                </span>
+              </button>
+
+              {/* Region Level */}
+              {locationItems.regions.map((region: any) => (
+                <div key={region.id} className="border-b border-gray-800">
+                  <button
+                    onClick={() => {
+                      setSelectedLocation(region.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === region.id ? '' : 'text-gray-300'}`}
+                    style={selectedLocation === region.id ? {
+                      backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                      color: colorPalette?.primary || '#fb923c',
+                      fontWeight: 500
+                    } : {}}
+                  >
+                    <div className="flex items-center flex-1">
+                      <button
+                        onClick={(e) => toggleLocationExpansion(e, region.id)}
+                        className="p-1 mr-1"
+                      >
+                        {expandedLocations.has(region.id) ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </button>
+                      <Globe className="h-4 w-4 mr-2" />
+                      <span>{region.name}</span>
+                    </div>
+                    {region.count > 0 && (
+                      <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                        {region.count}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* City Level */}
+                  {expandedLocations.has(region.id) && region.cities.map((city: any) => (
+                    <div key={city.id}>
+                      <button
+                        onClick={() => {
+                          setSelectedLocation(city.id);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between pl-10 pr-4 py-2 text-sm transition-colors ${selectedLocation === city.id ? '' : 'text-gray-400'}`}
+                        style={selectedLocation === city.id ? {
+                          backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
+                          color: colorPalette?.primary || '#fb923c'
+                        } : {}}
+                      >
+                        <div className="flex items-center flex-1">
+                          <button
+                            onClick={(e) => toggleLocationExpansion(e, city.id)}
+                            className="p-1 mr-1"
+                          >
+                            {expandedLocations.has(city.id) ? (
+                              <ChevronDown className="h-3 w-3" />
+                            ) : (
+                              <ChevronRight className="h-3 w-3" />
+                            )}
+                          </button>
+                          <span>{city.name}</span>
+                        </div>
+                        {city.count > 0 && (
+                          <span className="text-xs opacity-60">{city.count}</span>
+                        )}
+                      </button>
+
+                      {/* Barangay Level */}
+                      {expandedLocations.has(city.id) && city.barangays.map((barangay: any) => (
+                        <button
+                          key={barangay.id}
+                          onClick={() => {
+                            setSelectedLocation(barangay.id);
+                            setMobileMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between pl-16 pr-4 py-1.5 text-xs transition-colors ${selectedLocation === barangay.id ? '' : 'text-gray-500'}`}
+                          style={selectedLocation === barangay.id ? {
+                            color: colorPalette?.primary || '#fb923c',
+                            fontWeight: 'bold'
+                          } : {}}
+                        >
+                          <div className="flex items-center flex-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-current mr-2 opacity-40"></span>
+                            <span>{barangay.name}</span>
+                          </div>
+                          {barangay.count > 0 && (
+                            <span className="text-[10px] opacity-50">{barangay.count}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Payment Portal Detail View - Only visible when a record is selected */}
       {selectedRecord && (
