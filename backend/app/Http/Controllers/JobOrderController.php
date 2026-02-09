@@ -674,28 +674,43 @@ class JobOrderController extends Controller
                 ]);
             }
 
-            $customer = Customer::create([
-                'first_name' => $application->first_name,
-                'middle_initial' => $application->middle_initial,
-                'last_name' => $application->last_name,
-                'email_address' => $application->email_address,
-                'contact_number_primary' => $application->mobile_number,
-                'contact_number_secondary' => $application->secondary_mobile_number,
-                'address' => $application->installation_address,
-                'location' => $application->location,
-                'barangay' => $application->barangay,
-                'city' => $application->city,
-                'region' => $application->region,
-                'address_coordinates' => $jobOrder->address_coordinates,
-                'housing_status' => $application->housing_status,
-                'referred_by' => $application->referred_by,
-                'desired_plan' => $application->desired_plan,
-                'house_front_picture_url' => $jobOrder->house_front_picture_url,
-                'created_by' => $defaultUserId,
-                'updated_by' => $defaultUserId,
-            ]);
+            if ($jobOrder->billing_status === 'Done' || $jobOrder->account_id) {
+                throw new \Exception('Job order has already been approved and has an associated billing account.');
+            }
 
-            \Log::info('Customer Created with Contact Numbers', [
+            // Check if a customer with the same email and names already exists to maintain 1-to-1
+            $existingCustomer = Customer::where('email_address', $application->email_address)
+                ->where('first_name', $application->first_name)
+                ->where('last_name', $application->last_name)
+                ->first();
+
+            if ($existingCustomer) {
+                $customer = $existingCustomer;
+                \Log::info('Using existing customer for approval', ['customer_id' => $customer->id]);
+            } else {
+                $customer = Customer::create([
+                    'first_name' => $application->first_name,
+                    'middle_initial' => $application->middle_initial,
+                    'last_name' => $application->last_name,
+                    'email_address' => $application->email_address,
+                    'contact_number_primary' => $application->mobile_number,
+                    'contact_number_secondary' => $application->secondary_mobile_number,
+                    'address' => $application->installation_address,
+                    'location' => $application->location,
+                    'barangay' => $application->barangay,
+                    'city' => $application->city,
+                    'region' => $application->region,
+                    'address_coordinates' => $jobOrder->address_coordinates,
+                    'housing_status' => $application->housing_status,
+                    'referred_by' => $application->referred_by,
+                    'desired_plan' => $application->desired_plan,
+                    'house_front_picture_url' => $jobOrder->house_front_picture_url,
+                    'created_by' => $defaultUserId,
+                    'updated_by' => $defaultUserId,
+                ]);
+            }
+
+            \Log::info('Customer Ready with Contact Numbers', [
                 'customer_id' => $customer->id,
                 'contact_number_primary' => $customer->contact_number_primary,
                 'contact_number_secondary' => $customer->contact_number_secondary,
@@ -704,6 +719,11 @@ class JobOrderController extends Controller
 
             $accountNumber = $this->generateAccountNumber();
             
+            // Final safety check for 1-to-1 account_no uniqueness
+            if (BillingAccount::where('account_no', $accountNumber)->exists()) {
+                throw new \Exception('Billing account already exists with this account number.');
+            }
+
             \Log::info('Generated account number', [
                 'generated_account_no' => $accountNumber
             ]);
@@ -776,10 +796,15 @@ class JobOrderController extends Controller
 
             $modemSN = $jobOrder->modem_router_sn;
             if ($modemSN) {
-                $existingModemSN = TechnicalDetail::where('router_modem_sn', $modemSN)->first();
-                if ($existingModemSN) {
-                    $modemSN = $modemSN . '_' . time();
+                // Check if technical detail already exists for this modem SN
+                if (TechnicalDetail::where('router_modem_sn', $modemSN)->exists()) {
+                    throw new \Exception('Technical details already exist with this modem serial number.');
                 }
+            }
+
+            // Check for technical details with same account number to ensure 1-to-1
+            if (TechnicalDetail::where('account_no', $accountNumber)->exists()) {
+                throw new \Exception('Technical details already exist for this account number.');
             }
             // Manual lookup for LCPNAP Location to ensure trimming
             $lcpnapValue = trim($jobOrder->lcpnap);
@@ -815,6 +840,11 @@ class JobOrderController extends Controller
             // Use account number and contact number for credentials
             $generatedUsername = $accountNumber;
             $generatedPassword = $customer->contact_number_primary;
+
+            // Check if online status already exists for this username
+            if (OnlineStatus::where('username', $generatedUsername)->exists()) {
+                throw new \Exception('theirs already a data in database');
+            }
 
             OnlineStatus::create([
                 'account_id' => $billingAccount->id,
@@ -906,6 +936,31 @@ class JobOrderController extends Controller
             
             \Log::error('Error approving job order: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Map common error messages to user-friendly "duplicate" message
+            $duplicateMessages = [
+                'theirs already a data in database',
+                'Duplicate entry',
+                'Integrity constraint violation',
+                'Billing account already exists',
+                'Technical details already exist'
+            ];
+            
+            $isDuplicate = false;
+            foreach ($duplicateMessages as $msg) {
+                if (strpos($e->getMessage(), $msg) !== false) {
+                    $isDuplicate = true;
+                    break;
+                }
+            }
+            
+            if ($isDuplicate) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'theirs already a data in database',
+                    'error' => $e->getMessage(),
+                ], 409); // Conflict
+            }
             
             return response()->json([
                 'success' => false,

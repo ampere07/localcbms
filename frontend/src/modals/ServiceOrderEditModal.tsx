@@ -6,6 +6,8 @@ import { getAllInventoryItems, InventoryItem } from '../services/inventoryItemSe
 import { createServiceOrderItems, ServiceOrderItem, deleteServiceOrderItems } from '../services/serviceOrderItemService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
+import { concernService, Concern } from '../services/concernService';
+
 
 interface ServiceOrderEditModalProps {
   isOpen: boolean;
@@ -109,7 +111,9 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   const [naps, setNaps] = useState<string[]>([]);
   const [ports, setPorts] = useState<string[]>([]);
   const [vlans, setVlans] = useState<string[]>([]);
+  const [concerns, setConcerns] = useState<Concern[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+
   const [orderItems, setOrderItems] = useState<OrderItem[]>([{ itemId: '', quantity: '' }]);
 
   const [formData, setFormData] = useState<ServiceOrderEditFormData>({
@@ -397,10 +401,21 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       }
     };
 
+    const fetchConcerns = async () => {
+      try {
+        const data = await concernService.getAllConcerns();
+        setConcerns(data);
+      } catch (error) {
+        console.error('Error fetching concerns:', error);
+      }
+    };
+
     if (isOpen) {
       fetchTechnicians();
       fetchTechnicalDetails();
+      fetchConcerns();
     }
+
   }, [isOpen]);
 
   useEffect(() => {
@@ -2074,12 +2089,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     } ${errors.concern ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                 >
                   <option value="">Select Concern</option>
-                  <option value="No Internet">No Internet</option>
-                  <option value="Slow Internet">Slow Internet</option>
-                  <option value="Intermittent Connection">Intermittent Connection</option>
-                  <option value="Router Issue">Router Issue</option>
-                  <option value="Billing Concern">Billing Concern</option>
-                  <option value="Others">Others</option>
+                  {concerns.map((concern) => (
+                    <option key={concern.id} value={concern.concern_name}>
+                      {concern.concern_name}
+                    </option>
+                  ))}
                 </select>
                 <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`} size={20} />

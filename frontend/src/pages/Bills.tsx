@@ -78,9 +78,10 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                             const accNo = detail.billingAccount.accountNo;
 
                             // 2. Fetch Data in Parallel
+                            const isCustomer = parsedUser.role === 'customer';
                             const [soaRes, invoiceRes, logsRes, txRes] = await Promise.all([
-                                soaService.getStatementsByAccount(billingId).catch(e => []),
-                                invoiceService.getInvoicesByAccount(billingId).catch(e => []),
+                                (isCustomer ? soaService.getStatementsByAccountNo(accNo) : soaService.getStatementsByAccount(billingId)).catch(e => []),
+                                (isCustomer ? invoiceService.getInvoicesByAccountNo(accNo) : invoiceService.getInvoicesByAccount(billingId)).catch(e => []),
                                 paymentPortalLogsService.getLogsByAccountNo(accNo).catch(e => []),
                                 transactionService.getAllTransactions().catch(e => ({ success: false, data: [] }))
                             ]);
@@ -142,6 +143,19 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
         fetchColorPalette();
     }, []);
 
+    // 24-hour restriction logic
+    const lastPayment = paymentRecords[0];
+    const timeSinceLastPayment = lastPayment ? new Date().getTime() - new Date(lastPayment.date).getTime() : Infinity;
+    const isPaymentRestricted = lastPayment && timeSinceLastPayment < 24 * 60 * 60 * 1000;
+
+    const getRemainingTime = () => {
+        if (!isPaymentRestricted) return null;
+        const remainingMs = (24 * 60 * 60 * 1000) - timeSinceLastPayment;
+        const hours = Math.floor(remainingMs / (60 * 60 * 1000));
+        const minutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+        return `${hours}h ${minutes}m`;
+    };
+
     useEffect(() => {
         if (initialTab) {
             setActiveTab(initialTab);
@@ -150,6 +164,12 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
 
     // --- Payment Handlers (Identical to DashboardCustomer) ---
     const handlePayNow = async () => {
+        if (isPaymentRestricted) {
+            const waitTime = getRemainingTime();
+            alert(`Payment Restricted: You can only make one payment every 24 hours. Please wait another ${waitTime} before paying again.`);
+            return;
+        }
+
         setErrorMessage('');
         setIsPaymentProcessing(true);
         try {
@@ -176,6 +196,11 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
     };
 
     const handleProceedToCheckout = async () => {
+        if (paymentAmount < balance) {
+            setErrorMessage(`Payment amount cannot be lower than your current balance of ₱${balance.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`);
+            return;
+        }
+
         if (paymentAmount < 1) {
             setErrorMessage('Payment amount must be at least ₱1.00');
             return;
@@ -218,7 +243,11 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
             setPendingPayment(null);
         }
     };
-    const handleCancelPendingPayment = () => { setShowPendingPaymentModal(false); setPendingPayment(null); };
+    const handleCancelPendingPayment = () => {
+        setErrorMessage('');
+        setShowPendingPaymentModal(false);
+        setPendingPayment(null);
+    };
 
     const handleDownloadPDF = (url?: string) => {
         if (url) window.open(url, '_blank');
@@ -236,30 +265,35 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
     if (loading) return <div className="p-8 flex justify-center bg-gray-50 min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>;
 
     return (
-        <div className="p-6 md:p-12 min-h-screen bg-gray-50 font-sans">
+        <div className="p-4 md:p-12 min-h-screen bg-gray-50 font-sans">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Billing History</h1>
-                    <p className="text-gray-500 mt-1">View your statements and payment records.</p>
+                <div className="w-full">
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Billing History</h1>
+                    <p className="text-gray-500 mt-1 text-sm md:text-base">View your statements and payment records.</p>
                 </div>
                 <button
                     onClick={handlePayNow}
-                    disabled={isPaymentProcessing}
-                    className="flex items-center space-x-2 text-white px-6 py-3 rounded-full font-bold transition disabled:opacity-50"
+                    disabled={isPaymentProcessing || isPaymentRestricted}
+                    className="w-full md:w-auto flex flex-col items-center justify-center text-white px-6 py-3 rounded-full font-bold transition disabled:opacity-50 leading-tight"
                     style={{ backgroundColor: colorPalette?.primary || '#0f172a' }}
                 >
-                    <CreditCard className="w-5 h-5" />
-                    <span>PAY NOW</span>
+                    <div className="flex items-center space-x-2">
+                        <CreditCard className="w-5 h-5" />
+                        <span>{isPaymentProcessing ? 'PROCESSING' : isPaymentRestricted ? 'RESTRICTED' : 'PAY NOW'}</span>
+                    </div>
+                    {isPaymentRestricted && (
+                        <span className="text-[10px] opacity-70 mt-0.5">Wait {getRemainingTime()}</span>
+                    )}
                 </button>
             </div>
 
             {/* Tabs */}
-            <div className="bg-white rounded-t-2xl border-b border-gray-200 px-6 pt-2">
-                <div className="flex space-x-8">
+            <div className="bg-white rounded-t-2xl border-b border-gray-200 px-4 md:px-6 pt-2 overflow-x-auto no-scrollbar">
+                <div className="flex space-x-6 md:space-x-8 min-w-max">
                     <button
                         onClick={() => setActiveTab('soa')}
-                        className={`pb-4 px-2 text-sm font-bold flex items-center space-x-2 border-b-2 transition ${activeTab === 'soa' ? 'text-slate-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                        className={`pb-4 px-1 md:px-2 text-sm font-bold flex items-center space-x-2 border-b-2 transition whitespace-nowrap ${activeTab === 'soa' ? 'text-slate-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
                         style={{ borderBottomColor: activeTab === 'soa' ? (colorPalette?.primary || '#0f172a') : 'transparent' }}
                     >
                         <FileText className="w-4 h-4" />
@@ -267,7 +301,7 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                     </button>
                     <button
                         onClick={() => setActiveTab('invoices')}
-                        className={`pb-4 px-2 text-sm font-bold flex items-center space-x-2 border-b-2 transition ${activeTab === 'invoices' ? 'text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                        className={`pb-4 px-1 md:px-2 text-sm font-bold flex items-center space-x-2 border-b-2 transition whitespace-nowrap ${activeTab === 'invoices' ? 'text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
                         style={{ borderBottomColor: activeTab === 'invoices' ? (colorPalette?.primary || '#2563eb') : 'transparent' }}
                     >
                         <File className="w-4 h-4" />
@@ -275,7 +309,7 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                     </button>
                     <button
                         onClick={() => setActiveTab('payments')}
-                        className={`pb-4 px-2 text-sm font-bold flex items-center space-x-2 border-b-2 transition ${activeTab === 'payments' ? 'text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                        className={`pb-4 px-1 md:px-2 text-sm font-bold flex items-center space-x-2 border-b-2 transition whitespace-nowrap ${activeTab === 'payments' ? 'text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
                         style={{ borderBottomColor: activeTab === 'payments' ? (colorPalette?.primary || '#2563eb') : 'transparent' }}
                     >
                         <Clock className="w-4 h-4" />
@@ -287,114 +321,220 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
             {/* Content Content */}
             <div className="bg-white rounded-b-2xl shadow-sm border border-gray-100 border-t-0 overflow-hidden min-h-[400px]">
                 {activeTab === 'soa' && (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="border-b border-gray-100">
-                                    <th className="p-6 text-xs font-bold text-gray-500 uppercase">Statement Date</th>
-                                    <th className="p-6 text-xs font-bold text-gray-500 uppercase">Statement No</th>
-                                    <th className="p-6 text-xs font-bold text-gray-500 uppercase">Amount Due</th>
-                                    <th className="p-6 text-xs font-bold text-gray-500 uppercase text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {soaRecords.length === 0 ? (
-                                    <tr><td colSpan={4} className="p-8 text-center text-gray-500">No statements found.</td></tr>
-                                ) : (
-                                    soaRecords.map((record) => (
-                                        <tr key={record.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
-                                            <td className="p-6 text-sm text-gray-600">{formatDate(record.statement_date)}</td>
-                                            <td className="p-6 text-sm font-bold text-gray-900">{record.id}</td>
-                                            <td className="p-6 text-sm font-bold text-gray-900">{formatCurrency(record.total_amount_due)}</td>
-                                            <td className="p-6 text-right">
-                                                <button
-                                                    onClick={() => handleDownloadPDF(record.print_link)}
-                                                    disabled={!record.print_link}
-                                                    className="inline-flex items-center space-x-2 px-4 py-2 border border-red-500 text-red-500 rounded-full text-xs font-bold hover:bg-red-50 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400"
-                                                >
-                                                    <Download className="w-3 h-3" />
-                                                    <span>Download PDF</span>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                    <div className="w-full">
+                        {/* Mobile List View */}
+                        <div className="md:hidden">
+                            {soaRecords.length === 0 ? (
+                                <div className="p-8 text-center text-gray-500">No statements found.</div>
+                            ) : (
+                                soaRecords.map((record) => (
+                                    <div key={record.id} className="p-4 border-b border-gray-100 last:border-0">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <p className="text-xs font-bold text-gray-400 uppercase">Date</p>
+                                                <p className="text-sm text-gray-700">{formatDate(record.statement_date)}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs font-bold text-gray-400 uppercase">Amount Due</p>
+                                                <p className="text-sm font-bold text-gray-900">{formatCurrency(record.total_amount_due)}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-center mt-3">
+                                            <p className="text-sm font-medium text-gray-500">Ref: {record.id}</p>
+                                            <button
+                                                onClick={() => handleDownloadPDF(record.print_link)}
+                                                disabled={!record.print_link}
+                                                className="inline-flex items-center space-x-2 px-4 py-2 border border-red-500 text-red-500 rounded-full text-xs font-bold hover:bg-red-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <Download className="w-3 h-3" />
+                                                <span>PDF</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Desktop Table View */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="border-b border-gray-100">
+                                        <th className="p-6 text-xs font-bold text-gray-500 uppercase">Statement Date</th>
+                                        <th className="p-6 text-xs font-bold text-gray-500 uppercase">Statement No</th>
+                                        <th className="p-6 text-xs font-bold text-gray-500 uppercase">Amount Due</th>
+                                        <th className="p-6 text-xs font-bold text-gray-500 uppercase text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {soaRecords.length === 0 ? (
+                                        <tr><td colSpan={4} className="p-8 text-center text-gray-500">No statements found.</td></tr>
+                                    ) : (
+                                        soaRecords.map((record) => (
+                                            <tr key={record.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
+                                                <td className="p-6 text-sm text-gray-600">{formatDate(record.statement_date)}</td>
+                                                <td className="p-6 text-sm font-bold text-gray-900">{record.id}</td>
+                                                <td className="p-6 text-sm font-bold text-gray-900">{formatCurrency(record.total_amount_due)}</td>
+                                                <td className="p-6 text-right">
+                                                    <button
+                                                        onClick={() => handleDownloadPDF(record.print_link)}
+                                                        disabled={!record.print_link}
+                                                        className="inline-flex items-center space-x-2 px-4 py-2 border border-red-500 text-red-500 rounded-full text-xs font-bold hover:bg-red-50 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400"
+                                                    >
+                                                        <Download className="w-3 h-3" />
+                                                        <span>Download PDF</span>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
 
                 {activeTab === 'invoices' && (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="border-b border-gray-100">
-                                    <th className="p-6 text-xs font-bold text-gray-500 uppercase">Invoice Date</th>
-                                    <th className="p-6 text-xs font-bold text-gray-500 uppercase">Invoice Ref</th>
-                                    <th className="p-6 text-xs font-bold text-gray-500 uppercase">Amount</th>
-                                    <th className="p-6 text-xs font-bold text-gray-500 uppercase text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {invoiceRecords.length === 0 ? (
-                                    <tr><td colSpan={4} className="p-8 text-center text-gray-500">No invoices found.</td></tr>
-                                ) : (
-                                    invoiceRecords.map((record) => (
-                                        <tr key={record.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
-                                            <td className="p-6 text-sm text-gray-600">{formatDate(record.invoice_date)}</td>
-                                            <td className="p-6 text-sm font-bold text-gray-900">{record.id}</td>
-                                            <td className="p-6 text-sm font-bold text-gray-900">{formatCurrency(record.invoice_balance)}</td>
-                                            <td className="p-6 text-right">
-                                                <button
-                                                    onClick={() => handleDownloadPDF(record.print_link)}
-                                                    disabled={!record.print_link}
-                                                    className="inline-flex items-center space-x-2 px-4 py-2 border border-red-500 text-red-500 rounded-full text-xs font-bold hover:bg-red-50 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400"
-                                                >
-                                                    <Download className="w-3 h-3" />
-                                                    <span>Download PDF</span>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                    <div className="w-full">
+                        {/* Mobile List View */}
+                        <div className="md:hidden">
+                            {invoiceRecords.length === 0 ? (
+                                <div className="p-8 text-center text-gray-500">No invoices found.</div>
+                            ) : (
+                                invoiceRecords.map((record) => (
+                                    <div key={record.id} className="p-4 border-b border-gray-100 last:border-0">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <p className="text-xs font-bold text-gray-400 uppercase">Date</p>
+                                                <p className="text-sm text-gray-700">{formatDate(record.invoice_date)}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs font-bold text-gray-400 uppercase">Amount</p>
+                                                <p className="text-sm font-bold text-gray-900">{formatCurrency(record.invoice_balance)}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-center mt-3">
+                                            <p className="text-sm font-medium text-gray-500">Ref: {record.id}</p>
+                                            <button
+                                                onClick={() => handleDownloadPDF(record.print_link)}
+                                                disabled={!record.print_link}
+                                                className="inline-flex items-center space-x-2 px-4 py-2 border border-red-500 text-red-500 rounded-full text-xs font-bold hover:bg-red-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <Download className="w-3 h-3" />
+                                                <span>PDF</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Desktop Table View */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="border-b border-gray-100">
+                                        <th className="p-6 text-xs font-bold text-gray-500 uppercase">Invoice Date</th>
+                                        <th className="p-6 text-xs font-bold text-gray-500 uppercase">Invoice Ref</th>
+                                        <th className="p-6 text-xs font-bold text-gray-500 uppercase">Amount</th>
+                                        <th className="p-6 text-xs font-bold text-gray-500 uppercase text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {invoiceRecords.length === 0 ? (
+                                        <tr><td colSpan={4} className="p-8 text-center text-gray-500">No invoices found.</td></tr>
+                                    ) : (
+                                        invoiceRecords.map((record) => (
+                                            <tr key={record.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
+                                                <td className="p-6 text-sm text-gray-600">{formatDate(record.invoice_date)}</td>
+                                                <td className="p-6 text-sm font-bold text-gray-900">{record.id}</td>
+                                                <td className="p-6 text-sm font-bold text-gray-900">{formatCurrency(record.invoice_balance)}</td>
+                                                <td className="p-6 text-right">
+                                                    <button
+                                                        onClick={() => handleDownloadPDF(record.print_link)}
+                                                        disabled={!record.print_link}
+                                                        className="inline-flex items-center space-x-2 px-4 py-2 border border-red-500 text-red-500 rounded-full text-xs font-bold hover:bg-red-50 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400"
+                                                    >
+                                                        <Download className="w-3 h-3" />
+                                                        <span>Download PDF</span>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
 
                 {activeTab === 'payments' && (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="border-b border-gray-100">
-                                    <th className="p-6 text-xs font-bold text-gray-500 uppercase">Date</th>
-                                    <th className="p-6 text-xs font-bold text-gray-500 uppercase">Reference</th>
-                                    <th className="p-6 text-xs font-bold text-gray-500 uppercase">Source</th>
-                                    <th className="p-6 text-xs font-bold text-gray-500 uppercase">Status</th>
-                                    <th className="p-6 text-xs font-bold text-gray-500 uppercase text-right">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {paymentRecords.length === 0 ? (
-                                    <tr><td colSpan={5} className="p-8 text-center text-gray-500">No payment history found.</td></tr>
-                                ) : (
-                                    paymentRecords.map((record) => (
-                                        <tr key={record.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
-                                            <td className="p-6 text-sm text-gray-600">{formatDate(record.date)}</td>
-                                            <td className="p-6 text-sm font-mono text-gray-500">{record.reference}</td>
-                                            <td className="p-6 text-sm text-gray-600">{record.source}</td>
-                                            <td className="p-6 text-sm">
-                                                <span className={`px-2 py-1 rounded text-xs font-bold ${record.status === 'Completed' || record.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                                                    }`}>
+                    <div className="w-full">
+                        {/* Mobile List View */}
+                        <div className="md:hidden">
+                            {paymentRecords.length === 0 ? (
+                                <div className="p-8 text-center text-gray-500">No payment history found.</div>
+                            ) : (
+                                paymentRecords.map((record) => (
+                                    <div key={record.id} className="p-4 border-b border-gray-100 last:border-0">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <p className="text-xs font-bold text-gray-400 uppercase">Date</p>
+                                                <p className="text-sm text-gray-700">{formatDate(record.date)}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className={`px-2 py-0.5 rounded text-[10px] font-bold ${record.status === 'Completed' || record.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                                                     {record.status || 'Posted'}
-                                                </span>
-                                            </td>
-                                            <td className="p-6 text-sm font-bold text-green-600 text-right">+{formatCurrency(record.amount)}</td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-end mt-2">
+                                            <div>
+                                                <p className="text-xs font-bold text-gray-400 uppercase">Reference</p>
+                                                <p className="text-xs font-mono text-gray-500 truncate max-w-[150px]">{record.reference}</p>
+                                                <p className="text-[10px] text-gray-400 mt-0.5">{record.source} Source</p>
+                                            </div>
+                                            <p className="text-sm font-bold text-green-600">+{formatCurrency(record.amount)}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Desktop Table View */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="border-b border-gray-100">
+                                        <th className="p-6 text-xs font-bold text-gray-500 uppercase">Date</th>
+                                        <th className="p-6 text-xs font-bold text-gray-500 uppercase">Reference</th>
+                                        <th className="p-6 text-xs font-bold text-gray-500 uppercase">Source</th>
+                                        <th className="p-6 text-xs font-bold text-gray-500 uppercase">Status</th>
+                                        <th className="p-6 text-xs font-bold text-gray-500 uppercase text-right">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {paymentRecords.length === 0 ? (
+                                        <tr><td colSpan={5} className="p-8 text-center text-gray-500">No payment history found.</td></tr>
+                                    ) : (
+                                        paymentRecords.map((record) => (
+                                            <tr key={record.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
+                                                <td className="p-6 text-sm text-gray-600">{formatDate(record.date)}</td>
+                                                <td className="p-6 text-sm font-mono text-gray-500">{record.reference}</td>
+                                                <td className="p-6 text-sm text-gray-600">{record.source}</td>
+                                                <td className="p-6 text-sm">
+                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${record.status === 'Completed' || record.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                                                        }`}>
+                                                        {record.status || 'Posted'}
+                                                    </span>
+                                                </td>
+                                                <td className="p-6 text-sm font-bold text-green-600 text-right">+{formatCurrency(record.amount)}</td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
             </div>
@@ -435,11 +575,22 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                                     onChange={(e) => {
                                         const value = e.target.value;
                                         if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                            setPaymentAmount(value === '' ? 0 : parseFloat(value) || 0);
+                                            const newAmount = value === '' ? 0 : parseFloat(value) || 0;
+                                            setPaymentAmount(newAmount);
+
+                                            if (newAmount > 0 && newAmount < balance) {
+                                                setErrorMessage(`Payment amount cannot be lower than your balance of ₱${balance.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`);
+                                            } else if (newAmount > 0 && newAmount < 1) {
+                                                setErrorMessage('Payment amount must be at least ₱1.00');
+                                            } else {
+                                                setErrorMessage('');
+                                            }
                                         }
                                     }}
                                     placeholder="0.00"
-                                    className="w-full px-4 py-3 rounded text-lg font-bold border border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                    className={`w-full px-4 py-3 rounded text-lg font-bold border ${paymentAmount > 0 && (paymentAmount < balance || paymentAmount < 1) ? 'border-red-500 ring-red-500' : 'border-gray-300'
+                                        } text-gray-900 focus:outline-none focus:ring-2`}
+                                    style={{ '--tw-ring-color': paymentAmount > 0 && (paymentAmount < balance || paymentAmount < 1) ? '#ef4444' : (colorPalette?.primary || '#0f172a') } as React.CSSProperties}
                                 />
                                 <div className="text-sm text-right mt-1 text-gray-500">
                                     {balance > 0 ? (
@@ -460,7 +611,7 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                                 </button>
                                 <button
                                     onClick={handleProceedToCheckout}
-                                    disabled={isPaymentProcessing || paymentAmount < 1}
+                                    disabled={isPaymentProcessing || (paymentAmount > 0 && paymentAmount < balance) || paymentAmount < 1}
                                     className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors disabled:opacity-50"
                                     style={{ backgroundColor: colorPalette?.primary || '#0f172a' }}
                                 >

@@ -9,7 +9,7 @@ export interface BillingRecord {
   lastName?: string;
   address: string;
   location?: string;
-  status: 'Active' | 'Inactive';
+  status: string;
   balance: number;
   onlineStatus: string;
   cityId?: number | null;

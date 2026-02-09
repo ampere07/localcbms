@@ -707,7 +707,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Account Balance</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>₱{(billingRecord.accountBalance ?? billingRecord.balance ?? 0).toFixed(2)}</span>
+            }`}>₱{Number(billingRecord.accountBalance ?? billingRecord.balance ?? 0).toFixed(2)}</span>
         </div>
       ),
       billingAccountCreatedBy: () => (
@@ -755,7 +755,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Total Paid</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>₱{(billingRecord.totalPaid || 0).toFixed(2)}</span>
+            }`}>₱{Number(billingRecord.totalPaid || 0).toFixed(2)}</span>
         </div>
       )
     };
@@ -1543,7 +1543,6 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           )}
         </div>
         {[
-          { key: 'statementOfAccounts', label: 'Related Statement of Accounts', dataKey: 'statementOfAccounts' },
           { key: 'serviceOrders', label: 'Related Service Orders', dataKey: 'serviceOrders' },
           { key: 'reconnectionLogs', label: 'Related Reconnection Logs', dataKey: 'reconnectionLogs' },
           { key: 'disconnectedLogs', label: 'Related Disconnected Logs', dataKey: 'disconnectedLogs' },

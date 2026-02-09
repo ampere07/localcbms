@@ -173,8 +173,27 @@ const DashboardCustomer: React.FC<DashboardCustomerProps> = ({ onNavigate }) => 
         dueDateString = nextDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
+    // 24-hour restriction logic
+    const lastPayment = payments[0];
+    const timeSinceLastPayment = lastPayment ? new Date().getTime() - new Date(lastPayment.date).getTime() : Infinity;
+    const isPaymentRestricted = lastPayment && timeSinceLastPayment < 24 * 60 * 60 * 1000;
+
+    const getRemainingTime = () => {
+        if (!isPaymentRestricted) return null;
+        const remainingMs = (24 * 60 * 60 * 1000) - timeSinceLastPayment;
+        const hours = Math.floor(remainingMs / (60 * 60 * 1000));
+        const minutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+        return `${hours}h ${minutes}m`;
+    };
+
     // Payment Handlers
     const handlePayNow = async () => {
+        if (isPaymentRestricted) {
+            const waitTime = getRemainingTime();
+            alert(`Payment Restricted: You can only make one payment every 24 hours. Please wait another ${waitTime} before paying again.`);
+            return;
+        }
+
         setErrorMessage('');
         setIsPaymentProcessing(true);
 
@@ -204,6 +223,11 @@ const DashboardCustomer: React.FC<DashboardCustomerProps> = ({ onNavigate }) => 
     };
 
     const handleProceedToCheckout = async () => {
+        if (paymentAmount < balance) {
+            setErrorMessage(`Payment amount cannot be lower than your current balance of ₱${balance.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`);
+            return;
+        }
+
         if (paymentAmount < 1) {
             setErrorMessage('Payment amount must be at least ₱1.00');
             return;
@@ -258,6 +282,7 @@ const DashboardCustomer: React.FC<DashboardCustomerProps> = ({ onNavigate }) => 
     };
 
     const handleCancelPendingPayment = () => {
+        setErrorMessage('');
         setShowPendingPaymentModal(false);
         setPendingPayment(null);
     };
@@ -303,6 +328,7 @@ const DashboardCustomer: React.FC<DashboardCustomerProps> = ({ onNavigate }) => 
 
                         <div className="mt-8 space-y-3">
                             <button
+                                onClick={() => onNavigate?.('customer-bills')}
                                 className="w-full flex items-center justify-center space-x-2 py-3 border rounded-full font-semibold hover:bg-gray-50 transition"
                                 style={{ borderColor: colorPalette?.primary || '#0f172a', color: colorPalette?.primary || '#0f172a' }}
                             >
@@ -310,6 +336,7 @@ const DashboardCustomer: React.FC<DashboardCustomerProps> = ({ onNavigate }) => 
                                 <span>My Bills</span>
                             </button>
                             <button
+                                onClick={() => onNavigate?.('customer-support')}
                                 className="w-full flex items-center justify-center space-x-2 py-3 border rounded-full font-semibold hover:bg-gray-50 transition"
                                 style={{ borderColor: colorPalette?.primary || '#0f172a', color: colorPalette?.primary || '#0f172a' }}
                             >
@@ -336,11 +363,14 @@ const DashboardCustomer: React.FC<DashboardCustomerProps> = ({ onNavigate }) => 
                         <div className="flex justify-center space-x-4">
                             <button
                                 onClick={handlePayNow}
-                                disabled={isPaymentProcessing}
-                                className="bg-white text-slate-900 px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition min-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={isPaymentProcessing || isPaymentRestricted}
+                                className="bg-white text-slate-900 px-8 py-3 rounded-full font-bold hover:bg-gray-100 transition min-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center leading-tight"
                                 style={{ color: colorPalette?.primary || '#0f172a' }}
                             >
-                                {isPaymentProcessing ? 'Processing' : 'PAY NOW'}
+                                <span>{isPaymentProcessing ? 'Processing' : isPaymentRestricted ? 'RESTRICTED' : 'PAY NOW'}</span>
+                                {isPaymentRestricted && (
+                                    <span className="text-[10px] opacity-70 mt-0.5">Wait {getRemainingTime()}</span>
+                                )}
                             </button>
                             <button
                                 onClick={() => onNavigate?.('customer-bills', 'payments')}
@@ -452,12 +482,22 @@ const DashboardCustomer: React.FC<DashboardCustomerProps> = ({ onNavigate }) => 
                                         onChange={(e) => {
                                             const value = e.target.value;
                                             if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                                setPaymentAmount(value === '' ? 0 : parseFloat(value) || 0);
+                                                const newAmount = value === '' ? 0 : parseFloat(value) || 0;
+                                                setPaymentAmount(newAmount);
+
+                                                if (newAmount > 0 && newAmount < balance) {
+                                                    setErrorMessage(`Payment amount cannot be lower than your balance of ₱${balance.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`);
+                                                } else if (newAmount > 0 && newAmount < 1) {
+                                                    setErrorMessage('Payment amount must be at least ₱1.00');
+                                                } else {
+                                                    setErrorMessage('');
+                                                }
                                             }
                                         }}
                                         placeholder="0.00"
-                                        className="w-full px-4 py-3 rounded text-lg font-bold border border-gray-300 text-gray-900 focus:outline-none focus:ring-2"
-                                        style={{ '--tw-ring-color': colorPalette?.primary || '#0f172a' } as React.CSSProperties}
+                                        className={`w-full px-4 py-3 rounded text-lg font-bold border ${paymentAmount > 0 && (paymentAmount < balance || paymentAmount < 1) ? 'border-red-500 ring-red-500' : 'border-gray-300'
+                                            } text-gray-900 focus:outline-none focus:ring-2`}
+                                        style={{ '--tw-ring-color': paymentAmount > 0 && (paymentAmount < balance || paymentAmount < 1) ? '#ef4444' : (colorPalette?.primary || '#0f172a') } as React.CSSProperties}
                                     />
                                     <div className="text-sm text-right mt-1 text-gray-500">
                                         {balance > 0 ? (
@@ -478,7 +518,7 @@ const DashboardCustomer: React.FC<DashboardCustomerProps> = ({ onNavigate }) => 
                                     </button>
                                     <button
                                         onClick={handleProceedToCheckout}
-                                        disabled={isPaymentProcessing || paymentAmount < 1}
+                                        disabled={isPaymentProcessing || (paymentAmount > 0 && paymentAmount < balance) || paymentAmount < 1}
                                         className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors disabled:opacity-50"
                                         style={{ backgroundColor: colorPalette?.primary || '#0f172a' }}
                                     >

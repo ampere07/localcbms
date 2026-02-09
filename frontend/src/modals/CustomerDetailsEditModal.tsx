@@ -541,7 +541,6 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
       if (!formData.barangay?.trim()) newErrors.barangay = 'Barangay is required';
       if (!formData.location?.trim()) newErrors.location = 'Location is required';
     } else if (editType === 'billing_details') {
-      if (!formData.plan?.trim()) newErrors.plan = 'Plan is required';
       if (!formData.billingStatus?.trim()) newErrors.billingStatus = 'Billing Status is required';
     } else if (editType === 'technical_details') {
       if (!formData.username?.trim()) newErrors.username = 'Username is required';
@@ -1101,47 +1100,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                   </div>
                 </div>
 
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Plan<span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={formData.plan || ''}
-                      onChange={(e) => handleInputChange('plan', e.target.value)}
-                      onFocus={(e) => {
-                        if (colorPalette?.primary) {
-                          e.currentTarget.style.borderColor = colorPalette.primary;
-                          e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
-                        }
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = errors.plan ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.plan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
-                    >
-                      <option value="">Select Plan</option>
-                      {formData.plan && !plans.some(plan => {
-                        const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
-                        return planWithPrice === formData.plan || plan.name === formData.plan;
-                      }) && (
-                          <option value={formData.plan}>{formData.plan}</option>
-                        )}
-                      {plans.map((plan) => {
-                        const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
-                        return (
-                          <option key={plan.id} value={planWithPrice}>
-                            {planWithPrice}
-                          </option>
-                        );
-                      })}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
-                  </div>
-                  {errors.plan && <p className="text-red-500 text-xs mt-1">{errors.plan}</p>}
-                </div>
+
 
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -1156,34 +1115,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                   />
                 </div>
 
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Billing Day
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.billingDay || ''}
-                    onChange={(e) => handleInputChange('billingDay', e.target.value)}
-                    min="0"
-                    max="31"
-                    placeholder="0 for end of month, 1-31 for specific day"
-                    onFocus={(e) => {
-                      if (colorPalette?.primary) {
-                        e.currentTarget.style.borderColor = colorPalette.primary;
-                        e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
-                      }
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                      }`}
-                  />
-                  <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Enter 0 for end of month billing, or 1-31 for specific day
-                  </p>
-                </div>
+
 
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>

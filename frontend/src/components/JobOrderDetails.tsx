@@ -484,7 +484,17 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       }
     } catch (err: any) {
       setShowLoadingModal(false);
-      setErrorMessage(`Failed to approve job order: ${err.message}`);
+
+      let msg = 'Failed to approve job order';
+      if (err.response?.data?.message === 'theirs already a data in database') {
+        msg = 'theirs already a data in database';
+      } else if (err.response?.data?.message) {
+        msg = `Failed to approve job order: ${err.response.data.message}`;
+      } else if (err.message) {
+        msg = `Failed to approve job order: ${err.message}`;
+      }
+
+      setErrorMessage(msg);
       setShowErrorModal(true);
       console.error('Approve error:', err);
     } finally {

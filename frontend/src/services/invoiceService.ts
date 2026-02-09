@@ -88,6 +88,21 @@ export const invoiceService = {
     }
   },
 
+  async getInvoicesByAccountNo(accountNo: string): Promise<InvoiceRecord[]> {
+    try {
+      const response = await apiClient.get<InvoiceResponse>('/billing-generation/invoices', {
+        params: { account_no: accountNo }
+      });
+      if (response.data.success) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Failed to fetch invoices');
+    } catch (error) {
+      console.error('Error fetching invoice records by account no:', error);
+      throw error;
+    }
+  },
+
   async getInvoiceById(id: number): Promise<InvoiceRecord> {
     try {
       const response = await apiClient.get<{ success: boolean; data: InvoiceRecord }>(`/billing-generation/invoices/${id}`);

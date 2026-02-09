@@ -110,6 +110,21 @@ export const soaService = {
     }
   },
 
+  async getStatementsByAccountNo(accountNo: string): Promise<SOARecord[]> {
+    try {
+      const response = await apiClient.get<SOAResponse>('/billing-generation/statements', {
+        params: { account_no: accountNo }
+      });
+      if (response.data.success) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Failed to fetch statements');
+    } catch (error) {
+      console.error('Error fetching SOA records by account no:', error);
+      throw error;
+    }
+  },
+
   async getStatementById(id: number): Promise<SOARecord> {
     try {
       const response = await apiClient.get<{ success: boolean; data: SOARecord }>(`/billing-generation/statements/${id}`);

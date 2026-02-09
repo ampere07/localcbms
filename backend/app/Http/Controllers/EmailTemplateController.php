@@ -42,7 +42,8 @@ class EmailTemplateController extends Controller
                 'Subject_Line' => 'required|string|max:150',
                 'Body_HTML' => 'required|string',
                 'Description' => 'nullable|string|max:255',
-                'Is_Active' => 'nullable|boolean'
+                'Is_Active' => 'nullable|boolean',
+                'email_body' => 'nullable|string|max:255'
             ]);
 
             if ($validator->fails()) {
@@ -62,7 +63,8 @@ class EmailTemplateController extends Controller
                 'Subject_Line' => $request->input('Subject_Line'),
                 'Body_HTML' => $request->input('Body_HTML'),
                 'Description' => $request->input('Description'),
-                'Is_Active' => $request->input('Is_Active', 1)
+                'Is_Active' => $request->input('Is_Active', 1),
+                'email_body' => $request->input('email_body')
             ]);
 
             return response()->json([
@@ -130,7 +132,8 @@ class EmailTemplateController extends Controller
                 'Subject_Line' => 'sometimes|string|max:150',
                 'Body_HTML' => 'sometimes|string',
                 'Description' => 'nullable|string|max:255',
-                'Is_Active' => 'nullable|boolean'
+                'Is_Active' => 'nullable|boolean',
+                'email_body' => 'nullable|string|max:255'
             ]);
 
             if ($validator->fails()) {
@@ -159,6 +162,9 @@ class EmailTemplateController extends Controller
             }
             if ($request->has('Is_Active')) {
                 $updateData['Is_Active'] = $request->input('Is_Active');
+            }
+            if ($request->has('email_body')) {
+                $updateData['email_body'] = $request->input('email_body');
             }
 
             $template->update($updateData);

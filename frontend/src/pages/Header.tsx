@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, RefreshCw } from 'lucide-react';
+import { Bell, RefreshCw, Menu, X } from 'lucide-react';
 import { notificationService, type Notification as AppNotification } from '../services/notificationService';
 import { formUIService } from '../services/formUIService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -274,6 +274,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
     }
   };
 
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -290,72 +291,132 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
   // Customer Header (Role: customer)
   if (user && user.role === 'customer') {
     return (
-      <header className="bg-white border-b h-16 flex items-center justify-between px-6 md:px-12 w-full shadow-sm z-50">
-        <div className="flex items-center space-x-2">
-          {/* Logo Section */}
-          {logoUrl ? (
-            <img src={logoUrl} alt="ATSS Fiber" className="h-8 object-contain" />
-          ) : (
-            <div className="flex items-center">
-              <div className="w-8 h-8 bg-slate-900 rounded-full flex items-center justify-center text-white font-bold text-xs mr-2">
-                A
+      <header className={`bg-white border-b flex flex-col w-full shadow-sm z-[100] sticky top-0 transition-all duration-300 ${isMobileMenuOpen ? 'h-auto' : 'h-16'}`}>
+        <div className="h-16 flex items-center justify-between px-6 md:px-12 w-full">
+          <div className="flex items-center">
+            {/* Logo Section */}
+            {logoUrl ? (
+              <img src={logoUrl} alt="ATSS Fiber" className="h-10 object-contain" />
+            ) : (
+              <div className="flex items-center">
+                <span className="text-slate-900 font-bold text-lg tracking-tight hidden sm:inline uppercase">SYNC <span className="font-black">PORTAL</span></span>
+                <span className="text-slate-900 font-bold text-lg tracking-tight sm:hidden uppercase">SYNC</span>
               </div>
-              <span className="text-slate-900 font-bold text-lg tracking-wide">ATSS FIBER <span className="font-extrabold text-slate-900">PORTAL</span></span>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        <div className="flex items-center space-x-8">
-          <nav className="hidden md:flex items-center space-x-6 text-sm font-bold">
-            <button
-              onClick={() => onNavigate?.('customer-dashboard')}
-              className="transition"
-              style={{ color: activeSection === 'customer-dashboard' || !activeSection ? (colorPalette?.primary || '#0f172a') : '#6b7280' }}
-            >
-              Dashboard
-            </button>
-            <button
-              onClick={() => onNavigate?.('customer-bills')}
-              className="transition"
-              style={{ color: activeSection === 'customer-bills' ? (colorPalette?.primary || '#0f172a') : '#6b7280' }}
-            >
-              Bills
-            </button>
-            <button
-              onClick={() => onNavigate?.('customer-support')}
-              className="transition"
-              style={{ color: activeSection === 'customer-support' ? (colorPalette?.primary || '#0f172a') : '#6b7280' }}
-            >
-              Support
-            </button>
-          </nav>
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-8">
+            <nav className="flex items-center space-x-8 text-sm font-bold">
+              <button
+                onClick={() => onNavigate?.('customer-dashboard')}
+                className="transition hover:opacity-80"
+                style={{ color: activeSection === 'customer-dashboard' || !activeSection ? (colorPalette?.primary || '#0f172a') : '#6b7280' }}
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => onNavigate?.('customer-bills')}
+                className="transition hover:opacity-80"
+                style={{ color: activeSection === 'customer-bills' ? (colorPalette?.primary || '#0f172a') : '#6b7280' }}
+              >
+                Bills
+              </button>
+              <button
+                onClick={() => onNavigate?.('customer-support')}
+                className="transition hover:opacity-80"
+                style={{ color: activeSection === 'customer-support' ? (colorPalette?.primary || '#0f172a') : '#6b7280' }}
+              >
+                Support
+              </button>
+            </nav>
 
+            <button
+              onClick={() => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('authData');
+                if (onLogout) {
+                  onLogout();
+                } else {
+                  window.location.href = '/';
+                }
+              }}
+              className="px-6 py-2 border rounded-full text-sm font-bold transition"
+              style={{
+                color: colorPalette?.primary || '#ef4444',
+                borderColor: colorPalette?.primary || '#ef4444'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = `${colorPalette?.primary || '#ef4444'}10`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              Logout
+            </button>
+          </div>
+
+          {/* Mobile Hamburger - Right Side */}
           <button
-            onClick={() => {
-              // Logout logic
-              localStorage.removeItem('token');
-              localStorage.removeItem('authData');
-              if (onLogout) {
-                onLogout();
-              } else {
-                window.location.href = '/';
-              }
-            }}
-            className="px-6 py-2 border rounded-full text-sm font-bold transition"
-            style={{
-              color: colorPalette?.primary || '#ef4444',
-              borderColor: colorPalette?.primary || '#ef4444'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = `${colorPalette?.primary || '#ef4444'}10`;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden p-1.5 text-gray-700 transition hover:bg-gray-50 active:scale-95"
           >
-            Logout
+            {isMobileMenuOpen ? <X className="w-8 h-8" /> : <Menu className="w-8 h-8" />}
           </button>
         </div>
+
+        {/* Mobile Dropdown Navigation */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden w-full bg-white animate-in slide-in-from-top duration-300 ease-out border-t overflow-hidden">
+            <nav className="flex flex-col items-center py-8 space-y-6">
+              <button
+                onClick={() => {
+                  onNavigate?.('customer-dashboard');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`text-lg transition ${activeSection === 'customer-dashboard' || !activeSection ? 'font-bold text-slate-800' : 'text-gray-600'}`}
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => {
+                  onNavigate?.('customer-bills');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`text-lg transition ${activeSection === 'customer-bills' ? 'font-bold text-slate-800' : 'text-gray-600'}`}
+              >
+                Bills
+              </button>
+              <button
+                onClick={() => {
+                  onNavigate?.('customer-support');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`text-lg transition ${activeSection === 'customer-support' ? 'font-black text-slate-900' : 'text-gray-600'}`}
+              >
+                Support
+              </button>
+
+              <div className="pt-2 w-full flex justify-center">
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('authData');
+                    if (onLogout) {
+                      onLogout();
+                    } else {
+                      window.location.href = '/';
+                    }
+                  }}
+                  className="px-14 py-2 border border-red-500 rounded-full text-red-500 text-sm font-medium hover:bg-red-50 transition active:scale-95"
+                >
+                  Logout
+                </button>
+              </div>
+            </nav>
+          </div>
+        )}
       </header>
     );
   }

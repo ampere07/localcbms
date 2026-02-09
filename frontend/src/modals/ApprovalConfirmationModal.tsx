@@ -69,18 +69,30 @@ const ApprovalConfirmationModal: React.FC<ApprovalConfirmationModalProps> = ({
           <h2 className={`text-xl font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>Confirm</h2>
 
-          <p className={`mb-8 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
             }`}>
             Are you sure you want to approve this job order?
           </p>
+
+          <div className={`mb-8 p-3 rounded-md text-sm border ${isDarkMode ? 'bg-orange-900 bg-opacity-20 border-orange-800 text-orange-200' : 'bg-orange-50 border-orange-200 text-orange-800'}`}>
+            <p className="font-semibold mb-1">One-to-One Approval Process:</p>
+            <p className="mb-2">This action is <b>one-to-one</b>. Approving this job order will create exactly one set of records in the following tables:</p>
+            <ul className="list-disc ml-5 space-y-1">
+              <li>Customers</li>
+              <li>Billing Accounts</li>
+              <li>Technical Details</li>
+              <li>Online Status</li>
+              <li>Users (Login Account)</li>
+            </ul>
+          </div>
 
           <div className="flex justify-end space-x-3">
             <button
               onClick={handleClose}
               disabled={isDisabled}
               className={`px-6 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
-                  ? 'bg-gray-700 text-white hover:bg-gray-600'
-                  : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
+                ? 'bg-gray-700 text-white hover:bg-gray-600'
+                : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
                 }`}
             >
               Cancel

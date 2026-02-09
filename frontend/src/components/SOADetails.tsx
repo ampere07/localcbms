@@ -233,7 +233,7 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Balance from Previous Bill</span>
               <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                ₱{soaRecord.balanceFromPreviousBill?.toFixed(2) || '0.00'}
+                ₱{Number(soaRecord.balanceFromPreviousBill || 0).toFixed(2)}
               </span>
             </div>
 
@@ -247,28 +247,28 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Remaining Balance from Previous Bill</span>
               <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                ₱{soaRecord.remainingBalance?.toFixed(2) || '0.00'}
+                ₱{Number(soaRecord.remainingBalance || 0).toFixed(2)}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Monthly Service Fee</span>
               <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                ₱{soaRecord.monthlyServiceFee?.toFixed(2) || '624.11'}
+                ₱{Number(soaRecord.monthlyServiceFee || 624.11).toFixed(2)}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Others and Basic Charges</span>
               <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                ₱{soaRecord.otherCharges?.toFixed(2) || '0.00'}
+                ₱{Number(soaRecord.otherCharges || 0).toFixed(2)}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>VAT</span>
               <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                ₱{soaRecord.vat?.toFixed(2) || '74.89'}
+                ₱{Number(soaRecord.vat || 74.89).toFixed(2)}
               </span>
             </div>
 
@@ -280,14 +280,14 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>AMOUNT DUE</span>
               <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                ₱{soaRecord.amountDue?.toFixed(2) || '699.00'}
+                ₱{Number(soaRecord.amountDue || 699.00).toFixed(2)}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>TOTAL AMOUNT DUE</span>
               <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                ₱{soaRecord.totalAmountDue?.toFixed(2) || '699.00'}
+                ₱{Number(soaRecord.totalAmountDue || 699.00).toFixed(2)}
               </span>
             </div>
 
