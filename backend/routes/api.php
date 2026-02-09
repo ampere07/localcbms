@@ -20,6 +20,7 @@ use App\Http\Controllers\EmergencyLocationController;
 use App\Http\Controllers\RadiusController;
 use App\Http\Controllers\RadiusConfigController;
 use App\Http\Controllers\SmsConfigController;
+use App\Http\Controllers\SMSTemplateController;
 use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\EmailQueueController;
 use App\Http\Controllers\TransactionController;
@@ -43,6 +44,9 @@ Route::get('/sms-blast', [SmsBlastController::class, 'index']);
 Route::get('/expenses-logs', [ExpensesLogController::class, 'index']);
 Route::get('/disconnection-logs', [DisconnectionLogsController::class, 'index']);
 Route::get('/reconnection-logs', [ReconnectionLogsController::class, 'index']);
+
+// SMS Template Routes
+Route::apiResource('sms-templates', SMSTemplateController::class);
 
 // Handle all OPTIONS requests
 Route::options('{any}', function() {

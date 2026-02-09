@@ -8,7 +8,7 @@ interface SMSTemplateData {
   template_name: string;
   template_type: string;
   message_content: string;
-  variables: string;
+  variables: string[] | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -43,7 +43,6 @@ const SMSTemplate: React.FC = () => {
     template_name: '',
     template_type: '',
     message_content: '',
-    variables: '',
     is_active: true
   });
 
@@ -92,15 +91,15 @@ const SMSTemplate: React.FC = () => {
       const theme = localStorage.getItem('theme');
       setIsDarkMode(theme === 'dark');
     };
-    
+
     checkDarkMode();
-    
+
     const observer = new MutationObserver(checkDarkMode);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['class']
     });
-    
+
     return () => observer.disconnect();
   }, []);
 
@@ -109,7 +108,6 @@ const SMSTemplate: React.FC = () => {
       template_name: '',
       template_type: '',
       message_content: '',
-      variables: '',
       is_active: true
     });
     setEditingId(null);
@@ -121,7 +119,6 @@ const SMSTemplate: React.FC = () => {
       template_name: '',
       template_type: '',
       message_content: '',
-      variables: '',
       is_active: true
     });
     setEditingId(null);
@@ -133,7 +130,6 @@ const SMSTemplate: React.FC = () => {
       template_name: template.template_name,
       template_type: template.template_type,
       message_content: template.message_content,
-      variables: template.variables || '',
       is_active: template.is_active
     });
     setEditingId(template.id);
@@ -143,13 +139,13 @@ const SMSTemplate: React.FC = () => {
   const handleSave = async () => {
     try {
       const variablesInMessage = formData.message_content.match(/\{\{[^}]+\}\}/g) || [];
-      const uniqueVariables = Array.from(new Set(variablesInMessage)).join(', ');
-      
+      const uniqueVariables = Array.from(new Set(variablesInMessage));
+
       const dataToSave = {
         ...formData,
         variables: uniqueVariables
       };
-      
+
       if (isCreating) {
         await apiClient.post('/sms-templates', dataToSave);
         setModal({
@@ -226,14 +222,9 @@ const SMSTemplate: React.FC = () => {
   };
 
   const templateTypes = [
-    'Payment Reminder',
-    'Overdue Notice',
-    'Disconnection Notice',
-    'Payment Confirmation',
-    'Installation Confirmation',
-    'Service Order Update',
-    'Welcome Message',
-    'Other'
+    'Overdue',
+    'DC Notice',
+    'Statement of Account'
   ];
 
   const availableVariables = [
@@ -279,7 +270,7 @@ const SMSTemplate: React.FC = () => {
           <h2 className="text-xl font-semibold mb-4">
             {isCreating ? 'Create New Template' : 'Edit Template'}
           </h2>
-          
+
           <div className="mb-4">
             <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Available Variables
@@ -290,11 +281,10 @@ const SMSTemplate: React.FC = () => {
                   key={variable}
                   type="button"
                   onClick={() => insertVariable(variable)}
-                  className={`px-3 py-1 rounded text-xs font-mono transition-colors ${
-                    isDarkMode
-                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
+                  className={`px-3 py-1 rounded text-xs font-mono transition-colors ${isDarkMode
+                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
                 >
                   {variable}
                 </button>
@@ -311,11 +301,10 @@ const SMSTemplate: React.FC = () => {
                 type="text"
                 value={formData.template_name}
                 onChange={(e) => setFormData({ ...formData, template_name: e.target.value })}
-                className={`w-full px-3 py-2 rounded border ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
+                className={`w-full px-3 py-2 rounded border ${isDarkMode
+                  ? 'bg-gray-700 border-gray-600 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
+                  }`}
                 placeholder="Enter template name"
               />
             </div>
@@ -326,11 +315,10 @@ const SMSTemplate: React.FC = () => {
               <select
                 value={formData.template_type}
                 onChange={(e) => setFormData({ ...formData, template_type: e.target.value })}
-                className={`w-full px-3 py-2 rounded border ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
+                className={`w-full px-3 py-2 rounded border ${isDarkMode
+                  ? 'bg-gray-700 border-gray-600 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
+                  }`}
               >
                 <option value="">Select type</option>
                 {templateTypes.map(type => (
@@ -343,16 +331,15 @@ const SMSTemplate: React.FC = () => {
             <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Message Content
             </label>
-            <input
-              type="text"
+            <textarea
               value={formData.message_content}
               onChange={(e) => setFormData({ ...formData, message_content: e.target.value })}
-              className={`w-full px-3 py-2 rounded border ${
-                isDarkMode 
-                  ? 'bg-gray-700 border-gray-600 text-white' 
-                  : 'bg-white border-gray-300 text-gray-900'
-              }`}
+              className={`w-full px-3 py-2 rounded border ${isDarkMode
+                ? 'bg-gray-700 border-gray-600 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
+                }`}
               placeholder="Enter message content. Click variables above to insert them."
+              rows={4}
             />
             <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               Click on the variable buttons above to insert them into your message
@@ -384,11 +371,10 @@ const SMSTemplate: React.FC = () => {
             </button>
             <button
               onClick={resetForm}
-              className={`flex items-center px-4 py-2 rounded border transition-colors ${
-                isDarkMode
-                  ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
-                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
+              className={`flex items-center px-4 py-2 rounded border transition-colors ${isDarkMode
+                ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
             >
               <X className="h-4 w-4 mr-2" />
               Cancel
@@ -408,24 +394,20 @@ const SMSTemplate: React.FC = () => {
             <table className="w-full">
               <thead className={isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}>
                 <tr>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-500'
-                  }`}>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                    }`}>
                     Template Name
                   </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-500'
-                  }`}>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                    }`}>
                     Type
                   </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-500'
-                  }`}>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                    }`}>
                     Status
                   </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-500'
-                  }`}>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-500'
+                    }`}>
                     Actions
                   </th>
                 </tr>
@@ -453,18 +435,16 @@ const SMSTemplate: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 text-xs rounded ${
-                            isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'
-                          }`}>
+                          <span className={`px-2 py-1 text-xs rounded ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'
+                            }`}>
                             {template.template_type}
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 text-xs rounded ${
-                            template.is_active 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                          }`}>
+                          <span className={`px-2 py-1 text-xs rounded ${template.is_active
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                            }`}>
                             {template.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
@@ -472,22 +452,20 @@ const SMSTemplate: React.FC = () => {
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleEdit(template)}
-                              className={`p-2 rounded transition-colors ${
-                                isDarkMode
-                                  ? 'text-blue-400 hover:bg-gray-700'
-                                  : 'text-blue-600 hover:bg-blue-50'
-                              }`}
+                              className={`p-2 rounded transition-colors ${isDarkMode
+                                ? 'text-blue-400 hover:bg-gray-700'
+                                : 'text-blue-600 hover:bg-blue-50'
+                                }`}
                               title="Edit"
                             >
                               <Edit2 className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => handleDelete(template.id)}
-                              className={`p-2 rounded transition-colors ${
-                                isDarkMode
-                                  ? 'text-red-400 hover:bg-gray-700'
-                                  : 'text-red-600 hover:bg-red-50'
-                              }`}
+                              className={`p-2 rounded transition-colors ${isDarkMode
+                                ? 'text-red-400 hover:bg-gray-700'
+                                : 'text-red-600 hover:bg-red-50'
+                                }`}
                               title="Delete"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -507,13 +485,13 @@ const SMSTemplate: React.FC = () => {
                                   {template.message_content}
                                 </p>
                               </div>
-                              {template.variables && (
+                              {template.variables && template.variables.length > 0 && (
                                 <div>
                                   <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                                     Variables:
                                   </span>
                                   <p className={`mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                                    {template.variables}
+                                    {Array.isArray(template.variables) ? template.variables.join(', ') : template.variables}
                                   </p>
                                 </div>
                               )}
@@ -540,14 +518,12 @@ const SMSTemplate: React.FC = () => {
 
       {modal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`rounded-lg p-6 max-w-md w-full mx-4 ${
-            isDarkMode ? 'bg-gray-800' : 'bg-white'
-          }`}>
-            <h3 className={`text-lg font-semibold mb-2 ${
-              modal.type === 'error' ? 'text-red-600' : 
-              modal.type === 'warning' ? 'text-yellow-600' : 
-              modal.type === 'success' ? 'text-green-600' : ''
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
             }`}>
+            <h3 className={`text-lg font-semibold mb-2 ${modal.type === 'error' ? 'text-red-600' :
+              modal.type === 'warning' ? 'text-yellow-600' :
+                modal.type === 'success' ? 'text-green-600' : ''
+              }`}>
               {modal.title}
             </h3>
             <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -558,11 +534,10 @@ const SMSTemplate: React.FC = () => {
                 <>
                   <button
                     onClick={modal.onCancel}
-                    className={`px-4 py-2 rounded border transition-colors ${
-                      isDarkMode
-                        ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
-                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
+                    className={`px-4 py-2 rounded border transition-colors ${isDarkMode
+                      ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
                   >
                     Cancel
                   </button>
