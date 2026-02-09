@@ -14,6 +14,8 @@ use App\Models\MassRebate;
 use App\Models\RebateUsage;
 use App\Models\Barangay;
 use App\Models\BillingConfig;
+use App\Models\Overdue;
+use App\Models\DCNotice;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -888,5 +890,148 @@ class EnhancedBillingGenerationServiceWithNotifications
         } catch (\Exception $e) {
             $this->log('error', 'Error tracking staggered invoice association: ' . $e->getMessage());
         }
+    }
+
+    public function generateOverdueNotices(bool $force = false, int $userId = 1): array
+    {
+        $config = [
+            'overdue_off' => 1 // Default 1 day after due date
+        ];
+        
+        $targetDue = Carbon::now()->subDays($config['overdue_off'])->format('Y-m-d');
+        $this->log('info', ">> OVERDUE GEN: Finding Invoices with Due Date = $targetDue");
+
+        $invoices = Invoice::whereDate('due_date', $targetDue)
+            ->whereIn('status', ['Unpaid', 'Partial'])
+            ->get();
+            
+        $this->log('info', ">> Found " . $invoices->count() . " potential overdue invoices.");
+
+        $cnt = 0;
+        $results = ['success' => 0, 'failed' => 0, 'errors' => []];
+
+        foreach ($invoices as $inv) {
+            if (!$force) {
+                // Check if Overdue record exists
+                $exists = Overdue::where('invoice_id', $inv->id)->exists();
+                if ($exists) {
+                    $this->log('info', "   Skipping Inv: {$inv->id} (Overdue notice already sent)");
+                    continue;
+                }
+            }
+
+            $this->log('info', "   Processing Overdue for Inv: {$inv->id} (Acct: {$inv->account_no})");
+
+            try {
+                $systemUserId = $userId; 
+
+                // Use Notification Service to Generate PDF and Send Notifications
+                $notificationResult = $this->notificationService->notifyOverdue($inv);
+                
+                if (!$notificationResult['pdf_generated']) {
+                     throw new \Exception("Failed to generate PDF: " . implode(', ', $notificationResult['errors']));
+                }
+                
+                $pdfUrl = $notificationResult['pdf_url'];
+
+                // Insert into Overdue table
+                Overdue::create([
+                    'account_no' => $inv->account_no,
+                    'invoice_id' => $inv->id, 
+                    'overdue_date' => now(),
+                    'print_link' => $pdfUrl,
+                    'created_by_user_id' => $systemUserId,
+                    'updated_by_user_id' => $systemUserId
+                ]);
+
+                $cnt++;
+                $results['success']++;
+
+            } catch (\Exception $e) {
+                $results['failed']++;
+                $results['errors'][] = "Error processing invoice {$inv->id}: " . $e->getMessage();
+                $this->log('error', "ERROR in Overdue {$inv->account_no}: " . $e->getMessage());
+            }
+        }
+
+        return $results;
+    }
+
+    public function generateDCNotices(bool $force = false, int $userId = 1): array
+    {
+        $config = [
+            'dc_note_off' => 3 // Default 3 days after due date
+        ];
+
+        $targetDue = Carbon::now()->subDays($config['dc_note_off'])->format('Y-m-d');
+        $this->log('info', ">> DC NOTICE GEN: Finding Invoices with Due Date = $targetDue");
+
+        $invoices = Invoice::whereDate('due_date', $targetDue)
+            ->whereIn('status', ['Unpaid', 'Partial'])
+            ->get();
+            
+        $this->log('info', ">> Found " . $invoices->count() . " invoices qualifying for DC Notice.");
+
+        $cnt = 0;
+        $results = ['success' => 0, 'failed' => 0, 'errors' => []];
+
+        foreach ($invoices as $inv) {
+            if (!$force) {
+                // Check if DC Notice record exists
+                $exists = DCNotice::where('invoice_id', $inv->id)->exists();
+                if ($exists) {
+                    $this->log('info', "   Skipping Inv: {$inv->id} (DC notice already sent)");
+                    continue;
+                }
+            }
+
+            $this->log('info', "   Processing DC Notice for Inv: {$inv->id}");
+
+            try {
+                $systemUserId = $userId;
+
+                // Use Notification Service
+                $notificationResult = $this->notificationService->notifyDcNotice($inv);
+
+                if (!$notificationResult['pdf_generated']) {
+                     throw new \Exception("Failed to generate PDF: " . implode(', ', $notificationResult['errors']));
+                }
+                
+                $pdfUrl = $notificationResult['pdf_url'];
+                
+                // Get Account ID from Invoice relation
+                $accountId = $inv->billingAccount ? $inv->billingAccount->id : null;
+
+                if (!$accountId) {
+                     // Try to fetch via account_no if relation failed
+                     $account = BillingAccount::where('account_no', $inv->account_no)->first();
+                     $accountId = $account ? $account->id : null;
+                }
+
+                if (!$accountId) {
+                     throw new \Exception("Billing Account not found for account_no: " . $inv->account_no);
+                }
+
+                // Insert into DC Notice table
+                DCNotice::create([
+                    'account_id' => $accountId, // Uses ID, not Account No
+                    'invoice_id' => $inv->id,
+                    'dc_notice_date' => now(),
+                    'print_link' => $pdfUrl,
+                    'created_by_user_id' => $systemUserId,
+                    'updated_by_user_id' => $systemUserId
+                ]);
+
+                $cnt++;
+                $results['success']++;
+
+            } catch (\Exception $e) {
+                $results['failed']++;
+                $results['errors'][] = "Error processing invoice {$inv->id}: " . $e->getMessage();
+                $this->log('error', "ERROR in DC Notice {$inv->account_no}: " . $e->getMessage());
+            }
+        }
+
+        return $results;
     }
 }

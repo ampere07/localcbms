@@ -147,8 +147,24 @@ class GenerateDailyBillingsCron extends Command
                 'total_accounts' => $accountsCount
             ]);
 
-            $totalSuccess = $soaResults['success'] + $invoiceResults['success'];
-            $totalFailed = $soaResults['failed'] + $invoiceResults['failed'];
+            // [NEW] Generate Overdue Notices
+            $logger->info('Starting Overdue Notice generation');
+            $overdueResults = $this->billingService->generateOverdueNotices(false, 1);
+            $logger->info('Overdue Notice generation completed', [
+                'success' => $overdueResults['success'],
+                'failed' => $overdueResults['failed']
+            ]);
+
+            // [NEW] Generate DC Notices
+            $logger->info('Starting DC Notice generation');
+            $dcResults = $this->billingService->generateDCNotices(false, 1);
+            $logger->info('DC Notice generation completed', [
+                'success' => $dcResults['success'],
+                'failed' => $dcResults['failed']
+            ]);
+
+            $totalSuccess = $soaResults['success'] + $invoiceResults['success'] + $overdueResults['success'] + $dcResults['success'];
+            $totalFailed = $soaResults['failed'] + $invoiceResults['failed'] + $overdueResults['failed'] + $dcResults['failed'];
 
             $endTime = microtime(true);
             $duration = round($endTime - $startTime, 2);
@@ -164,6 +180,10 @@ class GenerateDailyBillingsCron extends Command
                     'soa_failed' => $soaResults['failed'],
                     'invoice_success' => $invoiceResults['success'],
                     'invoice_failed' => $invoiceResults['failed'],
+                    'overdue_success' => $overdueResults['success'],
+                    'overdue_failed' => $overdueResults['failed'],
+                    'dc_notice_success' => $dcResults['success'],
+                    'dc_notice_failed' => $dcResults['failed'],
                     'total_success' => $totalSuccess,
                     'total_failed' => $totalFailed
                 ]

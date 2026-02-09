@@ -133,7 +133,7 @@ class BillingNotificationService
             if ($customer->email_address) {
                 $emailData = $this->prepareEmailData($account, $invoice, null);
                 $emailQueued = $this->emailQueueService->queueFromTemplate(
-                    'OVERDUE_DESIGN_EMAIL',
+                    'OVERDUE_DESIGN',
                     array_merge($emailData, [
                         'recipient_email' => $customer->email_address,
                         'google_drive_url' => $pdfResult['url'],
@@ -193,7 +193,7 @@ class BillingNotificationService
             if ($customer->email_address) {
                 $emailData = $this->prepareEmailData($account, $invoice, null);
                 $emailQueued = $this->emailQueueService->queueFromTemplate(
-                    'DCNOTICE_DESIGN_EMAIL',
+                    'DCNOTICE_DESIGN',
                     array_merge($emailData, [
                         'recipient_email' => $customer->email_address,
                         'google_drive_url' => $pdfResult['url'],
@@ -305,15 +305,50 @@ class BillingNotificationService
 
         $amount = $invoice ? $invoice->total_amount : $soa->total_amount_due;
         $dueDate = $invoice ? $invoice->due_date : $soa->due_date;
+        $dcDate = $dueDate->copy()->addDays(4); // Default rule
 
-        return [
+        // Common Data
+        $data = [
+            'Full_Name' => $customer->full_name,
+            'Address' => $customer->address,
+            'Contact_No' => $customer->contact_number_primary,
+            'Email' => $customer->email_address,
+            'Account_No' => $account->account_no,
+            'Plan' => $customer->desired_plan,
+            'Due_Date' => $dueDate->format('F d, Y'),
+            'DC_Date' => $dcDate->format('F d, Y'),
+            'Total_Due' => number_format($amount ?? 0, 2),
+            'Amount_Due' => number_format($amount ?? 0, 2),
+            // Legacy mapping used by some simple templates
             'account_no' => $account->account_no,
             'customer_name' => $customer->full_name,
-            'total_amount' => number_format($amount, 2),
+            'total_amount' => number_format($amount ?? 0, 2),
             'due_date' => $dueDate->format('F d, Y'),
             'plan' => $customer->desired_plan,
             'contact_no' => $customer->contact_number_primary
         ];
+
+        if ($soa) {
+            $data['SOA_No'] = $soa->statement_no ?? '';
+            $data['Statement_Date'] = $soa->statement_date ? $soa->statement_date->format('F d, Y') : '';
+            $data['Prev_Balance'] = number_format($soa->balance_from_previous_bill ?? 0, 2);
+            $data['Prev_Payment'] = number_format($soa->payment_received_previous ?? 0, 2);
+            $data['Rem_Balance'] = number_format($soa->remaining_balance_previous ?? 0, 2);
+            // SOA usually covers a billing period; simplified here as start/end might be logic-dependent
+            $data['Period_Start'] = ''; 
+            $data['Period_End'] = ''; 
+        } elseif ($invoice) {
+             // Invoice specific data
+            $data['SOA_No'] = $invoice->invoice_no ?? ''; // Or N/A
+            $data['Statement_Date'] = $invoice->invoice_date ? $invoice->invoice_date->format('F d, Y') : '';
+            $data['Prev_Balance'] = '0.00';
+            $data['Prev_Payment'] = number_format($invoice->received_payment ?? 0, 2);
+            $data['Rem_Balance'] = number_format($invoice->invoice_balance ?? 0, 2);
+            $data['Period_Start'] = '';
+            $data['Period_End'] = '';
+        }
+
+        return $data;
     }
 
     protected function buildBillingSmsMessage(
