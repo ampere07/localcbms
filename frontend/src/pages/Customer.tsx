@@ -939,7 +939,11 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       ? 'https://backend.atssfiber.ph/api'
       : 'https://backend.atssfiber.ph/api';
 
-    const generationDate = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const generationDate = `${year}-${month}-${day}`;
 
     try {
       const response = await fetch(`${API_BASE_URL}/billing-generation/force-generate-all`, {

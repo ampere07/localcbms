@@ -207,6 +207,7 @@ class EnhancedBillingGenerationServiceWithNotifications
 
     public function createEnhancedStatement(BillingAccount $account, Carbon $statementDate, int $userId): StatementOfAccount
     {
+        $statementDate = $statementDate->copy()->setTimezone('Asia/Manila');
         DB::beginTransaction();
 
         try {
@@ -264,7 +265,7 @@ class EnhancedBillingGenerationServiceWithNotifications
 
             $statement = StatementOfAccount::create([
                 'account_no' => $account->account_no,
-                'statement_date' => $statementDate,
+                'statement_date' => $statementDate->format('Y-m-d'),
                 'balance_from_previous_bill' => round($previousBalance, 2),
                 'payment_received_previous' => round($paymentReceived, 2),
                 'remaining_balance_previous' => round($remainingBalance, 2),
@@ -301,6 +302,7 @@ class EnhancedBillingGenerationServiceWithNotifications
 
     public function createEnhancedInvoice(BillingAccount $account, Carbon $invoiceDate, int $userId): Invoice
     {
+        $invoiceDate = $invoiceDate->copy()->setTimezone('Asia/Manila');
         DB::beginTransaction();
 
         try {
@@ -351,7 +353,7 @@ class EnhancedBillingGenerationServiceWithNotifications
 
             $invoice = Invoice::create([
                 'account_no' => $account->account_no,
-                'invoice_date' => $invoiceDate,
+                'invoice_date' => $invoiceDate->format('Y-m-d'),
                 'invoice_balance' => round($prorateAmount, 2),
                 'others_and_basic_charges' => round($othersBasicCharges, 2),
                 'service_charge' => round($charges['service_fees'], 2),
@@ -376,7 +378,7 @@ class EnhancedBillingGenerationServiceWithNotifications
 
             $account->update([
                 'account_balance' => round($newBalance, 2),
-                'balance_update_date' => $invoiceDate
+                'balance_update_date' => $invoiceDate->format('Y-m-d')
             ]);
             
             $this->log('info', 'Invoice created with discount applied to balance', [
@@ -498,7 +500,7 @@ class EnhancedBillingGenerationServiceWithNotifications
 
     public function generateAllBillingsForToday(int $userId): array
     {
-        $today = Carbon::now();
+        $today = Carbon::now('Asia/Manila');
         $targetBillingDays = $this->calculateTargetBillingDays($today);
         $advanceGenerationDay = $this->getAdvanceGenerationDay();
 
@@ -597,7 +599,7 @@ class EnhancedBillingGenerationServiceWithNotifications
 
     public function generateBillingsForSpecificDay(int $billingDay, int $userId): array
     {
-        $today = Carbon::now();
+        $today = Carbon::now('Asia/Manila');
 
         // Use Unified Billing
         $unifiedResults = $this->generateUnifiedBilling($billingDay, $today, $userId);
@@ -850,7 +852,7 @@ class EnhancedBillingGenerationServiceWithNotifications
 
     protected function markRebatesAsUsed(BillingAccount $account, int $userId, string $invoiceId): void
     {
-        $currentMonth = Carbon::now()->format('F');
+        $currentMonth = Carbon::now('Asia/Manila')->format('F');
         $customer = $account->customer;
         
         if (!$customer) {
@@ -961,7 +963,7 @@ class EnhancedBillingGenerationServiceWithNotifications
             'overdue_off' => 1 // Default 1 day after due date
         ];
         
-        $targetDue = Carbon::now()->subDays($config['overdue_off'])->format('Y-m-d');
+        $targetDue = Carbon::now('Asia/Manila')->subDays($config['overdue_off'])->format('Y-m-d');
         $this->log('info', ">> OVERDUE GEN: Finding Invoices with Due Date = $targetDue");
 
         $invoices = Invoice::whereDate('due_date', $targetDue)
@@ -971,7 +973,13 @@ class EnhancedBillingGenerationServiceWithNotifications
         $this->log('info', ">> Found " . $invoices->count() . " potential overdue invoices.");
 
         $cnt = 0;
-        $results = ['success' => 0, 'failed' => 0, 'errors' => []];
+        $results = [
+            'success' => 0, 
+            'failed' => 0, 
+            'errors' => [],
+            'target_due_date' => $targetDue,
+            'found_invoices' => $invoices->count()
+        ];
 
         foreach ($invoices as $inv) {
             if (!$force) {
@@ -1020,23 +1028,34 @@ class EnhancedBillingGenerationServiceWithNotifications
         return $results;
     }
 
-    public function generateDCNotices(bool $force = false, int $userId = 1): array
+    public function generateDCNotices(bool $force = false, int $userId = 1, bool $bypassDateCheck = false): array
     {
         $config = [
             'dc_note_off' => 3 // Default 3 days after due date
         ];
 
-        $targetDue = Carbon::now()->subDays($config['dc_note_off'])->format('Y-m-d');
-        $this->log('info', ">> DC NOTICE GEN: Finding Invoices with Due Date = $targetDue");
-
-        $invoices = Invoice::whereDate('due_date', $targetDue)
-            ->whereIn('status', ['Unpaid', 'Partial'])
-            ->get();
+        $targetDue = Carbon::now('Asia/Manila')->subDays($config['dc_note_off'])->format('Y-m-d');
+        $query = Invoice::whereIn('status', ['Unpaid', 'Partial']);
+        
+        if (!$bypassDateCheck) {
+            $query->whereDate('due_date', $targetDue);
+            $this->log('info', ">> DC NOTICE GEN: Finding Invoices with Due Date = $targetDue");
+        } else {
+            $this->log('info', ">> DC NOTICE GEN: Bypassing Date Check (Fetching ALL Unpaid)");
+        }
+            
+        $invoices = $query->get();
             
         $this->log('info', ">> Found " . $invoices->count() . " invoices qualifying for DC Notice.");
 
         $cnt = 0;
-        $results = ['success' => 0, 'failed' => 0, 'errors' => []];
+        $results = [
+            'success' => 0, 
+            'failed' => 0, 
+            'errors' => [],
+            'target_due_date' => $targetDue,
+            'found_invoices' => $invoices->count()
+        ];
 
         foreach ($invoices as $inv) {
             if (!$force) {
@@ -1062,24 +1081,15 @@ class EnhancedBillingGenerationServiceWithNotifications
                 
                 $pdfUrl = $notificationResult['pdf_url'];
                 
-                // Get Account ID from Invoice relation
-                $accountId = $inv->billingAccount ? $inv->billingAccount->id : null;
-
-                if (!$accountId) {
-                     // Try to fetch via account_no if relation failed
-                     $account = BillingAccount::where('account_no', $inv->account_no)->first();
-                     $accountId = $account ? $account->id : null;
-                }
-
-                if (!$accountId) {
-                     throw new \Exception("Billing Account not found for account_no: " . $inv->account_no);
+                if (!$inv->account_no) {
+                     throw new \Exception("Invoice {$inv->id} has no account_no");
                 }
 
                 // Insert into DC Notice table
                 DCNotice::create([
-                    'account_id' => $accountId, // Uses ID, not Account No
+                    'account_no' => $inv->account_no,
                     'invoice_id' => $inv->id,
-                    'dc_notice_date' => now(),
+                    'overdue_date' => now(),
                     'print_link' => $pdfUrl,
                     'created_by_user_id' => $systemUserId,
                     'updated_by_user_id' => $systemUserId
