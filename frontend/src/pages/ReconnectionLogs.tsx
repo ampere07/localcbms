@@ -26,7 +26,6 @@ interface ReconnectionLogRecord {
   username?: string;
   splynxId?: string;
   mikrotikId?: string;
-  provider?: string;
   date?: string;
   barangay?: string;
   city?: string;
@@ -80,7 +79,7 @@ const ReconnectionLogs: React.FC = () => {
 
   // Essential table columns - only show the most important ones initially
   const [visibleColumns, setVisibleColumns] = useState([
-    'date', 'accountNo', 'username', 'reconnectionFee', 'plan', 'remarks', 'splynxId', 'mikrotikId', 'provider'
+    'date', 'accountNo', 'username', 'reconnectionFee', 'plan', 'remarks', 'splynxId', 'mikrotikId'
   ]);
 
   // All available columns for the table
@@ -93,7 +92,6 @@ const ReconnectionLogs: React.FC = () => {
     { key: 'remarks', label: 'Remarks', width: 'min-w-40' },
     { key: 'splynxId', label: 'Splynx ID', width: 'min-w-32' },
     { key: 'mikrotikId', label: 'Mikrotik ID', width: 'min-w-32' },
-    { key: 'provider', label: 'Provider', width: 'min-w-28' },
     { key: 'status', label: 'Status', width: 'min-w-28' },
     { key: 'customerName', label: 'Full Name', width: 'min-w-40' },
     { key: 'address', label: 'Address', width: 'min-w-56' },
@@ -250,8 +248,6 @@ const ReconnectionLogs: React.FC = () => {
         return record.splynxId || '-';
       case 'mikrotikId':
         return record.mikrotikId || '-';
-      case 'provider':
-        return record.provider || '-';
       case 'status':
         return (
           <div className="flex items-center space-x-2">

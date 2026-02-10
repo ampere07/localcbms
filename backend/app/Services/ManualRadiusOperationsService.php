@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use Throwable;
 use Exception;
 
 class ManualRadiusOperationsService
@@ -30,7 +31,7 @@ class ManualRadiusOperationsService
             }
 
             // Determine status based on remarks
-            $status = ($remarks === "Pullout") ? "Pullout" : "Inactive";
+            $status = ($remarks === "Pullout") ? "Pullout" : "Disconnected";
             $this->writeLog("Status Set: $status");
 
             // Get RADIUS configurations
@@ -56,8 +57,9 @@ class ManualRadiusOperationsService
                 'output' => 'Success: User Disconnected'
             ];
 
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $this->writeLog("[EXCEPTION] " . $e->getMessage());
+            $this->writeLog("[TRACE] " . $e->getTraceAsString());
             $this->writeLog("=== DISCONNECT USER END ===");
             
             return [
@@ -118,8 +120,9 @@ class ManualRadiusOperationsService
                 'output' => 'Success: User Reconnected'
             ];
 
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $this->writeLog("[EXCEPTION] " . $e->getMessage());
+            $this->writeLog("[TRACE] " . $e->getTraceAsString());
             $this->writeLog("=== RECONNECT USER END ===");
             
             return [
@@ -185,8 +188,9 @@ class ManualRadiusOperationsService
                 'output' => 'Success: Credentials Updated (RADIUS updated, DB username updated)'
             ];
 
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $this->writeLog("[EXCEPTION] " . $e->getMessage());
+            $this->writeLog("[TRACE] " . $e->getTraceAsString());
             $this->writeLog("=== UPDATE CREDENTIALS END ===");
             
             return [
@@ -266,21 +270,24 @@ class ManualRadiusOperationsService
     }
 
     /**
-     * Update database credentials (username only, no password in DB)
+     * Update database credentials (username only)
      */
     private function updateDatabaseCredentials(string $accountNo, string $oldUsername, string $newUsername, string $updatedBy): void
     {
         $rowsUpdated = 0;
 
-        // Try via Account No first
+        // PPPoE Username is in technical_details table, not billing_accounts
         if (!empty($accountNo)) {
-            $rowsUpdated = DB::table('billing_accounts')
-                ->where('account_no', $accountNo)
-                ->update([
-                    'pppoe_username' => $newUsername,
-                    'updated_at' => now(),
-                    'updated_by' => $updatedBy
-                ]);
+            $billingAccount = DB::table('billing_accounts')->where('account_no', $accountNo)->first();
+            if ($billingAccount) {
+                $rowsUpdated = DB::table('technical_details')
+                    ->where('account_id', $billingAccount->id)
+                    ->update([
+                        'username' => $newUsername,
+                        'updated_at' => now(),
+                        'updated_by' => $updatedBy
+                    ]);
+            }
 
             if ($rowsUpdated > 0) {
                 $this->writeLog("[DB] Updated username via Account No: $accountNo");
@@ -288,12 +295,12 @@ class ManualRadiusOperationsService
             }
         }
 
-        // Fallback to old username
+        // Fallback to old username in technical_details
         $this->writeLog("[DB] Account No update failed/skipped. Trying old username...");
-        $rowsUpdated = DB::table('billing_accounts')
-            ->where('pppoe_username', $oldUsername)
+        $rowsUpdated = DB::table('technical_details')
+            ->where('username', $oldUsername)
             ->update([
-                'pppoe_username' => $newUsername,
+                'username' => $newUsername,
                 'updated_at' => now(),
                 'updated_by' => $updatedBy
             ]);
@@ -392,7 +399,7 @@ class ManualRadiusOperationsService
         // Get status ID from billing_status table
         $statusId = DB::table('billing_status')->where('status_name', $dbStatus)->value('id');
 
-        // If status name not found (e.g. "Inactive"), try "Disconnected" as fallback or skip
+        // If status name not found (e.g. "Inactive"), try "Disconnected" as fallback
         if (!$statusId && $dbStatus === 'Inactive') {
              $statusId = DB::table('billing_status')->where('status_name', 'Disconnected')->value('id');
         }
@@ -415,29 +422,28 @@ class ManualRadiusOperationsService
                 ]);
         }
 
-        // Fallback to username
-        if ($rowsUpdated === 0) {
-            // Note: billing_accounts typically doesn't have pppoe_username directly, 
-            // but assuming legacy schema or join handling. 
-            // To prevent crash if column missing, we should probably check or rely on accountNo which is primary.
-            // But preserving existing logic with corrected column name:
+        // Fallback to searching technical_details since billing_accounts doesn't have username
+        if ($rowsUpdated === 0 && !empty($username)) {
             try {
-                $rowsUpdated = DB::table('billing_accounts')
-                    ->where('pppoe_username', $username)
-                    ->update([
-                        'billing_status_id' => $statusId,
-                        'updated_at' => now(),
-                        'updated_by' => $updatedBy
-                    ]);
-            } catch (\Exception $e) {
-                // Ignore column missing error in fallback
+                $techDetail = DB::table('technical_details')->where('username', $username)->first();
+                if ($techDetail) {
+                    $rowsUpdated = DB::table('billing_accounts')
+                        ->where('id', $techDetail->account_id)
+                        ->update([
+                            'billing_status_id' => $statusId,
+                            'updated_at' => now(),
+                            'updated_by' => $updatedBy
+                        ]);
+                }
+            } catch (Throwable $e) {
+                $this->writeLog("[DB ERROR] Error updating status via tech details: " . $e->getMessage());
             }
         }
 
         if ($rowsUpdated > 0) {
             $this->writeLog("[DB] Status updated to: $dbStatus (ID: $statusId)");
         } else {
-            $this->writeLog("[WARNING] Database status update affected 0 rows");
+            $this->writeLog("[WARNING] Database status update affected 0 rows for Account: $accountNo, User: $username");
         }
     }
 

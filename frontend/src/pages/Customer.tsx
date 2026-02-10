@@ -327,7 +327,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
   // Memoize status tree (Status > Billing Status > Barangay)
   const statusTree = useMemo(() => {
     const tree: Record<string, { count: number, bStatuses: Record<string, { count: number, barangays: Record<string, number> }> }> = {
-      'Block': { count: 0, bStatuses: {} },
+      'Blocked': { count: 0, bStatuses: {} },
       'inactive': { count: 0, bStatuses: {} },
       'not found': { count: 0, bStatuses: {} },
       'offline': { count: 0, bStatuses: {} },
@@ -341,7 +341,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       const lowerStatus = accessStatus.toLowerCase();
       const lowerOnlineStatus = (record.onlineStatus || '').toLowerCase();
 
-      if (lowerStatus === 'blocked' || lowerStatus === 'block') bucket = 'Block';
+      if (lowerStatus === 'blocked' || lowerStatus === 'block' || lowerOnlineStatus === 'blocked' || lowerOnlineStatus === 'block') bucket = 'Blocked';
       else if (lowerStatus === 'not found' || lowerOnlineStatus === 'not found') bucket = 'not found';
       else if (lowerStatus === 'inactive') bucket = 'inactive';
       else if (lowerOnlineStatus === 'online') bucket = 'online';
@@ -428,7 +428,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
           const lowerStatus = accessStatus.toLowerCase();
           const lowerOnlineStatus = (record.onlineStatus || '').toLowerCase();
 
-          if (lowerStatus === 'blocked' || lowerStatus === 'block') recordBucket = 'Block';
+          if (lowerStatus === 'blocked' || lowerStatus === 'block' || lowerOnlineStatus === 'blocked' || lowerOnlineStatus === 'block') recordBucket = 'Blocked';
           else if (lowerStatus === 'not found' || lowerOnlineStatus === 'not found') recordBucket = 'not found';
           else if (lowerStatus === 'inactive') recordBucket = 'inactive';
           else if (lowerOnlineStatus === 'online') recordBucket = 'online';
@@ -1220,7 +1220,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
               if (lower === 'online') return { color: 'text-green-500', hex: '#22c55e', fillColor: 'bg-green-500', hollow: false };
               if (lower === 'offline') return { color: 'text-yellow-400', hex: '#facc15', hollow: true };
               if (lower === 'not found') return { color: 'text-red-600', hex: '#dc2626', fillColor: 'bg-red-600', hollow: false };
-              if (lower === 'block') return { color: 'text-orange-500', hex: '#f97316', hollow: true };
+              if (lower === 'blocked') return { color: 'text-orange-500', hex: '#f97316', hollow: true };
               if (lower === 'inactive') return { color: 'text-gray-400', hex: '#9ca3af', fillColor: 'bg-gray-400', hollow: false };
               return { color: 'text-blue-500', hex: '#3b82f6', fillColor: 'bg-blue-500', hollow: false };
             };

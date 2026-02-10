@@ -8,6 +8,8 @@ import { useSOAStore, SOARecordUI } from '../store/soaStore';
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
+import SOAFunnelFilter, { FilterValues } from '../filter/SOAFunnelFilter';
+import { Filter } from 'lucide-react';
 
 // Removed local SOARecordUI interface
 
@@ -112,6 +114,18 @@ const SOA: React.FC = () => {
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
+  const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
+  const [activeFilters, setActiveFilters] = useState<FilterValues>(() => {
+    const saved = localStorage.getItem('soaFunnelFilters');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to load filters:', err);
+      }
+    }
+    return {};
+  });
 
   const allColumns = [
     { key: 'id', label: 'ID', width: 'min-w-20' },
@@ -253,6 +267,39 @@ const SOA: React.FC = () => {
       return matchesDate && matchesSearch;
     });
 
+    // Apply funnel filters
+    if (activeFilters && Object.keys(activeFilters).length > 0) {
+      filtered = filtered.filter(record => {
+        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
+          const recordValue = (record as any)[key];
+
+          if (filter.type === 'text') {
+            if (!filter.value) return true;
+            const value = String(recordValue || '').toLowerCase();
+            return value.includes(filter.value.toLowerCase());
+          }
+
+          if (filter.type === 'number') {
+            const numValue = Number(recordValue);
+            if (isNaN(numValue)) return false;
+            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
+            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
+            return true;
+          }
+
+          if (filter.type === 'date') {
+            if (!recordValue) return false;
+            const dateValue = new Date(recordValue).getTime();
+            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
+            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
+            return true;
+          }
+
+          return true;
+        });
+      });
+    }
+
     // Sorting logic
     if (sortColumn) {
       filtered = [...filtered].sort((a, b) => {
@@ -289,7 +336,7 @@ const SOA: React.FC = () => {
     }
 
     return filtered;
-  }, [soaRecords, selectedDate, searchQuery, sortColumn, sortDirection]);
+  }, [soaRecords, selectedDate, searchQuery, sortColumn, sortDirection, activeFilters]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -303,11 +350,11 @@ const SOA: React.FC = () => {
 
   // Use totalCount for total pages if no filter/search is active
   const totalDisplayCount = useMemo(() => {
-    if (searchQuery || selectedDate !== 'All') {
+    if (searchQuery || selectedDate !== 'All' || Object.keys(activeFilters).length > 0) {
       return filteredRecords.length;
     }
     return Math.max(totalCount, soaRecords.length);
-  }, [filteredRecords.length, totalCount, soaRecords.length, searchQuery, selectedDate]);
+  }, [filteredRecords.length, totalCount, soaRecords.length, searchQuery, selectedDate, activeFilters]);
 
   const totalPages = Math.ceil(totalDisplayCount / itemsPerPage);
 
@@ -841,6 +888,15 @@ const SOA: React.FC = () => {
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`} />
               </div>
+              <button
+                onClick={() => setIsFunnelFilterOpen(true)}
+                className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                  ? 'hover:bg-gray-700 text-white'
+                  : 'hover:bg-gray-200 text-gray-900'
+                  }`}
+              >
+                <Filter className="h-5 w-5" />
+              </button>
               {userRole !== 'customer' && (
                 <div className="relative" ref={filterDropdownRef}>
                   <button
@@ -1331,6 +1387,16 @@ const SOA: React.FC = () => {
           </div>
         </div>
       )}
+      <SOAFunnelFilter
+        isOpen={isFunnelFilterOpen}
+        onClose={() => setIsFunnelFilterOpen(false)}
+        onApplyFilters={(filters) => {
+          setActiveFilters(filters);
+          localStorage.setItem('soaFunnelFilters', JSON.stringify(filters));
+          setIsFunnelFilterOpen(false);
+        }}
+        currentFilters={activeFilters}
+      />
     </div>
   );
 };

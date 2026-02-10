@@ -8,6 +8,8 @@ import { useInvoiceStore, InvoiceRecordUI } from '../store/invoiceStore';
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
+import InvoiceFunnelFilter, { FilterValues } from '../filter/InvoiceFunnelFilter';
+import { Filter } from 'lucide-react';
 
 // Removed local InvoiceRecordUI interface
 
@@ -103,9 +105,21 @@ const Invoice: React.FC = () => {
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
-  const filterDropdownRef = useRef<HTMLDivElement>(null);
-  const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
+  const startXRef = useRef<number>(0);
+  const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
+  const [activeFilters, setActiveFilters] = useState<FilterValues>(() => {
+    const saved = localStorage.getItem('invoiceFunnelFilters');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to load filters:', err);
+      }
+    }
+    return {};
+  });
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
 
   const allColumns = [
     { key: 'id', label: 'ID', width: 'min-w-20' },
@@ -264,6 +278,39 @@ const Invoice: React.FC = () => {
       return matchesDate && matchesSearch;
     });
 
+    // Apply funnel filters
+    if (activeFilters && Object.keys(activeFilters).length > 0) {
+      filtered = filtered.filter(record => {
+        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
+          const recordValue = (record as any)[key];
+
+          if (filter.type === 'text') {
+            if (!filter.value) return true;
+            const value = String(recordValue || '').toLowerCase();
+            return value.includes(filter.value.toLowerCase());
+          }
+
+          if (filter.type === 'number') {
+            const numValue = Number(recordValue);
+            if (isNaN(numValue)) return false;
+            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
+            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
+            return true;
+          }
+
+          if (filter.type === 'date') {
+            if (!recordValue) return false;
+            const dateValue = new Date(recordValue).getTime();
+            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
+            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
+            return true;
+          }
+
+          return true;
+        });
+      });
+    }
+
     // Sorting logic
     if (sortColumn) {
       filtered = [...filtered].sort((a, b) => {
@@ -298,7 +345,7 @@ const Invoice: React.FC = () => {
     }
 
     return filtered;
-  }, [invoiceRecords, selectedDate, searchQuery, sortColumn, sortDirection]);
+  }, [invoiceRecords, selectedDate, searchQuery, sortColumn, sortDirection, activeFilters]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -311,11 +358,11 @@ const Invoice: React.FC = () => {
   }, [filteredRecords, currentPage]);
 
   const totalDisplayCount = useMemo(() => {
-    if (selectedDate === 'All' && searchQuery === '') {
+    if (selectedDate === 'All' && searchQuery === '' && Object.keys(activeFilters).length === 0) {
       return totalCount;
     }
     return filteredRecords.length;
-  }, [filteredRecords.length, totalCount, selectedDate, searchQuery]);
+  }, [filteredRecords.length, totalCount, selectedDate, searchQuery, activeFilters]);
 
   const totalPages = Math.ceil(totalDisplayCount / itemsPerPage);
 
@@ -797,6 +844,15 @@ const Invoice: React.FC = () => {
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`} />
               </div>
+              <button
+                onClick={() => setIsFunnelFilterOpen(true)}
+                className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                  ? 'hover:bg-gray-700 text-white'
+                  : 'hover:bg-gray-200 text-gray-900'
+                  }`}
+              >
+                <Filter className="h-5 w-5" />
+              </button>
 
               {userRole !== 'customer' && (
                 <div className="relative" ref={filterDropdownRef}>
@@ -1279,7 +1335,17 @@ const Invoice: React.FC = () => {
           </div>
         )
       }
-    </div >
+      <InvoiceFunnelFilter
+        isOpen={isFunnelFilterOpen}
+        onClose={() => setIsFunnelFilterOpen(false)}
+        onApplyFilters={(filters) => {
+          setActiveFilters(filters);
+          localStorage.setItem('invoiceFunnelFilters', JSON.stringify(filters));
+          setIsFunnelFilterOpen(false);
+        }}
+        currentFilters={activeFilters}
+      />
+    </div>
   );
 };
 

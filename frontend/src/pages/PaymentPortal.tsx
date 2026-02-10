@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Globe, Search, ChevronDown, ChevronRight, Menu, X, FileText } from 'lucide-react';
+import { Globe, Search, ChevronDown, ChevronRight, Menu, X, FileText, Filter } from 'lucide-react';
 import PaymentPortalDetails from '../components/PaymentPortalDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { usePaymentPortalStore } from '../store/paymentPortalStore';
@@ -10,6 +10,7 @@ import { getCities, City } from '../services/cityService';
 import { getRegions, Region } from '../services/regionService';
 import { barangayService, Barangay } from '../services/barangayService';
 import { BillingDetailRecord } from '../types/billing';
+import PaymentPortalFunnelFilter, { FilterValues } from '../filter/PaymentPortalFunnelFilter';
 
 // Interfaces for payment portal data (PaymentPortalRecord is imported now)
 // Removed local PaymentPortalRecord interface
@@ -87,6 +88,18 @@ const PaymentPortal: React.FC = () => {
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
+  const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
+  const [activeFilters, setActiveFilters] = useState<FilterValues>(() => {
+    const saved = localStorage.getItem('paymentPortalFunnelFilters');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to load filters:', err);
+      }
+    }
+    return {};
+  });
 
   const [cities, setCities] = useState<City[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
@@ -238,7 +251,7 @@ const PaymentPortal: React.FC = () => {
 
   // Filter records based on location and search query
   const filteredRecords = useMemo(() => {
-    return records.filter(record => {
+    let filtered = records.filter(record => {
       let matchesLocation = selectedLocation === 'all';
 
       if (!matchesLocation) {
@@ -264,7 +277,42 @@ const PaymentPortal: React.FC = () => {
 
       return matchesLocation && matchesSearch;
     });
-  }, [records, selectedLocation, searchQuery, cities, regions]);
+
+    // Apply funnel filters
+    if (activeFilters && Object.keys(activeFilters).length > 0) {
+      filtered = filtered.filter((record: any) => {
+        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
+          const recordValue = (record as any)[key];
+
+          if (filter.type === 'text') {
+            if (!filter.value) return true;
+            const value = String(recordValue || '').toLowerCase();
+            return value.includes(filter.value.toLowerCase());
+          }
+
+          if (filter.type === 'number') {
+            const numValue = Number(recordValue);
+            if (isNaN(numValue)) return false;
+            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
+            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
+            return true;
+          }
+
+          if (filter.type === 'date') {
+            if (!recordValue) return false;
+            const dateValue = new Date(recordValue).getTime();
+            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
+            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
+            return true;
+          }
+
+          return true;
+        });
+      });
+    }
+
+    return filtered;
+  }, [records, selectedLocation, searchQuery, cities, regions, activeFilters]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -278,11 +326,11 @@ const PaymentPortal: React.FC = () => {
 
   // Use totalCount for total pages if no filter/search is active
   const totalDisplayCount = useMemo(() => {
-    if (searchQuery || selectedLocation !== 'all') {
+    if (searchQuery || selectedLocation !== 'all' || Object.keys(activeFilters).length > 0) {
       return filteredRecords.length;
     }
     return Math.max(totalCount, records.length);
-  }, [filteredRecords.length, totalCount, records.length, searchQuery, selectedLocation]);
+  }, [filteredRecords.length, totalCount, records.length, searchQuery, selectedLocation, activeFilters]);
 
   const totalPages = Math.ceil(totalDisplayCount / itemsPerPage);
 
@@ -574,12 +622,14 @@ const PaymentPortal: React.FC = () => {
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`} />
               </div>
-              <button className={`px-4 py-2 rounded flex items-center ${isDarkMode
-                ? 'bg-gray-800 text-white border border-gray-700'
-                : 'bg-gray-200 text-gray-900 border border-gray-300'
-                }`}>
-                <span className="mr-2">Filter</span>
-                <ChevronDown className="h-4 w-4" />
+              <button
+                onClick={() => setIsFunnelFilterOpen(true)}
+                className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                  ? 'hover:bg-gray-700 text-white'
+                  : 'hover:bg-gray-200 text-gray-900 border border-gray-300'
+                  }`}
+              >
+                <Filter className="h-5 w-5" />
               </button>
             </div>
           </div>
@@ -909,6 +959,16 @@ const PaymentPortal: React.FC = () => {
           ) : null}
         </div>
       )}
+      <PaymentPortalFunnelFilter
+        isOpen={isFunnelFilterOpen}
+        onClose={() => setIsFunnelFilterOpen(false)}
+        onApplyFilters={(filters) => {
+          setActiveFilters(filters);
+          localStorage.setItem('paymentPortalFunnelFilters', JSON.stringify(filters));
+          setIsFunnelFilterOpen(false);
+        }}
+        currentFilters={activeFilters}
+      />
     </div>
   );
 };

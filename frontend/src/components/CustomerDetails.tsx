@@ -330,69 +330,69 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     localStorage.setItem(FIELD_ORDER_KEY, JSON.stringify(fieldOrder));
   }, [fieldOrder]);
 
+  const fetchRelatedData = async () => {
+    if (!billingRecord.applicationId) {
+      console.log('❌ No applicationId found in billingRecord');
+      return;
+    }
+
+    const accountNo = billingRecord.applicationId;
+    console.log('🔍 Fetching related data for account:', accountNo);
+
+    // Fetch all related data
+    const fetchPromises = [
+      { key: 'invoices', fn: relatedDataService.getRelatedInvoices },
+      { key: 'statementOfAccounts', fn: relatedDataService.getRelatedStatementOfAccounts },
+      { key: 'paymentPortalLogs', fn: relatedDataService.getRelatedPaymentPortalLogs },
+      { key: 'transactions', fn: relatedDataService.getRelatedTransactions },
+      { key: 'staggered', fn: relatedDataService.getRelatedStaggered },
+      { key: 'discounts', fn: relatedDataService.getRelatedDiscounts },
+      { key: 'serviceOrders', fn: relatedDataService.getRelatedServiceOrders },
+      { key: 'reconnectionLogs', fn: relatedDataService.getRelatedReconnectionLogs },
+      { key: 'disconnectedLogs', fn: relatedDataService.getRelatedDisconnectedLogs },
+      { key: 'detailsUpdateLogs', fn: relatedDataService.getRelatedDetailsUpdateLogs },
+      { key: 'planChangeLogs', fn: relatedDataService.getRelatedPlanChangeLogs },
+      { key: 'serviceChargeLogs', fn: relatedDataService.getRelatedServiceChargeLogs },
+      { key: 'changeDueLogs', fn: relatedDataService.getRelatedChangeDueLogs },
+      { key: 'securityDeposits', fn: relatedDataService.getRelatedSecurityDeposits }
+    ];
+
+    const results = await Promise.all(
+      fetchPromises.map(async ({ key, fn }) => {
+        try {
+          console.log(`⏳ Fetching ${key}...`);
+          const result = await fn(accountNo);
+          console.log(`✅ ${key} fetched:`, { count: result.count || 0, hasData: (result.data || []).length > 0 });
+          return { key, data: result.data || [], count: result.count || 0 };
+        } catch (error) {
+          console.error(`❌ Error fetching ${key}:`, error);
+          return { key, data: [], count: 0 };
+        }
+      })
+    );
+
+    const newRelatedData: Record<string, any[]> = {};
+    const newFullRelatedData: Record<string, any[]> = {};
+    const newCounts: Record<string, number> = {};
+
+    results.forEach(({ key, data, count }) => {
+      // Store full data for modal view
+      newFullRelatedData[key] = data;
+      // Limit to 5 latest items for dropdown display
+      newRelatedData[key] = data.slice(0, 5);
+      newCounts[key] = count;
+    });
+
+    console.log('📦 Setting related data:', newCounts);
+    console.log('📦 Data details:', newRelatedData);
+
+    setRelatedData(newRelatedData);
+    setFullRelatedData(newFullRelatedData);
+    setRelatedDataCounts(newCounts);
+  };
+
   // Fetch related data when account number changes
   useEffect(() => {
-    const fetchRelatedData = async () => {
-      if (!billingRecord.applicationId) {
-        console.log('❌ No applicationId found in billingRecord');
-        return;
-      }
-
-      const accountNo = billingRecord.applicationId;
-      console.log('🔍 Fetching related data for account:', accountNo);
-
-      // Fetch all related data
-      const fetchPromises = [
-        { key: 'invoices', fn: relatedDataService.getRelatedInvoices },
-        { key: 'statementOfAccounts', fn: relatedDataService.getRelatedStatementOfAccounts },
-        { key: 'paymentPortalLogs', fn: relatedDataService.getRelatedPaymentPortalLogs },
-        { key: 'transactions', fn: relatedDataService.getRelatedTransactions },
-        { key: 'staggered', fn: relatedDataService.getRelatedStaggered },
-        { key: 'discounts', fn: relatedDataService.getRelatedDiscounts },
-        { key: 'serviceOrders', fn: relatedDataService.getRelatedServiceOrders },
-        { key: 'reconnectionLogs', fn: relatedDataService.getRelatedReconnectionLogs },
-        { key: 'disconnectedLogs', fn: relatedDataService.getRelatedDisconnectedLogs },
-        { key: 'detailsUpdateLogs', fn: relatedDataService.getRelatedDetailsUpdateLogs },
-        { key: 'planChangeLogs', fn: relatedDataService.getRelatedPlanChangeLogs },
-        { key: 'serviceChargeLogs', fn: relatedDataService.getRelatedServiceChargeLogs },
-        { key: 'changeDueLogs', fn: relatedDataService.getRelatedChangeDueLogs },
-        { key: 'securityDeposits', fn: relatedDataService.getRelatedSecurityDeposits }
-      ];
-
-      const results = await Promise.all(
-        fetchPromises.map(async ({ key, fn }) => {
-          try {
-            console.log(`⏳ Fetching ${key}...`);
-            const result = await fn(accountNo);
-            console.log(`✅ ${key} fetched:`, { count: result.count || 0, hasData: (result.data || []).length > 0 });
-            return { key, data: result.data || [], count: result.count || 0 };
-          } catch (error) {
-            console.error(`❌ Error fetching ${key}:`, error);
-            return { key, data: [], count: 0 };
-          }
-        })
-      );
-
-      const newRelatedData: Record<string, any[]> = {};
-      const newFullRelatedData: Record<string, any[]> = {};
-      const newCounts: Record<string, number> = {};
-
-      results.forEach(({ key, data, count }) => {
-        // Store full data for modal view
-        newFullRelatedData[key] = data;
-        // Limit to 5 latest items for dropdown display
-        newRelatedData[key] = data.slice(0, 5);
-        newCounts[key] = count;
-      });
-
-      console.log('📦 Setting related data:', newCounts);
-      console.log('📦 Data details:', newRelatedData);
-
-      setRelatedData(newRelatedData);
-      setFullRelatedData(newFullRelatedData);
-      setRelatedDataCounts(newCounts);
-    };
-
     fetchRelatedData();
   }, [billingRecord.applicationId]);
 
@@ -911,9 +911,15 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     setShowTransactModal(false);
   };
 
-  const handleTransactionFormSave = (formData: any) => {
+  const handleTransactionFormSave = async (formData: any) => {
     console.log('Transaction form saved:', formData);
     setShowTransactionFormModal(false);
+
+    // Auto-refresh the customer data and related data
+    if (onRefresh) {
+      await onRefresh();
+    }
+    await fetchRelatedData();
   };
 
   const handleTransactionFormClose = () => {
@@ -924,9 +930,13 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     setShowStaggeredInstallationModal(true);
   };
 
-  const handleStaggeredInstallationFormSave = (formData: any) => {
+  const handleStaggeredInstallationFormSave = async (formData: any) => {
     console.log('Staggered installation form saved:', formData);
     setShowStaggeredInstallationModal(false);
+    if (onRefresh) {
+      await onRefresh();
+    }
+    await fetchRelatedData();
   };
 
   const handleStaggeredInstallationFormClose = () => {
@@ -937,9 +947,13 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     setShowDiscountModal(true);
   };
 
-  const handleDiscountFormSave = (formData: any) => {
+  const handleDiscountFormSave = async (formData: any) => {
     console.log('Discount form saved:', formData);
     setShowDiscountModal(false);
+    if (onRefresh) {
+      await onRefresh();
+    }
+    await fetchRelatedData();
   };
 
   const handleDiscountFormClose = () => {
@@ -959,9 +973,13 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     setShowSORequestConfirmModal(false);
   };
 
-  const handleSORequestFormSave = () => {
+  const handleSORequestFormSave = async () => {
     console.log('SO Request saved for:', billingRecord.applicationId);
     setShowSORequestFormModal(false);
+    if (onRefresh) {
+      await onRefresh();
+    }
+    await fetchRelatedData();
   };
 
   const handleSORequestFormClose = () => {

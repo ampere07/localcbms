@@ -9,6 +9,7 @@ use App\Models\BillingConfig;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Throwable;
 use Exception;
 
 class AutoDisconnectService
@@ -105,7 +106,7 @@ class AutoDisconnectService
                     
                     if ($result['success']) {
                         $processedCount++;
-                        $this->writeLog("[{$counter}/{$totalCount}] ✓ SUCCESS");
+                        $this->writeLog("[{$counter}/{$totalCount}] ✓ SUCCESS - Transaction Committed");
                     } else {
                         $skippedCount++;
                         $this->writeLog("[{$counter}/{$totalCount}] ⊘ SKIPPED: {$result['reason']}");
@@ -113,8 +114,8 @@ class AutoDisconnectService
                             $errors[] = "Account {$invoice->account_no}: {$result['reason']}";
                         }
                     }
-                } catch (Exception $e) {
-                    $this->writeLog("[{$counter}/{$totalCount}] ✗ ERROR: " . $e->getMessage());
+                } catch (Throwable $e) {
+                    $this->writeLog("[{$counter}/{$totalCount}] ✗ FATAL ERROR in loop: " . $e->getMessage());
                     $this->writeLog("[TRACE] " . $e->getTraceAsString());
                     $errors[] = "Account {$invoice->account_no}: " . $e->getMessage();
                     $skippedCount++;
@@ -153,7 +154,7 @@ class AutoDisconnectService
                 'duration' => $duration
             ];
 
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $endTime = Carbon::now();
             $duration = $endTime->diffInSeconds($startTime);
             
@@ -239,16 +240,20 @@ class AutoDisconnectService
                 $this->writeLog("  [FEE] Applying disconnection fee: ₱" . number_format($dcFee, 2));
 
                 // Update invoice
-                // Ensure we handle null values correctly
+                // Use DB::table to ensure it's part of the raw transaction and avoid model events
                 $currentServiceCharge = floatval($invoice->service_charge ?? 0);
                 $currentTotalAmount = floatval($invoice->total_amount ?? 0);
                 $currentInvoiceBalance = floatval($invoice->invoice_balance ?? 0);
 
-                $invoice->service_charge = $currentServiceCharge + $dcFee;
-                $invoice->total_amount = $currentTotalAmount + $dcFee;
-                $invoice->invoice_balance = $currentInvoiceBalance + $dcFee;
-                $invoice->updated_by = 'System';
-                $invoice->save();
+                DB::table('invoices')
+                    ->where('id', $invoice->id)
+                    ->update([
+                        'service_charge' => $currentServiceCharge + $dcFee,
+                        'total_amount' => $currentTotalAmount + $dcFee,
+                        'invoice_balance' => $currentInvoiceBalance + $dcFee,
+                        'updated_by' => 'System',
+                        'updated_at' => Carbon::now()
+                    ]);
 
                 // Update account balance
                 $newBalance = $currentBalance + $dcFee;
@@ -262,7 +267,7 @@ class AutoDisconnectService
                         'updated_at' => Carbon::now()
                     ]);
                 
-                // Update the local instance for logging
+                // Update the local instance for logging & SMS
                 $billingAccount->account_balance = $newBalance;
 
                 $this->writeLog("  [FEE] New Balance: ₱" . number_format($newBalance, 2));
@@ -299,7 +304,6 @@ class AutoDisconnectService
             $this->writeLog("  [RADIUS] ✓ Successfully disconnected");
 
             // Update billing account status to Disconnected (4)
-            // Explicit update via DB builder to avoid model issues and ensure it sets ID 4
             DB::table('billing_accounts')
                 ->where('id', $billingAccount->id)
                 ->update([
@@ -309,7 +313,6 @@ class AutoDisconnectService
                 ]);
 
             // Log disconnection
-            // Make sure we have the customer for the log if needed (though we only insert IDs/remarks now)
             DB::table('disconnected_logs')->insert([
                 'account_id' => $billingAccount->id,
                 'username' => $username,
@@ -319,23 +322,27 @@ class AutoDisconnectService
             ]);
             $this->writeLog("  [LOG] Recorded in disconnected_logs and status updated to 4");
 
-            // Send SMS notification if service is available
+            // Send SMS notification
             if ($this->smsService && $billingAccount->customer && $billingAccount->customer->contact_number_primary) {
-                $this->writeLog("  [SMS] Sending notification to {$billingAccount->customer->contact_number_primary}");
-                $this->triggerSMS($accountNo, 'dcTxt', [
-                    'name' => $billingAccount->customer->full_name,
-                    'balance' => number_format($billingAccount->account_balance, 2)
-                ]);
+                $this->writeLog("  [SMS] Attempting to trigger triggerSMS function...");
+                $this->triggerSMS($billingAccount, 'dcTxt');
+                $this->writeLog("  [SMS] triggerSMS function finished.");
+            } else {
+                $this->writeLog("  [SMS] Skipping SMS (Service null or no primary contact)");
             }
 
+            $this->writeLog("  [DB] STARTING DB COMMIT for Account {$accountNo}...");
             DB::commit();
+            $this->writeLog("  [DB] ✓ COMMIT SUCCESSFUL");
+            
             $this->writeLog("  [COMPLETE] Account {$accountNo} successfully disconnected");
 
             return ['success' => true];
 
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             DB::rollBack();
-            $this->writeLog("  [ERROR] Transaction rolled back: " . $e->getMessage());
+            $this->writeLog("  [ERROR] Transaction rolled back for Account {$accountNo}: " . $e->getMessage());
+            $this->writeLog("  [TRACE] " . $e->getTraceAsString());
             throw $e;
         }
     }
@@ -547,37 +554,39 @@ class AutoDisconnectService
     /**
      * Trigger SMS notification
      */
-    private function triggerSMS(string $accountNo, string $type, array $data): void
+    private function triggerSMS(BillingAccount $billingAccount, string $type): void
     {
+        $this->writeLog("    [DEBUG] triggerSMS: Starting for Account {$billingAccount->account_no}");
         try {
             if (!$this->smsService) {
-                return;
-            }
-
-            $billingAccount = BillingAccount::with('customer')
-                ->where('account_no', $accountNo)
-                ->first();
-
-            if (!$billingAccount || !$billingAccount->customer) {
+                $this->writeLog("    [DEBUG] triggerSMS: smsService is null");
                 return;
             }
 
             $customer = $billingAccount->customer;
-            $contactNumber = $customer->contact_number_primary;
-
-            if (empty($contactNumber)) {
+            if (!$customer || empty($customer->contact_number_primary)) {
+                $this->writeLog("    [DEBUG] triggerSMS: Customer or primary contact missing");
                 return;
             }
+            $this->writeLog("    [DEBUG] triggerSMS: Target number: {$customer->contact_number_primary}");
 
-            $message = $this->buildSmsMessage($type, $customer->full_name, $accountNo, $data);
+            $message = $this->buildSmsMessage(
+                $type, 
+                $customer->full_name, 
+                $billingAccount->account_no, 
+                ['balance' => number_format($billingAccount->account_balance, 2)]
+            );
+            $this->writeLog("    [DEBUG] triggerSMS: Message built: " . (empty($message) ? 'EMPTY' : 'OK'));
 
             if (!empty($message)) {
-                $this->smsService->sendSms($contactNumber, $message);
-                $this->writeLog("SMS triggered for $accountNo");
+                $this->writeLog("    [DEBUG] triggerSMS: Calling sendSms...");
+                $this->smsService->sendSms($customer->contact_number_primary, $message);
+                $this->writeLog("    [DEBUG] triggerSMS: sendSms call completed");
             }
 
-        } catch (Exception $e) {
-            $this->writeLog("SMS Error: " . $e->getMessage());
+        } catch (Throwable $e) {
+            $this->writeLog("    [DEBUG] triggerSMS Error: " . $e->getMessage());
+            $this->writeLog("    [DEBUG] triggerSMS Error Trace: " . $e->getTraceAsString());
             // Don't throw - SMS failure shouldn't stop the process
         }
     }

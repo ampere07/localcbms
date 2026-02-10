@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, ChevronDown, Minus, Plus, Camera } from 'lucide-react';
 import { transactionService } from '../services/transactionService';
-import { planService, Plan } from '../services/planService';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { userService } from '../services/userService';
@@ -39,7 +38,6 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-  const [plans, setPlans] = useState<Plan[]>([]);
   const [processors, setProcessors] = useState<User[]>([]);
 
   const getCurrentDateTime = () => {
@@ -54,7 +52,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     plan: billingRecord?.plan || '',
     accountBalance: billingRecord?.accountBalance?.toString() || '0.00',
     paymentDate: getCurrentDateTime(),
-    receivedPayment: '0.00',
+    receivedPayment: '',
     processedBy: '',
     paymentMethod: '',
     referenceNo: '',
@@ -101,11 +99,6 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   }, []);
 
   useEffect(() => {
-    const fetchPlans = async () => {
-      const fetchedPlans = await planService.getAllPlans();
-      setPlans(fetchedPlans);
-    };
-
     const fetchProcessors = async () => {
       try {
         const response = await userService.getUsersByRoleId(1);
@@ -118,7 +111,6 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     };
 
     if (isOpen) {
-      fetchPlans();
       fetchProcessors();
     }
   }, [isOpen]);
@@ -462,24 +454,13 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
               }`}>
               Plan<span className="text-red-500">*</span>
             </label>
-            <div className="relative">
-              <select
-                value={formData.plan}
-                onChange={(e) => handleInputChange('plan', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${errors.plan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}
-              >
-                <option value="">Select Plan</option>
-                {plans.map((plan) => (
-                  <option key={plan.id} value={`${plan.name} - P${plan.price || 0}`}>
-                    {plan.name} - P{plan.price || 0}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
-            </div>
-            {errors.plan && <p className="text-red-500 text-xs mt-1">{errors.plan}</p>}
+            <input
+              type="text"
+              value={formData.plan}
+              readOnly
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed opacity-75 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-100 border-gray-300 text-gray-600'
+                }`}
+            />
           </div>
 
           {/* Account Balance */}
