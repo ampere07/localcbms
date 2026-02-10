@@ -344,89 +344,81 @@ class PaymentWorkerService
      * Attempt to reconnect user account
      * Enhanced version: Checks session_status from online_status table
      */
+    /**
+     * Attempt to reconnect user account
+     * Matches logic in TransactionController::approve
+     */
     private function attemptReconnect($account)
     {
         try {
-            $accountNo = $account->account_no;
+            // Reload billing account to get latest balance and status
+            $billingAccount = DB::table('billing_accounts')->where('id', $account->account_id)->first();
+            $accountNo = $billingAccount->account_no;
+            
             $this->workerLog("[RECONNECT CHECK] Starting for account: {$accountNo}");
             
-            // Step 1: Get account details with PPPoE username and plan
-            $accountDetails = DB::table('billing_accounts')
-                ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
-                ->where('billing_accounts.account_no', $accountNo)
-                ->select(
-                    'billing_accounts.id as account_id',
-                    'billing_accounts.account_no',
-                    'billing_accounts.pppoe_username',
-                    'billing_accounts.account_balance',
-                    'customers.desired_plan'
-                )
-                ->first();
-
-            if (!$accountDetails) {
-                $this->workerLog("[RECONNECT SKIP] Account not found: {$accountNo}");
-                return 'account_not_found';
+            // Step 1: Check if balance qualifies (0 or negative)
+            $balance = floatval($billingAccount->account_balance ?? 0);
+            if ($balance > 0) {
+                $this->workerLog("[RECONNECT SKIP] Balance is positive: ₱{$balance}");
+                return 'balance_positive';
             }
 
-            $username = $accountDetails->pppoe_username;
-            if (!$username) {
-                $this->workerLog("[RECONNECT SKIP] No PPPoE username found for account: {$accountNo}");
+            // Step 2: Check if billing status is NOT 1 (Active)
+            if ($billingAccount->billing_status_id == 1) {
+                $this->workerLog("[RECONNECT SKIP] Account is already Active (Status ID: 1)");
+                return 'status_already_active';
+            }
+
+            // Step 3: Get account details with PPPoE username and plan
+            $accountDetails = DB::table('billing_accounts')
+                ->leftJoin('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                ->leftJoin('technical_details', 'billing_accounts.id', '=', 'technical_details.account_id')
+                ->where('billing_accounts.id', $billingAccount->id)
+                ->select('technical_details.username as pppoe_username', 'customers.desired_plan')
+                ->first();
+
+            $username = $accountDetails->pppoe_username ?? null;
+            $plan = $accountDetails->desired_plan ?? null;
+
+            if (empty($username)) {
+                $this->workerLog("[RECONNECT SKIP] No PPPoE username found in technical_details for account: {$accountNo}");
                 return 'no_username';
             }
 
-            // Step 2: Check session_status from online_status table
-            $onlineStatus = DB::table('online_status')
-                ->where('account_id', $accountDetails->account_id)
-                ->orWhere('username', $username)
-                ->select('session_status', 'username')
-                ->first();
-
-            if (!$onlineStatus) {
-                $this->workerLog("[RECONNECT SKIP] No online_status record found for account: {$accountNo} (username: {$username})");
-                return 'no_online_status';
+            if (empty($plan)) {
+                $this->workerLog("[RECONNECT SKIP] No plan found for account: {$accountNo}");
+                return 'no_plan';
             }
 
-            $sessionStatus = strtolower($onlineStatus->session_status ?? '');
-            $this->workerLog("[SESSION STATUS] Account: {$accountNo}, Username: {$username}, Status: {$sessionStatus}");
+            $this->workerLog("[RECONNECT PROCEED] Conditions met - Status not Active, Balance: ₱{$balance}");
 
-            // Step 3: Only proceed if session_status is 'inactive' or 'blocked'
-            if (!in_array($sessionStatus, ['inactive', 'blocked'])) {
-                $this->workerLog("[RECONNECT SKIP] Session status is '{$sessionStatus}' (not inactive/blocked). No reconnection needed.");
-                return 'status_not_disconnected';
-            }
-
-            // Step 4: Verify account_balance is 0 or negative
-            $balance = floatval($accountDetails->account_balance);
-            if ($balance > 0) {
-                $this->workerLog("[RECONNECT SKIP] Account still has positive balance: ₱{$balance}");
-                return 'balance_remaining';
-            }
-
-            $this->workerLog("[RECONNECT PROCEED] Conditions met - Session: {$sessionStatus}, Balance: ₱{$balance}");
+            // Step 4: Update billing_status_id to 1 (Active) BEFORE calling reconnectUser
+            DB::table('billing_accounts')
+                ->where('id', $billingAccount->id)
+                ->update([
+                    'billing_status_id' => 1,
+                    'updated_at' => now(),
+                    'updated_by' => 'Payment Worker'
+                ]);
+            
+            $this->workerLog("[RECONNECT DB] Updated billing_status_id to 1 for Account: {$accountNo}");
 
             // Step 5: Prepare parameters for ManualRadiusOperationsService
             $params = [
                 'accountNumber' => $accountNo,
                 'username' => $username,
-                'plan' => $accountDetails->desired_plan ?? '',
+                'plan' => $plan,
                 'updatedBy' => 'Payment Worker Auto-Reconnect'
             ];
 
             // Step 6: Call ManualRadiusOperationsService reconnectUser
+            // This will Update Radius Group & Kill Session
             $this->workerLog("[RECONNECT EXECUTE] Calling ManualRadiusOperationsService for {$username}");
             $result = $this->manualRadiusService->reconnectUser($params);
             
             if ($result['status'] === 'success') {
-                // Step 7: Update billing_status_id to 5 (Active status)
-                DB::table('billing_accounts')
-                    ->where('account_no', $accountNo)
-                    ->update([
-                        'billing_status_id' => 1,
-                        'updated_at' => now(),
-                        'updated_by' => 'Payment Worker'
-                    ]);
-                
-                $this->workerLog("[RECONNECT SUCCESS] {$result['message']} - billing_status_id updated to 5");
+                $this->workerLog("[RECONNECT SUCCESS] Reconnection and Session Kill completed successfully");
                 return 'success';
             } else {
                 $this->workerLog("[RECONNECT FAILED] {$result['message']}");

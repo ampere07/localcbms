@@ -106,7 +106,7 @@ class ManualRadiusOperationsService
                 $username,
                 $cleanPlan,
                 'Active',
-                false, // isDisconnectAction
+                true, // isDisconnectAction
                 $accountNo,
                 $updatedBy
             );

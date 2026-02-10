@@ -642,12 +642,15 @@ class TransactionController extends Controller
 
     /**
      * Attempt to reconnect user account after transaction approval
-     * Only reconnects if session_status is 'inactive' or 'blocked' and balance is 0 or negative
+     * Only reconnects if billing_status_id is not 1 (Active) and balance is 0 or negative
      */
     private function attemptReconnectionAfterApproval($billingAccount): string
     {
         try {
+            // Reload billing account to get latest balance and status
+            $billingAccount = BillingAccount::find($billingAccount->id);
             $accountNo = $billingAccount->account_no;
+            
             \Log::info('[TRANSACTION RECONNECT] Starting check for account: ' . $accountNo);
 
             // Step 1: Check if balance qualifies (0 or negative)
@@ -657,61 +660,46 @@ class TransactionController extends Controller
                 return 'balance_positive';
             }
 
-            // Step 2: Get account details with PPPoE username and plan
-            $accountDetails = DB::table('billing_accounts')
-                ->leftJoin('customers', 'billing_accounts.customer_id', '=', 'customers.id')
-                ->where('billing_accounts.account_no', $accountNo)
-                ->select(
-                    'billing_accounts.id as account_id',
-                    'billing_accounts.account_no',
-                    'billing_accounts.pppoe_username',
-                    'billing_accounts.account_balance',
-                    'customers.desired_plan'
-                )
-                ->first();
-
-            if (!$accountDetails) {
-                \Log::info('[TRANSACTION RECONNECT SKIP] Account details not found: ' . $accountNo);
-                return 'account_not_found';
+            // Step 2: Check if billing status is NOT 1 (Active)
+            if ($billingAccount->billing_status_id == 1) {
+                \Log::info('[TRANSACTION RECONNECT SKIP] Account is already Active (Status ID: 1)');
+                return 'already_active';
             }
 
-            $username = $accountDetails->pppoe_username;
-            if (!$username) {
-                \Log::info('[TRANSACTION RECONNECT SKIP] No PPPoE username for account: ' . $accountNo);
+            // Step 3: Get account details (PPPoE Username and Plan)
+            // Join with technical_details for username, and customers for plan
+            $accountInfo = DB::table('billing_accounts')
+                ->leftJoin('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                ->leftJoin('technical_details', 'billing_accounts.id', '=', 'technical_details.account_id')
+                ->where('billing_accounts.id', $billingAccount->id)
+                ->select('technical_details.username as pppoe_username', 'customers.desired_plan')
+                ->first();
+
+            $username = $accountInfo->pppoe_username ?? null;
+            $plan = $accountInfo->desired_plan ?? null;
+
+            if (empty($username)) {
+                \Log::info('[TRANSACTION RECONNECT SKIP] No PPPoE username found in technical_details');
                 return 'no_username';
             }
 
-            // Step 3: Check online_status for session_status
-            $onlineStatus = DB::table('online_status')
-                ->where('account_id', $accountDetails->account_id)
-                ->orWhere('username', $username)
-                ->select('session_status', 'username')
-                ->first();
-
-            if (!$onlineStatus) {
-                \Log::info('[TRANSACTION RECONNECT SKIP] No online_status record for account: ' . $accountNo);
-                return 'no_online_status';
-            }
-
-            $sessionStatus = strtolower($onlineStatus->session_status ?? '');
-            \Log::info('[TRANSACTION RECONNECT] Session status: ' . $sessionStatus . ' for account: ' . $accountNo);
-
-            // Step 4: Check if session_status is 'inactive' or 'blocked'
-            if (!in_array($sessionStatus, ['inactive', 'blocked'])) {
-                \Log::info('[TRANSACTION RECONNECT SKIP] Session status is \'' . $sessionStatus . '\' (not inactive/blocked)');
-                return 'session_active';
-            }
-
-            \Log::info('[TRANSACTION RECONNECT PROCEED] Conditions met - Session: ' . $sessionStatus . ', Balance: ₱' . $balance);
-
-            // Step 5: Get plan information
-            $plan = $accountDetails->desired_plan ?? '';
             if (empty($plan)) {
-                \Log::info('[TRANSACTION RECONNECT SKIP] No plan found for account: ' . $accountNo);
+                \Log::info('[TRANSACTION RECONNECT SKIP] No plan found');
                 return 'no_plan';
             }
 
-            // Step 6: Prepare parameters for ManualRadiusOperationsService
+            \Log::info('[TRANSACTION RECONNECT PROCEED] Conditions met - Status not Active, Balance: ₱' . $balance);
+
+            // Step 4: Update billing_status_id to 1 (Active) BEFORE reconnecting
+            // The user requested: "it will update the billing_status_id of that account_no to 1 and after the update it will use the reconnectUser"
+            $billingAccount->billing_status_id = 1;
+            $billingAccount->updated_at = now();
+            $billingAccount->updated_by = Auth::id();
+            $billingAccount->save();
+            
+            \Log::info('[TRANSACTION RECONNECT DB] Updated billing_status_id to 1 for Account: ' . $accountNo);
+
+            // Step 5: Prepare parameters for ManualRadiusOperationsService
             $params = [
                 'accountNumber' => $accountNo,
                 'username' => $username,
@@ -719,22 +707,18 @@ class TransactionController extends Controller
                 'updatedBy' => 'Transaction Approval Auto-Reconnect'
             ];
 
-            // Step 7: Call ManualRadiusOperationsService reconnectUser
+            // Step 6: Call ManualRadiusOperationsService reconnectUser
+            // This will:
+            // 1. Update Radius Group (to plan name)
+            // 2. Kill User Session (isDisconnectAction = true)
+            // 3. Update DB Status (again)
             \Log::info('[TRANSACTION RECONNECT EXECUTE] Calling ManualRadiusOperationsService for ' . $username);
+            
             $manualRadiusService = new ManualRadiusOperationsService();
             $result = $manualRadiusService->reconnectUser($params);
 
             if ($result['status'] === 'success') {
-                // Step 8: Update billing_status_id to 5 (Active status)
-                DB::table('billing_accounts')
-                    ->where('account_no', $accountNo)
-                    ->update([
-                        'billing_status_id' => 1,
-                        'updated_at' => now(),
-                        'updated_by' => Auth::id()
-                    ]);
-
-                \Log::info('[TRANSACTION RECONNECT SUCCESS] Account ' . $accountNo . ' reconnected - billing_status_id updated to 5');
+                \Log::info('[TRANSACTION RECONNECT SUCCESS] Reconnection and Session Kill completed successfully');
                 return 'success';
             } else {
                 \Log::info('[TRANSACTION RECONNECT FAILED] ' . $result['message']);

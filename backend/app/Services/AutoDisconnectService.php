@@ -59,18 +59,18 @@ class AutoDisconnectService
             // Fetch overdue invoices
             $this->writeLog("[QUERY] Searching for overdue invoices...");
             // 1. Identify accounts that have overdue invoices
-            $overdueAccountIds = Invoice::whereIn('status', ['Unpaid', 'Partial'])
+            $overdueAccountNos = Invoice::whereIn('status', ['Unpaid', 'Partial'])
                 ->whereDate('due_date', '<=', $targetDate)
-                ->pluck('billing_account_id')
+                ->pluck('account_no')
                 ->unique();
 
             // 2. Fetch the absolute latest invoice for each overdue account
             $invoices = Invoice::with(['billingAccount.customer', 'billingAccount.technicalDetails'])
-                ->whereIn('billing_account_id', $overdueAccountIds)
+                ->whereIn('account_no', $overdueAccountNos)
                 ->orderBy('due_date', 'desc')
                 ->orderBy('id', 'desc')
                 ->get()
-                ->unique('billing_account_id');
+                ->unique('account_no');
 
             $totalCount = $invoices->count();
             $this->writeLog("[RESULT] Found {$totalCount} invoice(s) with due date = {$targetDate}");
@@ -254,13 +254,16 @@ class AutoDisconnectService
                 $currentServiceCharge = floatval($invoice->service_charge ?? 0);
                 $currentTotalAmount = floatval($invoice->total_amount ?? 0);
                 $currentInvoiceBalance = floatval($invoice->invoice_balance ?? 0);
+                $newServiceCharge = $currentServiceCharge + $dcFee;
+                $newTotalAmount = $currentTotalAmount + $dcFee;
+                $newInvoiceBalance = $currentInvoiceBalance + $dcFee;
 
                 DB::table('invoices')
                     ->where('id', $invoice->id)
                     ->update([
-                        'service_charge' => $currentServiceCharge + $dcFee,
-                        'total_amount' => $currentTotalAmount + $dcFee,
-                        'invoice_balance' => $currentInvoiceBalance + $dcFee,
+                        'service_charge' => $newServiceCharge,
+                        'total_amount' => $newTotalAmount,
+                        'invoice_balance' => $newInvoiceBalance,
                         'updated_by' => 'System',
                         'updated_at' => Carbon::now()
                     ]);
