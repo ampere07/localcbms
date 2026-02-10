@@ -215,7 +215,7 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord, onViewCu
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Account No.</span>
               <div className="flex items-center">
                 <span className="text-red-500">
-                  {invoiceRecord.accountNo} | {invoiceRecord.fullName} | {invoiceRecord.address}
+                  {invoiceRecord.accountNo}
                 </span>
                 <button
                   onClick={() => onViewCustomer?.(invoiceRecord.accountNo)}
@@ -252,15 +252,6 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord, onViewCu
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Plan</span>
               <div className="flex items-center">
                 <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{invoiceRecord.plan}</span>
-                <Info size={16} className={`ml-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                  }`} />
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center py-2">
-              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Provider</span>
-              <div className="flex items-center">
-                <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{invoiceRecord.provider || 'SWITCH'}</span>
                 <Info size={16} className={`ml-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
                   }`} />
               </div>

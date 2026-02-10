@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, ArrowUp, ArrowDown, ListFilter } from 'lucide-react';
 import InvoiceDetails from '../components/InvoiceDetails';
 
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -90,9 +90,22 @@ const Invoice: React.FC = () => {
   const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
-  // Pagination State
+  // Table State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
+
+  const [sortColumn, setSortColumn] = useState<string | null>('id');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const startXRef = useRef<number>(0);
+  const startWidthRef = useRef<number>(0);
 
   const allColumns = [
     { key: 'id', label: 'ID', width: 'min-w-20' },
@@ -136,13 +149,23 @@ const Invoice: React.FC = () => {
 
   // Derive date items from context data instead of fetching separately or static
   const dateItems: Array<{ date: string; id: string }> = useMemo(() => {
-    const dates = new Set<string>();
+    const dates = new Map<string, string>();
     invoiceRecords.forEach(record => {
-      if (record.invoiceDate) {
-        dates.add(record.invoiceDate);
+      if (record.invoiceDate && record.invoiceDate !== 'N/A') {
+        // Map formatted date to raw date for sorting
+        dates.set(record.invoiceDate, record.invoiceDateRaw || record.invoiceDate);
       }
     });
-    return [{ date: 'All', id: '' }, ...Array.from(dates).sort().reverse().map(d => ({ date: d, id: d }))];
+
+    const sortedDates = Array.from(dates.entries())
+      .sort((a, b) => {
+        const timeA = new Date(a[1]).getTime();
+        const timeB = new Date(b[1]).getTime();
+        return timeB - timeA;
+      })
+      .map(([formatted]) => formatted);
+
+    return [{ date: 'All', id: '' }, ...sortedDates.map(d => ({ date: d, id: d }))];
   }, [invoiceRecords]);
 
   useEffect(() => {
@@ -199,11 +222,36 @@ const Invoice: React.FC = () => {
     fetchInvoiceRecords();
   }, [fetchInvoiceRecords]);
 
+  // Initialize column order and visibility
+  useEffect(() => {
+    if (displayColumns.length > 0) {
+      if (columnOrder.length === 0) {
+        setColumnOrder(displayColumns.map(col => col.key));
+      }
+      if (visibleColumns.length === 0) {
+        setVisibleColumns(displayColumns.map(col => col.key));
+      }
+    }
+  }, [displayColumns, columnOrder.length, visibleColumns.length]);
+
+  // Handle click outside for filter dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setFilterDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [filterDropdownRef]);
+
 
 
 
   const filteredRecords = useMemo(() => {
-    return invoiceRecords.filter(record => {
+    let filtered = invoiceRecords.filter(record => {
       const matchesDate = selectedDate === 'All' || record.invoiceDate === selectedDate;
       const matchesSearch = searchQuery === '' ||
         record.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -215,7 +263,42 @@ const Invoice: React.FC = () => {
 
       return matchesDate && matchesSearch;
     });
-  }, [invoiceRecords, selectedDate, searchQuery]);
+
+    // Sorting logic
+    if (sortColumn) {
+      filtered = [...filtered].sort((a, b) => {
+        let aValue: any = (a as any)[sortColumn] || '';
+        let bValue: any = (b as any)[sortColumn] || '';
+
+        // Handle numeric values
+        const numericColumns = [
+          'invoiceBalance', 'serviceCharge', 'rebate', 'discounts', 'staggered', 'totalAmount', 'receivedPayment'
+        ];
+
+        if (numericColumns.includes(sortColumn)) {
+          aValue = Number(aValue) || 0;
+          bValue = Number(bValue) || 0;
+        } else if (sortColumn === 'invoiceDate' || sortColumn === 'dueDate' || sortColumn === 'createdAt' || sortColumn === 'updatedAt') {
+          // Use raw date for sorting if available
+          if (sortColumn === 'invoiceDate') {
+            aValue = a.invoiceDateRaw || a.invoiceDate || '';
+            bValue = b.invoiceDateRaw || b.invoiceDate || '';
+          }
+          aValue = new Date(aValue).getTime() || 0;
+          bValue = new Date(bValue).getTime() || 0;
+        } else {
+          aValue = String(aValue).toLowerCase();
+          bValue = String(bValue).toLowerCase();
+        }
+
+        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [invoiceRecords, selectedDate, searchQuery, sortColumn, sortDirection]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -433,6 +516,129 @@ const Invoice: React.FC = () => {
     sidebarStartWidthRef.current = sidebarWidth;
   };
 
+  const handleToggleColumn = (columnKey: string) => {
+    setVisibleColumns(prev => {
+      const newColumns = prev.includes(columnKey)
+        ? prev.filter(key => key !== columnKey)
+        : [...prev, columnKey];
+      return newColumns;
+    });
+  };
+
+  const handleSelectAllColumns = () => {
+    const allKeys = displayColumns.map(col => col.key);
+    setVisibleColumns(allKeys);
+  };
+
+  const handleDeselectAllColumns = () => {
+    setVisibleColumns([]);
+  };
+
+  const handleSort = (columnKey: string) => {
+    if (sortColumn === columnKey) {
+      if (sortDirection === 'desc') {
+        setSortColumn(null);
+        setSortDirection('asc');
+      } else {
+        setSortDirection('desc');
+      }
+    } else {
+      setSortColumn(columnKey);
+      setSortDirection('asc');
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, columnKey: string) => {
+    setDraggedColumn(columnKey);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, columnKey: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedColumn && draggedColumn !== columnKey) {
+      setDragOverColumn(columnKey);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverColumn(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetColumnKey: string) => {
+    e.preventDefault();
+
+    if (!draggedColumn || draggedColumn === targetColumnKey) {
+      setDraggedColumn(null);
+      setDragOverColumn(null);
+      return;
+    }
+
+    const newOrder = [...columnOrder];
+    const draggedIndex = newOrder.indexOf(draggedColumn);
+    const targetIndex = newOrder.indexOf(targetColumnKey);
+
+    newOrder.splice(draggedIndex, 1);
+    newOrder.splice(targetIndex, 0, draggedColumn);
+
+    setColumnOrder(newOrder);
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  const handleMouseDownResize = (e: React.MouseEvent, columnKey: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingColumn(columnKey);
+    startXRef.current = e.clientX;
+
+    const th = (e.target as HTMLElement).closest('th');
+    if (th) {
+      startWidthRef.current = th.offsetWidth;
+    }
+  };
+
+  useEffect(() => {
+    if (!resizingColumn) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizingColumn) return;
+
+      const diff = e.clientX - startXRef.current;
+      const newWidth = Math.max(100, startWidthRef.current + diff);
+
+      setColumnWidths(prev => ({
+        ...prev,
+        [resizingColumn]: newWidth
+      }));
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizingColumn]);
+
+  const filteredColumns = displayColumns
+    .filter(col => visibleColumns.includes(col.key))
+    .sort((a, b) => {
+      const indexA = columnOrder.indexOf(a.key);
+      const indexB = columnOrder.indexOf(b.key);
+      return indexA - indexB;
+    });
+
   const renderCellValue = (record: InvoiceRecordUI, columnKey: string) => {
     switch (columnKey) {
       case 'id':
@@ -591,6 +797,73 @@ const Invoice: React.FC = () => {
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`} />
               </div>
+
+              {userRole !== 'customer' && (
+                <div className="relative" ref={filterDropdownRef}>
+                  <button
+                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                      ? 'hover:bg-gray-700 text-white'
+                      : 'hover:bg-gray-200 text-gray-900'
+                      }`}
+                    onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+                  >
+                    <ListFilter className="h-5 w-5" />
+                  </button>
+                  {filterDropdownOpen && (
+                    <div className={`absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-[70vh] flex flex-col ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+                      }`}>
+                      <div className={`p-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                        }`}>
+                        <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>Column Visibility</span>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={handleSelectAllColumns}
+                            className="text-xs"
+                            style={{ color: colorPalette?.primary || '#f97316' }}
+                          >
+                            Select All
+                          </button>
+                          <span className={isDarkMode ? 'text-gray-600' : 'text-gray-400'}>|</span>
+                          <button
+                            onClick={handleDeselectAllColumns}
+                            className="text-xs"
+                            style={{ color: colorPalette?.primary || '#f97316' }}
+                          >
+                            Deselect All
+                          </button>
+                        </div>
+                      </div>
+                      <div className="overflow-y-auto flex-1">
+                        {displayColumns.map((column) => (
+                          <label
+                            key={column.key}
+                            className={`flex items-center px-4 py-2 cursor-pointer text-sm ${isDarkMode
+                              ? 'hover:bg-gray-700 text-white'
+                              : 'hover:bg-gray-100 text-gray-900'
+                              }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={visibleColumns.includes(column.key)}
+                              onChange={() => handleToggleColumn(column.key)}
+                              className={`mr-3 h-4 w-4 rounded ${isDarkMode
+                                ? 'border-gray-600 bg-gray-700 focus:ring-offset-gray-800'
+                                : 'border-gray-300 bg-white focus:ring-offset-white'
+                                }`}
+                              style={{
+                                accentColor: colorPalette?.primary || '#ea580c'
+                              }}
+                            />
+                            <span>{column.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {userRole === 'customer' && (
                 <button
                   onClick={handlePayNow}
@@ -672,14 +945,36 @@ const Invoice: React.FC = () => {
                             ? 'border-gray-700 bg-gray-800'
                             : 'border-gray-200 bg-gray-100'
                             }`}>
-                            {displayColumns.map((column, index) => (
+                            {filteredColumns.map((column, index) => (
                               <th
                                 key={column.key}
-                                className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap ${isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
-                                  } ${index < displayColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''
-                                  }`}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, column.key)}
+                                onDragOver={(e) => handleDragOver(e, column.key)}
+                                onDragLeave={handleDragLeave}
+                                onDrop={(e) => handleDrop(e, column.key)}
+                                onDragEnd={handleDragEnd}
+                                onClick={() => handleSort(column.key)}
+                                className={`group relative text-left py-3 px-3 font-normal whitespace-nowrap cursor-pointer select-none transition-colors ${isDarkMode ? 'text-gray-400 bg-gray-800 hover:bg-gray-700' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                                  } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''
+                                  } ${dragOverColumn === column.key ? (isDarkMode ? 'border-l-2 border-orange-500' : 'border-l-2 border-orange-600') : ''
+                                  } ${draggedColumn === column.key ? 'opacity-50' : ''}`}
+                                style={{
+                                  width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
+                                  minWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : (column.width === 'min-w-max' ? 'max-content' : undefined)
+                                }}
                               >
-                                {column.label}
+                                <div className="flex items-center space-x-1">
+                                  <span>{column.label}</span>
+                                  {sortColumn === column.key && (
+                                    sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                                  )}
+                                </div>
+                                {/* Resize Handle */}
+                                <div
+                                  className={`absolute right-0 top-0 bottom-0 w-1 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity z-10 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'}`}
+                                  onMouseDown={(e) => handleMouseDownResize(e, column.key)}
+                                />
                               </th>
                             ))}
                           </tr>
@@ -697,14 +992,18 @@ const Invoice: React.FC = () => {
                                   }`}
                                 onClick={() => handleRowClick(record)}
                               >
-                                {displayColumns.map((column, index) => (
+                                {filteredColumns.map((column, index) => (
                                   <td
                                     key={column.key}
                                     className={`py-4 px-3 whitespace-nowrap ${isDarkMode ? 'text-white' : 'text-gray-900'
-                                      } ${index < displayColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''
+                                      } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''
                                       }`}
+                                    style={{
+                                      width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
+                                      minWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : (column.width === 'min-w-max' ? 'max-content' : undefined)
+                                    }}
                                   >
-                                    {renderCellValue(record, column.key)}
+                                    {renderCellValue(record as any, column.key)}
                                   </td>
                                 ))}
                               </tr>

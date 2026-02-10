@@ -301,7 +301,9 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     const [type, name] = selectedLocation.split(':');
     let isValid = false;
 
-    if (type === 'reg') {
+    if (type === 'status') {
+      isValid = true; // Status categories are always valid
+    } else if (type === 'reg') {
       isValid = regions.some(r => r.name === name);
     } else if (type === 'city') {
       isValid = cities.some(c => c.name === name);
@@ -337,10 +339,12 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       let bucket = 'offline';
 
       const lowerStatus = accessStatus.toLowerCase();
+      const lowerOnlineStatus = (record.onlineStatus || '').toLowerCase();
+
       if (lowerStatus === 'blocked' || lowerStatus === 'block') bucket = 'Block';
-      else if (lowerStatus === 'not found') bucket = 'not found';
+      else if (lowerStatus === 'not found' || lowerOnlineStatus === 'not found') bucket = 'not found';
       else if (lowerStatus === 'inactive') bucket = 'inactive';
-      else if (record.onlineStatus === 'Online' || record.onlineStatus === 'online') bucket = 'online';
+      else if (lowerOnlineStatus === 'online') bucket = 'online';
 
       if (tree[bucket]) {
         tree[bucket].count++;
@@ -422,10 +426,12 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
           const accessStatus = record.status || 'inactive';
           let recordBucket = 'offline';
           const lowerStatus = accessStatus.toLowerCase();
+          const lowerOnlineStatus = (record.onlineStatus || '').toLowerCase();
+
           if (lowerStatus === 'blocked' || lowerStatus === 'block') recordBucket = 'Block';
-          else if (lowerStatus === 'not found') recordBucket = 'not found';
+          else if (lowerStatus === 'not found' || lowerOnlineStatus === 'not found') recordBucket = 'not found';
           else if (lowerStatus === 'inactive') recordBucket = 'inactive';
-          else if (record.onlineStatus === 'Online' || record.onlineStatus === 'online') recordBucket = 'online';
+          else if (lowerOnlineStatus === 'online') recordBucket = 'online';
 
           if (recordBucket !== statusName) return false;
 
@@ -1227,7 +1233,11 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                 <button
                   onClick={() => setSelectedLocation(status.id)}
                   className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                    } ${isSelected ? 'bg-white bg-opacity-5' : ''}`}
+                    }`}
+                  style={isSelected ? {
+                    backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                    color: colorPalette?.primary || '#fb923c'
+                  } : {}}
                 >
                   <div className="flex items-center flex-1">
                     {style.hollow ? (
@@ -1235,7 +1245,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                     ) : (
                       <div className={`h-3.5 w-3.5 rounded-full mr-2.5 ${style.fillColor}`} />
                     )}
-                    <span className="font-bold uppercase tracking-tight text-xs" style={{ color: style.hex }}>{status.name}</span>
+                    <span className="font-bold uppercase tracking-tight text-xs" style={isSelected ? {} : { color: style.hex }}>{status.name}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>
@@ -1271,8 +1281,12 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                     <div key={billing.id}>
                       <button
                         onClick={() => setSelectedLocation(billing.id)}
-                        className={`w-full flex items-center justify-between pl-10 pr-4 py-1.5 text-xs transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                          } ${isBillingSelected ? 'text-white' : isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                        className={`w-full flex items-center justify-between pl-10 pr-4 py-1.5 text-xs transition-colors ${isDarkMode ? 'text-gray-400 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        style={isBillingSelected ? {
+                          backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                          color: colorPalette?.primary || '#fb923c'
+                        } : {}}
                       >
                         <div className="flex items-center flex-1">
                           <span>{billing.name}</span>
@@ -1309,8 +1323,12 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                           <button
                             key={brgy.id}
                             onClick={() => setSelectedLocation(brgy.id)}
-                            className={`w-full flex items-center justify-between pl-16 pr-4 py-1 text-[10px] transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                              } ${isBrgySelected ? 'text-white font-bold' : isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+                            className={`w-full flex items-center justify-between pl-16 pr-4 py-1 text-[10px] transition-colors ${isDarkMode ? 'text-gray-500 hover:bg-gray-800' : 'text-gray-600 hover:bg-gray-100'
+                              }`}
+                            style={isBrgySelected ? {
+                              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                              color: colorPalette?.primary || '#fb923c'
+                            } : {}}
                           >
                             <span>{brgy.name}</span>
                             <span className={`px-1 py-0.5 rounded text-[9px] font-bold ${isDarkMode ? 'bg-gray-800 text-gray-600' : 'bg-gray-50 text-gray-300'}`}>
@@ -1776,6 +1794,17 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                 }}
                 onlineStatusRecords={[]}
                 onClose={handleCloseDetails}
+                onRefresh={async () => {
+                  try {
+                    await refreshBillingRecords();
+                    if (selectedCustomer?.billingAccount?.accountNo) {
+                      const updatedCustomer = await getCustomerDetail(selectedCustomer.billingAccount.accountNo);
+                      setSelectedCustomer(updatedCustomer);
+                    }
+                  } catch (error) {
+                    console.error('Failed to refresh customer data:', error);
+                  }
+                }}
               />
             ) : null}
           </div>

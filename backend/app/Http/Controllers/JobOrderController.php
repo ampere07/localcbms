@@ -792,7 +792,9 @@ class JobOrderController extends Controller
                 'plan_id_stored' => $billingAccount->plan_id
             ]);
 
-            $usernameForTechnical = $accountNumber;
+            // Use username from job order if exists, otherwise fallback to account number
+            $usernameValue = $jobOrder->pppoe_username ?: ($jobOrder->username ?: $accountNumber);
+            $usernameForTechnical = $usernameValue;
 
             $modemSN = $jobOrder->modem_router_sn;
             if ($modemSN) {
@@ -837,9 +839,9 @@ class JobOrderController extends Controller
 
 
 
-            // Use account number and contact number for credentials
-            $generatedUsername = $accountNumber;
-            $generatedPassword = $customer->contact_number_primary;
+            // Use the calculated username and contact number for credentials
+            $generatedUsername = $usernameValue;
+            $generatedPassword = $jobOrder->pppoe_password ?: $customer->contact_number_primary;
 
             // Check if online status already exists for this username
             if (OnlineStatus::where('username', $generatedUsername)->exists()) {

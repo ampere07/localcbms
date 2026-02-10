@@ -137,7 +137,7 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
         }`}>
         <h1 className={`text-lg font-semibold truncate pr-4 min-w-0 flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
           }`}>
-          {soaRecord.accountNo} | {soaRecord.fullName} | {soaRecord.address.split(',')[0]}
+          {soaRecord.accountNo} | {soaRecord.fullName} | {soaRecord.address ? soaRecord.address.split(',')[0] : 'N/A'}
         </h1>
         <div className="flex items-center space-x-2 flex-shrink-0">
           <button
@@ -184,7 +184,7 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Account No.</span>
               <div className="flex items-center">
                 <span className="text-red-500">
-                  {soaRecord.accountNo} | {soaRecord.fullName} | {soaRecord.address}
+                  {soaRecord.accountNo}
                 </span>
                 <button
                   onClick={() => onViewCustomer?.(soaRecord.accountNo)}
@@ -216,15 +216,6 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Plan</span>
               <div className="flex items-center">
                 <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{soaRecord.plan}</span>
-                <Info size={16} className={`ml-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
-                  }`} />
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center py-2">
-              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Provider</span>
-              <div className="flex items-center">
-                <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{soaRecord.provider || 'SWITCH'}</span>
                 <Info size={16} className={`ml-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
                   }`} />
               </div>

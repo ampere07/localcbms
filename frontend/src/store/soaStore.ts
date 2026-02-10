@@ -5,6 +5,7 @@ export interface SOARecordUI {
     id: string;
     accountNo: string;
     statementDate: string;
+    statementDateRaw?: string;
     balanceFromPreviousBill: number;
     paymentReceivedPrevious: number;
     remainingBalancePrevious: number;
@@ -59,6 +60,7 @@ const transform = (record: SOARecord): SOARecordUI => ({
     id: record.id.toString(),
     accountNo: record.account_no || record.account?.account_no || '',
     statementDate: record.statement_date ? new Date(record.statement_date).toLocaleDateString() : 'N/A',
+    statementDateRaw: record.statement_date,
     balanceFromPreviousBill: Number(record.balance_from_previous_bill) || 0,
     paymentReceivedPrevious: Number(record.payment_received_previous) || 0,
     remainingBalancePrevious: Number(record.remaining_balance_previous) || 0,

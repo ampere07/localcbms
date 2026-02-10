@@ -6,6 +6,7 @@ export interface InvoiceRecordUI {
     id: string;
     accountNo: string;
     invoiceDate: string;
+    invoiceDateRaw?: string;
     invoiceBalance: number;
     serviceCharge: number;
     rebate: number;
@@ -81,6 +82,7 @@ export const useInvoiceStore = create<InvoiceStore>((set, get) => ({
                 id: record.id.toString(),
                 accountNo: record.account_no || record.account?.account_no || '',
                 invoiceDate: record.invoice_date ? new Date(record.invoice_date).toLocaleDateString() : 'N/A',
+                invoiceDateRaw: record.invoice_date,
                 invoiceBalance: Number(record.invoice_balance) || 0,
                 serviceCharge: Number(record.service_charge) || 0,
                 rebate: Number(record.rebate) || 0,

@@ -5,11 +5,10 @@ import { barangayService, Barangay } from '../services/barangayService';
 import { locationDetailService, LocationDetail } from '../services/locationDetailService';
 import { planService, Plan } from '../services/planService';
 import { routerModelService, RouterModel } from '../services/routerModelService';
-import { getAllPorts, Port } from '../services/portService';
+
 import { getAllLCPNAPs, LCPNAP } from '../services/lcpnapService';
 import { getAllVLANs, VLAN } from '../services/vlanService';
 import { getAllUsageTypes, UsageType } from '../services/usageTypeService';
-import { getAllGroups, Group } from '../services/groupService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 
@@ -53,12 +52,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
   const [plans, setPlans] = useState<Plan[]>([]);
   const [routerModels, setRouterModels] = useState<RouterModel[]>([]);
   const [lcpnaps, setLcpnaps] = useState<LCPNAP[]>([]);
-  const [ports, setPorts] = useState<Port[]>([]);
+  const [ports, setPorts] = useState<string[]>([]);
   const [vlans, setVlans] = useState<VLAN[]>([]);
   const [usageTypes, setUsageTypes] = useState<UsageType[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [lcpOptions, setLcpOptions] = useState<string[]>([]);
-  const [napOptions, setNapOptions] = useState<string[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
 
@@ -199,7 +195,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
         const parts = lcpnapValue.split('-');
 
         setFormData({
-          username: recordData.username || recordData.pppoe_username || '',
+          username: recordData.pppoe_username || recordData.username || '',
           usernameStatus: recordData.usernameStatus || recordData.username_status || recordData.onlineStatus || recordData.online_status || '',
           connectionType: recordData.connectionType || recordData.connection_type || '',
           routerModel: recordData.routerModel || recordData.router_model || '',
@@ -222,19 +218,17 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
 
       try {
         if (editType === 'customer_details') {
-          const [fetchedRegions, fetchedCities, barangaysRes, locationsRes, groupsRes] = await Promise.all([
+          const [fetchedRegions, fetchedCities, barangaysRes, locationsRes] = await Promise.all([
             getRegions(),
             getCities(),
             barangayService.getAll(),
-            locationDetailService.getAll(),
-            getAllGroups()
+            locationDetailService.getAll()
           ]);
 
           setRegions(Array.isArray(fetchedRegions) ? fetchedRegions : []);
           setAllCities(Array.isArray(fetchedCities) ? fetchedCities : []);
           setAllBarangays(barangaysRes.success && Array.isArray(barangaysRes.data) ? barangaysRes.data : []);
           setAllLocations(locationsRes.success && Array.isArray(locationsRes.data) ? locationsRes.data : []);
-          setGroups(groupsRes.success && Array.isArray(groupsRes.data) ? groupsRes.data : []);
         } else if (editType === 'billing_details') {
           const fetchedPlans = await planService.getAllPlans();
           setPlans(Array.isArray(fetchedPlans) ? fetchedPlans : []);
@@ -261,17 +255,6 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
 
           if (lcpnapsRes.success && Array.isArray(lcpnapsRes.data)) {
             setLcpnaps(lcpnapsRes.data);
-            const uniqueLcps = new Set<string>();
-            const uniqueNaps = new Set<string>();
-            lcpnapsRes.data.forEach((item: LCPNAP) => {
-              const parts = item.lcpnap_name.split('-');
-              if (parts.length === 2) {
-                uniqueLcps.add(parts[0]);
-                uniqueNaps.add(parts[1]);
-              }
-            });
-            setLcpOptions(Array.from(uniqueLcps).sort());
-            setNapOptions(Array.from(uniqueNaps).sort());
           }
 
           setVlans(vlansRes.success && Array.isArray(vlansRes.data) ? vlansRes.data : []);
@@ -286,31 +269,22 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
   }, [isOpen, editType]);
 
   useEffect(() => {
-    const fetchPorts = async () => {
-      if (isOpen && editType === 'technical_details' && formData.lcpnap) {
-        try {
-          const response = await getAllPorts(formData.lcpnap, 1, 100, false);
-          if (response.success && Array.isArray(response.data)) {
-            setPorts(response.data);
-          }
-        } catch (error) {
-          console.error('Failed to fetch ports:', error);
-        }
+    if (isOpen && editType === 'technical_details' && formData.lcpnap) {
+      const selectedLcpnap = lcpnaps.find(l => l.lcpnap_name === formData.lcpnap);
+      if (selectedLcpnap && selectedLcpnap.port_total) {
+        const generatedPorts = Array.from({ length: selectedLcpnap.port_total }, (_, i) =>
+          String(i + 1).padStart(3, '0')
+        );
+        setPorts(generatedPorts);
       } else {
         setPorts([]);
       }
-    };
-    fetchPorts();
-  }, [isOpen, editType, formData.lcpnap]);
-
-  useEffect(() => {
-    if (editType === 'technical_details' && formData.lcp && formData.nap) {
-      const generatedLcpnap = `${formData.lcp}-${formData.nap}`;
-      setFormData((prev: any) => ({ ...prev, lcpnap: generatedLcpnap }));
-    } else if (editType === 'technical_details' && (!formData.lcp || !formData.nap)) {
-      setFormData((prev: any) => ({ ...prev, lcpnap: '' }));
+    } else {
+      setPorts([]);
     }
-  }, [editType, formData.lcp, formData.nap]);
+  }, [isOpen, editType, formData.lcpnap, lcpnaps]);
+
+
 
   const handleInputChange = (field: string, value: any) => {
     setFormData((prev: any) => {
@@ -328,8 +302,17 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
           newData.location = '';
         }
       } else if (editType === 'technical_details') {
-        if (field === 'lcp' || field === 'nap') {
+        if (field === 'lcpnap') {
           newData.port = '';
+          const selected = lcpnaps.find(l => l.lcpnap_name === value);
+          if (selected) {
+            newData.lcp = selected.lcp;
+            newData.nap = selected.nap;
+          } else {
+            const parts = value.split('-');
+            newData.lcp = parts[0] || '';
+            newData.nap = parts[1] || '';
+          }
         }
         if (field === 'connectionType') {
           if (value === 'Fiber') {
@@ -548,8 +531,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
       if (!formData.routerModel?.trim()) newErrors.routerModel = 'Router Model is required';
 
       if (formData.connectionType === 'Fiber') {
-        if (!formData.lcp?.trim()) newErrors.lcp = 'LCP is required';
-        if (!formData.nap?.trim()) newErrors.nap = 'NAP is required';
+        if (!formData.lcpnap?.trim()) newErrors.lcpnap = 'LCPNAP is required';
         if (!formData.port?.trim()) newErrors.port = 'Port is required';
         if (!formData.vlan?.trim()) newErrors.vlan = 'VLAN is required';
       }
@@ -563,7 +545,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const isValid = validateForm();
 
     if (!isValid) {
@@ -576,8 +558,39 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
       return;
     }
 
-    onSave(formData);
-    onClose();
+    try {
+      setLoading(true);
+      setModal({
+        isOpen: true,
+        type: 'loading',
+        title: 'Saving...',
+        message: 'Please wait while we update the details.'
+      });
+
+      await onSave(formData);
+
+      setModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Success',
+        message: 'Details updated successfully.',
+        onConfirm: () => {
+          setModal(prev => ({ ...prev, isOpen: false }));
+          onClose();
+        }
+      });
+    } catch (error: any) {
+      console.error('Save failed:', error);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Save Failed',
+        message: error.message || 'Failed to save changes. Please try again.',
+        onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -1038,41 +1051,6 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                   />
                 </div>
 
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Group Name
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={formData.groupName || ''}
-                      onChange={(e) => handleInputChange('groupName', e.target.value)}
-                      onFocus={(e) => {
-                        if (colorPalette?.primary) {
-                          e.currentTarget.style.borderColor = colorPalette.primary;
-                          e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
-                        }
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-                        }`}
-                    >
-                      <option value="">Select Group</option>
-                      {formData.groupName && !groups.some(group => group.group_name === formData.groupName) && (
-                        <option value={formData.groupName}>{formData.groupName}</option>
-                      )}
-                      {groups.map((group) => (
-                        <option key={group.id} value={group.group_name}>
-                          {group.group_name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
-                  </div>
-                </div>
-
                 <ImagePreview
                   imageUrl={imagePreview || (typeof formData.houseFrontPicture === 'string' ? formData.houseFrontPicture : null)}
                   label="House Front Picture"
@@ -1156,7 +1134,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
               <>
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Username<span className="text-red-500">*</span>
+                    PPPOE Username<span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1344,12 +1322,12 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                   <>
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        LCP<span className="text-red-500">*</span>
+                        LCP-NAP<span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <select
-                          value={formData.lcp || ''}
-                          onChange={(e) => handleInputChange('lcp', e.target.value)}
+                          value={formData.lcpnap || ''}
+                          onChange={(e) => handleInputChange('lcpnap', e.target.value)}
                           onFocus={(e) => {
                             if (colorPalette?.primary) {
                               e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1357,71 +1335,22 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                             }
                           }}
                           onBlur={(e) => {
-                            e.currentTarget.style.borderColor = errors.lcp ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
+                            e.currentTarget.style.borderColor = errors.lcpnap ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                             e.currentTarget.style.boxShadow = 'none';
                           }}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.lcp ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                          className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.lcpnap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                             } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                         >
-                          <option value="">Select LCP</option>
-                          {lcpOptions.map((lcp, index) => (
-                            <option key={index} value={lcp}>
-                              {lcp}
+                          <option value="">Select LCP-NAP</option>
+                          {lcpnaps.map((item) => (
+                            <option key={item.id || item.lcpnap_name} value={item.lcpnap_name}>
+                              {item.lcpnap_name}
                             </option>
                           ))}
                         </select>
                         <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
                       </div>
-                      {errors.lcp && <p className="text-red-500 text-xs mt-1">{errors.lcp}</p>}
-                    </div>
-
-                    <div>
-                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        NAP<span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <select
-                          value={formData.nap || ''}
-                          onChange={(e) => handleInputChange('nap', e.target.value)}
-                          onFocus={(e) => {
-                            if (colorPalette?.primary) {
-                              e.currentTarget.style.borderColor = colorPalette.primary;
-                              e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
-                            }
-                          }}
-                          onBlur={(e) => {
-                            e.currentTarget.style.borderColor = errors.nap ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
-                            e.currentTarget.style.boxShadow = 'none';
-                          }}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.nap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                            } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
-                        >
-                          <option value="">Select NAP</option>
-                          {napOptions.map((nap, index) => (
-                            <option key={index} value={nap}>
-                              {nap}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
-                      </div>
-                      {errors.nap && <p className="text-red-500 text-xs mt-1">{errors.nap}</p>}
-                    </div>
-
-                    <div>
-                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        LCPNAP (Auto-generated)
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.lcpnap || ''}
-                        readOnly
-                        className={`w-full px-3 py-2 border rounded focus:outline-none ${isDarkMode ? 'bg-gray-700 text-gray-400 border-gray-600 cursor-not-allowed' : 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed'
-                          }`}
-                      />
-                      <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Automatically generated from LCP + NAP
-                      </p>
+                      {errors.lcpnap && <p className="text-red-500 text-xs mt-1">{errors.lcpnap}</p>}
                     </div>
 
                     <div>
@@ -1446,10 +1375,10 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                           className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.port ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                             } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                         >
-                          <option value="">{formData.lcpnap ? 'Select Port' : 'Select LCP and NAP first'}</option>
+                          <option value="">{formData.lcpnap ? 'Select Port' : 'Select LCP-NAP first'}</option>
                           {ports.map((port) => (
-                            <option key={port.id} value={port.PORT_ID}>
-                              {port.Label || port.PORT_ID}
+                            <option key={port} value={port}>
+                              {port}
                             </option>
                           ))}
                         </select>

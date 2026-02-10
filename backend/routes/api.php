@@ -232,6 +232,30 @@ Route::prefix('service-charges')->group(function () {
     });
 });
 
+// Statement of Accounts Routes
+Route::prefix('statement-of-accounts')->group(function () {
+    Route::get('/by-account/{accountNo}', [RelatedDataController::class, 'getStatementOfAccountsByAccount']);
+    Route::get('/{id}', [RelatedDataController::class, 'getStatementOfAccountById']);
+});
+
+// Invoice Routes
+Route::prefix('invoices')->group(function () {
+    Route::get('/by-account/{accountNo}', [RelatedDataController::class, 'getInvoicesByAccount']);
+    Route::get('/{id}', [RelatedDataController::class, 'getInvoiceById']);
+});
+
+// Payment Portal Logs Routes
+Route::prefix('payment-portal-logs')->group(function () {
+    Route::get('/by-account/{accountNo}', [RelatedDataController::class, 'getPaymentPortalLogsByAccount']);
+    Route::get('/{id}', [RelatedDataController::class, 'getPaymentPortalLogById']);
+});
+
+// Transaction Routes
+Route::prefix('transactions')->group(function () {
+    Route::get('/by-account/{accountNo}', [RelatedDataController::class, 'getTransactionsByAccount']);
+    Route::get('/{id}', [RelatedDataController::class, 'getTransactionById']);
+});
+
 // Installment Management Routes (Enhanced)
 Route::prefix('installments')->group(function () {
     Route::get('/', function(Request $request) {
@@ -1659,6 +1683,7 @@ Route::prefix('service_orders')->group(function () {
 Route::get('/customer-detail/{accountNo}', [\App\Http\Controllers\CustomerDetailController::class, 'show']);
 
 // Customer Detail Update Routes - Update customer, billing, and technical details
+Route::put('/customer-detail/{accountNo}', [\App\Http\Controllers\CustomerDetailUpdateController::class, 'update']);
 Route::put('/customer-detail/{accountNo}/customer', [\App\Http\Controllers\CustomerDetailUpdateController::class, 'updateCustomerDetails']);
 Route::put('/customer-detail/{accountNo}/billing', [\App\Http\Controllers\CustomerDetailUpdateController::class, 'updateBillingDetails']);
 Route::put('/customer-detail/{accountNo}/technical', [\App\Http\Controllers\CustomerDetailUpdateController::class, 'updateTechnicalDetails']);

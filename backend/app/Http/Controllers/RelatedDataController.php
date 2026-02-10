@@ -576,4 +576,277 @@ class RelatedDataController extends Controller
             ], 500);
         }
     }
+    /**
+     * Get statement of account by ID
+     */
+    public function getStatementOfAccountById($id): JsonResponse
+    {
+        try {
+            $soa = \App\Models\StatementOfAccount::with([
+                'billingAccount.customer',
+                'billingAccount.technicalDetails'
+            ])->find($id);
+
+            if (!$soa) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Statement of Account not found'
+                ], 404);
+            }
+
+            // Map the data to match what SOADetails expects
+            $customer = $soa->billingAccount?->customer;
+            
+            $data = [
+                'id' => $soa->id,
+                'statementDate' => $soa->statement_date ? $soa->statement_date->format('Y-m-d') : null,
+                'accountNo' => $soa->account_no,
+                'dateInstalled' => $soa->billingAccount?->date_installed,
+                'fullName' => $customer?->full_name ?? '',
+                'contactNumber' => $customer?->contact_number_primary ?? '',
+                'emailAddress' => $customer?->email_address ?? '',
+                'address' => $customer?->address ?? '',
+                'plan' => $customer?->desired_plan ?? '',
+                'provider' => null,
+                'balanceFromPreviousBill' => $soa->balance_from_previous_bill,
+                'statementNo' => null,
+                'paymentReceived' => $soa->payment_received_previous,
+                'remainingBalance' => $soa->remaining_balance_previous,
+                'monthlyServiceFee' => $soa->monthly_service_fee,
+                'otherCharges' => ($soa->others_and_basic_charges ?? 0) + ($soa->service_charge ?? 0),
+                'vat' => $soa->vat,
+                'dueDate' => $soa->due_date ? $soa->due_date->format('Y-m-d') : null,
+                'amountDue' => $soa->amount_due,
+                'totalAmountDue' => $soa->total_amount_due,
+                'deliveryStatus' => null,
+                'printLink' => $soa->print_link,
+                'barangay' => $customer?->barangay ?? '',
+                'city' => $customer?->city ?? '',
+                'region' => $customer?->region ?? '',
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $data
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching statement of account: ' . $id, [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch statement of account',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    /**
+     * Get invoice by ID
+     */
+    public function getInvoiceById($id): JsonResponse
+    {
+        try {
+            $invoice = \App\Models\Invoice::with([
+                'billingAccount.customer',
+                'billingAccount.technicalDetails'
+            ])->find($id);
+
+            if (!$invoice) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invoice not found'
+                ], 404);
+            }
+
+            // Map the data to match what InvoiceDetails expects
+            $customer = $invoice->billingAccount?->customer;
+            
+            $data = [
+                'id' => $invoice->id,
+                'invoiceDate' => $invoice->invoice_date ? $invoice->invoice_date->format('Y-m-d') : null,
+                'invoiceStatus' => $invoice->status,
+                'accountNo' => $invoice->account_no,
+                'fullName' => $customer?->full_name ?? '',
+                'contactNumber' => $customer?->contact_number_primary ?? '',
+                'emailAddress' => $customer?->email_address ?? '',
+                'address' => $customer?->address ?? '',
+                'plan' => $customer?->desired_plan ?? '',
+                'dateInstalled' => $invoice->billingAccount?->date_installed,
+                'provider' => null,
+                'invoiceNo' => null, // Let frontend handle fallback
+                'invoiceBalance' => (float)($invoice->invoice_balance ?? 0),
+                'otherCharges' => (float)($invoice->others_and_basic_charges ?? 0) + (float)($invoice->service_charge ?? 0),
+                'totalAmountDue' => (float)($invoice->total_amount ?? 0),
+                'dueDate' => $invoice->due_date ? $invoice->due_date->format('Y-m-d') : null,
+                'invoicePayment' => (float)($invoice->received_payment ?? 0),
+                'paymentMethod' => null,
+                'dateProcessed' => null,
+                'processedBy' => null,
+                'remarks' => null,
+                'vat' => null,
+                'amountDue' => null,
+                'balanceFromPreviousBill' => null,
+                'paymentReceived' => null,
+                'remainingBalance' => null,
+                'monthlyServiceFee' => null,
+                'staggeredPaymentsCount' => 0,
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $data
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching invoice: ' . $id, [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch invoice',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    /**
+     * Get payment portal log by ID
+     */
+    public function getPaymentPortalLogById($id): JsonResponse
+    {
+        try {
+            $log = DB::table('payment_portal_logs')
+                ->leftJoin('billing_accounts', 'payment_portal_logs.account_id', '=', 'billing_accounts.id')
+                ->leftJoin('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                ->where('payment_portal_logs.id', $id)
+                ->select([
+                    'payment_portal_logs.*',
+                    'billing_accounts.account_no as accountNo',
+                    'billing_accounts.account_balance as accountBalance',
+                    'customers.first_name',
+                    'customers.middle_initial',
+                    'customers.last_name',
+                    'customers.contact_number_primary as contactNo',
+                    'customers.address',
+                    'customers.barangay',
+                    'customers.city',
+                    'customers.desired_plan as plan'
+                ])
+                ->first();
+
+            if (!$log) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment portal log not found'
+                ], 404);
+            }
+
+            // Manually add fullName if needed (though the DB might have it if it's a persisted field, but Customer model has it as an attribute)
+            $log->fullName = trim(($log->first_name ?? '') . ' ' . ($log->middle_initial ?? '') . ' ' . ($log->last_name ?? ''));
+
+            return response()->json([
+                'success' => true,
+                'data' => $log
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching payment portal log: ' . $id, [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch payment portal log',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    /**
+     * Get transaction by ID
+     */
+    public function getTransactionById($id): JsonResponse
+    {
+        try {
+            $transaction = DB::table('transactions')
+                ->leftJoin('payment_methods', 'transactions.payment_method', '=', 'payment_methods.id')
+                ->leftJoin('billing_accounts', 'transactions.account_no', '=', 'billing_accounts.account_no')
+                ->leftJoin('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                ->where('transactions.id', $id)
+                ->select([
+                    'transactions.*',
+                    'payment_methods.payment_method as payment_method_name',
+                    'billing_accounts.id as billing_account_id',
+                    'billing_accounts.account_no as billing_account_no',
+                    'billing_accounts.account_balance',
+                    'customers.first_name',
+                    'customers.middle_initial',
+                    'customers.last_name',
+                    'customers.contact_number_primary',
+                    'customers.address',
+                    'customers.barangay',
+                    'customers.city',
+                    'customers.region',
+                    'customers.desired_plan'
+                ])
+                ->first();
+
+            if (!$transaction) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Transaction not found'
+                ], 404);
+            }
+
+            // Structure the data to match the frontend Transaction interface
+            $data = [
+                'id' => $transaction->id,
+                'account_no' => $transaction->account_no,
+                'transaction_type' => $transaction->transaction_type,
+                'received_payment' => (float)$transaction->received_payment,
+                'payment_date' => $transaction->payment_date,
+                'date_processed' => $transaction->date_processed,
+                'processed_by_user' => $transaction->processed_by_user,
+                'payment_method' => $transaction->payment_method,
+                'reference_no' => $transaction->reference_no,
+                'or_no' => $transaction->or_no,
+                'remarks' => $transaction->remarks,
+                'status' => $transaction->status,
+                'image_url' => $transaction->image_url,
+                'created_at' => $transaction->created_at,
+                'updated_at' => $transaction->updated_at,
+                'payment_method_info' => [
+                    'id' => $transaction->payment_method,
+                    'payment_method' => $transaction->payment_method_name
+                ],
+                'account' => [
+                    'id' => $transaction->billing_account_id,
+                    'account_no' => $transaction->billing_account_no,
+                    'account_balance' => (float)$transaction->account_balance,
+                    'customer' => [
+                        'full_name' => trim(($transaction->first_name ?? '') . ' ' . ($transaction->middle_initial ?? '') . ' ' . ($transaction->last_name ?? '')),
+                        'contact_number_primary' => $transaction->contact_number_primary,
+                        'address' => $transaction->address,
+                        'barangay' => $transaction->barangay,
+                        'city' => $transaction->city,
+                        'region' => $transaction->region,
+                        'desired_plan' => $transaction->desired_plan
+                    ]
+                ]
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $data
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching transaction: ' . $id, [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch transaction',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

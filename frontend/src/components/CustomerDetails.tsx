@@ -15,6 +15,10 @@ import { BillingDetailRecord } from '../types/billing';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { customerDetailUpdateService } from '../services/customerDetailUpdateService';
 import { relatedDataService } from '../services/relatedDataService';
+import SOADetails from './SOADetails';
+import InvoiceDetails from './InvoiceDetails';
+import PaymentPortalDetails from './PaymentPortalDetails';
+import TransactionListDetails from './TransactionListDetails';
 
 // Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -37,17 +41,98 @@ interface BillingDetailsProps {
   billingRecord: BillingDetailRecord;
   onlineStatusRecords?: OnlineStatusRecord[];
   onClose?: () => void;
+  onRefresh?: () => Promise<void> | void;
 }
 
 const BillingDetails: React.FC<BillingDetailsProps> = ({
   billingRecord,
   onlineStatusRecords = [],
-  onClose
+  onClose,
+  onRefresh
 }) => {
   console.log('CustomerDetails - Received billingRecord:', billingRecord);
   console.log('CustomerDetails - houseFrontPicture value:', billingRecord.houseFrontPicture);
 
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [selectedSOARecord, setSelectedSOARecord] = useState<any>(null);
+  const [loadingSOARecord, setLoadingSOARecord] = useState(false);
+
+  const handleSOARowClick = async (row: any) => {
+    if (!row || !row.id) return;
+    try {
+      setLoadingSOARecord(true);
+      const response = await relatedDataService.getStatementOfAccountById(row.id);
+      if (response.success && response.data) {
+        setSelectedSOARecord(response.data);
+      } else {
+        console.error('Failed to fetch SOA details:', response.message);
+      }
+    } catch (error) {
+      console.error('Error fetching SOA details:', error);
+    } finally {
+      setLoadingSOARecord(false);
+    }
+  };
+
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [loadingInvoice, setLoadingInvoice] = useState(false);
+
+  const handleInvoiceRowClick = async (row: any) => {
+    if (!row || !row.id) return;
+    try {
+      setLoadingInvoice(true);
+      const response = await relatedDataService.getInvoiceById(row.id);
+      if (response.success && response.data) {
+        setSelectedInvoice(response.data);
+      } else {
+        console.error('Failed to fetch invoice details:', response.message);
+      }
+    } catch (error) {
+      console.error('Error fetching invoice details:', error);
+    } finally {
+      setLoadingInvoice(false);
+    }
+  };
+
+  const [selectedPaymentPortalLog, setSelectedPaymentPortalLog] = useState<any>(null);
+  const [loadingPaymentPortalLog, setLoadingPaymentPortalLog] = useState(false);
+
+  const handlePaymentPortalRowClick = async (row: any) => {
+    if (!row || !row.id) return;
+    try {
+      setLoadingPaymentPortalLog(true);
+      const response = await relatedDataService.getPaymentPortalLogById(row.id);
+      if (response.success && response.data) {
+        setSelectedPaymentPortalLog(response.data);
+      } else {
+        console.error('Failed to fetch payment portal log details:', response.message);
+      }
+    } catch (error) {
+      console.error('Error fetching payment portal log details:', error);
+    } finally {
+      setLoadingPaymentPortalLog(false);
+    }
+  };
+
+  const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+  const [loadingTransaction, setLoadingTransaction] = useState(false);
+
+  const handleTransactionRowClick = async (row: any) => {
+    if (!row || !row.id) return;
+    try {
+      setLoadingTransaction(true);
+      const response = await relatedDataService.getTransactionById(row.id);
+      if (response.success && response.data) {
+        setSelectedTransaction(response.data);
+      } else {
+        console.error('Failed to fetch transaction details:', response.message);
+      }
+    } catch (error) {
+      console.error('Error fetching transaction details:', error);
+    } finally {
+      setLoadingTransaction(false);
+    }
+  };
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     invoices: false,
     paymentPortalLogs: false,
@@ -907,13 +992,14 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
         console.log('Technical details updated successfully');
       }
 
-      setShowDetailsEditModal(false);
+      if (onRefresh) {
+        await onRefresh();
+      }
 
-      // TODO: Refresh the customer details to show updated data
-      // You may want to call a parent component refresh function here
+      // We don't close the modal here anymore. The modal component handles the success UI and closing.
     } catch (error) {
       console.error('Failed to update details:', error);
-      alert('Failed to update details. Please try again.');
+      throw error; // Re-throw so the modal can handle the error state
     }
   };
 
@@ -939,6 +1025,46 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       splynxId: '1'
     }
   ];
+
+  if (selectedSOARecord) {
+    return (
+      <SOADetails
+        soaRecord={selectedSOARecord}
+        onClose={() => setSelectedSOARecord(null)}
+        onViewCustomer={() => setSelectedSOARecord(null)}
+      />
+    );
+  }
+
+  if (selectedInvoice) {
+    return (
+      <InvoiceDetails
+        invoiceRecord={selectedInvoice}
+        onClose={() => setSelectedInvoice(null)}
+        onViewCustomer={() => setSelectedInvoice(null)}
+      />
+    );
+  }
+
+  if (selectedPaymentPortalLog) {
+    return (
+      <PaymentPortalDetails
+        record={selectedPaymentPortalLog}
+        onClose={() => setSelectedPaymentPortalLog(null)}
+        onViewCustomer={() => setSelectedPaymentPortalLog(null)}
+      />
+    );
+  }
+
+  if (selectedTransaction) {
+    return (
+      <TransactionListDetails
+        transaction={selectedTransaction}
+        onClose={() => setSelectedTransaction(null)}
+        onViewCustomer={() => setSelectedTransaction(null)}
+      />
+    );
+  }
 
   return (
     <div className={`h-full flex flex-col border-l relative ${isDarkMode
@@ -1213,43 +1339,12 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
           {expandedSections.invoices && (
             <div className="px-6 pb-4">
-              {relatedData.invoices.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className={`min-w-full divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
-                    }`}>
-                    <thead>
-                      <tr>
-                        <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Invoice ID</th>
-                        <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Amount</th>
-                        <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Status</th>
-                        <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
-                      }`}>
-                      {relatedData.invoices.map((invoice: any, index: number) => (
-                        <tr key={index} className={isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'}>
-                          <td className={`px-4 py-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>{invoice.id || invoice.invoice_id}</td>
-                          <td className={`px-4 py-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>₱{invoice.amount || invoice.total_amount || '0.00'}</td>
-                          <td className={`px-4 py-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>{invoice.status || 'N/A'}</td>
-                          <td className={`px-4 py-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>{invoice.invoice_date ? (invoice.invoice_date.includes(' ') ? invoice.invoice_date.split(' ')[0] : invoice.invoice_date) : (invoice.created_at ? (invoice.created_at.includes(' ') ? invoice.created_at.split(' ')[0] : invoice.created_at) : (invoice.date || 'N/A'))}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className={`text-center py-8 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
-                  }`}>No items</div>
-              )}
+              <RelatedDataTable
+                data={relatedData.invoices}
+                columns={relatedDataColumns.invoices}
+                isDarkMode={isDarkMode}
+                onRowClick={handleInvoiceRowClick}
+              />
             </div>
           )}
         </div>
@@ -1287,6 +1382,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 data={relatedData.statementOfAccounts}
                 columns={relatedDataColumns.statementOfAccounts}
                 isDarkMode={isDarkMode}
+                onRowClick={handleSOARowClick}
               />
               <div className="flex justify-end">
                 <button className={isDarkMode ? 'text-red-400 hover:text-red-300 text-sm' : 'text-red-600 hover:text-red-700 text-sm'}>Add</button>
@@ -1333,43 +1429,12 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
           {expandedSections.paymentPortalLogs && (
             <div className="px-6 pb-4">
-              {relatedData.paymentPortalLogs.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className={`min-w-full divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
-                    }`}>
-                    <thead>
-                      <tr>
-                        <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>ID</th>
-                        <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Amount</th>
-                        <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Status</th>
-                        <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
-                      }`}>
-                      {relatedData.paymentPortalLogs.map((log: any, index: number) => (
-                        <tr key={index} className={isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'}>
-                          <td className={`px-4 py-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>{log.id}</td>
-                          <td className={`px-4 py-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>₱{parseFloat(log.total_amount || '0').toFixed(2)}</td>
-                          <td className={`px-4 py-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>{log.status || 'N/A'}</td>
-                          <td className={`px-4 py-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>{log.date_time ? (log.date_time.includes(' ') ? log.date_time.split(' ')[0] : log.date_time) : 'N/A'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className={`text-center py-8 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
-                  }`}>No items</div>
-              )}
+              <RelatedDataTable
+                data={relatedData.paymentPortalLogs}
+                columns={relatedDataColumns.paymentPortalLogs}
+                isDarkMode={isDarkMode}
+                onRowClick={handlePaymentPortalRowClick}
+              />
             </div>
           )}
         </div>
@@ -1416,6 +1481,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 data={relatedData.transactions}
                 columns={relatedDataColumns.transactions}
                 isDarkMode={isDarkMode}
+                onRowClick={handleTransactionRowClick}
               />
               <div className="flex justify-end">
                 <button className={isDarkMode
