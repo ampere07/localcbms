@@ -1505,6 +1505,7 @@ Route::prefix('port')->group(function () {
 
 // Ports (plural) for frontend compatibility
 Route::prefix('ports')->group(function () {
+    Route::get('/used', [\App\Http\Controllers\Api\PortApiController::class, 'getUsedPorts']);
     Route::get('/', [\App\Http\Controllers\Api\PortApiController::class, 'index']);
     Route::post('/', [\App\Http\Controllers\Api\PortApiController::class, 'store']);
     Route::get('/statistics', [\App\Http\Controllers\Api\PortApiController::class, 'getStatistics']);

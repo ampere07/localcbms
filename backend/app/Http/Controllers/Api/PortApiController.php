@@ -32,16 +32,16 @@ class PortApiController extends Controller
             
             if ($excludeUsed && !empty($lcpnap)) {
                 $usedPortsQuery = \DB::table('job_orders')
-                    ->whereNotNull('PORT')
-                    ->whereNotNull('LCPNAP')
-                    ->where('PORT', '!=', '')
-                    ->where('LCPNAP', '=', $lcpnap);
+                    ->whereNotNull('port')
+                    ->whereNotNull('lcpnap')
+                    ->where('port', '!=', '')
+                    ->where('lcpnap', '=', $lcpnap);
                 
                 if ($currentJobOrderId) {
                     $usedPortsQuery->where('id', '!=', $currentJobOrderId);
                 }
                 
-                $usedPorts = $usedPortsQuery->pluck('PORT')->toArray();
+                $usedPorts = $usedPortsQuery->pluck('port')->toArray();
                 
                 if (!empty($usedPorts)) {
                     $query->whereNotIn('Label', $usedPorts);
@@ -250,6 +250,45 @@ class PortApiController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error getting statistics: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    public function getUsedPorts(Request $request)
+    {
+        try {
+            $lcpnap = $request->get('lcpnap');
+            $currentJobOrderId = $request->get('current_job_order_id');
+
+            if (empty($lcpnap)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => []
+                ]);
+            }
+
+            $usedPortsQuery = \DB::table('job_orders')
+                ->where('lcpnap', $lcpnap)
+                ->whereNotNull('port')
+                ->where('port', '!=', '');
+
+            if ($currentJobOrderId) {
+                $usedPortsQuery->where('id', '!=', $currentJobOrderId);
+            }
+
+            $usedPorts = $usedPortsQuery->pluck('port')->unique()->values()->toArray();
+
+            $lcpnapInfo = \DB::table('lcpnap')->where('lcpnap_name', $lcpnap)->first();
+            $totalPorts = $lcpnapInfo ? (int)$lcpnapInfo->port_total : 32; // Default to 32 if not found
+
+            return response()->json([
+                'success' => true,
+                'data' => $usedPorts,
+                'total_ports' => $totalPorts
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching used ports: ' . $e->getMessage()
             ], 500);
         }
     }
