@@ -78,10 +78,11 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   const [loadingInvoice, setLoadingInvoice] = useState(false);
 
   const handleInvoiceRowClick = async (row: any) => {
-    if (!row || !row.id) return;
+    const id = row?.id || row?.invoice_id;
+    if (!id) return;
     try {
       setLoadingInvoice(true);
-      const response = await relatedDataService.getInvoiceById(row.id);
+      const response = await relatedDataService.getInvoiceById(id);
       if (response.success && response.data) {
         setSelectedInvoice(response.data);
       } else {
@@ -98,10 +99,11 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   const [loadingPaymentPortalLog, setLoadingPaymentPortalLog] = useState(false);
 
   const handlePaymentPortalRowClick = async (row: any) => {
-    if (!row || !row.id) return;
+    const id = row?.id || row?.log_id;
+    if (!id) return;
     try {
       setLoadingPaymentPortalLog(true);
-      const response = await relatedDataService.getPaymentPortalLogById(row.id);
+      const response = await relatedDataService.getPaymentPortalLogById(id);
       if (response.success && response.data) {
         setSelectedPaymentPortalLog(response.data);
       } else {
@@ -118,10 +120,11 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   const [loadingTransaction, setLoadingTransaction] = useState(false);
 
   const handleTransactionRowClick = async (row: any) => {
-    if (!row || !row.id) return;
+    const id = row?.id || row?.transaction_id;
+    if (!id) return;
     try {
       setLoadingTransaction(true);
-      const response = await relatedDataService.getTransactionById(row.id);
+      const response = await relatedDataService.getTransactionById(id);
       if (response.success && response.data) {
         setSelectedTransaction(response.data);
       } else {
@@ -1790,6 +1793,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
               <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>
                 {expandedModalSection === 'invoices' && 'All Related Invoices'}
+                {expandedModalSection === 'statementOfAccounts' && 'All Related Statement of Accounts'}
                 {expandedModalSection === 'paymentPortalLogs' && 'All Related Payment Portal Logs'}
                 {expandedModalSection === 'transactions' && 'All Related Transactions'}
                 {expandedModalSection === 'staggered' && 'All Related Staggered'}
@@ -1827,6 +1831,17 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
               data={fullRelatedData[expandedModalSection] || []}
               columns={relatedDataColumns[expandedModalSection as keyof typeof relatedDataColumns]}
               isDarkMode={isDarkMode}
+              onRowClick={(row) => {
+                if (expandedModalSection === 'invoices') {
+                  handleInvoiceRowClick(row);
+                } else if (expandedModalSection === 'statementOfAccounts') {
+                  handleSOARowClick(row);
+                } else if (expandedModalSection === 'paymentPortalLogs') {
+                  handlePaymentPortalRowClick(row);
+                } else if (expandedModalSection === 'transactions') {
+                  handleTransactionRowClick(row);
+                }
+              }}
             />
           </div>
         </div>

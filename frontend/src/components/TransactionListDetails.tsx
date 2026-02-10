@@ -60,6 +60,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
@@ -180,10 +181,12 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
     }
   };
 
-  const handleApproveTransaction = async () => {
-    if (!window.confirm('Are you sure you want to approve this transaction?')) {
-      return;
-    }
+  const handleApproveTransaction = () => {
+    setShowConfirmModal(true);
+  };
+
+  const confirmApprove = async () => {
+    setShowConfirmModal(false);
 
     try {
       setLoading(true);
@@ -514,15 +517,15 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
 
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border ${isDarkMode
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-white border-gray-300'
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border transform transition-all duration-300 ${isDarkMode
+            ? 'bg-gray-800 border-gray-700 shadow-2xl'
+            : 'bg-white border-gray-300 shadow-xl'
             }`}>
-            <h3 className={`text-xl font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+            <h3 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>Success</h3>
             <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}>{successMessage}</p>
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end">
               <button
                 onClick={() => {
                   setShowSuccessModal(false);
@@ -530,9 +533,9 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                     onClose();
                   }
                 }}
-                className="text-white px-6 py-2 rounded transition-colors"
+                className="text-white px-8 py-2.5 rounded font-medium transition-all active:scale-95"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#22c55e'
+                  backgroundColor: colorPalette?.primary || '#ea580c'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -545,7 +548,51 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                   }
                 }}
               >
-                OK
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border transform transition-all duration-300 ${isDarkMode
+            ? 'bg-gray-800 border-gray-700 shadow-2xl'
+            : 'bg-white border-gray-300 shadow-xl'
+            }`}>
+            <h3 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Confirm Approval</h3>
+            <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Are you sure you want to approve this transaction? This action will update the transaction status and account balance.</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className={`px-6 py-2.5 rounded font-medium transition-colors ${isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmApprove}
+                className="text-white px-6 py-2.5 rounded font-medium transition-all active:scale-95"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
+              >
+                Confirm Approve
               </button>
             </div>
           </div>

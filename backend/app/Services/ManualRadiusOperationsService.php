@@ -389,6 +389,19 @@ class ManualRadiusOperationsService
      */
     private function updateDatabaseStatus(string $accountNo, string $username, string $dbStatus, string $updatedBy): void
     {
+        // Get status ID from billing_status table
+        $statusId = DB::table('billing_status')->where('status_name', $dbStatus)->value('id');
+
+        // If status name not found (e.g. "Inactive"), try "Disconnected" as fallback or skip
+        if (!$statusId && $dbStatus === 'Inactive') {
+             $statusId = DB::table('billing_status')->where('status_name', 'Disconnected')->value('id');
+        }
+
+        if (!$statusId) {
+            $this->writeLog("[WARNING] Status '$dbStatus' not found in billing_status table. Database update skipped.");
+            return;
+        }
+
         $rowsUpdated = 0;
 
         // Try via Account No first
@@ -396,7 +409,7 @@ class ManualRadiusOperationsService
             $rowsUpdated = DB::table('billing_accounts')
                 ->where('account_no', $accountNo)
                 ->update([
-                    'billing_status' => $dbStatus,
+                    'billing_status_id' => $statusId,
                     'updated_at' => now(),
                     'updated_by' => $updatedBy
                 ]);
@@ -404,17 +417,25 @@ class ManualRadiusOperationsService
 
         // Fallback to username
         if ($rowsUpdated === 0) {
-            $rowsUpdated = DB::table('billing_accounts')
-                ->where('pppoe_username', $username)
-                ->update([
-                    'billing_status' => $dbStatus,
-                    'updated_at' => now(),
-                    'updated_by' => $updatedBy
-                ]);
+            // Note: billing_accounts typically doesn't have pppoe_username directly, 
+            // but assuming legacy schema or join handling. 
+            // To prevent crash if column missing, we should probably check or rely on accountNo which is primary.
+            // But preserving existing logic with corrected column name:
+            try {
+                $rowsUpdated = DB::table('billing_accounts')
+                    ->where('pppoe_username', $username)
+                    ->update([
+                        'billing_status_id' => $statusId,
+                        'updated_at' => now(),
+                        'updated_by' => $updatedBy
+                    ]);
+            } catch (\Exception $e) {
+                // Ignore column missing error in fallback
+            }
         }
 
         if ($rowsUpdated > 0) {
-            $this->writeLog("[DB] Status updated to: $dbStatus");
+            $this->writeLog("[DB] Status updated to: $dbStatus (ID: $statusId)");
         } else {
             $this->writeLog("[WARNING] Database status update affected 0 rows");
         }

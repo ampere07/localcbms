@@ -845,7 +845,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           >
             <span>Move to JO</span>
           </button>
-          <button
+          {/* <button
             className="px-3 py-1 rounded-sm flex items-center text-white"
             style={{
               backgroundColor: colorPalette?.primary || '#ea580c'
@@ -864,7 +864,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             disabled={loading}
           >
             <span>Schedule</span>
-          </button>
+          </button> */}
 
           <div className="relative">
             <button

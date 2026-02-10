@@ -68,6 +68,9 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -263,7 +266,9 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
 
     if (!isValid) {
       console.log('Transaction form validation failed. Errors:', errors);
-      alert('Please fill in all required fields before saving.');
+      setStatusMessage('Please fill in all required fields before saving.');
+      setIsSuccess(false);
+      setShowStatusModal(true);
       return;
     }
 
@@ -292,7 +297,9 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
           }
         } catch (uploadError: any) {
           console.error('[UPLOAD ERROR]:', uploadError);
-          alert(`Warning: Failed to upload image: ${uploadError.message}`);
+          setStatusMessage(`Warning: Failed to upload image: ${uploadError.message}`);
+          setIsSuccess(false);
+          setShowStatusModal(true);
         }
       }
 
@@ -314,15 +321,19 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       const result = await transactionService.createTransaction(payload);
 
       if (result.success) {
-        alert('Transaction created successfully!');
-        onSave(formData);
-        onClose();
+        setStatusMessage('Transaction created successfully!');
+        setIsSuccess(true);
+        setShowStatusModal(true);
       } else {
-        alert(`Failed to create transaction: ${result.message}`);
+        setStatusMessage(`Failed to create transaction: ${result.message}`);
+        setIsSuccess(false);
+        setShowStatusModal(true);
       }
     } catch (error) {
       console.error('Error creating transaction:', error);
-      alert(`Failed to save transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setStatusMessage(`Failed to save transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setIsSuccess(false);
+      setShowStatusModal(true);
     } finally {
       setLoading(false);
     }
@@ -330,6 +341,14 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
 
   const handleCancel = () => {
     onClose();
+  };
+
+  const handleStatusModalClose = () => {
+    setShowStatusModal(false);
+    if (isSuccess) {
+      onSave(formData);
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
@@ -722,6 +741,46 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Status Modal */}
+      {showStatusModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className={`rounded shadow-lg p-6 max-w-sm w-full mx-4 transform transition-all duration-300 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+            <div className="mb-4">
+              <h3 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
+                {isSuccess ? 'Success' : 'Error'}
+              </h3>
+            </div>
+            <div className={`mb-6 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
+              {statusMessage}
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={handleStatusModalClose}
+                className="px-6 py-2 rounded text-white font-medium transition-all duration-200 active:scale-95"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -191,8 +191,8 @@ class AutoDisconnectService
 
         // Check if already disconnected today
         $alreadyDisconnected = DB::table('disconnected_logs')
-            ->where('account_no', $accountNo)
-            ->whereDate('date', Carbon::today())
+            ->where('account_id', $billingAccount->id)
+            ->whereDate('created_at', Carbon::today())
             ->exists();
 
         if ($alreadyDisconnected) {
@@ -220,14 +220,15 @@ class AutoDisconnectService
 
         // Get technical details for username
         $technicalDetail = $billingAccount->technicalDetails->first();
-        if (!$technicalDetail || empty($technicalDetail->pppoe_username)) {
+        if (!$technicalDetail || empty($technicalDetail->username)) {
             $this->writeLog("  [SKIP] PPPoE username not found");
             return ['success' => false, 'reason' => 'PPPoE username not found'];
         }
 
-        $username = $technicalDetail->pppoe_username;
+        $username = $technicalDetail->username;
         $this->writeLog("  [INFO] Username: {$username}");
 
+        // Create transaction to ensure atomicity
         DB::beginTransaction();
         try {
             $config = BillingConfig::first();
@@ -238,17 +239,31 @@ class AutoDisconnectService
                 $this->writeLog("  [FEE] Applying disconnection fee: ₱" . number_format($dcFee, 2));
 
                 // Update invoice
-                $invoice->service_charge += $dcFee;
-                $invoice->total_amount += $dcFee;
-                $invoice->invoice_balance += $dcFee;
+                // Ensure we handle null values correctly
+                $currentServiceCharge = floatval($invoice->service_charge ?? 0);
+                $currentTotalAmount = floatval($invoice->total_amount ?? 0);
+                $currentInvoiceBalance = floatval($invoice->invoice_balance ?? 0);
+
+                $invoice->service_charge = $currentServiceCharge + $dcFee;
+                $invoice->total_amount = $currentTotalAmount + $dcFee;
+                $invoice->invoice_balance = $currentInvoiceBalance + $dcFee;
                 $invoice->updated_by = 'System';
                 $invoice->save();
 
                 // Update account balance
                 $newBalance = $currentBalance + $dcFee;
+                
+                // Direct update to billing_accounts to ensure it persists
+                DB::table('billing_accounts')
+                    ->where('id', $billingAccount->id)
+                    ->update([
+                        'account_balance' => $newBalance,
+                        'updated_by' => 'System',
+                        'updated_at' => Carbon::now()
+                    ]);
+                
+                // Update the local instance for logging
                 $billingAccount->account_balance = $newBalance;
-                $billingAccount->updated_by = 'System';
-                $billingAccount->save();
 
                 $this->writeLog("  [FEE] New Balance: ₱" . number_format($newBalance, 2));
 
@@ -257,8 +272,8 @@ class AutoDisconnectService
                     'account_no' => $accountNo,
                     'invoice_id' => $invoice->id,
                     'service_charge_type' => 'Disconnection Fee',
-                    'amount' => $dcFee,
-                    'date_applied' => Carbon::now(),
+                    'service_charge' => $dcFee,
+                    'date_used' => Carbon::now(),
                     'created_at' => Carbon::now(),
                     'updated_at' => Carbon::now(),
                     'created_by' => 'System',
@@ -283,31 +298,33 @@ class AutoDisconnectService
             }
             $this->writeLog("  [RADIUS] ✓ Successfully disconnected");
 
+            // Update billing account status to Disconnected (4)
+            // Explicit update via DB builder to avoid model issues and ensure it sets ID 4
+            DB::table('billing_accounts')
+                ->where('id', $billingAccount->id)
+                ->update([
+                    'billing_status_id' => 4,
+                    'updated_by' => 'System',
+                    'updated_at' => Carbon::now()
+                ]);
+
             // Log disconnection
-            $customer = $billingAccount->customer;
+            // Make sure we have the customer for the log if needed (though we only insert IDs/remarks now)
             DB::table('disconnected_logs')->insert([
-                'account_no' => $accountNo,
-                'splynx_id' => $technicalDetail->splynx_id ?? null,
-                'mikrotik_id' => $technicalDetail->mikrotik_id ?? null,
-                'provider' => $technicalDetail->provider ?? null,
+                'account_id' => $billingAccount->id,
                 'username' => $username,
-                'date' => Carbon::now(),
                 'remarks' => "System Auto DC (Overdue {$dcActualOffset} days)",
-                'user_email' => 'System',
-                'name' => $customer->full_name ?? null,
-                'barangay' => $customer->barangay ?? null,
-                'city' => $customer->city ?? null,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now()
             ]);
-            $this->writeLog("  [LOG] Recorded in disconnected_logs");
+            $this->writeLog("  [LOG] Recorded in disconnected_logs and status updated to 4");
 
             // Send SMS notification if service is available
-            if ($this->smsService && $customer && $customer->contact_number_primary) {
-                $this->writeLog("  [SMS] Sending notification to {$customer->contact_number_primary}");
+            if ($this->smsService && $billingAccount->customer && $billingAccount->customer->contact_number_primary) {
+                $this->writeLog("  [SMS] Sending notification to {$billingAccount->customer->contact_number_primary}");
                 $this->triggerSMS($accountNo, 'dcTxt', [
-                    'name' => $customer->full_name,
-                    'balance' => number_format($currentBalance + $dcFee, 2)
+                    'name' => $billingAccount->customer->full_name,
+                    'balance' => number_format($billingAccount->account_balance, 2)
                 ]);
             }
 
@@ -509,7 +526,7 @@ class AutoDisconnectService
         $serviceOrder->location = $customer->location ?? null;
         $serviceOrder->plan = $billingAccount->plan->name ?? null;
         $serviceOrder->provider = $technicalDetail->provider ?? null;
-        $serviceOrder->username = $technicalDetail->pppoe_username ?? null;
+        $serviceOrder->username = $technicalDetail->username ?? null;
         $serviceOrder->connection_type = $technicalDetail->connection_type ?? null;
         $serviceOrder->router_modem_sn = $technicalDetail->router_model ?? null;
         $serviceOrder->lcp = $technicalDetail->lcp ?? null;
