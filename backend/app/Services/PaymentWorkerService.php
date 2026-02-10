@@ -204,6 +204,45 @@ class PaymentWorkerService
                 }
 
                 DB::commit();
+
+                // Send Paid SMS
+                try {
+                    $paidInvoices = $result['invoices_paid'] ?? [];
+                    
+                    if (!empty($paidInvoices) && !empty($account->contact_number_primary)) {
+                        $paidTemplate = DB::table('sms_templates')
+                            ->where('template_type', 'Paid')
+                            ->where('is_active', 1)
+                            ->first();
+
+                        if ($paidTemplate) {
+                            $smsService = new \App\Services\ItexmoSmsService();
+
+                            foreach ($paidInvoices as $paidInvoice) {
+                                $message = $paidTemplate->message_content;
+                                
+                                $message = str_replace('{{customer_name}}', $account->full_name, $message);
+                                $message = str_replace('{{account_no}}', $account->account_no, $message);
+                                $message = str_replace('{{invoice_id}}', $paidInvoice['invoice_id'], $message);
+                                $message = str_replace('{{amount_paid}}', $paidInvoice['amount_paid'], $message);
+                                $message = str_replace('{{date}}', date('Y-m-d'), $message);
+
+                                $smsResult = $smsService->send([
+                                    'contact_no' => $account->contact_number_primary,
+                                    'message' => $message
+                                ]);
+
+                                if ($smsResult['success']) {
+                                    $this->workerLog("Paid Invoice SMS sent for Invoice #{$paidInvoice['invoice_id']}");
+                                } else {
+                                    $this->workerLog("Paid Invoice SMS Failed: " . ($smsResult['error'] ?? 'Unknown error'));
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception $e) {
+                    $this->workerLog("Paid Invoice SMS Exception: " . $e->getMessage());
+                }
                 
             } else {
                 // Billing update failed
@@ -234,6 +273,7 @@ class PaymentWorkerService
             $accountNo = $account->account_no;
             $remainingAmount = $paymentAmount;
             $distributionLog = [];
+            $paidInvoices = [];
 
             // Get unpaid invoices ordered by invoice_date (oldest first)
             $unpaidInvoices = DB::table('invoices')
@@ -258,7 +298,8 @@ class PaymentWorkerService
                     'success' => true,
                     'distribution_summary' => "Applied as credit (No unpaid invoices)",
                     'distributed_amount' => $paymentAmount,
-                    'remaining_amount' => 0
+                    'remaining_amount' => 0,
+                    'invoices_paid' => []
                 ];
             }
 
@@ -283,6 +324,10 @@ class PaymentWorkerService
                 $newStatus = 'Unpaid';
                 if ($newInvoiceBalance <= 0.01) { // Fully paid (accounting for floating point)
                     $newStatus = 'Paid';
+                    $paidInvoices[] = [
+                        'invoice_id' => $invoiceId,
+                        'amount_paid' => $amountToApply
+                    ];
                 } elseif ($newReceivedPayment > 0) { // Partially paid
                     $newStatus = 'Partial';
                 }
@@ -324,7 +369,8 @@ class PaymentWorkerService
                 'success' => true,
                 'distribution_summary' => $distributionSummary,
                 'distributed_amount' => $paymentAmount - $remainingAmount,
-                'remaining_amount' => $remainingAmount
+                'remaining_amount' => $remainingAmount,
+                'invoices_paid' => $paidInvoices
             ];
 
         } catch (Exception $e) {
@@ -419,9 +465,56 @@ class PaymentWorkerService
             
             if ($result['status'] === 'success') {
                 $this->workerLog("[RECONNECT SUCCESS] Reconnection and Session Kill completed successfully");
+
+                // Send SMS Notification
+                try {
+                    // Fetch SMS template
+                    $smsTemplate = DB::table('sms_templates')
+                        ->where('template_type', 'Reconnect')
+                        ->where('is_active', 1)
+                        ->first();
+
+                    if ($smsTemplate) {
+                        // Get Customer Name and Contact Number
+                        $customerInfo = DB::table('billing_accounts')
+                            ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                            ->where('billing_accounts.account_no', $accountNo)
+                            ->select(
+                                'customers.contact_number_primary',
+                                DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name")
+                            )
+                            ->first();
+
+                        if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
+                            // Replace variables
+                            $message = $smsTemplate->message_content;
+                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
+
+                            // Send SMS
+                            $smsService = new \App\Services\ItexmoSmsService();
+                            $smsResult = $smsService->send([
+                                'contact_no' => $customerInfo->contact_number_primary,
+                                'message' => $message
+                            ]);
+
+                            if ($smsResult['success']) {
+                                $this->workerLog("[RECONNECT SMS] SMS sent to " . $customerInfo->contact_number_primary);
+                            } else {
+                                $this->workerLog("[RECONNECT SMS FAILED] " . ($smsResult['error'] ?? 'Unknown error'));
+                            }
+                        } else {
+                            $this->workerLog("[RECONNECT SMS SKIP] No contact number found for account " . $accountNo);
+                        }
+                    } else {
+                        $this->workerLog("[RECONNECT SMS SKIP] No active Reconnect SMS template found");
+                    }
+                } catch (Exception $e) {
+                    $this->workerLog("[RECONNECT SMS EXCEPTION] " . $e->getMessage());
+                }
+
                 return 'success';
             } else {
-                $this->workerLog("[RECONNECT FAILED] {$result['message']}");
+                $this->workerLog("[RECONNECT FAILED] " . $result['message']);
                 return 'failed';
             }
             

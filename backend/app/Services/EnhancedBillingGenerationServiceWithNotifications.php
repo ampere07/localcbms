@@ -515,21 +515,83 @@ class EnhancedBillingGenerationServiceWithNotifications
             
             $this->log('info', "Processing billing day: {$billingDayLabel}");
             
-            $soaResults = $this->generateSOAForBillingDay($billingDay, $today, $userId);
-            $invoiceResults = $this->generateInvoicesForBillingDay($billingDay, $today, $userId);
+            // Use Unified Billing Generation to prevent duplicate SMS
+            $unifiedResults = $this->generateUnifiedBilling($billingDay, $today, $userId);
             
             $results['billing_days_processed'][] = $billingDayLabel;
-            $results['invoices']['success'] += $invoiceResults['success'];
-            $results['invoices']['failed'] += $invoiceResults['failed'];
-            $results['invoices']['errors'] = array_merge($results['invoices']['errors'], $invoiceResults['errors']);
-            $results['invoices']['notifications'] = array_merge($results['invoices']['notifications'], $invoiceResults['notifications'] ?? []);
             
-            $results['statements']['success'] += $soaResults['success'];
-            $results['statements']['failed'] += $soaResults['failed'];
-            $results['statements']['errors'] = array_merge($results['statements']['errors'], $soaResults['errors']);
-            $results['statements']['notifications'] = array_merge($results['statements']['notifications'], $soaResults['notifications'] ?? []);
+            // Merge Invoice Results
+            $results['invoices']['success'] += $unifiedResults['invoices']['success'];
+            $results['invoices']['failed'] += $unifiedResults['invoices']['failed'];
+            $results['invoices']['errors'] = array_merge($results['invoices']['errors'], $unifiedResults['invoices']['errors']);
+            
+            // Merge Statement Results
+            $results['statements']['success'] += $unifiedResults['statements']['success'];
+            $results['statements']['failed'] += $unifiedResults['statements']['failed'];
+            $results['statements']['errors'] = array_merge($results['statements']['errors'], $unifiedResults['statements']['errors']);
+            
+            // Merge Notifications (Unified) - adding to statements for tracking, though it covers both
+            $results['statements']['notifications'] = array_merge($results['statements']['notifications'], $unifiedResults['notifications'] ?? []);
         }
 
+        return $results;
+    }
+
+    public function generateUnifiedBilling(int $billingDay, Carbon $generationDate, int $userId): array
+    {
+        $results = [
+            'invoices' => ['success' => 0, 'failed' => 0, 'errors' => []],
+            'statements' => ['success' => 0, 'failed' => 0, 'errors' => []],
+            'notifications' => []
+        ];
+
+        try {
+            $accounts = $this->getActiveAccountsForBillingDay($billingDay, $generationDate);
+
+            foreach ($accounts as $account) {
+                $soa = null;
+                $invoice = null;
+
+                // 1. Generate SOA
+                try {
+                    $soa = $this->createEnhancedStatement($account, $generationDate, $userId);
+                    $results['statements']['success']++;
+                } catch (\Exception $e) {
+                    $results['statements']['failed']++;
+                    $results['statements']['errors'][] = [
+                        'account_id' => $account->id,
+                        'account_no' => $account->account_no,
+                        'error' => "SOA Error: " . $e->getMessage()
+                    ];
+                    $this->log('error', "Failed to generate SOA for account {$account->account_no}: " . $e->getMessage());
+                }
+
+                // 2. Generate Invoice
+                try {
+                    $invoice = $this->createEnhancedInvoice($account, $generationDate, $userId);
+                    $results['invoices']['success']++;
+                } catch (\Exception $e) {
+                    $results['invoices']['failed']++;
+                    $results['invoices']['errors'][] = [
+                        'account_id' => $account->id,
+                        'account_no' => $account->account_no,
+                        'error' => "Invoice Error: " . $e->getMessage()
+                    ];
+                    $this->log('error', "Failed to generate Invoice for account {$account->account_no}: " . $e->getMessage());
+                }
+
+                // 3. Notify ONCE (if either exists)
+                if ($soa || $invoice) {
+                     $notificationResult = $this->queueNotification($account, $invoice, $soa);
+                     $results['notifications'][] = $notificationResult;
+                }
+            }
+        } catch (\Exception $e) {
+            $this->log('error', "Error in generateUnifiedBilling: " . $e->getMessage());
+            // In case of catastrophic failure, we just return partial results with the error logged
+            // You might want to bubble this up depending on desire
+        }
+        
         return $results;
     }
 
@@ -537,14 +599,15 @@ class EnhancedBillingGenerationServiceWithNotifications
     {
         $today = Carbon::now();
 
-        $soaResults = $this->generateSOAForBillingDay($billingDay, $today, $userId);
-        $invoiceResults = $this->generateInvoicesForBillingDay($billingDay, $today, $userId);
+        // Use Unified Billing
+        $unifiedResults = $this->generateUnifiedBilling($billingDay, $today, $userId);
 
         return [
             'date' => $today->format('Y-m-d'),
             'billing_day' => $billingDay === self::END_OF_MONTH_BILLING ? 'End of Month (0)' : $billingDay,
-            'invoices' => $invoiceResults,
-            'statements' => $soaResults
+            'invoices' => $unifiedResults['invoices'],
+            'statements' => $unifiedResults['statements'],
+            'notifications' => $unifiedResults['notifications']
         ];
     }
 

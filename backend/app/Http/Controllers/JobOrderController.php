@@ -912,6 +912,41 @@ class JobOrderController extends Controller
 
             DB::commit();
 
+            // Send Welcome SMS
+            try {
+                if (!empty($customer->contact_number_primary)) {
+                    $welcomeTemplate = \App\Models\SMSTemplate::where('template_type', 'Welcome')
+                        ->where('is_active', 1)
+                        ->first();
+                        
+                    if ($welcomeTemplate) {
+                        $message = $welcomeTemplate->message_content;
+                        
+                        // Replace variables
+                        $message = str_replace('{{customer_name}}', $customer->full_name, $message);
+                        $message = str_replace('{{account_no}}', $accountNumber, $message);
+                        $message = str_replace('{{username}}', $generatedUsername, $message);
+                        $message = str_replace('{{password}}', $generatedPassword, $message);
+                        
+                        $smsService = new \App\Services\ItexmoSmsService();
+                        $smsService->send([
+                            'contact_no' => $customer->contact_number_primary,
+                            'message' => $message
+                        ]);
+                        
+                        \Log::info('Welcome SMS sent successfully', [
+                             'customer_id' => $customer->id,
+                             'account_no' => $accountNumber
+                        ]);
+                    } else {
+                        \Log::warning('Welcome SMS template not found');
+                    }
+                }
+            } catch (\Exception $e) {
+                // Log but don't fail the request since approval is committed
+                \Log::error('Failed to send Welcome SMS: ' . $e->getMessage()); 
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Job order approved successfully',

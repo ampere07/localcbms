@@ -273,6 +273,54 @@ class TransactionController extends Controller
                 'invoices_partial' => $invoiceUpdateResult['invoices_partial']
             ]);
 
+            // Send Paid SMS if invoices were paid
+            try {
+                if (!empty($invoiceUpdateResult['invoices_paid'])) {
+                    $billingAccount->load('customer');
+                    $customer = $billingAccount->customer;
+                    
+                    if ($customer && !empty($customer->contact_number_primary)) {
+                        $paidTemplate = DB::table('sms_templates')
+                            ->where('template_type', 'Paid')
+                            ->where('is_active', 1)
+                            ->first();
+                            
+                        if ($paidTemplate) {
+                            $smsService = new \App\Services\ItexmoSmsService();
+                            
+                            foreach ($invoiceUpdateResult['invoices_paid'] as $paidInvoice) {
+                                $message = $paidTemplate->message_content;
+                                
+                                // Replace variables
+                                $message = str_replace('{{customer_name}}', $customer->full_name, $message);
+                                $message = str_replace('{{account_no}}', $accountNo, $message);
+                                $message = str_replace('{{invoice_id}}', $paidInvoice['invoice_id'], $message);
+                                $message = str_replace('{{amount_paid}}', $paidInvoice['amount_paid'], $message);
+                                $message = str_replace('{{date}}', date('Y-m-d'), $message);
+                                
+                                $result = $smsService->send([
+                                    'contact_no' => $customer->contact_number_primary,
+                                    'message' => $message
+                                ]);
+                                
+                                if ($result['success']) {
+                                    \Log::info('Paid Invoice SMS sent', [
+                                        'invoice_id' => $paidInvoice['invoice_id'], 
+                                        'customer_id' => $customer->id
+                                    ]);
+                                } else {
+                                    \Log::error('Paid Invoice SMS Failed: ' . ($result['error'] ?? 'Unknown error'));
+                                }
+                            }
+                        } else {
+                            \Log::warning('Paid SMS template not found');
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to send Paid SMS: ' . $e->getMessage());
+            }
+
             // Attempt reconnection after successful approval
             $reconnectStatus = $this->attemptReconnectionAfterApproval($billingAccount);
 
@@ -719,6 +767,53 @@ class TransactionController extends Controller
 
             if ($result['status'] === 'success') {
                 \Log::info('[TRANSACTION RECONNECT SUCCESS] Reconnection and Session Kill completed successfully');
+
+                // Send SMS Notification
+                try {
+                    // Fetch SMS template
+                    $smsTemplate = DB::table('sms_templates')
+                        ->where('template_type', 'Reconnect')
+                        ->where('is_active', 1)
+                        ->first();
+
+                    if ($smsTemplate) {
+                        // Get Customer Name and Contact Number
+                        $customerInfo = DB::table('billing_accounts')
+                            ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                            ->where('billing_accounts.account_no', $accountNo)
+                            ->select(
+                                'customers.contact_number_primary',
+                                DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name")
+                            )
+                            ->first();
+
+                        if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
+                            // Replace variables
+                            $message = $smsTemplate->message_content;
+                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
+
+                            // Send SMS
+                            $smsService = new \App\Services\ItexmoSmsService();
+                            $smsResult = $smsService->send([
+                                'contact_no' => $customerInfo->contact_number_primary,
+                                'message' => $message
+                            ]);
+
+                            if ($smsResult['success']) {
+                                \Log::info('[TRANSACTION RECONNECT SMS] SMS sent to ' . $customerInfo->contact_number_primary);
+                            } else {
+                                \Log::error('[TRANSACTION RECONNECT SMS FAILED] ' . ($smsResult['error'] ?? 'Unknown error'));
+                            }
+                        } else {
+                            \Log::warning('[TRANSACTION RECONNECT SMS SKIP] No contact number found for account ' . $accountNo);
+                        }
+                    } else {
+                        \Log::warning('[TRANSACTION RECONNECT SMS SKIP] No active Reconnect SMS template found');
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('[TRANSACTION RECONNECT SMS EXCEPTION] ' . $e->getMessage());
+                }
+
                 return 'success';
             } else {
                 \Log::info('[TRANSACTION RECONNECT FAILED] ' . $result['message']);

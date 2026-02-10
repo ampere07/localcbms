@@ -18,6 +18,9 @@ class AutoDisconnectService
     private $logName = 'Auto_DC';
     private $radiusService;
     private $smsService;
+    private $lockName = 'auto_disconnect_worker';
+    private $lockTimeout = 300; // 5 minutes max execution time
+    private $hasLock = false;
 
     public function __construct(
         ManualRadiusOperationsService $radiusService,
@@ -38,6 +41,14 @@ class AutoDisconnectService
         $startTime = Carbon::now();
         $this->writeLog("Start Time: " . $startTime->format('Y-m-d H:i:s'));
         $this->writeLog("");
+
+        if (!$this->acquireLock()) {
+            $this->writeLog("[LOCK] Process is locked by another worker. Exiting.");
+            return [
+                'success' => false,
+                'error' => 'Process is locked by another worker'
+            ];
+        }
 
         try {
             $config = BillingConfig::first();
@@ -88,7 +99,9 @@ class AutoDisconnectService
                 $this->writeLog("End Time: " . $endTime->format('Y-m-d H:i:s'));
                 $this->writeLog("Duration: {$duration} second(s)");
                 $this->writeLog("");
+                $this->writeLog("");
                 
+                $this->releaseLock();
                 return [
                     'success' => true,
                     'processed' => 0,
@@ -156,6 +169,7 @@ class AutoDisconnectService
                 $this->writeLog("");
             }
 
+            $this->releaseLock();
             return [
                 'success' => true,
                 'processed' => $processedCount,
@@ -178,6 +192,7 @@ class AutoDisconnectService
             $this->writeLog("Duration: {$duration} second(s)");
             $this->writeLog("");
             
+            $this->releaseLock();
             return [
                 'success' => false,
                 'error' => $e->getMessage()
@@ -335,7 +350,11 @@ class AutoDisconnectService
             ]);
             $this->writeLog("  [LOG] Recorded in disconnected_logs and status updated to 4");
 
-            // Send SMS notification
+            $this->writeLog("  [DB] STARTING DB COMMIT for Account {$accountNo}...");
+            DB::commit();
+            $this->writeLog("  [DB] ✓ COMMIT SUCCESSFUL");
+            
+            // Send SMS notification - AFTER commit to prevent duplicates on rollback
             if ($this->smsService && $billingAccount->customer && $billingAccount->customer->contact_number_primary) {
                 $this->writeLog("  [SMS] Attempting to trigger triggerSMS function...");
                 $this->triggerSMS($billingAccount, 'Disconnected');
@@ -344,10 +363,6 @@ class AutoDisconnectService
                 $this->writeLog("  [SMS] Skipping SMS (Service null or no primary contact)");
             }
 
-            $this->writeLog("  [DB] STARTING DB COMMIT for Account {$accountNo}...");
-            DB::commit();
-            $this->writeLog("  [DB] ✓ COMMIT SUCCESSFUL");
-            
             $this->writeLog("  [COMPLETE] Account {$accountNo} successfully disconnected");
 
             return ['success' => true];
@@ -679,5 +694,71 @@ class AutoDisconnectService
         
         // Also log to Laravel default log
         Log::channel('single')->info("[{$this->logName}] {$message}");
+    }
+
+    /**
+     * Acquire lock to prevent concurrent execution using database
+     */
+    private function acquireLock()
+    {
+        try {
+            // Check if lock exists and is not expired
+            $existingLock = DB::table('worker_locks')
+                ->where('lock_name', $this->lockName)
+                ->first();
+
+            if ($existingLock) {
+                $lockedAt = \Carbon\Carbon::parse($existingLock->locked_at);
+                $expiresAt = $lockedAt->addSeconds($this->lockTimeout);
+
+                // If lock is still valid (not expired)
+                if (Carbon::now()->lessThan($expiresAt)) {
+                    $this->writeLog("[LOCK] Lock is held by another process. Expires at: " . $expiresAt->format('Y-m-d H:i:s'));
+                    return false;
+                }
+
+                // Lock expired, clean it up
+                $this->writeLog("[LOCK] Found expired lock. Cleaning up and acquiring new lock.");
+                DB::table('worker_locks')
+                    ->where('lock_name', $this->lockName)
+                    ->delete();
+            }
+
+            // Try to acquire lock
+            DB::table('worker_locks')->insert([
+                'lock_name' => $this->lockName,
+                'locked_at' => Carbon::now(),
+                'locked_by' => gethostname() . ':' . getmypid(),
+                'created_at' => Carbon::now()
+            ]);
+
+            $this->hasLock = true;
+            $this->writeLog("[LOCK] Lock acquired successfully");
+            return true;
+
+        } catch (Exception $e) {
+            // Unique constraint violation means another process got the lock first
+            $this->writeLog("[LOCK] Failed to acquire lock: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Release lock
+     */
+    private function releaseLock()
+    {
+        if ($this->hasLock) {
+            try {
+                DB::table('worker_locks')
+                    ->where('lock_name', $this->lockName)
+                    ->delete();
+                
+                $this->writeLog("[LOCK] Lock released successfully");
+                $this->hasLock = false;
+            } catch (Exception $e) {
+                $this->writeLog("[LOCK] Failed to release lock: " . $e->getMessage());
+            }
+        }
     }
 }
