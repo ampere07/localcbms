@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\BillingAccount;
 use App\Models\ServiceOrder;
 use App\Models\BillingConfig;
+use App\Models\SMSTemplate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -57,10 +58,19 @@ class AutoDisconnectService
 
             // Fetch overdue invoices
             $this->writeLog("[QUERY] Searching for overdue invoices...");
+            // 1. Identify accounts that have overdue invoices
+            $overdueAccountIds = Invoice::whereIn('status', ['Unpaid', 'Partial'])
+                ->whereDate('due_date', '<=', $targetDate)
+                ->pluck('billing_account_id')
+                ->unique();
+
+            // 2. Fetch the absolute latest invoice for each overdue account
             $invoices = Invoice::with(['billingAccount.customer', 'billingAccount.technicalDetails'])
-                ->whereIn('status', ['Unpaid', 'Partial'])
-                ->whereDate('due_date', $targetDate)
-                ->get();
+                ->whereIn('billing_account_id', $overdueAccountIds)
+                ->orderBy('due_date', 'desc')
+                ->orderBy('id', 'desc')
+                ->get()
+                ->unique('billing_account_id');
 
             $totalCount = $invoices->count();
             $this->writeLog("[RESULT] Found {$totalCount} invoice(s) with due date = {$targetDate}");
@@ -214,7 +224,7 @@ class AutoDisconnectService
         $billingStatus = $billingAccount->billingStatus->status ?? '';
         $this->writeLog("  [INFO] Current Status: {$billingStatus}");
         
-        if (in_array($billingStatus, ['Inactive', 'Pullout'])) {
+        if (in_array($billingStatus, ['Inactive', 'Pullout', 'Disconnected', 'Offline'])) {
             $this->writeLog("  [SKIP] Status is already {$billingStatus}");
             return ['success' => false, 'reason' => "Already {$billingStatus}"];
         }
@@ -325,7 +335,7 @@ class AutoDisconnectService
             // Send SMS notification
             if ($this->smsService && $billingAccount->customer && $billingAccount->customer->contact_number_primary) {
                 $this->writeLog("  [SMS] Attempting to trigger triggerSMS function...");
-                $this->triggerSMS($billingAccount, 'dcTxt');
+                $this->triggerSMS($billingAccount, 'Disconnected');
                 $this->writeLog("  [SMS] triggerSMS function finished.");
             } else {
                 $this->writeLog("  [SMS] Skipping SMS (Service null or no primary contact)");
@@ -579,9 +589,17 @@ class AutoDisconnectService
             $this->writeLog("    [DEBUG] triggerSMS: Message built: " . (empty($message) ? 'EMPTY' : 'OK'));
 
             if (!empty($message)) {
-                $this->writeLog("    [DEBUG] triggerSMS: Calling sendSms...");
-                $this->smsService->sendSms($customer->contact_number_primary, $message);
-                $this->writeLog("    [DEBUG] triggerSMS: sendSms call completed");
+                $this->writeLog("    [DEBUG] triggerSMS: Calling send...");
+                $result = $this->smsService->send([
+                    'contact_no' => $customer->contact_number_primary,
+                    'message' => $message
+                ]);
+                
+                $success = $result['success'] ?? false;
+                $this->writeLog("    [DEBUG] triggerSMS: send call completed. Success: " . ($success ? 'YES' : 'NO'));
+                if (!$success) {
+                    $this->writeLog("    [DEBUG] triggerSMS Error Details: " . ($result['error'] ?? 'Unknown error'));
+                }
             }
 
         } catch (Throwable $e) {
@@ -592,17 +610,47 @@ class AutoDisconnectService
     }
 
     /**
-     * Build SMS message based on type
+     * Build SMS message based on type from database templates
      */
     private function buildSmsMessage(string $type, string $name, string $accountNo, array $data): string
     {
-        switch ($type) {
-            case 'dcTxt':
-                $balance = $data['balance'] ?? '0.00';
-                return "DISCONNECTION NOTICE: Dear {$name}, your account ({$accountNo}) has been disconnected due to non-payment. Outstanding balance: PHP {$balance}. Please settle immediately to restore service. Thank you!";
+        try {
+            // Find active template for this type
+            $template = SMSTemplate::where('template_type', $type)
+                ->where('is_active', true)
+                ->first();
+
+            if ($template) {
+                $message = $template->message_content;
                 
-            default:
-                return '';
+                // Common variable replacements
+                $message = str_replace('{{customer_name}}', $name, $message);
+                $message = str_replace('{{account_no}}', $accountNo, $message);
+                
+                // Add balance if present in data
+                if (isset($data['balance'])) {
+                    $message = str_replace('{{amount_due}}', $data['balance'], $message);
+                    $message = str_replace('{{balance}}', $data['balance'], $message);
+                }
+
+                return $message;
+            }
+
+            $this->writeLog("    [DEBUG] buildSmsMessage: Template type '{$type}' not found or inactive. Falling back to default.");
+
+            // Fallback hardcoded messages if template not found
+            switch ($type) {
+                case 'Disconnected':
+                case 'dcTxt':
+                    $balance = $data['balance'] ?? '0.00';
+                    return "DISCONNECTION NOTICE: Dear {$name}, your account ({$accountNo}) has been disconnected due to non-payment. Outstanding balance: PHP {$balance}. Please settle immediately to restore service. Thank you!";
+                    
+                default:
+                    return '';
+            }
+        } catch (Throwable $e) {
+            $this->writeLog("    [DEBUG] buildSmsMessage Error: " . $e->getMessage());
+            return '';
         }
     }
 

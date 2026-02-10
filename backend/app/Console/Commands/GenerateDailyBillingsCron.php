@@ -63,14 +63,14 @@ class GenerateDailyBillingsCron extends Command
 
             $logger->info('Checking billing_accounts table for eligible accounts...', [
                 'criteria' => [
-                    'billing_status_id' => 2,
+                    'billing_status_id' => 1,
                     'date_installed' => 'NOT NULL',
                     'account_no' => 'NOT NULL',
                     'billing_day' => $targetBillingDay
                 ]
             ]);
 
-            $matchingAccounts = \App\Models\BillingAccount::where('billing_status_id', 2)
+            $matchingAccounts = \App\Models\BillingAccount::where('billing_status_id', 1)
                 ->whereNotNull('date_installed')
                 ->whereNotNull('account_no')
                 ->where('billing_day', $targetBillingDay)

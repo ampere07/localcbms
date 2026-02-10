@@ -729,7 +729,7 @@ class TransactionController extends Controller
                 DB::table('billing_accounts')
                     ->where('account_no', $accountNo)
                     ->update([
-                        'billing_status_id' => 5,
+                        'billing_status_id' => 1,
                         'updated_at' => now(),
                         'updated_by' => Auth::id()
                     ]);

@@ -224,7 +224,8 @@ const SMSTemplate: React.FC = () => {
   const templateTypes = [
     'Overdue',
     'DC Notice',
-    'Statement of Account'
+    'Statement of Account',
+    'Disconnected'
   ];
 
   const availableVariables = [

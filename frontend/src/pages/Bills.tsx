@@ -120,6 +120,14 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                                 new Date(b.date).getTime() - new Date(a.date).getTime()
                             );
                             setPaymentRecords(allPayments);
+
+                            // Check for pending payments on load
+                            try {
+                                const pending = await paymentService.checkPendingPayment(accNo);
+                                setPendingPayment(pending);
+                            } catch (pendingErr) {
+                                console.error("Error checking pending payment on load:", pendingErr);
+                            }
                         }
                     }
                 }
@@ -143,18 +151,7 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
         fetchColorPalette();
     }, []);
 
-    // 24-hour restriction logic
-    const lastPayment = paymentRecords[0];
-    const timeSinceLastPayment = lastPayment ? new Date().getTime() - new Date(lastPayment.date).getTime() : Infinity;
-    const isPaymentRestricted = lastPayment && timeSinceLastPayment < 24 * 60 * 60 * 1000;
-
-    const getRemainingTime = () => {
-        if (!isPaymentRestricted) return null;
-        const remainingMs = (24 * 60 * 60 * 1000) - timeSinceLastPayment;
-        const hours = Math.floor(remainingMs / (60 * 60 * 1000));
-        const minutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
-        return `${hours}h ${minutes}m`;
-    };
+    // Restriction logic removed as requested
 
     useEffect(() => {
         if (initialTab) {
@@ -164,11 +161,6 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
 
     // --- Payment Handlers (Identical to DashboardCustomer) ---
     const handlePayNow = async () => {
-        if (isPaymentRestricted) {
-            const waitTime = getRemainingTime();
-            alert(`Payment Restricted: You can only make one payment every 24 hours. Please wait another ${waitTime} before paying again.`);
-            return;
-        }
 
         setErrorMessage('');
         setIsPaymentProcessing(true);
@@ -274,17 +266,14 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                 </div>
                 <button
                     onClick={handlePayNow}
-                    disabled={isPaymentProcessing || isPaymentRestricted}
+                    disabled={isPaymentProcessing}
                     className="w-full md:w-auto flex flex-col items-center justify-center text-white px-6 py-3 rounded-full font-bold transition disabled:opacity-50 leading-tight"
                     style={{ backgroundColor: colorPalette?.primary || '#0f172a' }}
                 >
                     <div className="flex items-center space-x-2">
                         <CreditCard className="w-5 h-5" />
-                        <span>{isPaymentProcessing ? 'PROCESSING' : isPaymentRestricted ? 'RESTRICTED' : 'PAY NOW'}</span>
+                        <span>{isPaymentProcessing ? 'PROCESSING' : (pendingPayment && pendingPayment.payment_url) ? 'PROCEED PAYMENT' : 'PAY NOW'}</span>
                     </div>
-                    {isPaymentRestricted && (
-                        <span className="text-[10px] opacity-70 mt-0.5">Wait {getRemainingTime()}</span>
-                    )}
                 </button>
             </div>
 
