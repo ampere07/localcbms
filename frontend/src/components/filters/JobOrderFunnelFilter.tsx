@@ -81,7 +81,7 @@ const allColumns: Column[] = [
   { key: 'region', label: 'Region', table: 'job_orders', dataType: 'varchar' },
   { key: 'city', label: 'City', table: 'job_orders', dataType: 'varchar' },
   { key: 'barangay', label: 'Barangay', table: 'job_orders', dataType: 'varchar' },
-  { key: 'location', label: 'Location', table: 'job_orders', dataType: 'varchar' },
+
   { key: 'choose_plan', label: 'Choose Plan', table: 'job_orders', dataType: 'varchar' },
   { key: 'referred_by', label: 'Referred By', table: 'job_orders', dataType: 'varchar' },
   { key: 'start_timestamp', label: 'Start Timestamp', table: 'job_orders', dataType: 'datetime' },
@@ -228,8 +228,8 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
               onChange={(e) => handleRangeChange(selectedColumn.key, 'from', e.target.value)}
               placeholder="Minimum value"
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
           </div>
@@ -244,8 +244,8 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
               onChange={(e) => handleRangeChange(selectedColumn.key, 'to', e.target.value)}
               placeholder="Maximum value"
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
           </div>
@@ -266,8 +266,8 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
               value={currentValue?.from || ''}
               onChange={(e) => handleDateChange(selectedColumn.key, 'from', e.target.value)}
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
           </div>
@@ -281,8 +281,8 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
               value={currentValue?.to || ''}
               onChange={(e) => handleDateChange(selectedColumn.key, 'to', e.target.value)}
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
           </div>
@@ -302,8 +302,8 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
           onChange={(e) => handleTextChange(selectedColumn.key, e.target.value)}
           placeholder={`Enter ${selectedColumn.label.toLowerCase()}`}
           className={`w-full px-3 py-2 rounded border ${isDarkMode
-              ? 'bg-gray-800 border-gray-700 text-white'
-              : 'bg-white border-gray-300 text-gray-900'
+            ? 'bg-gray-800 border-gray-700 text-white'
+            : 'bg-white border-gray-300 text-gray-900'
             }`}
         />
       </div>
@@ -334,8 +334,8 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
                       <button
                         onClick={handleBack}
                         className={`p-2 rounded-lg transition-colors ${isDarkMode
-                            ? 'hover:bg-gray-800 text-gray-400'
-                            : 'hover:bg-gray-100 text-gray-600'
+                          ? 'hover:bg-gray-800 text-gray-400'
+                          : 'hover:bg-gray-100 text-gray-600'
                           }`}
                       >
                         <ChevronLeft className="h-5 w-5" />
@@ -357,8 +357,8 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
                   <button
                     onClick={onClose}
                     className={`p-2 rounded-lg transition-colors ${isDarkMode
-                        ? 'hover:bg-gray-800 text-gray-400'
-                        : 'hover:bg-gray-100 text-gray-600'
+                      ? 'hover:bg-gray-800 text-gray-400'
+                      : 'hover:bg-gray-100 text-gray-600'
                       }`}
                   >
                     <X className="h-5 w-5" />
@@ -420,8 +420,8 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
                   <button
                     onClick={handleReset}
                     className={`flex-1 px-4 py-2 rounded transition-colors ${isDarkMode
-                        ? 'bg-gray-800 hover:bg-gray-700 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      ? 'bg-gray-800 hover:bg-gray-700 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                       }`}
                   >
                     Clear All

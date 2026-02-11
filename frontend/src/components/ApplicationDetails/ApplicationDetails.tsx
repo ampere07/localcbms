@@ -275,7 +275,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   const getClientFullAddress = (): string => {
     const addressParts = [
       detailedApplication?.installation_address || application.address,
-      detailedApplication?.location || application.location,
+
       detailedApplication?.barangay || application.barangay,
       detailedApplication?.city || application.city,
       detailedApplication?.region || application.region

@@ -38,7 +38,7 @@ const allColumns = [
   { key: 'region', label: 'Region', width: 'min-w-28' },
   { key: 'city', label: 'City', width: 'min-w-28' },
   { key: 'barangay', label: 'Barangay', width: 'min-w-32' },
-  { key: 'location', label: 'Location', width: 'min-w-32' },
+
   { key: 'choosePlan', label: 'Choose Plan', width: 'min-w-36' },
   { key: 'promo', label: 'Promo', width: 'min-w-28' },
   { key: 'houseFrontPicture', label: 'House Front Picture', width: 'min-w-48' },
@@ -333,10 +333,7 @@ const ApplicationVisitPage: React.FC = () => {
         aValue = a.barangay || '';
         bValue = b.barangay || '';
         break;
-      case 'location':
-        aValue = a.location || '';
-        bValue = b.location || '';
-        break;
+
       case 'choosePlan':
         aValue = a.choose_plan || '';
         bValue = b.choose_plan || '';
@@ -666,8 +663,7 @@ const ApplicationVisitPage: React.FC = () => {
         return visit.city || '-';
       case 'barangay':
         return visit.barangay || '-';
-      case 'location':
-        return visit.location || '-';
+
       case 'choosePlan':
         return visit.choose_plan || '-';
       case 'promo':

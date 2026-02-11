@@ -28,7 +28,7 @@ export interface JobOrder {
 
   // Address Information
   Address?: string | null;
-  Location?: string | null;
+
   Village?: string | null;
   Barangay?: string | null;
   City?: string | null;

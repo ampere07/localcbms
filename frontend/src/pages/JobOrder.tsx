@@ -69,7 +69,6 @@ const allColumns = [
   { key: 'region', label: 'Region', width: 'min-w-28' },
   { key: 'city', label: 'City', width: 'min-w-28' },
   { key: 'barangay', label: 'Barangay', width: 'min-w-32' },
-  { key: 'location', label: 'Location', width: 'min-w-32' },
   { key: 'choosePlan', label: 'Choose Plan', width: 'min-w-36' },
   { key: 'referredBy', label: 'Referred By', width: 'min-w-32' },
   { key: 'startTimestamp', label: 'Start Timestamp', width: 'min-w-40' },
@@ -257,7 +256,6 @@ const JobOrderPage: React.FC = () => {
   const getClientFullAddress = (jobOrder: JobOrder): string => {
     const addressParts = [
       jobOrder.Address || jobOrder.address,
-      jobOrder.Location || jobOrder.location,
       jobOrder.Barangay || jobOrder.barangay,
       jobOrder.City || jobOrder.city,
       jobOrder.Region || jobOrder.region
@@ -903,8 +901,7 @@ const JobOrderPage: React.FC = () => {
         return getValue(jobOrder.City || jobOrder.city);
       case 'barangay':
         return getValue(jobOrder.Barangay || jobOrder.barangay);
-      case 'location':
-        return getValue(jobOrder.Location || jobOrder.location);
+
       case 'choosePlan':
         return getValue(jobOrder.Choose_Plan || jobOrder.Desired_Plan || jobOrder.choose_plan || jobOrder.desired_plan);
       case 'referredBy':

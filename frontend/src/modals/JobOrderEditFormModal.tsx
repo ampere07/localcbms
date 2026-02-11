@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, ChevronDown, Minus, Plus, Camera, MapPin, Loader2 } from 'lucide-react';
+import { X, Calendar, ChevronDown, Minus, Plus, Camera, MapPin, Loader2, Search } from 'lucide-react';
 import { UserData } from '../types/api';
 import { updateJobOrder } from '../services/jobOrderService';
 import { updateApplication } from '../services/applicationService';
@@ -13,7 +13,6 @@ import { getAllVLANs, VLAN } from '../services/vlanService';
 import { getAllUsageTypes, UsageType } from '../services/usageTypeService';
 import { getRegions, getCities, City } from '../services/cityService';
 import { barangayService, Barangay } from '../services/barangayService';
-import { locationDetailService, LocationDetail } from '../services/locationDetailService';
 import { getAllInventoryItems, InventoryItem } from '../services/inventoryItemService';
 import { createJobOrderItems, JobOrderItem } from '../services/jobOrderItemService';
 import apiClient from '../config/api';
@@ -55,7 +54,6 @@ interface JobOrderEditFormData {
   barangay: string;
   city: string;
   region: string;
-  location: string;
   addressCoordinates: string;
   choosePlan: string;
   status: string;
@@ -137,9 +135,17 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
   const currentUser = getCurrentUser();
   const currentUserEmail = currentUser?.email || 'unknown@ampere.com';
 
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [formData, setFormData] = useState<JobOrderEditFormData>({
     referredBy: '',
-    dateInstalled: '',
+    dateInstalled: getTodayDate(),
     usageType: '',
     firstName: '',
     middleInitial: '',
@@ -151,7 +157,6 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
     barangay: '',
     city: '',
     region: '',
-    location: '',
     addressCoordinates: '',
     choosePlan: '',
     status: 'Confirmed',
@@ -201,7 +206,6 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
   const [regions, setRegions] = useState<Region[]>([]);
   const [allCities, setAllCities] = useState<City[]>([]);
   const [allBarangays, setAllBarangays] = useState<Barangay[]>([]);
-  const [allLocations, setAllLocations] = useState<LocationDetail[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([{ itemId: '', quantity: '' }]);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -219,6 +223,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
   const [showLoadingModal, setShowLoadingModal] = useState(false);
   const [progressSteps, setProgressSteps] = useState<string[]>([]);
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
+  const [isLcpnapOpen, setIsLcpnapOpen] = useState(false);
 
   const [imagePreviews, setImagePreviews] = useState<{
     signedContractImage: string | null;
@@ -558,25 +563,6 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
     fetchAllBarangays();
   }, [isOpen]);
 
-  useEffect(() => {
-    const fetchAllLocations = async () => {
-      if (isOpen) {
-        try {
-          const response = await locationDetailService.getAll();
-          if (response.success && Array.isArray(response.data)) {
-            setAllLocations(response.data);
-          } else {
-            setAllLocations([]);
-          }
-        } catch (error) {
-          console.error('Error fetching Locations:', error);
-          setAllLocations([]);
-        }
-      }
-    };
-
-    fetchAllLocations();
-  }, [isOpen]);
 
   useEffect(() => {
     const fetchLcpnaps = async () => {
@@ -711,7 +697,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
               setFormData(prev => ({
                 ...prev,
                 referredBy: jobOrderData.Referred_By || jobOrderData.referred_by || '',
-                dateInstalled: jobOrderData.Date_Installed || jobOrderData.date_installed || '',
+                dateInstalled: jobOrderData.Date_Installed || jobOrderData.date_installed || getTodayDate(),
                 usageType: jobOrderData.Usage_Type || jobOrderData.usage_type || '',
                 firstName: jobOrderData.First_Name || jobOrderData.first_name || '',
                 middleInitial: jobOrderData.Middle_Initial || jobOrderData.middle_initial || '',
@@ -723,7 +709,6 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
                 barangay: appData.barangay || jobOrderData.Barangay || jobOrderData.barangay || '',
                 city: appData.city || jobOrderData.City || jobOrderData.city || '',
                 region: appData.region || jobOrderData.Region || jobOrderData.region || '',
-                location: appData.location || jobOrderData.Location || jobOrderData.location || '',
                 addressCoordinates: jobOrderData.Address_Coordinates || jobOrderData.address_coordinates || '',
                 choosePlan: jobOrderData.Desired_Plan || jobOrderData.desired_plan || jobOrderData.Choose_Plan || jobOrderData.choose_plan || jobOrderData.plan || '',
                 status: loadedStatus,
@@ -761,7 +746,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         setFormData(prev => ({
           ...prev,
           referredBy: jobOrderData.Referred_By || jobOrderData.referred_by || '',
-          dateInstalled: jobOrderData.Date_Installed || jobOrderData.date_installed || '',
+          dateInstalled: jobOrderData.Date_Installed || jobOrderData.date_installed || getTodayDate(),
           usageType: jobOrderData.Usage_Type || jobOrderData.usage_type || '',
           firstName: jobOrderData.First_Name || jobOrderData.first_name || '',
           middleInitial: jobOrderData.Middle_Initial || jobOrderData.middle_initial || '',
@@ -773,7 +758,6 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
           barangay: jobOrderData.Barangay || jobOrderData.barangay || '',
           city: jobOrderData.City || jobOrderData.city || '',
           region: jobOrderData.Region || jobOrderData.region || '',
-          location: jobOrderData.Location || jobOrderData.location || '',
           addressCoordinates: jobOrderData.Address_Coordinates || jobOrderData.address_coordinates || '',
           choosePlan: jobOrderData.Desired_Plan || jobOrderData.desired_plan || jobOrderData.Choose_Plan || jobOrderData.choose_plan || jobOrderData.plan || '',
           status: loadedStatus,
@@ -812,14 +796,11 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
       if (field === 'region') {
         newData.city = '';
         newData.barangay = '';
-        newData.location = '';
       }
       if (field === 'city') {
         newData.barangay = '';
-        newData.location = '';
       }
       if (field === 'barangay') {
-        newData.location = '';
       }
       return newData;
     });
@@ -996,7 +977,6 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
     if (!formData.barangay.trim()) newErrors.barangay = 'Barangay is required';
     if (!formData.city.trim()) newErrors.city = 'City is required';
     if (!formData.region.trim()) newErrors.region = 'Region is required';
-    if (!formData.location.trim()) newErrors.location = 'Location is required';
     if (!formData.choosePlan.trim()) newErrors.choosePlan = 'Choose Plan is required';
     if (!formData.status.trim()) newErrors.status = 'Status is required';
 
@@ -1248,7 +1228,6 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
           barangay: updatedFormData.barangay,
           city: updatedFormData.city,
           region: updatedFormData.region,
-          location: updatedFormData.location,
           desired_plan: updatedFormData.choosePlan,
           referred_by: updatedFormData.referredBy,
           status: updatedFormData.status
@@ -1306,16 +1285,8 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
     return allBarangays.filter(brgy => brgy.city_id === selectedCity.id);
   };
 
-  const getFilteredLocations = () => {
-    if (!formData.barangay) return [];
-    const selectedBarangay = allBarangays.find(brgy => brgy.barangay === formData.barangay);
-    if (!selectedBarangay) return [];
-    return allLocations.filter(loc => loc.barangay_id === selectedBarangay.id);
-  };
-
   const filteredCities = getFilteredCities();
   const filteredBarangays = getFilteredBarangays();
-  const filteredLocations = getFilteredLocations();
 
   return (
     <>
@@ -1555,33 +1526,6 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
               {errors.barangay && <p className="text-red-500 text-xs mt-1">{errors.barangay}</p>}
             </div>
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Location<span className="text-red-500">*</span></label>
-              <div className="relative">
-                <select
-                  value={formData.location}
-                  onChange={(e) => handleInputChange('location', e.target.value)}
-                  disabled={!formData.barangay}
-                  className={`w-full px-3 py-2 border rounded appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.location ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    }`}
-                >
-                  <option value="">{formData.barangay ? 'Select Location' : 'Select Barangay First'}</option>
-                  {formData.location && !filteredLocations.some(loc => loc.location_name === formData.location) && (
-                    <option value={formData.location}>{formData.location}</option>
-                  )}
-                  {filteredLocations.map((location) => (
-                    <option key={location.id} value={location.location_name}>
-                      {location.location_name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-              </div>
-              {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
-            </div>
 
             {formData.status === 'Confirmed' && formData.onsiteStatus === 'Done' && (
               <div>
@@ -1762,25 +1706,77 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
                   <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                     }`}>LCP-NAP<span className="text-red-500">*</span></label>
                   <div className="relative">
-                    <select
-                      value={formData.lcpnap}
-                      onChange={(e) => handleInputChange('lcpnap', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded appearance-none ${errors.lcpnap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                        }`}
-                    >
-                      <option value="">Select LCP-NAP</option>
-                      {formData.lcpnap && !lcpnaps.some(ln => ln.lcpnap_name === formData.lcpnap) && (
-                        <option value={formData.lcpnap}>{formData.lcpnap}</option>
-                      )}
-                      {lcpnaps.map((lcpnap) => (
-                        <option key={lcpnap.id} value={lcpnap.lcpnap_name}>
-                          {lcpnap.lcpnap_name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`} size={20} />
+                    <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                      } ${errors.lcpnap ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
+                      <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                      <input
+                        type="text"
+                        placeholder="Type to search LCP-NAP..."
+                        value={formData.lcpnap}
+                        onChange={(e) => {
+                          handleInputChange('lcpnap', e.target.value);
+                          setIsLcpnapOpen(true);
+                        }}
+                        onFocus={() => setIsLcpnapOpen(true)}
+                        className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsLcpnapOpen(!isLcpnapOpen)}
+                        className={`ml-2 transition-transform duration-200 ${isLcpnapOpen ? 'rotate-180' : ''}`}
+                      >
+                        <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                      </button>
+                    </div>
+
+                    {/* Recommendation Dropdown */}
+                    {isLcpnapOpen && (
+                      <div
+                        className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                          }`}
+                        style={{ minWidth: '100%' }}
+                      >
+                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                          {lcpnaps
+                            .filter(ln => ln.lcpnap_name.toLowerCase().includes((formData.lcpnap || '').toLowerCase()))
+                            .map((lcpnap) => (
+                              <div
+                                key={lcpnap.id}
+                                className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode
+                                  ? 'hover:bg-gray-700 text-gray-200'
+                                  : 'hover:bg-gray-100 text-gray-700'
+                                  } ${formData.lcpnap === lcpnap.lcpnap_name ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                                onClick={() => {
+                                  handleInputChange('lcpnap', lcpnap.lcpnap_name);
+                                  setIsLcpnapOpen(false);
+                                }}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span>{lcpnap.lcpnap_name}</span>
+                                  {formData.lcpnap === lcpnap.lcpnap_name && (
+                                    <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          {lcpnaps.filter(ln => ln.lcpnap_name.toLowerCase().includes((formData.lcpnap || '').toLowerCase())).length === 0 && (
+                            <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                              No recommendations for "{formData.lcpnap}"
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Click outside to close */}
+                    {isLcpnapOpen && (
+                      <div
+                        className="fixed inset-0 z-40 bg-transparent"
+                        onClick={() => {
+                          setIsLcpnapOpen(false);
+                        }}
+                      />
+                    )}
                   </div>
                   {errors.lcpnap && (
                     <div className="flex items-center mt-1">

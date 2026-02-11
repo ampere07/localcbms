@@ -48,7 +48,6 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
   const [regions, setRegions] = useState<any[]>([]);
   const [allCities, setAllCities] = useState<City[]>([]);
   const [allBarangays, setAllBarangays] = useState<Barangay[]>([]);
-  const [allLocations, setAllLocations] = useState<LocationDetail[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [routerModels, setRouterModels] = useState<RouterModel[]>([]);
   const [lcpnaps, setLcpnaps] = useState<LCPNAP[]>([]);
@@ -151,7 +150,6 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
           region: recordData.region || '',
           city: recordData.city || '',
           barangay: recordData.barangay || '',
-          location: recordData.location || '',
           addressCoordinates: recordData.addressCoordinates || recordData.address_coordinates || '',
           housingStatus: recordData.housingStatus || recordData.housing_status || '',
           referredBy: recordData.referredBy || recordData.referred_by || '',
@@ -218,17 +216,15 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
 
       try {
         if (editType === 'customer_details') {
-          const [fetchedRegions, fetchedCities, barangaysRes, locationsRes] = await Promise.all([
+          const [fetchedRegions, fetchedCities, barangaysRes] = await Promise.all([
             getRegions(),
             getCities(),
-            barangayService.getAll(),
-            locationDetailService.getAll()
+            barangayService.getAll()
           ]);
 
           setRegions(Array.isArray(fetchedRegions) ? fetchedRegions : []);
           setAllCities(Array.isArray(fetchedCities) ? fetchedCities : []);
           setAllBarangays(barangaysRes.success && Array.isArray(barangaysRes.data) ? barangaysRes.data : []);
-          setAllLocations(locationsRes.success && Array.isArray(locationsRes.data) ? locationsRes.data : []);
         } else if (editType === 'billing_details') {
           const fetchedPlans = await planService.getAllPlans();
           setPlans(Array.isArray(fetchedPlans) ? fetchedPlans : []);
@@ -294,12 +290,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
         if (field === 'region') {
           newData.city = '';
           newData.barangay = '';
-          newData.location = '';
         } else if (field === 'city') {
           newData.barangay = '';
-          newData.location = '';
-        } else if (field === 'barangay') {
-          newData.location = '';
         }
       } else if (editType === 'technical_details') {
         if (field === 'lcpnap') {
@@ -349,16 +341,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
     return allBarangays.filter(brgy => brgy.city_id === selectedCity.id);
   };
 
-  const getFilteredLocations = () => {
-    if (!formData.barangay) return [];
-    const selectedBarangay = allBarangays.find(brgy => brgy.barangay === formData.barangay);
-    if (!selectedBarangay) return [];
-    return allLocations.filter(loc => loc.barangay_id === selectedBarangay.id);
-  };
-
   const filteredCities = getFilteredCities();
   const filteredBarangays = getFilteredBarangays();
-  const filteredLocations = getFilteredLocations();
 
   const convertGoogleDriveUrl = (url: string | null | undefined): string | null => {
     if (!url) return null;
@@ -522,7 +506,6 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
       if (!formData.region?.trim()) newErrors.region = 'Region is required';
       if (!formData.city?.trim()) newErrors.city = 'City is required';
       if (!formData.barangay?.trim()) newErrors.barangay = 'Barangay is required';
-      if (!formData.location?.trim()) newErrors.location = 'Location is required';
     } else if (editType === 'billing_details') {
       if (!formData.billingStatus?.trim()) newErrors.billingStatus = 'Billing Status is required';
     } else if (editType === 'technical_details') {
@@ -959,43 +942,6 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                     <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
                   </div>
                   {errors.barangay && <p className="text-red-500 text-xs mt-1">{errors.barangay}</p>}
-                </div>
-
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Location<span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={formData.location || ''}
-                      onChange={(e) => handleInputChange('location', e.target.value)}
-                      disabled={!formData.barangay}
-                      onFocus={(e) => {
-                        if (colorPalette?.primary && !e.currentTarget.disabled) {
-                          e.currentTarget.style.borderColor = colorPalette.primary;
-                          e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
-                        }
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = errors.location ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.location ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
-                    >
-                      <option value="">{formData.barangay ? 'Select Location' : 'Select Barangay First'}</option>
-                      {formData.location && formData.location.trim() !== '' && !filteredLocations.some(loc => loc.location_name === formData.location) && (
-                        <option value={formData.location}>{formData.location}</option>
-                      )}
-                      {filteredLocations.map((location) => (
-                        <option key={location.id} value={location.location_name}>
-                          {location.location_name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
-                  </div>
-                  {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
                 </div>
 
                 <div>
@@ -1459,39 +1405,65 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
         </div>
       </div>
 
-      {modal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
-          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode
-            ? 'bg-gray-900 border-gray-700'
-            : 'bg-white border-gray-300'
-            }`}>
-            {modal.type === 'loading' ? (
-              <div className="text-center">
-                <div className="flex justify-center mb-6">
-                  <div className="animate-spin rounded-full h-20 w-20 border-b-4 border-orange-500"></div>
+      {
+        modal.isOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
+            <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode
+              ? 'bg-gray-900 border-gray-700'
+              : 'bg-white border-gray-300'
+              }`}>
+              {modal.type === 'loading' ? (
+                <div className="text-center">
+                  <div className="flex justify-center mb-6">
+                    <div className="animate-spin rounded-full h-20 w-20 border-b-4 border-orange-500"></div>
+                  </div>
+                  <p className="text-white text-4xl font-bold">{loadingPercentage}%</p>
                 </div>
-                <p className="text-white text-4xl font-bold">{loadingPercentage}%</p>
-              </div>
-            ) : (
-              <>
-                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>{modal.title}</h3>
-                <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>{modal.message}</p>
-                <div className="flex items-center justify-end gap-3">
-                  {modal.type === 'confirm' ? (
-                    <>
+              ) : (
+                <>
+                  <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{modal.title}</h3>
+                  <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>{modal.message}</p>
+                  <div className="flex items-center justify-end gap-3">
+                    {modal.type === 'confirm' ? (
+                      <>
+                        <button
+                          onClick={modal.onCancel}
+                          className={`px-4 py-2 rounded transition-colors ${isDarkMode
+                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                            }`}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={modal.onConfirm}
+                          className="px-4 py-2 text-white rounded transition-colors"
+                          style={{
+                            backgroundColor: colorPalette?.primary || '#ea580c'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (colorPalette?.accent) {
+                              e.currentTarget.style.backgroundColor = colorPalette.accent;
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                          }}
+                        >
+                          Confirm
+                        </button>
+                      </>
+                    ) : (
                       <button
-                        onClick={modal.onCancel}
-                        className={`px-4 py-2 rounded transition-colors ${isDarkMode
-                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                          }`}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={modal.onConfirm}
+                        onClick={() => {
+                          if (modal.onConfirm) {
+                            modal.onConfirm();
+                          } else {
+                            setModal({ ...modal, isOpen: false });
+                          }
+                        }}
                         className="px-4 py-2 text-white rounded transition-colors"
                         style={{
                           backgroundColor: colorPalette?.primary || '#ea580c'
@@ -1505,41 +1477,17 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                           e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
                         }}
                       >
-                        Confirm
+                        OK
                       </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        if (modal.onConfirm) {
-                          modal.onConfirm();
-                        } else {
-                          setModal({ ...modal, isOpen: false });
-                        }
-                      }}
-                      className="px-4 py-2 text-white rounded transition-colors"
-                      style={{
-                        backgroundColor: colorPalette?.primary || '#ea580c'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (colorPalette?.accent) {
-                          e.currentTarget.style.backgroundColor = colorPalette.accent;
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
-                      }}
-                    >
-                      OK
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 

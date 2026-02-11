@@ -333,7 +333,6 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
 
     const addressParts = [
       account.address || '',
-      account.location || '',
       account.barangay || '',
       account.city || '',
       account.region || ''
@@ -363,7 +362,6 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
 
     const addressParts = [
       account.address || '',
-      account.location || '',
       account.barangay || '',
       account.city || '',
       account.region || ''
@@ -491,7 +489,6 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
 
                           const addressParts = [
                             account.address || '',
-                            account.location || '',
                             account.barangay || '',
                             account.city || '',
                             account.region || ''

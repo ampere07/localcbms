@@ -25,7 +25,7 @@ interface ApplicationVisit {
     region?: string;
     city?: string;
     barangay?: string;
-    location?: string;
+
     choose_plan?: string;
     promo?: string;
     house_front_picture_url?: string;
@@ -82,7 +82,7 @@ const transformVisit = (visit: any): ApplicationVisit => {
         region: visit.region || '',
         city: visit.city || '',
         barangay: visit.barangay || '',
-        location: visit.location || '',
+
         choose_plan: visit.choose_plan || '',
         promo: visit.promo || '',
         house_front_picture_url: visit.house_front_picture_url || '',

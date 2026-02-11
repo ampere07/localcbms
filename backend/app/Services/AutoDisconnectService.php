@@ -410,10 +410,22 @@ class AutoDisconnectService
                 throw new Exception("Billing configuration not found");
             }
 
-            $pulloutOffset = $config->pullout_offset ?? 30;
+            $pulloutOffset = $config->pullout_day ?? $config->pullout_offset ?? 30;
+            
+            if ($pulloutOffset <= 0) {
+                $this->writeLog("[INFO] Auto Pullout is disabled (pullout_day = 0)");
+                return [
+                    'success' => true,
+                    'created' => 0,
+                    'skipped' => 0,
+                    'errors' => [],
+                    'duration' => 0
+                ];
+            }
+
             $targetDate = Carbon::today()->subDays($pulloutOffset)->format('Y-m-d');
             
-            $this->writeLog("[CONFIG] Pullout Offset: {$pulloutOffset} days");
+            $this->writeLog("[CONFIG] Pullout Day Offset: {$pulloutOffset} days");
             $this->writeLog("[CONFIG] Target Due Date: {$targetDate}");
             $this->writeLog("");
 

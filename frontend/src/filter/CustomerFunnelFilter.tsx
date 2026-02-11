@@ -37,7 +37,6 @@ const allColumns: Column[] = [
   { key: 'contact_number_primary', label: 'Contact Number Primary', table: 'customers', dataType: 'varchar' },
   { key: 'contact_number_secondary', label: 'Contact Number Secondary', table: 'customers', dataType: 'varchar' },
   { key: 'address', label: 'Address', table: 'customers', dataType: 'text' },
-  { key: 'location', label: 'Location', table: 'customers', dataType: 'varchar' },
   { key: 'barangay', label: 'Barangay', table: 'customers', dataType: 'varchar' },
   { key: 'city', label: 'City', table: 'customers', dataType: 'varchar' },
   { key: 'region', label: 'Region', table: 'customers', dataType: 'varchar' },
@@ -217,8 +216,8 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
               onChange={(e) => handleRangeChange(selectedColumn.key, 'from', e.target.value)}
               placeholder="Minimum value"
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
           </div>
@@ -233,8 +232,8 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
               onChange={(e) => handleRangeChange(selectedColumn.key, 'to', e.target.value)}
               placeholder="Maximum value"
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
           </div>
@@ -255,8 +254,8 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
               value={currentValue?.from || ''}
               onChange={(e) => handleDateChange(selectedColumn.key, 'from', e.target.value)}
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
           </div>
@@ -270,8 +269,8 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
               value={currentValue?.to || ''}
               onChange={(e) => handleDateChange(selectedColumn.key, 'to', e.target.value)}
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
           </div>
@@ -291,8 +290,8 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
           onChange={(e) => handleTextChange(selectedColumn.key, e.target.value)}
           placeholder={`Enter ${selectedColumn.label.toLowerCase()}`}
           className={`w-full px-3 py-2 rounded border ${isDarkMode
-              ? 'bg-gray-800 border-gray-700 text-white'
-              : 'bg-white border-gray-300 text-gray-900'
+            ? 'bg-gray-800 border-gray-700 text-white'
+            : 'bg-white border-gray-300 text-gray-900'
             }`}
         />
       </div>
@@ -321,8 +320,8 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
                       <button
                         onClick={handleBack}
                         className={`p-2 rounded-lg transition-colors ${isDarkMode
-                            ? 'hover:bg-gray-800 text-gray-400'
-                            : 'hover:bg-gray-100 text-gray-600'
+                          ? 'hover:bg-gray-800 text-gray-400'
+                          : 'hover:bg-gray-100 text-gray-600'
                           }`}
                       >
                         <ChevronLeft className="h-5 w-5" />
@@ -336,8 +335,8 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
                   <button
                     onClick={onClose}
                     className={`p-2 rounded-lg transition-colors ${isDarkMode
-                        ? 'hover:bg-gray-800 text-gray-400'
-                        : 'hover:bg-gray-100 text-gray-600'
+                      ? 'hover:bg-gray-800 text-gray-400'
+                      : 'hover:bg-gray-100 text-gray-600'
                       }`}
                   >
                     <X className="h-5 w-5" />
@@ -431,8 +430,8 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
                   <button
                     onClick={handleReset}
                     className={`flex-1 px-4 py-2 rounded transition-colors ${isDarkMode
-                        ? 'bg-gray-800 hover:bg-gray-700 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      ? 'bg-gray-800 hover:bg-gray-700 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                       }`}
                   >
                     Clear

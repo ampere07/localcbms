@@ -269,7 +269,6 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
 
     const addressParts = [
       account.address || '',
-      account.location || '',
       account.barangay || '',
       account.city || '',
       account.region || ''
@@ -299,7 +298,6 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
 
     const addressParts = [
       account.address || '',
-      account.location || '',
       account.barangay || '',
       account.city || '',
       account.region || ''
@@ -322,8 +320,8 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
         <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
           }`}>
           <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
-              ? 'bg-gray-800 border-gray-700'
-              : 'bg-gray-100 border-gray-300'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-gray-100 border-gray-300'
             }`}>
             <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>Discounted Form</h2>
@@ -331,8 +329,8 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
               <button
                 onClick={handleCancel}
                 className={`px-4 py-2 rounded text-sm ${isDarkMode
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                   }`}
               >
                 Cancel
@@ -408,8 +406,8 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                         value={accountSearchQuery}
                         onChange={(e) => setAccountSearchQuery(e.target.value)}
                         className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                            ? 'bg-gray-900 border-gray-600 text-white placeholder-gray-400'
-                            : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                          ? 'bg-gray-900 border-gray-600 text-white placeholder-gray-400'
+                          : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                           }`}
                         onClick={(e) => e.stopPropagation()}
                         autoFocus
@@ -428,7 +426,6 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
 
                           const addressParts = [
                             account.address || '',
-                            account.location || '',
                             account.barangay || '',
                             account.city || '',
                             account.region || ''
@@ -488,8 +485,8 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                   value={formData.status}
                   onChange={(e) => handleInputChange('status', e.target.value)}
                   className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-pointer ${isDarkMode
-                      ? 'bg-gray-800 border-gray-700 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
                     }`}
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 >
@@ -523,8 +520,8 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                     type="button"
                     onClick={() => handleDiscountAmountChange('decrease')}
                     className={`px-3 py-1 border border-l-0 text-sm ${isDarkMode
-                        ? 'bg-gray-700 hover:bg-gray-600 text-white border-gray-700'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900 border-gray-300'
+                      ? 'bg-gray-700 hover:bg-gray-600 text-white border-gray-700'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900 border-gray-300'
                       }`}
                   >
                     <Minus size={16} />
@@ -533,8 +530,8 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                     type="button"
                     onClick={() => handleDiscountAmountChange('increase')}
                     className={`px-3 py-1 border border-l-0 border-t-0 rounded-r text-sm ${isDarkMode
-                        ? 'bg-gray-700 hover:bg-gray-600 text-white border-gray-700'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900 border-gray-300'
+                      ? 'bg-gray-700 hover:bg-gray-600 text-white border-gray-700'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900 border-gray-300'
                       }`}
                   >
                     <Plus size={16} />
@@ -613,8 +610,8 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                 onChange={(e) => handleInputChange('remarks', e.target.value)}
                 rows={4}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
                   }`}
               />
             </div>

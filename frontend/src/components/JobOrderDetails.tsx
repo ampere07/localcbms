@@ -279,7 +279,6 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const getClientFullAddress = (): string => {
     const joAddressParts = [
       jobOrder.Installation_Address || jobOrder.installation_address || jobOrder.Address || jobOrder.address,
-      jobOrder.Location || jobOrder.location,
       jobOrder.Barangay || jobOrder.barangay,
       jobOrder.City || jobOrder.city,
       jobOrder.Region || jobOrder.region
@@ -290,7 +289,6 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     if (applicationData) {
       const appAddressParts = [
         applicationData.installation_address,
-        applicationData.location,
         applicationData.barangay,
         applicationData.city,
         applicationData.region

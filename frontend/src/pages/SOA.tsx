@@ -60,7 +60,6 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     houseFrontPicture: customerData.houseFrontPictureUrl || '',
     accountBalance: customerData.billingAccount?.accountBalance || 0,
     housingStatus: customerData.housingStatus || '',
-    location: customerData.location || '',
     addressCoordinates: customerData.addressCoordinates || '',
   };
 };

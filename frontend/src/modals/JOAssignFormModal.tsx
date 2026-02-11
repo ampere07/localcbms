@@ -2,14 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, ChevronDown, Minus, Plus, Loader2 } from 'lucide-react';
 import { createJobOrder, JobOrderData } from '../services/jobOrderService';
 import { updateApplication } from '../services/applicationService';
-import { getContractTemplates, ContractTemplate } from '../services/lookupService';
 import { getAllGroups, Group } from '../services/groupService';
 import apiClient from '../config/api';
 import { UserData } from '../types/api';
 import { userService } from '../services/userService';
 import { getRegions, getCities, City } from '../services/cityService';
 import { barangayService, Barangay } from '../services/barangayService';
-import { locationDetailService, LocationDetail } from '../services/locationDetailService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface JOAssignFormModalProps {
@@ -42,12 +40,10 @@ interface JOFormData {
   barangay: string;
   city: string;
   region: string;
-  location: string;
   choosePlan: string;
   promo: string;
   remarks: string;
   installationFee: number;
-  contractTemplate: string;
   billingDay: string;
   isLastDayOfMonth: boolean;
   onsiteStatus: string;
@@ -95,12 +91,10 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     barangay: '',
     city: '',
     region: '',
-    location: '',
     choosePlan: '',
     promo: '',
     remarks: '',
     installationFee: 0.00,
-    contractTemplate: '0',
     billingDay: '',
     isLastDayOfMonth: false,
     onsiteStatus: 'In Progress',
@@ -146,13 +140,10 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     message: ''
   });
 
-  const [contractTemplates, setContractTemplates] = useState<ContractTemplate[]>([]);
-  const [lookupLoading, setLookupLoading] = useState(true);
 
   const [regions, setRegions] = useState<Region[]>([]);
   const [allCities, setAllCities] = useState<City[]>([]);
   const [allBarangays, setAllBarangays] = useState<Barangay[]>([]);
-  const [allLocations, setAllLocations] = useState<LocationDetail[]>([]);
 
   const [plans, setPlans] = useState<Plan[]>([]);
   const [promos, setPromos] = useState<Promo[]>([]);
@@ -239,23 +230,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     fetchGroups();
   }, [isOpen]);
 
-  useEffect(() => {
-    const fetchLookupData = async () => {
-      try {
-        setLookupLoading(true);
-        const templates = await getContractTemplates();
-        setContractTemplates(templates);
-      } catch (error) {
-        setLookupLoading(false);
-      } finally {
-        setLookupLoading(false);
-      }
-    };
 
-    if (isOpen) {
-      fetchLookupData();
-    }
-  }, [isOpen]);
 
   useEffect(() => {
     const loadPlans = async () => {
@@ -363,25 +338,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     fetchAllBarangays();
   }, [isOpen]);
 
-  useEffect(() => {
-    const fetchAllLocations = async () => {
-      if (isOpen) {
-        try {
-          const response = await locationDetailService.getAll();
 
-          if (response.success && Array.isArray(response.data)) {
-            setAllLocations(response.data);
-          } else {
-            setAllLocations([]);
-          }
-        } catch (error) {
-          setAllLocations([]);
-        }
-      }
-    };
-
-    fetchAllLocations();
-  }, [isOpen]);
 
   useEffect(() => {
     if (applicationData && isOpen) {
@@ -397,7 +354,6 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
         barangay: applicationData.barangay || '',
         city: applicationData.city || '',
         region: applicationData.region || '',
-        location: applicationData.location || '',
         choosePlan: applicationData.desired_plan || '',
         promo: applicationData.promo || '',
         installationLandmark: applicationData.landmark || ''
@@ -425,12 +381,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
       if (field === 'region') {
         newData.city = '';
         newData.barangay = '';
-        newData.location = '';
       } else if (field === 'city') {
         newData.barangay = '';
-        newData.location = '';
-      } else if (field === 'barangay') {
-        newData.location = '';
       }
 
       return newData;
@@ -454,23 +406,16 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     }
   };
 
-  const handleNumberChange = (field: 'installationFee' | 'contractTemplate' | 'billingDay', increment: boolean) => {
+  const handleNumberChange = (field: 'installationFee' | 'billingDay', increment: boolean) => {
     setFormData(prev => {
       if (field === 'installationFee') {
         return {
           ...prev,
           [field]: increment ? prev[field] + 0.01 : Math.max(0, prev[field] - 0.01)
         };
-      } else if (field === 'billingDay') {
+      } else {
         const currentValue = parseInt(prev[field]) || 1;
         const newValue = increment ? Math.min(30, currentValue + 1) : Math.max(1, currentValue - 1);
-        return {
-          ...prev,
-          [field]: newValue.toString()
-        };
-      } else {
-        const currentValue = parseInt(prev[field]) || 0;
-        const newValue = increment ? currentValue + 1 : Math.max(0, currentValue - 1);
         return {
           ...prev,
           [field]: newValue.toString()
@@ -528,10 +473,6 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
       newErrors.barangay = 'Barangay is required';
     }
 
-    if (!formData.location.trim()) {
-      newErrors.location = 'Location is required';
-    }
-
     if (!formData.choosePlan.trim()) {
       newErrors.choosePlan = 'Choose Plan is required';
     }
@@ -540,9 +481,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
       newErrors.installationFee = 'Installation fee cannot be negative';
     }
 
-    if (!formData.contractTemplate.trim()) {
-      newErrors.contractTemplate = 'Contract Template is required';
-    }
+
 
     const billingDayNum = parseInt(formData.billingDay);
     if (!formData.isLastDayOfMonth) {
@@ -593,7 +532,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
       installation_fee: data.installationFee || 0,
       billing_day: data.isLastDayOfMonth ? 0 : (parseInt(data.billingDay) || 30),
       billing_status: 'In Progress',
-      modem_router_sn: toNullIfEmpty(data.contractTemplate),
+      modem_router_sn: null,
       onsite_status: data.onsiteStatus || 'In Progress',
       assigned_email: toNullIfEmpty(data.assignedEmail),
       onsite_remarks: toNullIfEmpty(data.remarks),
@@ -742,16 +681,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     return allBarangays.filter(brgy => brgy.city_id !== undefined && brgy.city_id === selectedCity.id);
   };
 
-  const getFilteredLocations = () => {
-    if (!formData.barangay) return [];
-    const selectedBarangay = allBarangays.find(brgy => brgy.barangay === formData.barangay);
-    if (!selectedBarangay || !selectedBarangay.id) return [];
-    return allLocations.filter(loc => loc.barangay_id === selectedBarangay.id);
-  };
-
   const filteredCities = getFilteredCities();
   const filteredBarangays = getFilteredBarangays();
-  const filteredLocations = getFilteredLocations();
 
   if (!isOpen) return null;
 
@@ -1076,36 +1007,6 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                 {errors.barangay && <p className="text-red-500 text-xs mt-1">{errors.barangay}</p>}
               </div>
 
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                  Location<span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={formData.location}
-                    onChange={(e) => handleInputChange('location', e.target.value)}
-                    disabled={!formData.barangay}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
-                      } ${errors.location ? 'border-red-500' : ''}`}
-                  >
-                    <option value="">{formData.barangay ? 'Select Location' : 'Select Barangay First'}</option>
-                    {formData.location && formData.location.trim() !== '' && !filteredLocations.some(loc => loc.location_name === formData.location) && (
-                      <option value={formData.location}>{formData.location}</option>
-                    )}
-                    {filteredLocations.map((location) => (
-                      <option key={location.id} value={location.location_name}>
-                        {location.location_name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                    }`} size={20} />
-                </div>
-                {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
-              </div>
             </div>
 
             <div className="space-y-4">
@@ -1212,45 +1113,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                 {errors.installationFee && <p className="text-red-500 text-xs mt-1">{errors.installationFee}</p>}
               </div>
 
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                  Contract Template<span className="text-red-500">*</span>
-                </label>
-                <div className={`flex items-center border rounded ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
-                  } ${errors.contractTemplate ? 'border-red-500' : ''}`}>
-                  <input
-                    type="number"
-                    value={formData.contractTemplate}
-                    onChange={(e) => handleInputChange('contractTemplate', e.target.value)}
-                    className={`flex-1 px-3 py-2 bg-transparent focus:outline-none ${isDarkMode ? 'text-white' : 'text-gray-900'
-                      }`}
-                  />
-                  <div className="flex">
-                    <button
-                      type="button"
-                      onClick={() => handleNumberChange('contractTemplate', false)}
-                      className={`px-3 py-2 border-l transition-colors ${isDarkMode
-                        ? 'text-gray-400 hover:text-white border-gray-700'
-                        : 'text-gray-600 hover:text-gray-900 border-gray-300'
-                        }`}
-                    >
-                      <Minus size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleNumberChange('contractTemplate', true)}
-                      className={`px-3 py-2 border-l transition-colors ${isDarkMode
-                        ? 'text-gray-400 hover:text-white border-gray-700'
-                        : 'text-gray-600 hover:text-gray-900 border-gray-300'
-                        }`}
-                    >
-                      <Plus size={16} />
-                    </button>
-                  </div>
-                </div>
-                {errors.contractTemplate && <p className="text-red-500 text-xs mt-1">{errors.contractTemplate}</p>}
-              </div>
+
 
               <div>
                 <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'

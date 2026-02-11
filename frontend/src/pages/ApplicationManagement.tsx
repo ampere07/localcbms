@@ -35,7 +35,7 @@ const allColumns = [
   { key: 'region', label: 'Region', width: 'min-w-28' },
   { key: 'city', label: 'City', width: 'min-w-28' },
   { key: 'barangay', label: 'Barangay', width: 'min-w-32' },
-  { key: 'location', label: 'Location', width: 'min-w-40' },
+
   { key: 'desiredPlan', label: 'Desired Plan', width: 'min-w-36' },
   { key: 'promo', label: 'Promo', width: 'min-w-28' },
   { key: 'referredBy', label: 'Referred By', width: 'min-w-32' },
@@ -298,10 +298,7 @@ const ApplicationManagement: React.FC = () => {
             aValue = a.barangay || '';
             bValue = b.barangay || '';
             break;
-          case 'location':
-            aValue = a.location || '';
-            bValue = b.location || '';
-            break;
+
           case 'desiredPlan':
             aValue = a.desired_plan || '';
             bValue = b.desired_plan || '';
@@ -558,8 +555,7 @@ const ApplicationManagement: React.FC = () => {
         return application.city || '-';
       case 'barangay':
         return application.barangay || '-';
-      case 'location':
-        return application.location || '-';
+
       case 'desiredPlan':
         return application.desired_plan || '-';
       case 'promo':
@@ -1045,7 +1041,7 @@ const ApplicationManagement: React.FC = () => {
                               {' | '}
                               {[
                                 application.installation_address || application.address,
-                                application.location,
+
                                 application.barangay,
                                 application.city,
                                 application.region

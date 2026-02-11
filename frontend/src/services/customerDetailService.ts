@@ -10,7 +10,6 @@ export interface CustomerDetailData {
   contactNumberPrimary: string;
   contactNumberSecondary?: string;
   address: string;
-  location?: string;
   barangay?: string;
   city?: string;
   region?: string;

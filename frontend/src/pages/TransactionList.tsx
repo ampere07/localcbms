@@ -65,7 +65,6 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     houseFrontPicture: customerData.houseFrontPictureUrl || '',
     accountBalance: customerData.billingAccount?.accountBalance || 0,
     housingStatus: customerData.housingStatus || '',
-    location: customerData.location || '',
     addressCoordinates: customerData.addressCoordinates || '',
   };
 };
@@ -201,6 +200,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     if (!dateStr) return 'No date';
     try {
       const date = new Date(dateStr);
+      // Check if date is valid
+      if (isNaN(date.getTime())) return dateStr || 'Invalid Date';
+
       return date.toLocaleString('en-US', {
         month: '2-digit',
         day: '2-digit',
@@ -211,13 +213,21 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
         hour12: true
       });
     } catch (e) {
-      return dateStr;
+      console.warn('Error formatting date:', dateStr, e);
+      return dateStr || 'Error';
     }
   };
 
-  const formatCurrency = (amount: number | string) => {
-    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return `₱${numAmount.toFixed(2)}`;
+  const formatCurrency = (amount: number | string | null | undefined) => {
+    if (amount === null || amount === undefined || amount === '') return '₱0.00';
+    try {
+      const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+      if (isNaN(numAmount)) return '₱0.00';
+      return `₱${numAmount.toFixed(2)}`;
+    } catch (e) {
+      console.warn('Error formatting currency:', amount, e);
+      return '₱0.00';
+    }
   };
 
 
@@ -297,9 +307,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
       }
 
       const matchesSearch = searchQuery === '' ||
-        transaction.account?.customer?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        transaction.account?.account_no?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        transaction.reference_no?.toLowerCase().includes(searchQuery.toLowerCase());
+        (transaction.account?.customer?.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (transaction.account?.account_no || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (transaction.reference_no || '').toLowerCase().includes(searchQuery.toLowerCase());
 
       return matchesLocation && matchesSearch;
     });
@@ -351,7 +361,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLocation, searchQuery]);
+  }, [selectedLocation, searchQuery, activeFilters]);
 
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -417,15 +427,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
 
   const handleRowClick = (transaction: Transaction) => {
     if (isBatchApproveMode) {
-      if (transaction.status.toLowerCase() === 'pending') {
+      if ((transaction.status || '').toLowerCase() === 'pending') {
         toggleTransactionSelection(transaction.id);
       }
     } else {
-      console.log('Transaction clicked:', transaction);
-      console.log('Customer data:', transaction.account?.customer);
-      console.log('Full name:', transaction.account?.customer?.full_name);
       setSelectedTransaction(transaction);
-      setSelectedCustomer(null); // Clear customer view when switching transactions
+      setSelectedCustomer(null);
     }
   };
 
@@ -445,7 +452,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
 
   const toggleTransactionSelection = (transactionId: string) => {
     const transaction = transactions.find(t => t.id === transactionId);
-    if (!transaction || transaction.status.toLowerCase() !== 'pending') {
+    if (!transaction || (transaction.status || '').toLowerCase() !== 'pending') {
       return;
     }
 
@@ -459,7 +466,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
   };
 
   const toggleSelectAll = () => {
-    const pendingTransactions = filteredTransactions.filter(t => t.status.toLowerCase() === 'pending');
+    const pendingTransactions = filteredTransactions.filter(t => (t.status || '').toLowerCase() === 'pending');
     const pendingTransactionIds = pendingTransactions.map(t => t.id);
 
     if (selectedTransactionIds.length === pendingTransactionIds.length && pendingTransactionIds.length > 0) {
@@ -560,10 +567,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     sidebarStartWidthRef.current = sidebarWidth;
   };
 
-  const StatusText = ({ status }: { status: string }) => {
+  const StatusText = ({ status }: { status?: string | null }) => {
     let textColor = '';
+    const statusLower = (status || '').toLowerCase();
 
-    switch (status.toLowerCase()) {
+    switch (statusLower) {
       case 'done':
       case 'completed':
         textColor = 'text-green-500';
@@ -584,7 +592,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
 
     return (
       <span className={`${textColor} capitalize`}>
-        {status}
+        {status || 'Unknown'}
       </span>
     );
   };
@@ -758,12 +766,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
         />
       </div>
 
-      <div className={`overflow-hidden flex-1 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+      <div className={`overflow-hidden flex-1 flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
         }`}>
-        <div className="flex flex-col h-full">
-          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-            }`}>
-            <div className="flex items-center space-x-3">
+        <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
+          <div className="flex items-center space-x-3">
               <button
                 onClick={() => setMobileMenuOpen(true)}
                 className="md:hidden bg-gray-700 hover:bg-gray-600 text-white p-2 rounded text-sm transition-colors flex items-center justify-center"
@@ -855,10 +862,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
               >
                 <Filter className="h-5 w-5" />
               </button>
-            </div>
           </div>
         </div>
-
         <div className="flex-1 overflow-hidden flex flex-col">
           <div className="flex-1 overflow-x-auto overflow-y-auto">
             {loading ? (
@@ -891,8 +896,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                           type="checkbox"
                           checked={
                             selectedTransactionIds.length > 0 &&
-                            selectedTransactionIds.length === filteredTransactions.filter(t => t.status.toLowerCase() === 'pending').length &&
-                            filteredTransactions.filter(t => t.status.toLowerCase() === 'pending').length > 0
+                            selectedTransactionIds.length === filteredTransactions.filter(t => (t.status || '').toLowerCase() === 'pending').length &&
+                            filteredTransactions.filter(t => (t.status || '').toLowerCase() === 'pending').length > 0
                           }
                           onChange={toggleSelectAll}
                           className="w-4 h-4 rounded border-gray-300 cursor-pointer"
@@ -949,7 +954,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                   {paginatedTransactions.length > 0 ? (
                     paginatedTransactions.map((transaction) => {
                       const isSelected = selectedTransactionIds.includes(transaction.id);
-                      const isPending = transaction.status.toLowerCase() === 'pending';
+                      const isPending = (transaction.status || '').toLowerCase() === 'pending';
                       const canSelect = isBatchApproveMode && isPending;
 
                       return (

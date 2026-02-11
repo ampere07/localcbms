@@ -47,7 +47,6 @@ interface JobOrderDoneFormData {
   region: string;
   city: string;
   barangay: string;
-  location: string;
   lcpnap: string;
   port: string;
   vlan: string;
@@ -131,8 +130,16 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
   const currentUser = getCurrentUser();
   const currentUserEmail = currentUser?.email || 'unknown@unknown.com';
 
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [formData, setFormData] = useState<JobOrderDoneFormData>({
-    dateInstalled: '',
+    dateInstalled: getTodayDate(),
     usageType: '',
     choosePlan: '',
     connectionType: '',
@@ -142,7 +149,6 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     region: '',
     city: '',
     barangay: '',
-    location: '',
     lcpnap: '',
     port: '',
     vlan: '',
@@ -715,7 +721,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
               const appData = appResponse.data.application;
 
               const newFormData = {
-                dateInstalled: formatDateForInput(jobOrderData.Date_Installed || jobOrderData.date_installed),
+                dateInstalled: formatDateForInput(jobOrderData.Date_Installed || jobOrderData.date_installed) || getTodayDate(),
                 usageType: getValue(jobOrderData.Usage_Type || jobOrderData.usage_type, 'usageType'),
                 choosePlan: getValue(jobOrderData.Desired_Plan || jobOrderData.desired_plan || jobOrderData.Choose_Plan || jobOrderData.choose_plan || jobOrderData.plan, 'choosePlan'),
                 connectionType: getValue(jobOrderData.Connection_Type || jobOrderData.connection_type, 'connectionType'),
@@ -728,7 +734,6 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 region: getValue(appData.region || jobOrderData.Region || jobOrderData.region, 'region'),
                 city: getValue(appData.city || jobOrderData.City || jobOrderData.city, 'city'),
                 barangay: getValue(appData.barangay || jobOrderData.Barangay || jobOrderData.barangay, 'barangay'),
-                location: getValue(appData.location || jobOrderData.Location || jobOrderData.location, 'location'),
                 onsiteStatus: loadedOnsiteStatus,
                 onsiteRemarks: getValue(jobOrderData.Onsite_Remarks || jobOrderData.onsite_remarks, 'onsiteRemarks'),
                 itemName1: getValue(jobOrderData.Item_Name_1 || jobOrderData.item_name_1, 'itemName1'),
@@ -774,7 +779,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
 
       const loadDefaultFormData = () => {
         const newFormData = {
-          dateInstalled: formatDateForInput(jobOrderData.Date_Installed || jobOrderData.date_installed),
+          dateInstalled: formatDateForInput(jobOrderData.Date_Installed || jobOrderData.date_installed) || getTodayDate(),
           usageType: getValue(jobOrderData.Usage_Type || jobOrderData.usage_type, 'usageType'),
           choosePlan: getValue(jobOrderData.Desired_Plan || jobOrderData.desired_plan || jobOrderData.Choose_Plan || jobOrderData.choose_plan || jobOrderData.plan, 'choosePlan'),
           connectionType: getValue(jobOrderData.Connection_Type || jobOrderData.connection_type, 'connectionType'),
@@ -787,7 +792,6 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
           region: getValue(jobOrderData.Region || jobOrderData.region, 'region'),
           city: getValue(jobOrderData.City || jobOrderData.city, 'city'),
           barangay: getValue(jobOrderData.Barangay || jobOrderData.barangay, 'barangay'),
-          location: getValue(jobOrderData.Location || jobOrderData.location, 'location'),
           onsiteStatus: loadedOnsiteStatus,
           onsiteRemarks: getValue(jobOrderData.Onsite_Remarks || jobOrderData.onsite_remarks, 'onsiteRemarks'),
           itemName1: getValue(jobOrderData.Item_Name_1 || jobOrderData.item_name_1, 'itemName1'),
@@ -841,14 +845,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       if (field === 'region') {
         newData.city = '';
         newData.barangay = '';
-        newData.location = '';
       }
       if (field === 'city') {
         newData.barangay = '';
-        newData.location = '';
       }
       if (field === 'barangay') {
-        newData.location = '';
       }
       return newData;
     });
@@ -950,7 +951,6 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     if (!formData.region.trim()) newErrors.region = 'Region is required';
     if (!formData.city.trim()) newErrors.city = 'City is required';
     if (!formData.barangay.trim()) newErrors.barangay = 'Barangay is required';
-    if (!formData.location.trim()) newErrors.location = 'Location is required';
 
     if (formData.onsiteStatus === 'Done') {
       if (!formData.dateInstalled.trim()) newErrors.dateInstalled = 'Date Installed is required';
@@ -1389,7 +1389,6 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
             region: updatedFormData.region,
             city: updatedFormData.city,
             barangay: updatedFormData.barangay,
-            location: updatedFormData.location,
             desired_plan: updatedFormData.choosePlan,
             referred_by: referredBy,
             promo: promo
@@ -1399,7 +1398,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
 
           saveMessages.push({
             type: 'success',
-            text: `Application updated: Plan: ${updatedFormData.choosePlan}, Location: ${updatedFormData.region}, ${updatedFormData.city}, ${updatedFormData.barangay}, ${updatedFormData.location}`
+            text: `Application updated: Plan: ${updatedFormData.choosePlan}, Location: ${updatedFormData.region}, ${updatedFormData.city}, ${updatedFormData.barangay}`
           });
         } catch (appError: any) {
           const errorMsg = appError.response?.data?.message || appError.message || 'Unknown error';
@@ -1686,7 +1685,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                   }
                 }}
               >
-                {loading ? 'Saving...' : 'Save'}
+                {loading ? 'Submitting...' : 'Submit'}
               </button>
             </div>
           </div>
@@ -1797,19 +1796,6 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
               />
             </div>
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Location</label>
-              <input
-                type="text"
-                value={formData.location}
-                readOnly
-                className={`w-full px-3 py-2 border rounded focus:outline-none cursor-not-allowed opacity-75 ${isDarkMode
-                  ? 'bg-gray-700 border-gray-600 text-gray-300'
-                  : 'bg-gray-100 border-gray-300 text-gray-600'
-                  }`}
-              />
-            </div>
 
             {formData.onsiteStatus === 'Done' && (
               <>
@@ -2017,51 +2003,39 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                         LCP-NAP<span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        {/* Display Field (The "Closed" state) */}
-                        <div
-                          className={`flex items-center justify-between px-3 py-2 border rounded cursor-pointer transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-                            } ${errors.lcpnap ? 'border-red-500' : 'focus-within:border-orange-500'}`}
-                          onClick={() => setIsLcpnapOpen(!isLcpnapOpen)}
-                        >
-                          <span className={`text-sm ${!formData.lcpnap ? (isDarkMode ? 'text-gray-500' : 'text-gray-400') : ''}`}>
-                            {formData.lcpnap || 'Select LCP-NAP'}
-                          </span>
-                          <ChevronDown
-                            size={18}
-                            className={`transition-transform duration-200 ${isLcpnapOpen ? 'rotate-180' : ''} ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                              }`}
+                        <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                          } ${errors.lcpnap ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
+                          <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                          <input
+                            type="text"
+                            placeholder="Type to search LCP-NAP..."
+                            value={formData.lcpnap}
+                            onChange={(e) => {
+                              handleInputChange('lcpnap', e.target.value);
+                              setIsLcpnapOpen(true);
+                            }}
+                            onFocus={() => setIsLcpnapOpen(true)}
+                            className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           />
+                          <button
+                            type="button"
+                            onClick={() => setIsLcpnapOpen(!isLcpnapOpen)}
+                            className={`ml-2 transition-transform duration-200 ${isLcpnapOpen ? 'rotate-180' : ''}`}
+                          >
+                            <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                          </button>
                         </div>
 
-                        {/* Dropdown Menu */}
+                        {/* Recommendation Dropdown */}
                         {isLcpnapOpen && (
                           <div
                             className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
                               }`}
                             style={{ minWidth: '100%' }}
                           >
-                            {/* Search Box at Top of Dropdown */}
-                            <div className={`p-2 border-b ${isDarkMode ? 'border-gray-700 bg-gray-900/50' : 'border-gray-100 bg-gray-50'}`}>
-                              <div className={`flex items-center px-2 py-1.5 rounded border ${isDarkMode ? 'bg-gray-800 border-gray-700 focus-within:border-orange-500' : 'bg-white border-gray-300 focus-within:border-orange-500'
-                                }`}>
-                                <Search size={14} className="mr-2 text-gray-400" />
-                                <input
-                                  autoFocus
-                                  type="text"
-                                  placeholder="Search LCP-NAP..."
-                                  value={lcpnapSearch}
-                                  onChange={(e) => setLcpnapSearch(e.target.value)}
-                                  className={`w-full bg-transparent border-none focus:outline-none focus:ring-0 p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
-                                    }`}
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                              </div>
-                            </div>
-
-                            {/* Options List */}
                             <div className="max-h-60 overflow-y-auto custom-scrollbar">
                               {lcpnaps
-                                .filter(ln => ln.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase()))
+                                .filter(ln => ln.lcpnap_name.toLowerCase().includes((formData.lcpnap || '').toLowerCase()))
                                 .map((lcpnap) => (
                                   <div
                                     key={lcpnap.id}
@@ -2071,7 +2045,6 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                                       } ${formData.lcpnap === lcpnap.lcpnap_name ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
                                     onClick={() => {
                                       handleInputChange('lcpnap', lcpnap.lcpnap_name);
-                                      setLcpnapSearch('');
                                       setIsLcpnapOpen(false);
                                     }}
                                   >
@@ -2083,22 +2056,21 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                                     </div>
                                   </div>
                                 ))}
-                              {lcpnaps.filter(ln => ln.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase())).length === 0 && (
+                              {lcpnaps.filter(ln => ln.lcpnap_name.toLowerCase().includes((formData.lcpnap || '').toLowerCase())).length === 0 && (
                                 <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                  No results found for "{lcpnapSearch}"
+                                  No recommendations for "{formData.lcpnap}"
                                 </div>
                               )}
                             </div>
                           </div>
                         )}
 
-                        {/* Click outside to close */}
+                        {/* Click outside to close - repurposed */}
                         {isLcpnapOpen && (
                           <div
                             className="fixed inset-0 z-40 bg-transparent"
                             onClick={() => {
                               setIsLcpnapOpen(false);
-                              setLcpnapSearch('');
                             }}
                           />
                         )}

@@ -18,7 +18,7 @@ class TransactionController extends Controller
             $limit = request()->input('limit');
             $offset = request()->input('offset');
 
-            $query = Transaction::with(['account.customer', 'account.technicalDetails', 'processedByUser', 'paymentMethodInfo'])
+            $query = Transaction::with(['account.customer', 'account.technicalDetails', 'processor', 'paymentMethodInfo'])
                 ->orderBy('created_at', 'desc')
                 ->orderBy('id', 'desc');
 
@@ -91,6 +91,11 @@ class TransactionController extends Controller
             $validated['status'] = $validated['status'] ?? 'Pending';
             $validated['created_by_user'] = Auth::check() ? Auth::user()->email : 'unknown';
             $validated['updated_by_user'] = Auth::check() ? Auth::user()->email : 'unknown';
+            
+            if (isset($validated['processed_by_user_id'])) {
+                $validated['processed_by_user'] = $validated['processed_by_user_id'];
+                unset($validated['processed_by_user_id']);
+            }
 
             $autoApplyPayment = $validated['auto_apply_payment'] ?? false;
             unset($validated['auto_apply_payment']);
@@ -145,7 +150,7 @@ class TransactionController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Transaction created successfully',
-                'data' => $transaction->load(['account.customer', 'account.technicalDetails', 'processedByUser', 'paymentMethodInfo'])
+                'data' => $transaction->load(['account.customer', 'account.technicalDetails', 'processor', 'paymentMethodInfo'])
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
@@ -178,7 +183,7 @@ class TransactionController extends Controller
     public function show(string $id): JsonResponse
     {
         try {
-            $transaction = Transaction::with(['account.customer', 'account.technicalDetails', 'processedByUser', 'paymentMethodInfo'])
+            $transaction = Transaction::with(['account.customer', 'account.technicalDetails', 'processor', 'paymentMethodInfo'])
                 ->findOrFail($id);
 
             return response()->json([

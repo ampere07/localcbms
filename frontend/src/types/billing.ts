@@ -8,7 +8,6 @@ export interface BillingRecord {
   middleInitial?: string;
   lastName?: string;
   address: string;
-  location?: string;
   status: string;
   balance: number;
   onlineStatus: string;
@@ -52,7 +51,6 @@ export interface BillingDetailRecord extends BillingRecord {
   accountBalance?: number;
   email?: string;
   housingStatus?: string;
-  location?: string;
   addressCoordinates?: string;
 
   // Extended fields for detailed view

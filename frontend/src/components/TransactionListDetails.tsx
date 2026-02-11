@@ -298,7 +298,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
           </div>
 
           <div className="flex items-center space-x-3">
-            {transaction.status.toLowerCase() === 'pending' && (
+            {(transaction.status || '').toLowerCase() === 'pending' && (
               <button
                 onClick={handleApproveTransaction}
                 disabled={loading}
@@ -384,12 +384,12 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                 <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>Status</div>
                 <div className="flex-1">
-                  <div className={`capitalize ${transaction.status.toLowerCase() === 'done' ? 'text-green-500' :
-                    transaction.status.toLowerCase() === 'pending' ? 'text-yellow-500' :
-                      transaction.status.toLowerCase() === 'processing' ? 'text-blue-500' :
+                  <div className={`capitalize ${(transaction.status || '').toLowerCase() === 'done' ? 'text-green-500' :
+                    (transaction.status || '').toLowerCase() === 'pending' ? 'text-yellow-500' :
+                      (transaction.status || '').toLowerCase() === 'processing' ? 'text-blue-500' :
                         'text-gray-400'
                     }`}>
-                    {transaction.status}
+                    {transaction.status || 'Unknown'}
                   </div>
                 </div>
               </div>
