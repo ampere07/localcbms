@@ -533,7 +533,12 @@ class JobOrderController extends Controller
                 'pppoe_password_length' => isset($data['pppoe_password']) ? strlen($data['pppoe_password']) : 0
             ]);
 
+            $oldStatus = $jobOrder->onsite_status;
             $jobOrder->update($data);
+            
+            if (($data['onsite_status'] ?? null) === 'Done' && $oldStatus !== 'Done') {
+                $this->broadcastJobOrderDone($jobOrder);
+            }
             
             \Log::info('JobOrder After Update', [
                 'id' => $id,
@@ -623,6 +628,30 @@ class JobOrderController extends Controller
                 'message' => 'Failed to update job order',
                 'error' => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    private function broadcastJobOrderDone($jobOrder)
+    {
+        try {
+            $application = $jobOrder->application;
+            $data = [
+                'id' => $jobOrder->id,
+                'type' => 'job_order_done',
+                'customer_name' => trim(($application->first_name ?? '') . ' ' . ($application->last_name ?? '')),
+                'plan_name' => $application->desired_plan ?? 'Unknown Plan',
+                'title' => 'Job Order Completed',
+                'message' => 'Onsite status marked as Done',
+                'timestamp' => now()->timestamp,
+                'formatted_date' => now()->format('Y-m-d h:i:s A') // e.g. 2026-02-11 05:53:42 PM
+            ];
+
+            Http::timeout(2)->post('http://127.0.0.1:3001/broadcast/job-order-done', $data);
+            \Log::info('Real-time broadcast sent for Job Order Done', ['id' => $jobOrder->id]);
+        } catch (\Exception $e) {
+            \Log::warning('Failed to broadcast Job Order Done to socket server', [
+                'error' => $e->getMessage()
+            ]);
         }
     }
 

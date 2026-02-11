@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, RefreshCw, Menu, X } from 'lucide-react';
+import { Bell, Menu, X } from 'lucide-react';
+import { io } from 'socket.io-client';
 import { notificationService, type Notification as AppNotification } from '../services/notificationService';
+import NotificationToast from '../components/NotificationToast';
 import { formUIService } from '../services/formUIService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
@@ -24,6 +26,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
   const mountedRef = useRef(true);
   const previousCountRef = useRef(0);
   const previousNotificationIdsRef = useRef<Set<number>>(new Set());
+  const [toastNotification, setToastNotification] = useState<AppNotification | null>(null);
 
   const convertGoogleDriveUrl = (url: string): string => {
     if (!url) return '';
@@ -122,26 +125,122 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
     }
 
     try {
-      const browserNotification = new Notification('🔔 New Customer Application', {
-        body: `${notification.customer_name}\nPlan: ${notification.plan_name}`,
+      const title = notification.title || (notification.type === 'job_order_done'
+        ? '✅ Job Order Completed'
+        : '🔔 New Customer Application');
+
+      const body = notification.message || (notification.type === 'job_order_done'
+        ? `${notification.customer_name}\nPlan: ${notification.plan_name}\nStatus: Done`
+        : `${notification.customer_name}\nPlan: ${notification.plan_name}`);
+
+      const options: NotificationOptions = {
+        body: body,
         icon: logoUrl || undefined,
         badge: logoUrl || undefined,
-        tag: `application-${notification.id}`,
-        requireInteraction: false,
-        silent: false
-      });
-
-      browserNotification.onclick = () => {
-        console.log('[Browser Notification] Notification clicked');
-        window.focus();
-        browserNotification.close();
+        tag: `${notification.type || 'application'}-${notification.id}`,
+        requireInteraction: true,
+        silent: false,
+        data: { url: window.location.origin }
       };
 
-      console.log('[Browser Notification] Notification created successfully for:', notification.customer_name);
+      // Try to use Service Worker for better background reliability
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then(registration => {
+          registration.showNotification(title, options);
+          console.log('[Browser Notification] SW notification triggered');
+        });
+      } else {
+        // Fallback to standard notification if SW not active
+        const browserNotification = new Notification(title, options);
+        browserNotification.onclick = () => {
+          window.focus();
+          browserNotification.close();
+        };
+        console.log('[Browser Notification] Standard notification triggered');
+      }
+
+      console.log('[Browser Notification] Processed for:', notification.customer_name);
     } catch (error) {
       console.error('[Browser Notification] Failed to create notification:', error);
     }
   };
+
+  const handleNewNotification = (notification: AppNotification) => {
+    if (!mountedRef.current) return;
+
+    // Check if we already have this notification to avoid duplicates
+    if (previousNotificationIdsRef.current.has(notification.id)) {
+      console.log(`[Notification] Skipping duplicate ID: ${notification.id}`);
+      return;
+    }
+
+    console.log('[Notification] Handling new notification:', notification);
+
+    setNotifications(prev => {
+      const updated = [notification, ...prev].slice(0, 10);
+      previousNotificationIdsRef.current = new Set(updated.map(n => n.id));
+      return updated;
+    });
+
+    setUnreadCount(prev => prev + 1);
+    setToastNotification(notification);
+    showBrowserNotification(notification);
+  };
+
+  // Socket.IO Integration
+  useEffect(() => {
+    // Dynamically set URL based on environment
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const socketServerUrl = isDev ? 'http://localhost:3001' : 'https://backend.atssfiber.ph';
+
+    console.log(`[Socket] Connecting to (${isDev ? 'DEV' : 'PROD'}):`, socketServerUrl);
+
+    const socket = io(socketServerUrl, {
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+
+    socket.on('connect', () => {
+      console.log('[Socket] Connected to notification server');
+    });
+
+    socket.on('connect_error', (error) => {
+      console.log('[Socket] Connection error:', error.message);
+    });
+
+    socket.on('new-application', (data) => {
+      console.log('[Socket] Received new-application:', data);
+      handleNewNotification({
+        id: data.id,
+        type: 'application',
+        customer_name: data.customer_name,
+        plan_name: data.plan_name,
+        timestamp: data.timestamp || Date.now(),
+        formatted_date: data.formatted_date || 'Just now',
+        title: data.title || '🔔 New Application',
+        message: data.message || `${data.customer_name} - ${data.plan_name}`
+      });
+    });
+
+    socket.on('job-order-done', (data) => {
+      console.log('[Socket] Received job-order-done:', data);
+      handleNewNotification({
+        id: data.id,
+        type: 'job_order_done',
+        customer_name: data.customer_name,
+        plan_name: data.plan_name,
+        timestamp: data.timestamp || Date.now(),
+        formatted_date: data.formatted_date || 'Just now',
+        title: data.title || '✅ Job Order Done',
+        message: data.message || `${data.customer_name} - ${data.plan_name}`
+      });
+    });
+
+    return () => {
+      console.log('[Socket] Disconnecting');
+      socket.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -150,21 +249,14 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
       console.log('[Fetch] Fetching initial notification data...');
 
       try {
-        const data = await notificationService.getRecentApplications(10);
+        const data = await notificationService.getConsolidatedStream(10);
         const count = await notificationService.getUnreadCount();
-
-        console.log('[Fetch] Initial data received:', {
-          notificationCount: data.length,
-          unreadCount: count,
-          notifications: data
-        });
 
         if (mountedRef.current) {
           previousCountRef.current = count;
           setUnreadCount(count);
           setNotifications(data);
           previousNotificationIdsRef.current = new Set(data.map(n => n.id));
-
           console.log('[Fetch] State updated with initial data');
         }
       } catch (error) {
@@ -174,51 +266,32 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
 
     fetchInitialData();
 
+    // Keep polling as a backup, but with longer interval if socket is preferred
     const interval = setInterval(async () => {
       if (!mountedRef.current) return;
 
-      console.log('[Polling] Checking for new notifications...');
-
       try {
-        const data = await notificationService.getRecentApplications(10);
+        const data = await notificationService.getConsolidatedStream(10);
         const count = await notificationService.getUnreadCount();
 
-        console.log('[Polling] Data received:', {
-          notificationCount: data.length,
-          unreadCount: count,
-          previousIds: Array.from(previousNotificationIdsRef.current)
-        });
-
         if (mountedRef.current) {
-          const currentIds = new Set(data.map(n => n.id));
           const newNotifications = data.filter(n => !previousNotificationIdsRef.current.has(n.id));
 
           if (newNotifications.length > 0) {
-            console.log('[Polling] NEW NOTIFICATIONS DETECTED:', newNotifications.length);
-            console.log('[Polling] New notification details:', newNotifications);
-
-            newNotifications.forEach((notification, index) => {
-              console.log(`[Polling] Triggering browser notification ${index + 1}/${newNotifications.length}`);
-              showBrowserNotification(notification);
-            });
-          } else {
-            console.log('[Polling] No new notifications');
+            console.log('[Polling] New notifications via fallback polling:', newNotifications.length);
+            newNotifications.forEach(n => handleNewNotification(n));
           }
 
-          previousNotificationIdsRef.current = currentIds;
-          previousCountRef.current = count;
           setUnreadCount(count);
           setNotifications(data);
+          previousNotificationIdsRef.current = new Set(data.map(n => n.id));
         }
       } catch (error) {
         console.error('[Polling] Failed to fetch notifications:', error);
       }
-    }, 30000);
-
-    console.log('[Polling] Interval started - checking every 30 seconds');
+    }, 10000); // 10 seconds polling fallback
 
     return () => {
-      console.log('[Polling] Interval cleared');
       clearInterval(interval);
     };
   }, []);
@@ -245,9 +318,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
     }
   };
 
-  const handleRefresh = () => {
-    window.location.reload();
-  };
+
 
   const toggleNotifications = async () => {
     console.log('[UI] Toggling notifications modal');
@@ -258,7 +329,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
       console.log('[UI] Loading notifications for modal...');
 
       try {
-        const data = await notificationService.getRecentApplications(10);
+        const data = await notificationService.getConsolidatedStream(10);
         console.log('[UI] Notifications loaded for modal:', data);
 
         if (mountedRef.current) {
@@ -461,13 +532,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
       <div className="flex-1"></div>
 
       <div className="flex items-center space-x-2">
-        <button
-          onClick={handleRefresh}
-          className={`p-2 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'
-            } transition-colors`}
-        >
-          <RefreshCw className="h-5 w-5" />
-        </button>
+
 
         <div className="relative" ref={notificationRef}>
           <button
@@ -488,7 +553,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
                 }`}>
                 <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}>
-                  Recent Applications ({notifications.length})
+                  Recent Notifications ({notifications.length})
                 </h3>
               </div>
               <div className="max-h-96 overflow-y-auto">
@@ -505,21 +570,28 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
                 ) : (
                   notifications.map((notification) => (
                     <div
-                      key={notification.id}
+                      key={`${notification.type}-${notification.id}`}
                       className={`p-4 border-b ${isDarkMode ? 'border-gray-700 hover:bg-gray-750' : 'border-gray-200 hover:bg-gray-50'
                         } transition-colors cursor-pointer`}
                     >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${notification.type === 'job_order_done'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                          }`}>
+                          {notification.type === 'job_order_done' ? 'Job Done' : 'Application'}
+                        </span>
+                        <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                          {notification.formatted_date}
+                        </span>
+                      </div>
                       <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                         }`}>
                         {notification.customer_name}
                       </div>
                       <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                        Plan: {notification.plan_name}
-                      </div>
-                      <div className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'
-                        }`}>
-                        {notification.formatted_date}
+                        {notification.type === 'job_order_done' ? 'Completed onsite work' : `Plan: ${notification.plan_name}`}
                       </div>
                     </div>
                   ))
@@ -529,6 +601,19 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
           )}
         </div>
       </div>
+      {toastNotification && (
+        <NotificationToast
+          isVisible={true}
+          title={toastNotification.title || (toastNotification.type === 'job_order_done' ? 'Job Order Completed' : 'New Application Received')}
+          message={toastNotification.message || `${toastNotification.customer_name} - ${toastNotification.plan_name}`}
+          type={toastNotification.type === 'job_order_done' ? 'success' : 'info'}
+          onClose={() => setToastNotification(null)}
+          onClick={() => {
+            setToastNotification(null);
+            if (!showNotifications) toggleNotifications();
+          }}
+        />
+      )}
     </header>
   );
 };

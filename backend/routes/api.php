@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\SmsBlastController;
 use App\Http\Controllers\Api\ExpensesLogController;
 use App\Http\Controllers\Api\DisconnectionLogsController;
 use App\Http\Controllers\Api\ReconnectionLogsController;
+use App\Http\Controllers\ConsolidatedNotificationController;
 
 Route::get('/monitor/handle', [MonitorController::class, 'handle']);
 Route::post('/monitor/handle', [MonitorController::class, 'handle']); // Ensure POST is also handled for save_template actions if not using REST
@@ -2714,6 +2715,7 @@ Route::prefix('notifications')->group(function () {
     Route::get('/recent-applications', [\App\Http\Controllers\NotificationController::class, 'getRecentApplications']);
     Route::get('/unread-count', [\App\Http\Controllers\NotificationController::class, 'getUnreadCount']);
     Route::get('/debug-timezone', [\App\Http\Controllers\NotificationController::class, 'debugTimezone']);
+    Route::get('/consolidated', [ConsolidatedNotificationController::class, 'index']);
 });
 
 Route::post('/debug/verify-password', function(Request $request) {
