@@ -135,6 +135,7 @@ class PaymentWorkerService
                     'billing_accounts.account_balance',
                     DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name"),
                     'customers.contact_number_primary',
+                    'customers.email_address',
                     'customers.desired_plan'
                 )
                 ->first();
@@ -242,6 +243,51 @@ class PaymentWorkerService
                     }
                 } catch (Exception $e) {
                     $this->workerLog("Paid Invoice SMS Exception: " . $e->getMessage());
+                }
+
+                // Send Paid Email
+                try {
+                    $paidInvoices = $result['invoices_paid'] ?? [];
+                    
+                    if (!empty($paidInvoices) && !empty($account->email_address)) {
+                         $paidEmailTemplate = DB::table('email_templates')
+                             ->where('Template_Code', 'PAID')
+                             ->where('Is_Active', 1)
+                             ->first();
+                         
+                         if ($paidEmailTemplate) {
+                             $emailService = app(\App\Services\EmailQueueService::class);
+                             
+                             foreach ($paidInvoices as $paidInvoice) {
+                                  $emailBody = $paidEmailTemplate->email_body;
+                                  
+                                  // Replace variables
+                                  $emailBody = str_replace('{{customer_name}}', $account->full_name, $emailBody);
+                                  $emailBody = str_replace('{{account_no}}', $account->account_no, $emailBody);
+                                  $emailBody = str_replace('{{invoice_id}}', $paidInvoice['invoice_id'], $emailBody);
+                                  $emailBody = str_replace('{{amount_paid}}', $paidInvoice['amount_paid'], $emailBody);
+                                  $emailBody = str_replace('{{date}}', date('Y-m-d'), $emailBody);
+
+                                  if (!empty($emailBody)) {
+                                       $emailService->queueEmail([
+                                           'account_no' => $account->account_no,
+                                           'recipient_email' => $account->email_address,
+                                           'subject' => $paidEmailTemplate->Subject_Line ?? 'Payment Received', 
+                                           'body_html' => nl2br($emailBody), 
+                                           'attachment_path' => null
+                                       ]);
+                                       
+                                       $this->workerLog("Paid Invoice Email queued for Invoice #{$paidInvoice['invoice_id']} to {$account->email_address}");
+                                  } else {
+                                      $this->workerLog("Paid Invoice Email Body is empty");
+                                  }
+                             }
+                         } else {
+                             $this->workerLog("Paid Email (WELCOME) template not found or inactive");
+                         }
+                    }
+                } catch (Exception $e) {
+                    $this->workerLog("Paid Invoice Email Exception: " . $e->getMessage());
                 }
                 
             } else {
@@ -421,11 +467,13 @@ class PaymentWorkerService
                 ->leftJoin('customers', 'billing_accounts.customer_id', '=', 'customers.id')
                 ->leftJoin('technical_details', 'billing_accounts.id', '=', 'technical_details.account_id')
                 ->where('billing_accounts.id', $billingAccount->id)
-                ->select('technical_details.username as pppoe_username', 'customers.desired_plan')
+                ->where('billing_accounts.id', $billingAccount->id)
+                ->select('technical_details.username as pppoe_username', 'customers.desired_plan', 'customers.email_address')
                 ->first();
 
             $username = $accountDetails->pppoe_username ?? null;
             $plan = $accountDetails->desired_plan ?? null;
+            $emailAddress = $accountDetails->email_address ?? null;
 
             if (empty($username)) {
                 $this->workerLog("[RECONNECT SKIP] No PPPoE username found in technical_details for account: {$accountNo}");
@@ -510,6 +558,38 @@ class PaymentWorkerService
                     }
                 } catch (Exception $e) {
                     $this->workerLog("[RECONNECT SMS EXCEPTION] " . $e->getMessage());
+                }
+
+                // Send Email Notification
+                try {
+                    $emailTemplate = DB::table('email_templates')->where('Template_Code', 'RECONNECT')->first();
+
+                    if ($emailTemplate && !empty($emailAddress)) {
+                        // Use email_body as the content (body) as requested
+                        $body = $emailTemplate->email_body;
+
+                        if (!empty($body)) {
+                            // Resolve EmailQueueService from container since it serves dependencies
+                            $emailService = app(\App\Services\EmailQueueService::class);
+
+                            $emailService->queueEmail([
+                                'account_no' => $accountNo,
+                                'recipient_email' => $emailAddress,
+                                'subject' => $emailTemplate->Subject_Line ?? 'Reconnection Notice',
+                                'body_html' => nl2br($body),
+                                'attachment_path' => null
+                            ]);
+
+                            $this->workerLog("[RECONNECT EMAIL] Email queued for {$emailAddress}");
+                        } else {
+                            $this->workerLog("[RECONNECT EMAIL SKIP] email_body is empty");
+                        }
+                    } else {
+                        if (!$emailTemplate) $this->workerLog("[RECONNECT EMAIL SKIP] RECONNECT template not found");
+                        if (empty($emailAddress)) $this->workerLog("[RECONNECT EMAIL SKIP] No email address for customer");
+                    }
+                } catch (Exception $e) {
+                    $this->workerLog("[RECONNECT EMAIL EXCEPTION] " . $e->getMessage());
                 }
 
                 return 'success';

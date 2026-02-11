@@ -185,7 +185,13 @@ const EmailTemplates: React.FC = () => {
       await fetchTemplates();
     } catch (error: any) {
       console.error('Error saving template:', error);
-      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message;
+      let errorMessage = error.response?.data?.message || error.message;
+
+      if (error.response?.data?.errors) {
+        const validationErrors = Object.values(error.response.data.errors).flat().join('\n');
+        errorMessage += `:\n${validationErrors}`;
+      }
+
       setModal({
         isOpen: true,
         type: 'error',
@@ -514,33 +520,43 @@ const EmailTemplates: React.FC = () => {
                     type="text"
                     value={formData.Template_Code}
                     onChange={(e) => handleInputChange('Template_Code', e.target.value)}
-                    placeholder="Template Code (e.g., SOA_DESIGN)"
-                    className={`w-full px-3 py-2 text-sm rounded ${isDarkMode
+                    placeholder="Template Code (Auto-generated if empty)"
+                    className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
                       ? 'bg-gray-700 border-gray-600 text-white'
                       : 'bg-white border-gray-300 text-gray-900'
                       }`}
                     disabled={!isCreating}
                   />
+                  {/* Warning: Template Code cannot be changed after creation */}
                   <input
                     type="text"
                     value={formData.Subject_Line}
                     onChange={(e) => handleInputChange('Subject_Line', e.target.value)}
                     placeholder="Subject Line"
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                    className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                      }`}
                   />
                   <input
                     type="text"
                     value={formData.Description}
                     onChange={(e) => handleInputChange('Description', e.target.value)}
                     placeholder="Description (optional)"
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                    className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                      }`}
                   />
-                  <input
-                    type="text"
+                  <textarea
                     value={formData.email_body}
                     onChange={(e) => handleInputChange('email_body', e.target.value)}
                     placeholder="Email Body"
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                    rows={6}
+                    className={`w-full px-3 py-2 text-sm border rounded resize-none ${isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                      }`}
                   />
                 </div>
               ) : selectedTemplate ? (

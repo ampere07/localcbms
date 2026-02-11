@@ -38,9 +38,9 @@ class EmailTemplateController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'Template_Code' => 'required|string|max:50|unique:email_templates,Template_Code',
-                'Subject_Line' => 'required|string|max:150',
-                'Body_HTML' => 'required|string',
+                'Template_Code' => 'nullable|string|max:50|unique:email_templates,Template_Code',
+                'Subject_Line' => 'nullable|string|max:150',
+                'Body_HTML' => 'nullable|string',
                 'Description' => 'nullable|string|max:255',
                 'Is_Active' => 'nullable|boolean',
                 'email_body' => 'nullable|string|max:255'
@@ -58,8 +58,13 @@ class EmailTemplateController extends Controller
                 'data' => $request->except(['Body_HTML'])
             ]);
 
+            $templateCode = $request->input('Template_Code');
+            if (empty($templateCode)) {
+                $templateCode = uniqid('TPL_');
+            }
+
             $template = EmailTemplate::create([
-                'Template_Code' => $request->input('Template_Code'),
+                'Template_Code' => $templateCode,
                 'Subject_Line' => $request->input('Subject_Line'),
                 'Body_HTML' => $request->input('Body_HTML'),
                 'Description' => $request->input('Description'),
@@ -129,8 +134,8 @@ class EmailTemplateController extends Controller
             }
 
             $validator = Validator::make($request->all(), [
-                'Subject_Line' => 'sometimes|string|max:150',
-                'Body_HTML' => 'sometimes|string',
+                'Subject_Line' => 'nullable|string|max:150',
+                'Body_HTML' => 'nullable|string',
                 'Description' => 'nullable|string|max:255',
                 'Is_Active' => 'nullable|boolean',
                 'email_body' => 'nullable|string|max:255'

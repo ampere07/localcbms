@@ -321,6 +321,58 @@ class TransactionController extends Controller
                 \Log::error('Failed to send Paid SMS: ' . $e->getMessage());
             }
 
+            // Send Paid Email if invoices were paid
+            try {
+                if (!empty($invoiceUpdateResult['invoices_paid'])) {
+                    if (!$customer) {
+                         $billingAccount->load('customer');
+                         $customer = $billingAccount->customer;
+                    }
+
+                    if ($customer && !empty($customer->email_address)) {
+                         $paidEmailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'PAID')
+                             ->where('Is_Active', true)
+                             ->first();
+                         
+                         if ($paidEmailTemplate) {
+                             $emailService = app(\App\Services\EmailQueueService::class);
+                             
+                             foreach ($invoiceUpdateResult['invoices_paid'] as $paidInvoice) {
+                                  $emailBody = $paidEmailTemplate->email_body;
+                                  
+                                  // Replace variables
+                                  $emailBody = str_replace('{{customer_name}}', $customer->full_name, $emailBody);
+                                  $emailBody = str_replace('{{account_no}}', $accountNo, $emailBody);
+                                  $emailBody = str_replace('{{invoice_id}}', $paidInvoice['invoice_id'], $emailBody);
+                                  $emailBody = str_replace('{{amount_paid}}', $paidInvoice['amount_paid'], $emailBody);
+                                  $emailBody = str_replace('{{date}}', date('Y-m-d'), $emailBody);
+
+                                  if (!empty($emailBody)) {
+                                       $emailService->queueEmail([
+                                           'account_no' => $accountNo,
+                                           'recipient_email' => $customer->email_address,
+                                           'subject' => $paidEmailTemplate->Subject_Line ?? 'Payment Received', 
+                                           'body_html' => nl2br($emailBody), 
+                                           'attachment_path' => null
+                                       ]);
+                                       
+                                       \Log::info('Paid Invoice Email queued', [
+                                           'invoice_id' => $paidInvoice['invoice_id'], 
+                                           'email' => $customer->email_address
+                                       ]);
+                                  } else {
+                                      \Log::warning('Paid Invoice Email Body is empty');
+                                  }
+                             }
+                         } else {
+                             \Log::warning('Paid Email (WELCOME) template not found or inactive');
+                         }
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to send Paid Email: ' . $e->getMessage());
+            }
+
             // Attempt reconnection after successful approval
             $reconnectStatus = $this->attemptReconnectionAfterApproval($billingAccount);
 
@@ -783,6 +835,7 @@ class TransactionController extends Controller
                             ->where('billing_accounts.account_no', $accountNo)
                             ->select(
                                 'customers.contact_number_primary',
+                                'customers.email_address',
                                 DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name")
                             )
                             ->first();
@@ -812,6 +865,37 @@ class TransactionController extends Controller
                     }
                 } catch (\Exception $e) {
                     \Log::error('[TRANSACTION RECONNECT SMS EXCEPTION] ' . $e->getMessage());
+                }
+
+                // Send Email Notification
+                try {
+                    $emailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'RECONNECT')->first();
+                    
+                    if ($emailTemplate && !empty($customerInfo->email_address)) {
+                         // Use email_body as the content (body) as requested
+                         $body = $emailTemplate->email_body;
+                         
+                         if (!empty($body)) {
+                             $emailService = app(\App\Services\EmailQueueService::class);
+                             
+                             $emailService->queueEmail([
+                                 'account_no' => $accountNo,
+                                 'recipient_email' => $customerInfo->email_address,
+                                 'subject' => $emailTemplate->Subject_Line ?? 'Reconnection Notice', 
+                                 'body_html' => nl2br($body), 
+                                 'attachment_path' => null
+                             ]);
+                             
+                             \Log::info('[TRANSACTION RECONNECT EMAIL] Email queued for ' . $customerInfo->email_address);
+                         } else {
+                             \Log::warning('[TRANSACTION RECONNECT EMAIL SKIP] email_body is empty');
+                         }
+                    } else {
+                        if (!$emailTemplate) \Log::warning('[TRANSACTION RECONNECT EMAIL SKIP] RECONNECT template not found');
+                        if (empty($customerInfo->email_address)) \Log::warning('[TRANSACTION RECONNECT EMAIL SKIP] No email address for customer');
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('[TRANSACTION RECONNECT EMAIL EXCEPTION] ' . $e->getMessage());
                 }
 
                 return 'success';

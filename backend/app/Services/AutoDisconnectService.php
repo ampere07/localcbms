@@ -7,6 +7,8 @@ use App\Models\BillingAccount;
 use App\Models\ServiceOrder;
 use App\Models\BillingConfig;
 use App\Models\SMSTemplate;
+use App\Models\EmailTemplate;
+use App\Services\EmailQueueService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -18,16 +20,19 @@ class AutoDisconnectService
     private $logName = 'Auto_DC';
     private $radiusService;
     private $smsService;
+    private $emailQueueService;
     private $lockName = 'auto_disconnect_worker';
     private $lockTimeout = 300; // 5 minutes max execution time
     private $hasLock = false;
 
     public function __construct(
         ManualRadiusOperationsService $radiusService,
-        ?ItexmoSmsService $smsService = null
+        ?ItexmoSmsService $smsService = null,
+        ?EmailQueueService $emailQueueService = null
     ) {
         $this->radiusService = $radiusService;
         $this->smsService = $smsService;
+        $this->emailQueueService = $emailQueueService;
     }
 
     /**
@@ -363,6 +368,15 @@ class AutoDisconnectService
                 $this->writeLog("  [SMS] Skipping SMS (Service null or no primary contact)");
             }
 
+            // Send Email notification - AFTER commit
+            if ($this->emailQueueService && $billingAccount->customer && $billingAccount->customer->email_address) {
+                $this->writeLog("  [EMAIL] Attempting to trigger triggerEmail function...");
+                $this->triggerEmail($billingAccount);
+                $this->writeLog("  [EMAIL] triggerEmail function finished.");
+            } else {
+                $this->writeLog("  [EMAIL] Skipping Email (Service null or no email address)");
+            }
+
             $this->writeLog("  [COMPLETE] Account {$accountNo} successfully disconnected");
 
             return ['success' => true];
@@ -624,6 +638,63 @@ class AutoDisconnectService
             $this->writeLog("    [DEBUG] triggerSMS Error: " . $e->getMessage());
             $this->writeLog("    [DEBUG] triggerSMS Error Trace: " . $e->getTraceAsString());
             // Don't throw - SMS failure shouldn't stop the process
+        }
+    }
+
+    /**
+     * Trigger Email notification
+     */
+    private function triggerEmail(BillingAccount $billingAccount): void
+    {
+        $this->writeLog("    [DEBUG] triggerEmail: Starting for Account {$billingAccount->account_no}");
+        try {
+            if (!$this->emailQueueService) {
+                $this->writeLog("    [DEBUG] triggerEmail: emailQueueService is null");
+                return;
+            }
+
+            $customer = $billingAccount->customer;
+            if (!$customer || empty($customer->email_address)) {
+                $this->writeLog("    [DEBUG] triggerEmail: Customer or email address missing");
+                return;
+            }
+            $this->writeLog("    [DEBUG] triggerEmail: Target email: {$customer->email_address}");
+
+            // Find template
+            $template = EmailTemplate::where('Template_Code', 'DISCONNECTED')->first();
+            
+            if (!$template) {
+                 $this->writeLog("    [DEBUG] triggerEmail: DISCONNECTED template not found");
+                 return;
+            }
+            
+            // Use email_body as requested
+            $body = $template->email_body;
+            if (empty($body)) {
+                 $this->writeLog("    [DEBUG] triggerEmail: email_body is empty in template");
+                 return;
+            }
+
+            $this->writeLog("    [DEBUG] triggerEmail: Queueing email...");
+            
+            $emailQueued = $this->emailQueueService->queueEmail([
+                'account_no' => $billingAccount->account_no,
+                'recipient_email' => $customer->email_address,
+                'subject' => $template->Subject_Line ?? 'Disconnection Notice',
+                // Convert newlines to BR tags since queueEmail typically sends HTML
+                'body_html' => nl2br($body), 
+                'attachment_path' => null
+            ]);
+            
+            if ($emailQueued) {
+                $this->writeLog("    [DEBUG] triggerEmail: Email queued successfully. ID: " . $emailQueued->id);
+            } else {
+                $this->writeLog("    [DEBUG] triggerEmail: Email failed to queue");
+            }
+
+        } catch (Throwable $e) {
+            $this->writeLog("    [DEBUG] triggerEmail Error: " . $e->getMessage());
+            $this->writeLog("    [DEBUG] triggerEmail Error Trace: " . $e->getTraceAsString());
         }
     }
 
