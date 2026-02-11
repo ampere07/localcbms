@@ -56,6 +56,7 @@ const ApplicationVisitPage: React.FC = () => {
   const [selectedVisit, setSelectedVisit] = useState<ApplicationVisit | null>(null);
   const { applicationVisits, isLoading, error, refreshApplicationVisits, silentRefresh } = useApplicationVisitContext();
   const [userRole, setUserRole] = useState<string>('');
+  const [roleId, setRoleId] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [displayMode, setDisplayMode] = useState<DisplayMode>('table');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -168,6 +169,7 @@ const ApplicationVisitPage: React.FC = () => {
       try {
         const userData = JSON.parse(authData);
         setUserRole(userData.role || '');
+        setRoleId(userData.role_id || null);
       } catch (err) {
         // Error parsing auth data
       }
@@ -757,7 +759,7 @@ const ApplicationVisitPage: React.FC = () => {
     <div className={`h-full flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
       {/* Desktop Sidebar - Hidden on mobile */}
-      {userRole.toLowerCase() !== 'technician' && (
+      {(userRole.toLowerCase() !== 'technician' && roleId !== 2) && (
         <div className={`hidden md:flex border-r flex-shrink-0 flex-col relative z-40 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
           }`} style={{ width: `${sidebarWidth}px` }}>
           <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'

@@ -6,7 +6,7 @@ import { updateApplication } from '../services/applicationService';
 import { userService } from '../services/userService';
 import { planService, Plan } from '../services/planService';
 import { routerModelService, RouterModel } from '../services/routerModelService';
-import { getAllPorts, Port } from '../services/portService';
+import { getUsedPorts } from '../services/portService';
 import { getAllLCPNAPs, LCPNAP } from '../services/lcpnapService';
 import { getAllVLANs, VLAN } from '../services/vlanService';
 import { getAllUsageTypes, UsageType } from '../services/usageTypeService';
@@ -204,7 +204,8 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
   const [plans, setPlans] = useState<Plan[]>([]);
   const [routerModels, setRouterModels] = useState<RouterModel[]>([]);
   const [lcpnaps, setLcpnaps] = useState<LCPNAP[]>([]);
-  const [ports, setPorts] = useState<Port[]>([]);
+  const [usedPorts, setUsedPorts] = useState<string[]>([]);
+  const [totalPorts, setTotalPorts] = useState<number>(32);
   const [vlans, setVlans] = useState<VLAN[]>([]);
 
   const [usageTypes, setUsageTypes] = useState<UsageType[]>([]);
@@ -520,37 +521,32 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
-    const fetchPorts = async () => {
+    const fetchUsedPorts = async () => {
       if (isOpen && formData.lcpnap) {
         try {
-          console.log('Loading Ports from database for LCPNAP:', formData.lcpnap);
           const jobOrderId = jobOrderData?.id || jobOrderData?.JobOrder_ID;
-          console.log('Fetching ports with params:', {
-            lcpnap: formData.lcpnap,
-            excludeUsed: true,
-            currentJobOrderId: jobOrderId
-          });
-          const response = await getAllPorts(formData.lcpnap, 1, 100, true, jobOrderId);
-          console.log('Port API Response:', response);
+          const response = await getUsedPorts(formData.lcpnap, jobOrderId);
 
-          if (response.success && Array.isArray(response.data)) {
-            setPorts(response.data);
-            console.log('Loaded Available Ports for', formData.lcpnap, ':', response.data.length);
-            console.log('Port Labels:', response.data.map(p => p.Label));
+          if (response.success && response.data) {
+            setUsedPorts(response.data.used);
+            setTotalPorts(response.data.total);
           } else {
             console.warn('Unexpected Port response structure:', response);
-            setPorts([]);
+            setUsedPorts([]);
+            setTotalPorts(32);
           }
         } catch (error) {
-          console.error('Error fetching Ports:', error);
-          setPorts([]);
+          console.error('Error fetching Used Ports:', error);
+          setUsedPorts([]);
+          setTotalPorts(32);
         }
       } else if (isOpen && !formData.lcpnap) {
-        setPorts([]);
+        setUsedPorts([]);
+        setTotalPorts(32);
       }
     };
 
-    fetchPorts();
+    fetchUsedPorts();
   }, [isOpen, jobOrderData, formData.lcpnap]);
 
   useEffect(() => {
@@ -1962,38 +1958,20 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
                     <select value={formData.port} onChange={(e) => handleInputChange('port', e.target.value)} className={`w-full px-3 py-2 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                       } border ${errors.port ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'} rounded focus:outline-none focus:border-orange-500 appearance-none`}>
                       <option value="">Select PORT</option>
-                      <option value="PORT 001">PORT 001</option>
-                      <option value="PORT 002">PORT 002</option>
-                      <option value="PORT 003">PORT 003</option>
-                      <option value="PORT 004">PORT 004</option>
-                      <option value="PORT 005">PORT 005</option>
-                      <option value="PORT 006">PORT 006</option>
-                      <option value="PORT 007">PORT 007</option>
-                      <option value="PORT 008">PORT 008</option>
-                      <option value="PORT 009">PORT 009</option>
-                      <option value="PORT 010">PORT 010</option>
-                      <option value="PORT 011">PORT 011</option>
-                      <option value="PORT 012">PORT 012</option>
-                      <option value="PORT 013">PORT 013</option>
-                      <option value="PORT 014">PORT 014</option>
-                      <option value="PORT 015">PORT 015</option>
-                      <option value="PORT 016">PORT 016</option>
-                      <option value="PORT 017">PORT 017</option>
-                      <option value="PORT 018">PORT 018</option>
-                      <option value="PORT 019">PORT 019</option>
-                      <option value="PORT 020">PORT 020</option>
-                      <option value="PORT 021">PORT 021</option>
-                      <option value="PORT 022">PORT 022</option>
-                      <option value="PORT 023">PORT 023</option>
-                      <option value="PORT 024">PORT 024</option>
-                      <option value="PORT 025">PORT 025</option>
-                      <option value="PORT 026">PORT 026</option>
-                      <option value="PORT 027">PORT 027</option>
-                      <option value="PORT 028">PORT 028</option>
-                      <option value="PORT 029">PORT 029</option>
-                      <option value="PORT 030">PORT 030</option>
-                      <option value="PORT 032">PORT 032</option>
-                      <option value="PORT 032">PORT 032</option>
+                      {Array.from({ length: totalPorts }, (_, i) => {
+                        const portName = `PORT ${String(i + 1).padStart(3, '0')}`;
+                        const isUsed = usedPorts.includes(portName);
+                        const isSelected = formData.port === portName;
+
+                        // Only show if not used, OR if it's the currently selected one (in case editing)
+                        if (isUsed && !isSelected) return null;
+
+                        return (
+                          <option key={portName} value={portName}>
+                            {portName}
+                          </option>
+                        );
+                      })}
                     </select>
                     <ChevronDown className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       } pointer-events-none`} size={20} />

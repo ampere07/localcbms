@@ -233,7 +233,7 @@ const JobOrderPage: React.FC = () => {
       if (authData) {
         try {
           const userData = JSON.parse(authData);
-          if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
+          if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
             email = userData.email;
           }
         } catch (err) { }
@@ -258,7 +258,7 @@ const JobOrderPage: React.FC = () => {
         if (authData) {
           try {
             const userData = JSON.parse(authData);
-            if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
+            if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
               email = userData.email;
             }
           } catch (err) { }
@@ -327,7 +327,7 @@ const JobOrderPage: React.FC = () => {
     if (authData) {
       try {
         const userData = JSON.parse(authData);
-        if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
+        if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
           email = userData.email;
         }
       } catch (err) { }

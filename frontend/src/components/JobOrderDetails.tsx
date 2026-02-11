@@ -25,6 +25,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
   const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
   const [userRole, setUserRole] = useState<string>('');
+  const [roleId, setRoleId] = useState<number | null>(null);
   const [applicationData, setApplicationData] = useState<Application | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
@@ -141,6 +142,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       try {
         const userData = JSON.parse(authData);
         setUserRole(userData.role?.toLowerCase() || '');
+        setRoleId(userData.role_id || null);
       } catch (error) {
         console.error('Error parsing auth data:', error);
       }
@@ -342,7 +344,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   };
 
   const handleDoneClick = () => {
-    if (userRole === 'technician') {
+    if (userRole === 'technician' || roleId === 2) {
       setIsDoneTechModalOpen(true);
     } else {
       setIsDoneModalOpen(true);
@@ -503,7 +505,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const shouldShowApproveButton = () => {
     const onsiteStatus = (jobOrder.Onsite_Status || '').toLowerCase();
     const billingStatus = (jobOrder.billing_status || jobOrder.Billing_Status || '').toLowerCase();
-    const isAdministrator = userRole === 'administrator';
+    const isAdministrator = userRole === 'administrator' || roleId === 1;
 
     return onsiteStatus === 'done' && billingStatus !== 'done' && isAdministrator;
   };
@@ -1091,7 +1093,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         </div>
 
         <div className="flex items-center space-x-3">
-          {userRole !== 'technician' && (
+          {(userRole !== 'technician' && roleId !== 2) && (
             <>
               <button className={`p-1 rounded-sm border flex items-center justify-center ${isDarkMode
                 ? 'bg-gray-800 hover:bg-gray-700 text-white border-gray-700'
@@ -1127,7 +1129,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
               onClick={handleDoneClick}
               disabled={loading}
             >
-              <span>Done</span>
+              <span>{(roleId === 2 || userRole === 'technician') ? 'Edit' : 'Done'}</span>
             </button>
           )}
 
@@ -1220,7 +1222,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         </div>
       </div>
 
-      {userRole !== 'technician' && (
+      {(userRole !== 'technician' && roleId !== 2) && (
         <div className={`py-3 border-b ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-200'
           }`}>
           <div className="flex items-center justify-center px-4">

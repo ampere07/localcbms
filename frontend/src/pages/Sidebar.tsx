@@ -8,6 +8,7 @@ interface SidebarProps {
   onLogout: () => void;
   isCollapsed?: boolean;
   userRole: string;
+  roleId?: number | string | null;
   userEmail?: string;
 }
 
@@ -19,7 +20,7 @@ interface MenuItem {
   allowedRoles?: string[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLogout, isCollapsed, userRole, userEmail }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLogout, isCollapsed, userRole, roleId, userEmail }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
@@ -32,6 +33,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       mountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    // Auto-expand the parent of the active section
+    if (activeSection) {
+      menuItems.forEach(item => {
+        if (item.children && item.children.some(child => child.id === activeSection)) {
+          setExpandedItems(prev => prev.includes(item.id) ? prev : [...prev, item.id]);
+        }
+      });
+    }
+  }, [activeSection]);
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -98,7 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   if (userRole?.toLowerCase() === 'customer') return null;
 
   const menuItems: MenuItem[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['administrator', 'customer'] },
+    // { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['administrator', 'customer'] },
     { id: 'live-monitor', label: 'Live Monitor', icon: Activity, allowedRoles: ['administrator'] },
     {
       id: 'billing',
@@ -217,7 +229,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   const filterMenuByRole = (items: MenuItem[]): MenuItem[] => {
     // If the user is a customer, always return an empty menu (hide sidebar content)
     const normalizedUserRole = userRole ? userRole.toLowerCase().trim() : '';
-    if (normalizedUserRole === 'customer') {
+    const isTechnician = normalizedUserRole === 'technician' || String(roleId) === '2';
+
+    if (normalizedUserRole === 'customer' || String(roleId) === '3') {
       return [];
     }
 
@@ -226,9 +240,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         return true;
       }
 
-      const hasAccess = item.allowedRoles.some(role =>
-        role.toLowerCase().trim() === normalizedUserRole
-      );
+      const hasAccess = item.allowedRoles.some(role => {
+        const normalizedRole = role.toLowerCase().trim();
+        if (normalizedRole === 'technician') return isTechnician;
+        if (normalizedRole === 'administrator') return normalizedUserRole === 'administrator' || String(roleId) === '1';
+        return normalizedRole === normalizedUserRole;
+      });
 
       if (hasAccess && item.children) {
         item.children = filterMenuByRole(item.children); // Recursive call

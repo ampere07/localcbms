@@ -77,12 +77,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
 
     const [activeSection, setActiveSection] = useState(() => {
         try {
-            // Use the initialized user data if available
             const authData = localStorage.getItem('authData');
             if (authData) {
                 const user = JSON.parse(authData);
-                if (user.role === 'customer') {
+                if (user.role === 'customer' || String(user.role_id) === '3') {
                     return 'customer-dashboard';
+                }
+                if (user.role?.toLowerCase() === 'technician' || String(user.role_id) === '2') {
+                    return 'job-order';
+                }
+                if (user.role?.toLowerCase() === 'administrator' || String(user.role_id) === '1') {
+                    return 'live-monitor';
                 }
             }
         } catch (e) {
@@ -343,6 +348,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                                         onLogout={onLogout}
                                         isCollapsed={sidebarCollapsed}
                                         userRole={userData?.role || ''}
+                                        roleId={userData?.role_id}
                                         userEmail={userData?.email || ''}
                                     />
                                 </div>

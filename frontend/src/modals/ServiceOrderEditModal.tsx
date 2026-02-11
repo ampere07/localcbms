@@ -7,6 +7,8 @@ import { createServiceOrderItems, ServiceOrderItem, deleteServiceOrderItems } fr
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 import { concernService, Concern } from '../services/concernService';
+import { getUsedPorts } from '../services/portService';
+import { getAllLCPNAPs, LCPNAP } from '../services/lcpnapService';
 
 
 interface ServiceOrderEditModalProps {
@@ -109,7 +111,9 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   const [technicians, setTechnicians] = useState<Array<{ name: string; email: string }>>([]);
   const [lcps, setLcps] = useState<string[]>([]);
   const [naps, setNaps] = useState<string[]>([]);
-  const [ports, setPorts] = useState<string[]>([]);
+  const [usedPorts, setUsedPorts] = useState<string[]>([]);
+  const [totalPorts, setTotalPorts] = useState<number>(32);
+  const [lcpnaps, setLcpnaps] = useState<LCPNAP[]>([]);
   const [vlans, setVlans] = useState<string[]>([]);
   const [concerns, setConcerns] = useState<Concern[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
@@ -370,11 +374,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
     const fetchTechnicalDetails = async () => {
       try {
-        const [lcpResponse, napResponse, portResponse, vlanResponse] = await Promise.all([
+        const [lcpResponse, napResponse, vlanResponse, lcpnapsRes] = await Promise.all([
           apiClient.get<{ success: boolean; data: any[] }>('/lcp'),
           apiClient.get<{ success: boolean; data: any[] }>('/nap'),
-          apiClient.get<{ success: boolean; data: any[] }>('/port'),
-          apiClient.get<{ success: boolean; data: any[] }>('/vlan')
+          apiClient.get<{ success: boolean; data: any[] }>('/vlan'),
+          getAllLCPNAPs('', 1, 1000)
         ]);
 
         if (lcpResponse.data.success && Array.isArray(lcpResponse.data.data)) {
@@ -387,14 +391,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
           setNaps(napOptions as string[]);
         }
 
-        if (portResponse.data.success && Array.isArray(portResponse.data.data)) {
-          const portOptions = portResponse.data.data.map(item => item.Label).filter(Boolean);
-          setPorts(portOptions as string[]);
-        }
-
         if (vlanResponse.data.success && Array.isArray(vlanResponse.data.data)) {
           const vlanOptions = vlanResponse.data.data.map(item => item.value).filter(Boolean);
           setVlans(vlanOptions as string[]);
+        }
+
+        if (lcpnapsRes.success && Array.isArray(lcpnapsRes.data)) {
+          setLcpnaps(lcpnapsRes.data);
         }
       } catch (error) {
         console.error('Error fetching technical details:', error);
@@ -419,10 +422,43 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
+    const fetchUsedPorts = async () => {
+      if (isOpen && formData.newLcp && formData.newNap) {
+        try {
+          const combinedLcpNap = `${formData.newLcp}-${formData.newNap}`;
+          const serviceOrderId = serviceOrderData?.id;
+          const usedRes = await getUsedPorts(combinedLcpNap, serviceOrderId);
+
+          if (usedRes.success && usedRes.data) {
+            setUsedPorts(usedRes.data.used);
+            setTotalPorts(usedRes.data.total);
+          } else {
+            setUsedPorts([]);
+            setTotalPorts(32);
+          }
+        } catch (error) {
+          console.error('Error fetching used ports:', error);
+          setUsedPorts([]);
+          setTotalPorts(32);
+        }
+      } else {
+        setUsedPorts([]);
+        setTotalPorts(32);
+      }
+    };
+
+    fetchUsedPorts();
+  }, [isOpen, formData.newLcp, formData.newNap, serviceOrderData?.id]);
+
+  useEffect(() => {
     if (serviceOrderData && isOpen) {
       console.log('ServiceOrderEditModal - Received data:', serviceOrderData);
-      console.log('Date Installed (dateInstalled):', serviceOrderData.dateInstalled);
-      console.log('Date Installed (date_installed):', serviceOrderData.date_installed);
+
+      const normalizePort = (rawPort: any) => {
+        if (!rawPort) return '';
+        const portNum = String(rawPort).toUpperCase().replace(/[^\d]/g, '');
+        return portNum ? `PORT ${portNum.padStart(3, '0')}` : '';
+      };
 
       setFormData(prev => ({
         ...prev,
@@ -438,7 +474,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         routerModemSN: serviceOrderData.routerModemSN || serviceOrderData.router_modem_sn || '',
         lcp: serviceOrderData.lcp || '',
         nap: serviceOrderData.nap || '',
-        port: serviceOrderData.port || '',
+        port: normalizePort(serviceOrderData.port || serviceOrderData.PORT),
         vlan: serviceOrderData.vlan || '',
         supportStatus: serviceOrderData.supportStatus || serviceOrderData.support_status || 'In Progress',
         visitStatus: serviceOrderData.visitStatus || serviceOrderData.visit_status || 'In Progress',
@@ -470,7 +506,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   }, [serviceOrderData, isOpen, currentUserEmail]);
 
   const handleInputChange = (field: keyof ServiceOrderEditFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newState = { ...prev, [field]: value };
+      if (field === 'newLcp' || field === 'newNap') {
+        newState.newPort = '';
+      }
+      return newState;
+    });
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -1305,10 +1347,20 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                               className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                                 } ${errors.newPort ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
-                              <option value="">Select Port</option>
-                              {ports.map((port) => (
-                                <option key={port} value={port}>{port}</option>
-                              ))}
+                              <option value="">{formData.newLcp && formData.newNap ? 'Select Port' : 'Select LCP/NAP first'}</option>
+                              {Array.from({ length: totalPorts }, (_, i) => {
+                                const portName = `PORT ${String(i + 1).padStart(3, '0')}`;
+                                const isUsed = usedPorts.includes(portName);
+                                const isSelected = formData.newPort === portName;
+
+                                if (isUsed && !isSelected) return null;
+
+                                return (
+                                  <option key={portName} value={portName}>
+                                    {portName}
+                                  </option>
+                                );
+                              })}
                             </select>
                             <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                               }`} size={20} />
@@ -1453,10 +1505,20 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                               className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                                 } ${errors.newPort ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
-                              <option value="">Select Port</option>
-                              {ports.map((port) => (
-                                <option key={port} value={port}>{port}</option>
-                              ))}
+                              <option value="">{formData.newLcp && formData.newNap ? 'Select Port' : 'Select LCP/NAP first'}</option>
+                              {Array.from({ length: totalPorts }, (_, i) => {
+                                const portName = `PORT ${String(i + 1).padStart(3, '0')}`;
+                                const isUsed = usedPorts.includes(portName);
+                                const isSelected = formData.newPort === portName;
+
+                                if (isUsed && !isSelected) return null;
+
+                                return (
+                                  <option key={portName} value={portName}>
+                                    {portName}
+                                  </option>
+                                );
+                              })}
                             </select>
                             <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                               }`} size={20} />
@@ -1582,10 +1644,20 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                               className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                                 } ${errors.newPort ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
-                              <option value="">Select Port</option>
-                              {ports.map((port) => (
-                                <option key={port} value={port}>{port}</option>
-                              ))}
+                              <option value="">{formData.newLcp && formData.newNap ? 'Select Port' : 'Select LCP/NAP first'}</option>
+                              {Array.from({ length: totalPorts }, (_, i) => {
+                                const portName = `PORT ${String(i + 1).padStart(3, '0')}`;
+                                const isUsed = usedPorts.includes(portName);
+                                const isSelected = formData.newPort === portName;
+
+                                if (isUsed && !isSelected) return null;
+
+                                return (
+                                  <option key={portName} value={portName}>
+                                    {portName}
+                                  </option>
+                                );
+                              })}
                             </select>
                             <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                               }`} size={20} />

@@ -53,10 +53,11 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
   const [plans, setPlans] = useState<Plan[]>([]);
   const [routerModels, setRouterModels] = useState<RouterModel[]>([]);
   const [lcpnaps, setLcpnaps] = useState<LCPNAP[]>([]);
-  const [ports, setPorts] = useState<string[]>([]);
+
   const [vlans, setVlans] = useState<VLAN[]>([]);
   const [usageTypes, setUsageTypes] = useState<UsageType[]>([]);
   const [usedPorts, setUsedPorts] = useState<string[]>([]);
+  const [totalPorts, setTotalPorts] = useState<number>(32);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
   const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
@@ -211,8 +212,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
           port: (() => {
             const rawPort = recordData.port || recordData.PORT || (parts.length >= 3 ? parts[2] : '');
             if (!rawPort) return '';
-            const portNum = String(rawPort).toUpperCase().replace('P', '').replace(/^0+/, '');
-            return portNum ? `P${portNum.padStart(2, '0')}` : '';
+            const portNum = String(rawPort).toUpperCase().replace(/[^\d]/g, '');
+            return portNum ? `PORT ${portNum.padStart(3, '0')}` : '';
           })(),
           vlan: recordData.vlan || recordData.VLAN || '',
           lcpnap: lcpnapValue,
@@ -299,65 +300,29 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
     const fetchPorts = async () => {
       if (isOpen && editType === 'technical_details' && formData.lcpnap) {
         try {
-          const usedRes = await getUsedPorts(formData.lcpnap);
-          const rawUsed = usedRes.success && Array.isArray(usedRes.data.used) ? usedRes.data.used : [];
+          const jobOrderId = recordData?.job_order_id || recordData?.JobOrder_ID;
+          const usedRes = await getUsedPorts(formData.lcpnap, jobOrderId);
 
-          // Normalize used ports to PXX format
-          const normalizedUsed = rawUsed.map((p: any) => {
-            const num = String(p).toUpperCase().replace('P', '').replace(/^0+/, '');
-            return num ? `P${num.padStart(2, '0')}` : '';
-          }).filter(Boolean);
-
-          setUsedPorts(normalizedUsed);
-
-          const selectedLcpnap = lcpnaps.find(l => l.lcpnap_name === formData.lcpnap);
-          const portTotal = selectedLcpnap?.port_total || usedRes.data.total || 32;
-
-          // Generate P01 to PXX
-          const generatedPorts = Array.from({ length: portTotal }, (_, i) => {
-            const num = String(i + 1).padStart(2, '0');
-            return `P${num}`;
-          });
-
-          // Get the current port and LCPNAP assigned to this specific record
-          const originalLcpnap = (() => {
-            return recordData?.lcpnap || recordData?.LCPNAP || recordData?.technicalDetails?.lcpnap || '';
-          })();
-
-          const currentRecordPort = (() => {
-            const rawPort = recordData?.port || recordData?.PORT || recordData?.technicalDetails?.port;
-            if (!rawPort) return '';
-            const num = String(rawPort).toUpperCase().replace('P', '').replace(/^0+/, '');
-            return num ? `P${num.padStart(2, '0')}` : '';
-          })();
-
-          // Filter out used ports
-          // Keep the port if:
-          // 1. It's not in normalizedUsed
-          // 2. OR it's the port currently assigned to this record AND we are still on the same LCPNAP
-          // 3. OR it's the port currently selected in the form
-          const filteredPorts = generatedPorts.filter(port => {
-            const isUsed = normalizedUsed.includes(port);
-            const isOriginalPortOnSameLcpnap = (port === currentRecordPort && formData.lcpnap === originalLcpnap);
-            const isCurrentlySelected = (port === formData.port);
-
-            return !isUsed || isOriginalPortOnSameLcpnap || isCurrentlySelected;
-          });
-
-          setPorts(filteredPorts);
+          if (usedRes.success && usedRes.data) {
+            setUsedPorts(usedRes.data.used);
+            setTotalPorts(usedRes.data.total);
+          } else {
+            setUsedPorts([]);
+            setTotalPorts(32);
+          }
         } catch (error) {
           console.error('Error fetching used ports:', error);
-          // Fallback
-          setPorts(Array.from({ length: 32 }, (_, i) => `P${String(i + 1).padStart(2, '0')}`));
+          setUsedPorts([]);
+          setTotalPorts(32);
         }
       } else {
-        setPorts([]);
         setUsedPorts([]);
+        setTotalPorts(32);
       }
     };
 
     fetchPorts();
-  }, [isOpen, editType, formData.lcpnap, formData.port, lcpnaps, recordData?.port, recordData?.PORT, recordData?.technicalDetails?.port]);
+  }, [isOpen, editType, formData.lcpnap, recordData?.job_order_id, recordData?.JobOrder_ID]);
 
 
 
@@ -1342,11 +1307,20 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                             } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                         >
                           <option value="">{formData.lcpnap ? 'Select Port' : 'Select LCP-NAP first'}</option>
-                          {ports.map((port) => (
-                            <option key={port} value={port}>
-                              {port}
-                            </option>
-                          ))}
+                          {Array.from({ length: totalPorts }, (_, i) => {
+                            const portName = `PORT ${String(i + 1).padStart(3, '0')}`;
+                            const isUsed = usedPorts.includes(portName);
+                            const isSelected = formData.port === portName;
+
+                            // Only show if not used, OR if it's the currently selected one (in case editing)
+                            if (isUsed && !isSelected) return null;
+
+                            return (
+                              <option key={portName} value={portName}>
+                                {portName}
+                              </option>
+                            );
+                          })}
                         </select>
                         <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
                       </div>

@@ -46,6 +46,7 @@ const ServiceOrderPage: React.FC = () => {
   const [barangays, setBarangays] = useState<Barangay[]>([]);
   const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
   const [userRole, setUserRole] = useState<string>('');
+  const [roleId, setRoleId] = useState<number | null>(null);
   const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
@@ -147,6 +148,7 @@ const ServiceOrderPage: React.FC = () => {
       try {
         const userData = JSON.parse(authData);
         setUserRole(userData.role || '');
+        setRoleId(userData.role_id || null);
       } catch (error) {
         console.error('Error parsing auth data:', error);
       }
@@ -379,20 +381,7 @@ const ServiceOrderPage: React.FC = () => {
   };
 
   const filteredServiceOrders = useMemo(() => {
-    // Robust detection for Technician role (Role ID 2 or role name 'technician')
-    const numericRoleId = Number(userRole); // Using userRole from state which was populated from authData
-    let userRoleString = '';
-
-    // Double check authData directly for robustness similar to ApplicationVisit.tsx
-    try {
-      const authData = localStorage.getItem('authData');
-      if (authData) {
-        const parsed = JSON.parse(authData);
-        userRoleString = (parsed.role || '').toLowerCase();
-      }
-    } catch (e) { }
-
-    const isTechnician = numericRoleId === 2 || userRoleString === 'technician';
+    const isTechnician = roleId === 2 || userRole.toLowerCase() === 'technician';
 
     let filtered = serviceOrders.filter(serviceOrder => {
       // 1. Technician 7-Day Filter for 'Resolved' tickets

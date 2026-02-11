@@ -266,12 +266,16 @@ class PortApiController extends Controller
                 ]);
             }
 
-            $usedPortsJobOrders = \DB::table('job_orders')
+            $query = \DB::table('job_orders')
                 ->where('lcpnap', $lcpnap)
                 ->whereNotNull('port')
-                ->where('port', '!=', '')
-                ->pluck('port')
-                ->toArray();
+                ->where('port', '!=', '');
+
+            if ($currentJobOrderId) {
+                $query->where('id', '!=', $currentJobOrderId);
+            }
+
+            $usedPortsJobOrders = $query->pluck('port')->toArray();
 
             $usedPortsTechnicalDetails = \DB::table('technical_details')
                 ->where('lcpnap', $lcpnap)
