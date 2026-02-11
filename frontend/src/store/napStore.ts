@@ -15,6 +15,7 @@ interface NapState {
     updateNapItem: (id: number, name: string) => Promise<void>;
     deleteNapItem: (id: number) => Promise<void>;
     refreshNapItems: () => Promise<void>;
+    silentRefresh: () => Promise<void>;
     setSearchQuery: (query: string) => void;
 }
 
@@ -124,7 +125,11 @@ export const useNapStore = create<NapState>((set, get) => ({
     },
 
     refreshNapItems: async () => {
-        await get().fetchNapItems(1, 50, get().searchQuery);
+        await get().fetchNapItems(get().currentPage, 50, get().searchQuery);
+    },
+
+    silentRefresh: async () => {
+        await get().fetchNapItems(get().currentPage, 50, get().searchQuery, true);
     },
 
     setSearchQuery: (query: string) => {

@@ -71,6 +71,53 @@ const LcpList: React.FC = () => {
     refreshLcpItems();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Idle detection and auto-refresh logic
+  const { silentRefresh } = useLcpStore();
+  useEffect(() => {
+    const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
+    let idleTimer: NodeJS.Timeout | null = null;
+
+    const refreshData = async () => {
+      console.log('User idle for 15 minutes, auto-refreshing LCP data...');
+      try {
+        await silentRefresh();
+      } catch (err) {
+        console.error('Idle refresh failed:', err);
+      }
+      // Set the timer again to refresh every 15 mins if they remain idle
+      startTimer();
+    };
+
+    const startTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(refreshData, IDLE_TIME_LIMIT);
+    };
+
+    const resetTimer = () => {
+      startTimer();
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    // Use passive listeners for performance
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    startTimer(); // Initialize timer on mount
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [silentRefresh]);
+
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       fetchLcpItems(newPage, itemsPerPage, searchQuery);
@@ -156,8 +203,8 @@ const LcpList: React.FC = () => {
                   value={searchQuery}
                   onChange={handleSearch}
                   className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-gray-100 text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-gray-100 text-gray-900 border-gray-300'
                     } border`}
                   onFocus={(e) => {
                     if (colorPalette?.primary) {
@@ -234,8 +281,8 @@ const LcpList: React.FC = () => {
                     <div
                       key={item.id}
                       className={`px-4 py-3 cursor-pointer transition-colors border-b ${isDarkMode
-                          ? 'hover:bg-gray-800 border-gray-800'
-                          : 'hover:bg-gray-100 border-gray-200'
+                        ? 'hover:bg-gray-800 border-gray-800'
+                        : 'hover:bg-gray-100 border-gray-200'
                         }`}
                     >
                       <div className="flex items-start justify-between">
@@ -254,8 +301,8 @@ const LcpList: React.FC = () => {
                           <button
                             onClick={(e) => handleEdit(item, e)}
                             className={`p-1.5 rounded transition-colors ${isDarkMode
-                                ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700'
-                                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-200'
+                              ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700'
+                              : 'text-gray-600 hover:text-blue-600 hover:bg-gray-200'
                               }`}
                             title="Edit LCP"
                           >
@@ -265,8 +312,8 @@ const LcpList: React.FC = () => {
                             onClick={(e) => handleDelete(item, e)}
                             disabled={deletingItems.has(item.id)}
                             className={`p-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
-                                ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
-                                : 'text-gray-600 hover:text-red-600 hover:bg-gray-200'
+                              ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
+                              : 'text-gray-600 hover:text-red-600 hover:bg-gray-200'
                               }`}
                             title={deletingItems.has(item.id) ? 'Deleting...' : 'Delete LCP'}
                           >
@@ -305,8 +352,8 @@ const LcpList: React.FC = () => {
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
                     className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
-                        ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-                        : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                      ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                      : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
                       }`}
                   >
                     Previous
@@ -322,8 +369,8 @@ const LcpList: React.FC = () => {
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
                     className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
-                        ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-                        : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                      ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                      : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
                       }`}
                   >
                     Next

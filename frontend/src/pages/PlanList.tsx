@@ -35,7 +35,7 @@ const PlanList: React.FC = () => {
         console.error('Failed to fetch color palette:', err);
       }
     };
-    
+
     fetchColorPalette();
   }, []);
 
@@ -63,8 +63,54 @@ const PlanList: React.FC = () => {
     loadPlans();
   }, []);
 
-  const loadPlans = async () => {
-    setIsLoading(true);
+  // Idle detection and auto-refresh logic
+  useEffect(() => {
+    const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
+    let idleTimer: NodeJS.Timeout | null = null;
+
+    const refreshData = async () => {
+      console.log('User idle for 15 minutes, auto-refreshing Plan data...');
+      try {
+        await loadPlans(true); // Silent refresh
+      } catch (err) {
+        console.error('Idle refresh failed:', err);
+      }
+      // Set the timer again to refresh every 15 mins if they remain idle
+      startTimer();
+    };
+
+    const startTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(refreshData, IDLE_TIME_LIMIT);
+    };
+
+    const resetTimer = () => {
+      startTimer();
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    // Use passive listeners for performance
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    startTimer(); // Initialize timer on mount
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, []);
+
+  const loadPlans = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/plans`, {
         headers: {
@@ -72,14 +118,14 @@ const PlanList: React.FC = () => {
           'Content-Type': 'application/json',
         },
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || 'Unknown error'}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         setPlans(data.data || []);
       } else {
@@ -104,7 +150,7 @@ const PlanList: React.FC = () => {
       newSet.add(plan.id);
       return newSet;
     });
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/plans/${plan.id}`, {
         method: 'DELETE',
@@ -113,9 +159,9 @@ const PlanList: React.FC = () => {
           'Content-Type': 'application/json',
         },
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         await loadPlans();
         alert('✅ Plan permanently deleted from database: ' + (data.message || 'Plan deleted successfully'));
@@ -174,8 +220,8 @@ const PlanList: React.FC = () => {
 
   const getFilteredPlans = () => {
     if (!searchQuery) return plans;
-    
-    return plans.filter(plan => 
+
+    return plans.filter(plan =>
       plan.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (plan.description && plan.description.toLowerCase().includes(searchQuery.toLowerCase()))
     );
@@ -183,17 +229,15 @@ const PlanList: React.FC = () => {
 
   const renderListItem = (plan: Plan) => {
     const isActive = plan.is_active !== undefined ? plan.is_active : true;
-    
+
     return (
-      <div key={plan.id} className={`border-b ${
-        isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-      }`}>
+      <div key={plan.id} className={`border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+        }`}>
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <h3 className={`font-medium text-lg ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{plan.name}</h3>
+              <h3 className={`font-medium text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{plan.name}</h3>
               <span className="text-green-400 font-semibold">
                 {formatPrice(plan.price)}
               </span>
@@ -204,13 +248,11 @@ const PlanList: React.FC = () => {
               )}
             </div>
             {plan.description && (
-              <p className={`text-sm mt-1 ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>{plan.description}</p>
+              <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>{plan.description}</p>
             )}
-            <div className={`flex items-center gap-4 mt-2 text-xs ${
-              isDarkMode ? 'text-gray-500' : 'text-gray-600'
-            }`}>
+            <div className={`flex items-center gap-4 mt-2 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`}>
               <span>Modified: {formatDate(plan.modified_date)}</span>
               <span>By: {plan.modified_by || 'System'}</span>
             </div>
@@ -218,11 +260,10 @@ const PlanList: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleEdit(plan)}
-              className={`p-2 rounded transition-colors ${
-                isDarkMode
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
+              className={`p-2 rounded transition-colors ${isDarkMode
+                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
               title="Edit"
             >
               <Edit2 className="h-4 w-4" />
@@ -230,11 +271,10 @@ const PlanList: React.FC = () => {
             <button
               onClick={() => handleDelete(plan)}
               disabled={deletingItems.has(plan.id)}
-              className={`p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
-                isDarkMode
-                  ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
-                  : 'text-gray-600 hover:text-red-600 hover:bg-gray-100'
-              }`}
+              className={`p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${isDarkMode
+                ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
+                : 'text-gray-600 hover:text-red-600 hover:bg-gray-100'
+                }`}
               title={deletingItems.has(plan.id) ? 'Permanently Deleting...' : 'Permanently Delete'}
             >
               {deletingItems.has(plan.id) ? (
@@ -252,17 +292,14 @@ const PlanList: React.FC = () => {
   const filteredPlans = getFilteredPlans();
 
   return (
-    <div className={`min-h-screen ${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    }`}>
-      <div className={`border-b ${
-        isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
+      <div className={`border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+        }`}>
         <div className="px-6 py-4">
           <div className="flex items-center justify-between mb-4">
-            <h1 className={`text-xl font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Plan List</h1>
+            <h1 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Plan List</h1>
             <div className="flex items-center gap-3">
               <button
                 onClick={handleAddNew}
@@ -284,18 +321,16 @@ const PlanList: React.FC = () => {
                 <Plus className="h-4 w-4" />
                 Add
               </button>
-              <button className={`p-2 rounded transition-colors ${
-                isDarkMode
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}>
+              <button className={`p-2 rounded transition-colors ${isDarkMode
+                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}>
                 <Filter className="h-5 w-5" />
               </button>
-              <button className={`p-2 rounded transition-colors ${
-                isDarkMode
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}>
+              <button className={`p-2 rounded transition-colors ${isDarkMode
+                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}>
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
@@ -304,19 +339,17 @@ const PlanList: React.FC = () => {
           </div>
 
           <div className="relative">
-            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${
-              isDarkMode ? 'text-gray-500' : 'text-gray-400'
-            }`} />
+            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+              }`} />
             <input
               type="text"
               placeholder="Search Plan List"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none ${
-                isDarkMode
-                  ? 'bg-gray-800 text-white border-gray-700'
-                  : 'bg-white text-gray-900 border-gray-300'
-              }`}
+              className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none ${isDarkMode
+                ? 'bg-gray-800 text-white border-gray-700'
+                : 'bg-white text-gray-900 border-gray-300'
+                }`}
               onFocus={(e) => {
                 if (colorPalette?.primary) {
                   e.currentTarget.style.borderColor = colorPalette.primary;
@@ -335,18 +368,16 @@ const PlanList: React.FC = () => {
       <div className="flex-1 overflow-auto">
         {isLoading ? (
           <div className="flex justify-center items-center py-20">
-            <Loader2 className={`h-8 w-8 animate-spin ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`} />
+            <Loader2 className={`h-8 w-8 animate-spin ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`} />
           </div>
         ) : filteredPlans.length > 0 ? (
           <div>
             {filteredPlans.map(renderListItem)}
           </div>
         ) : (
-          <div className={`text-center py-20 ${
-            isDarkMode ? 'text-gray-500' : 'text-gray-600'
-          }`}>
+          <div className={`text-center py-20 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>
             No plans found
           </div>
         )}

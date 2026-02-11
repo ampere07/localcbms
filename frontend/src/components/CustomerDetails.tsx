@@ -991,21 +991,21 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     setShowDetailsEditModal(true);
   };
 
-  const handleDetailsEditSave = async (formData: any) => {
+  const handleDetailsEditSave = async (formData: any, activeEditType: 'customer_details' | 'billing_details' | 'technical_details') => {
     try {
-      if (editType === 'customer_details') {
+      if (activeEditType === 'customer_details') {
         await customerDetailUpdateService.updateCustomerDetails(
           billingRecord.applicationId,
           formData
         );
         console.log('Customer details updated successfully');
-      } else if (editType === 'billing_details') {
+      } else if (activeEditType === 'billing_details') {
         await customerDetailUpdateService.updateBillingDetails(
           billingRecord.applicationId,
           formData
         );
         console.log('Billing details updated successfully');
-      } else if (editType === 'technical_details') {
+      } else if (activeEditType === 'technical_details') {
         await customerDetailUpdateService.updateTechnicalDetails(
           billingRecord.applicationId,
           formData

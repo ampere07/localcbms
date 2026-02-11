@@ -266,16 +266,22 @@ class PortApiController extends Controller
                 ]);
             }
 
-            $usedPortsQuery = \DB::table('job_orders')
+            $usedPortsJobOrders = \DB::table('job_orders')
                 ->where('lcpnap', $lcpnap)
                 ->whereNotNull('port')
-                ->where('port', '!=', '');
+                ->where('port', '!=', '')
+                ->pluck('port')
+                ->toArray();
 
-            if ($currentJobOrderId) {
-                $usedPortsQuery->where('id', '!=', $currentJobOrderId);
-            }
+            $usedPortsTechnicalDetails = \DB::table('technical_details')
+                ->where('lcpnap', $lcpnap)
+                ->whereNotNull('port')
+                ->where('port', '!=', '')
+                ->pluck('port')
+                ->toArray();
 
-            $usedPorts = $usedPortsQuery->pluck('port')->unique()->values()->toArray();
+            $usedPorts = array_unique(array_merge($usedPortsJobOrders, $usedPortsTechnicalDetails));
+            $usedPorts = array_values($usedPorts);
 
             $lcpnapInfo = \DB::table('lcpnap')->where('lcpnap_name', $lcpnap)->first();
             $totalPorts = $lcpnapInfo ? (int)$lcpnapInfo->port_total : 32; // Default to 32 if not found

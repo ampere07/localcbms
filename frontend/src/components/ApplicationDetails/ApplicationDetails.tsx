@@ -53,7 +53,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
     'contactNumber',
     'secondContactNumber',
     'emailAddress',
-    'village',
+
     'barangay',
     'city',
     'region',
@@ -328,7 +328,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
       contactNumber: 'Contact Number',
       secondContactNumber: 'Second Contact Number',
       emailAddress: 'Email Address',
-      village: 'Village',
+
       barangay: 'Barangay',
       city: 'City',
       region: 'Region',
@@ -503,16 +503,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           </div>
         );
 
-      case 'village':
-        return (
-          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
-            }`}>
-            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Village:</div>
-            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{detailedApplication?.village || 'Not specified'}</div>
-          </div>
-        );
+
 
       case 'barangay':
         return (

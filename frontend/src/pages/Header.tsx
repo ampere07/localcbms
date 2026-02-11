@@ -168,6 +168,22 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
   const handleNewNotification = (notification: AppNotification) => {
     if (!mountedRef.current) return;
 
+    // Check against cleared state
+    const lastClearedId = parseInt(localStorage.getItem('notifications_last_cleared_id') || '0');
+    const lastClearedTime = parseInt(localStorage.getItem('notifications_last_cleared_time') || '0');
+
+    // Normalize timestamp to ms
+    const nTime = notification.timestamp ?
+      (notification.timestamp > 10000000000 ? notification.timestamp : notification.timestamp * 1000) :
+      Date.now();
+
+    const isCleared = (notification.id <= lastClearedId && lastClearedId > 0) || (nTime <= lastClearedTime);
+
+    if (isCleared) {
+      console.log(`[Notification] Ignoring cleared notification ID ${notification.id} (nTime: ${nTime}, clearedTime: ${lastClearedTime}, lastId: ${lastClearedId})`);
+      return;
+    }
+
     // Check if we already have this notification to avoid duplicates
     if (previousNotificationIdsRef.current.has(notification.id)) {
       console.log(`[Notification] Skipping duplicate ID: ${notification.id}`);
@@ -177,7 +193,9 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
     console.log('[Notification] Handling new notification:', notification);
 
     setNotifications(prev => {
-      const updated = [notification, ...prev].slice(0, 10);
+      // Avoid duplicates again just in case of race conditions
+      if (prev.some(n => n.id === notification.id)) return prev;
+      const updated = [notification, ...prev].slice(0, 15);
       previousNotificationIdsRef.current = new Set(updated.map(n => n.id));
       return updated;
     });
@@ -253,11 +271,20 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
         const count = await notificationService.getUnreadCount();
 
         if (mountedRef.current) {
-          previousCountRef.current = count;
-          setUnreadCount(count);
-          setNotifications(data);
-          previousNotificationIdsRef.current = new Set(data.map(n => n.id));
-          console.log('[Fetch] State updated with initial data');
+          const lastClearedId = parseInt(localStorage.getItem('notifications_last_cleared_id') || '0');
+          const lastClearedTime = parseInt(localStorage.getItem('notifications_last_cleared_time') || '0');
+
+          const filteredData = data.filter(n => {
+            const nTime = n.timestamp ? (n.timestamp > 10000000000 ? n.timestamp : n.timestamp * 1000) : Date.now();
+            const isCleared = (n.id <= lastClearedId && lastClearedId > 0) || (nTime <= lastClearedTime);
+            return !isCleared;
+          });
+
+          previousCountRef.current = filteredData.length;
+          setUnreadCount(filteredData.length);
+          setNotifications(filteredData);
+          previousNotificationIdsRef.current = new Set(filteredData.map(n => n.id));
+          console.log('[Fetch] State updated with initial data (filtered)');
         }
       } catch (error) {
         console.error('[Fetch] Failed to fetch initial notifications:', error);
@@ -275,16 +302,26 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
         const count = await notificationService.getUnreadCount();
 
         if (mountedRef.current) {
-          const newNotifications = data.filter(n => !previousNotificationIdsRef.current.has(n.id));
+          const lastClearedId = parseInt(localStorage.getItem('notifications_last_cleared_id') || '0');
+          const lastClearedTime = parseInt(localStorage.getItem('notifications_last_cleared_time') || '0');
+
+          const filteredData = data.filter(n => {
+            const nTime = n.timestamp ? (n.timestamp > 10000000000 ? n.timestamp : n.timestamp * 1000) : Date.now();
+            const isCleared = (n.id <= lastClearedId && lastClearedId > 0) || (nTime <= lastClearedTime);
+            return !isCleared;
+          });
+
+          const newNotifications = filteredData.filter(n => !previousNotificationIdsRef.current.has(n.id));
 
           if (newNotifications.length > 0) {
             console.log('[Polling] New notifications via fallback polling:', newNotifications.length);
             newNotifications.forEach(n => handleNewNotification(n));
+          } else {
+            // If no new ones, just sync the counts and list in case something was removed (though rare)
+            setUnreadCount(filteredData.length);
+            setNotifications(filteredData);
+            previousNotificationIdsRef.current = new Set(filteredData.map(n => n.id));
           }
-
-          setUnreadCount(count);
-          setNotifications(data);
-          previousNotificationIdsRef.current = new Set(data.map(n => n.id));
         }
       } catch (error) {
         console.error('[Polling] Failed to fetch notifications:', error);
@@ -332,8 +369,18 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
         const data = await notificationService.getConsolidatedStream(10);
         console.log('[UI] Notifications loaded for modal:', data);
 
+        const lastClearedId = parseInt(localStorage.getItem('notifications_last_cleared_id') || '0');
+        const lastClearedTime = parseInt(localStorage.getItem('notifications_last_cleared_time') || '0');
+
+        const filteredData = data.filter(n => {
+          const nTime = n.timestamp ? (n.timestamp > 10000000000 ? n.timestamp : n.timestamp * 1000) : Date.now();
+          const isCleared = (n.id <= lastClearedId && lastClearedId > 0) || (nTime <= lastClearedTime);
+          return !isCleared;
+        });
+
         if (mountedRef.current) {
-          setNotifications(data);
+          setNotifications(filteredData);
+          setUnreadCount(filteredData.length);
         }
       } catch (error) {
         console.error('[UI] Failed to fetch notifications for modal:', error);
@@ -343,6 +390,28 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
         }
       }
     }
+  };
+
+  const handleClearAll = () => {
+    console.log('[UI] Clearing all notifications');
+
+    // Always update the time to "now"
+    const now = Date.now();
+    localStorage.setItem('notifications_last_cleared_time', now.toString());
+
+    // Set the latest notification ID to localStorage to filter them out
+    if (notifications.length > 0) {
+      const maxId = Math.max(...notifications.map(n => n.id));
+      localStorage.setItem('notifications_last_cleared_id', maxId.toString());
+      console.log(`[UI] Persistent clear set for ID <= ${maxId} and Time <= ${now}`);
+    } else {
+      console.log(`[UI] Persistent clear set for Time <= ${now}`);
+    }
+
+    setNotifications([]);
+    setUnreadCount(0);
+    // Do not clear previousNotificationIdsRef to prevent polling from re-handling old notifications
+    setShowNotifications(false);
   };
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -550,11 +619,19 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
             <div className={`absolute right-0 mt-2 w-96 rounded-lg shadow-lg ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
               } border z-50`}>
               <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                }`}>
+                } flex justify-between items-center`}>
                 <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}>
                   Recent Notifications ({notifications.length})
                 </h3>
+                {notifications.length > 0 && (
+                  <button
+                    onClick={handleClearAll}
+                    className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors"
+                  >
+                    Clear All
+                  </button>
+                )}
               </div>
               <div className="max-h-96 overflow-y-auto">
                 {loading ? (

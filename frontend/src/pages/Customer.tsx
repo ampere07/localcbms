@@ -21,13 +21,14 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     middleInitial: customerData.middleInitial,
     lastName: customerData.lastName,
     address: customerData.address,
-    status: customerData.billingAccount?.billingStatusId === 2 ? 'Active' : 'Inactive',
+    status: customerData.billingAccount?.billingStatusName || (customerData.billingAccount?.billingStatusId === 1 ? 'Active' : 'Inactive'),
     balance: customerData.billingAccount?.accountBalance || 0,
-    onlineStatus: customerData.onlineSessionStatus || (customerData.billingAccount?.billingStatusId === 2 ? 'Online' : 'Offline'),
+    onlineStatus: customerData.onlineSessionStatus || (customerData.billingAccount?.billingStatusName === 'Active' ? 'Online' : 'Offline'),
     cityId: null,
     regionId: null,
     timestamp: customerData.updatedAt || '',
     billingStatus: customerData.billingAccount?.billingStatusName || (customerData.billingAccount?.billingStatusId ? `Status ${customerData.billingAccount.billingStatusId}` : ''),
+    billing_status_id: customerData.billingAccount?.billingStatusId,
     dateInstalled: customerData.billingAccount?.dateInstalled || '',
     contactNumber: customerData.contactNumberPrimary,
     secondContactNumber: customerData.contactNumberSecondary || '',
@@ -314,6 +315,52 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       setSelectedLocation('all');
     }
   }, [regions, cities, barangays, selectedLocation]);
+
+  // Idle detection and auto-refresh logic
+  useEffect(() => {
+    const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
+    let idleTimer: NodeJS.Timeout | null = null;
+
+    const refreshData = async () => {
+      console.log('User idle for 15 minutes, auto-refreshing customer data...');
+      try {
+        await refreshBillingRecords();
+      } catch (err) {
+        console.error('Idle refresh failed:', err);
+      }
+      // Set the timer again to refresh every 15 mins if they remain idle
+      startTimer();
+    };
+
+    const startTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(refreshData, IDLE_TIME_LIMIT);
+    };
+
+    const resetTimer = () => {
+      startTimer();
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    // Use passive listeners for performance if possible, but standard is fine here
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    startTimer(); // Initialize timer on mount
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [refreshBillingRecords]);
 
   // Memoize city name lookup for performance
   const getCityName = useMemo(() => {

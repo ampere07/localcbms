@@ -31,7 +31,9 @@ import {
   LayoutGrid,
   Maximize,
   Minimize,
-  Table
+  Table,
+  Plus,
+  Minus
 } from 'lucide-react';
 import { Responsive } from 'react-grid-layout';
 // WidthProvider was moved to legacy in v2.0
@@ -115,15 +117,18 @@ const LiveMonitor: React.FC = () => {
           scope: 'overall',
           year: new Date().getFullYear().toString(),
           bgy: 'All',
-          visible: DEFAULT_VISIBLE_WIDGETS.includes(id)
+          visible: DEFAULT_VISIBLE_WIDGETS.includes(id),
+          fontSize: 12
         };
       }
     });
 
     // Initialize layout from saved state or default
     const savedLayouts = localStorage.getItem('dashboard_layouts');
+    let initialLayouts: any = { lg: [] };
+
     if (savedLayouts) {
-      setLayouts(JSON.parse(savedLayouts));
+      initialLayouts = JSON.parse(savedLayouts);
     } else {
       // Create default layout
       const defaultLayout = Object.keys(WIDGETS).map((id, i) => {
@@ -133,11 +138,41 @@ const LiveMonitor: React.FC = () => {
           x: (i * 4) % 12,
           y: Math.floor(i / 3) * 6,
           w: config.w || 4,
-          h: 6 // default height
+          h: 6, // default height
+          minW: 2,
+          minH: 3
         };
       });
-      setLayouts({ lg: defaultLayout, md: defaultLayout, sm: defaultLayout });
+      initialLayouts = { lg: defaultLayout, md: defaultLayout, sm: defaultLayout };
     }
+
+    // Ensure all visible widgets are in the layout (fixes resizing issue on font change if missing)
+    Object.keys(initialStates).forEach(id => {
+      if (initialStates[id].visible) {
+        const config = WIDGETS[id];
+        // Check if present in layouts
+        Object.keys(initialLayouts).forEach((bp) => {
+          const layout = (initialLayouts as any)[bp];
+          if (Array.isArray(layout) && !layout.find((item: any) => item.i === id)) {
+            // Add missing widget
+            (initialLayouts as any)[bp] = [
+              ...layout,
+              {
+                i: id,
+                x: 0,
+                y: Infinity,
+                w: config.w || 4,
+                h: 6,
+                minW: 2,
+                minH: 3
+              }
+            ];
+          }
+        });
+      }
+    });
+
+    setLayouts(initialLayouts);
 
     setWidgetStates(initialStates);
 
@@ -212,8 +247,47 @@ const LiveMonitor: React.FC = () => {
     setTimeout(() => fetchAllWidgets(), 100);
   };
 
+  const ensureWidgetInLayout = (widgetId: string) => {
+    setLayouts((prevLayouts: any) => {
+      // If layouts structure is invalid or doesn't have breakpoints, just return
+      if (!prevLayouts || typeof prevLayouts !== 'object') return prevLayouts;
+
+      const newLayouts = { ...prevLayouts };
+      const config = WIDGETS[widgetId];
+      if (!config) return prevLayouts;
+
+      // We need to ensure the widget is in ALL active layouts (lg, md, sm, etc.)
+      Object.keys(newLayouts).forEach(breakpoint => {
+        const layout = newLayouts[breakpoint];
+        if (Array.isArray(layout) && !layout.find((item: any) => item.i === widgetId)) {
+          // Add to layout at bottom
+          newLayouts[breakpoint] = [
+            ...layout,
+            {
+              i: widgetId,
+              x: 0,
+              y: Infinity, // compactType 'vertical' will handle this
+              w: config.w || 4,
+              h: 6,
+              minW: 2,
+              minH: 3
+            }
+          ];
+        }
+      });
+
+      // Save to local storage to persist the new addition
+      localStorage.setItem('dashboard_layouts', JSON.stringify(newLayouts));
+      return newLayouts;
+    });
+  };
+
   const toggleWidgetVisibility = (id: string) => {
-    updateWidgetState(id, { visible: !widgetStates[id]?.visible });
+    const isVisible = widgetStates[id]?.visible;
+    if (!isVisible) {
+      ensureWidgetInLayout(id);
+    }
+    updateWidgetState(id, { visible: !isVisible });
   };
 
   const generateChartData = (widgetData: WidgetData[], widgetId: string) => {
@@ -251,7 +325,7 @@ const LiveMonitor: React.FC = () => {
     };
   };
 
-  const getChartOptions = (type: string): ChartOptions<any> => {
+  const getChartOptions = (type: string, fontSize: number): ChartOptions<any> => {
     const baseOptions: ChartOptions<any> = {
       responsive: true,
       maintainAspectRatio: false,
@@ -261,10 +335,13 @@ const LiveMonitor: React.FC = () => {
           labels: {
             color: isDarkMode ? '#999' : '#333',
             boxWidth: 12,
-            font: { size: 10 }
+            font: { size: fontSize }
           }
         },
         tooltip: {
+          titleFont: { size: fontSize },
+          bodyFont: { size: fontSize },
+          footerFont: { size: fontSize },
           callbacks: {
             label: function (context: any) {
               let label = context.dataset.label || '';
@@ -291,12 +368,12 @@ const LiveMonitor: React.FC = () => {
       baseOptions.scales = {
         x: {
           stacked: true,
-          ticks: { color: isDarkMode ? '#999' : '#333', font: { size: 10 } },
+          ticks: { color: isDarkMode ? '#999' : '#333', font: { size: fontSize } },
           grid: { color: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }
         },
         y: {
           stacked: true,
-          ticks: { color: isDarkMode ? '#999' : '#333', font: { size: 10 } },
+          ticks: { color: isDarkMode ? '#999' : '#333', font: { size: fontSize } },
           grid: { color: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }
         }
       };
@@ -305,8 +382,8 @@ const LiveMonitor: React.FC = () => {
     return baseOptions;
   };
 
-  const renderChart = (id: string, chartData: any, viewType: string) => {
-    const options = getChartOptions(viewType);
+  const renderChart = (id: string, chartData: any, viewType: string, fontSize: number) => {
+    const options = getChartOptions(viewType, fontSize);
 
     switch (viewType) {
       case 'line':
@@ -321,7 +398,7 @@ const LiveMonitor: React.FC = () => {
     }
   };
 
-  const renderListView = (widgetData: WidgetData[], widgetId: string) => {
+  const renderListView = (widgetData: WidgetData[], widgetId: string, fontSize: number) => {
     const isCurrency = CURRENCY_WIDGETS.includes(widgetId);
 
     if (widgetData[0]?.series) {
@@ -331,6 +408,7 @@ const LiveMonitor: React.FC = () => {
             <div
               key={idx}
               className={`rounded-lg border p-3 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+              style={{ fontSize: `${fontSize}px` }}
             >
               <div className={`font-semibold text-sm mb-2 border-b pb-2 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                 {row.label}
@@ -354,7 +432,7 @@ const LiveMonitor: React.FC = () => {
     }
 
     return (
-      <div className="grid grid-cols-2 gap-2 overflow-y-auto max-h-64">
+      <div className="grid grid-cols-2 gap-2 overflow-y-auto max-h-64" style={{ fontSize: `${fontSize}px` }}>
         {widgetData.map((row, idx) => (
           <div
             key={idx}
@@ -363,7 +441,7 @@ const LiveMonitor: React.FC = () => {
             <div className="text-xs opacity-70 truncate" title={row.label}>
               {row.label}
             </div>
-            <div className="text-lg font-bold text-blue-600">
+            <div className="font-bold text-blue-600" style={{ fontSize: `${fontSize * 1.5}px` }}>
               {isCurrency
                 ? `₱${Number(row.value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
                 : Number(row.value || 0).toLocaleString()}
@@ -376,7 +454,7 @@ const LiveMonitor: React.FC = () => {
 
 
 
-  const renderGridView = (widgetData: WidgetData[], widgetId: string) => {
+  const renderGridView = (widgetData: WidgetData[], widgetId: string, fontSize: number) => {
     return (
       <div className="flex gap-4 overflow-x-auto overflow-y-hidden p-2 pb-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent">
         {widgetData.map((row, idx) => {
@@ -406,6 +484,7 @@ const LiveMonitor: React.FC = () => {
             <div
               key={idx}
               className={`flex-shrink-0 w-64 rounded-2xl border p-4 flex flex-col justify-between items-center relative h-64 transition-all hover:scale-[1.02] shadow-sm ${bgColor}`}
+              style={{ fontSize: `${fontSize}px` }}
             >
               {/* Status - Top Left */}
               <div className={`absolute top-4 left-4 text-xs font-bold uppercase tracking-wider ${textColor}`}>
@@ -439,7 +518,7 @@ const LiveMonitor: React.FC = () => {
     );
   };
 
-  const renderTable = (data: any[], id: string) => {
+  const renderTable = (data: any[], id: string, fontSize: number) => {
     if (!Array.isArray(data) || data.length === 0) {
       return (
         <div className={`text-center py-8 text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
@@ -450,7 +529,7 @@ const LiveMonitor: React.FC = () => {
 
     return (
       <div className="overflow-x-auto">
-        <table className={`min-w-full text-xs text-left ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+        <table className={`min-w-full text-left ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} style={{ fontSize: `${fontSize}px` }}>
           <thead className={`font-semibold border-b ${isDarkMode ? 'border-gray-800 text-gray-400' : 'border-gray-200 text-gray-500'}`}>
             <tr>
               <th className="py-2 px-3">Team Name</th>
@@ -498,6 +577,11 @@ const LiveMonitor: React.FC = () => {
       );
     }
 
+
+
+    // Default font size if not set
+    const fontSize = state.fontSize || 12;
+
     const hasData = widget.data && (Array.isArray(widget.data) ? widget.data.length > 0 : true);
 
     if (!hasData) {
@@ -512,14 +596,14 @@ const LiveMonitor: React.FC = () => {
     if (state.viewType === 'table') {
       return (
         <div className="h-full overflow-y-auto custom-scrollbar">
-          {renderTable(widget.data, id)}
+          {renderTable(widget.data, id, fontSize)}
         </div>
       );
     }
 
     // Special handler for generic lists like technician availability
-    if (state.viewType === 'grid') return renderGridView(widget.data, id);
-    if (state.viewType === 'list' || id === 'technician_availability') return renderListView(widget.data, id);
+    if (state.viewType === 'grid') return renderGridView(widget.data, id, fontSize);
+    if (state.viewType === 'list' || id === 'technician_availability') return renderListView(widget.data, id, fontSize);
 
     const chartData = generateChartData(widget.data, id);
     if (!chartData) {
@@ -533,7 +617,7 @@ const LiveMonitor: React.FC = () => {
     // IMPORTANT: put id on the chart container so tooltip can detect widgetId for currency
     return (
       <div className="h-64" id={id}>
-        {renderChart(id, chartData, state.viewType)}
+        {renderChart(id, chartData, state.viewType, fontSize)}
       </div>
     );
   };
@@ -542,8 +626,10 @@ const LiveMonitor: React.FC = () => {
     const state = widgetStates[id];
     if (!config.hasFilters || !state) return null;
 
+    const fontSize = state.fontSize || 12;
+
     return (
-      <div className="flex gap-2 items-center text-xs flex-wrap">
+      <div className="flex gap-2 items-center text-xs flex-wrap" style={{ fontSize: `${fontSize}px` }}>
         {(config.filterType === 'toggle_today' || config.filterType === 'date' || config.filterType === 'date_bgy') && (
           <label className="flex items-center gap-1 cursor-pointer">
             <input
@@ -887,7 +973,11 @@ const LiveMonitor: React.FC = () => {
               <h3 className="text-sm font-semibold">Toggle Widgets</h3>
               <div className="flex gap-2">
                 <button
-                  onClick={() => Object.keys(WIDGETS).forEach(id => updateWidgetState(id, { visible: true }))}
+                  onClick={() => {
+                    const ids = Object.keys(WIDGETS);
+                    ids.forEach(id => ensureWidgetInLayout(id));
+                    ids.forEach(id => updateWidgetState(id, { visible: true }));
+                  }}
                   className="text-xs px-3 py-1 rounded bg-green-600 hover:bg-green-700 text-white"
                 >
                   <Eye size={12} className="inline mr-1" />
@@ -940,7 +1030,7 @@ const LiveMonitor: React.FC = () => {
           }}
           draggableHandle=".drag-handle"
         >
-          {Object.entries(WIDGETS).map(([id, config]) => {
+          {Object.entries(WIDGETS).map(([id, config], i) => {
             if (!widgetStates[id]?.visible) return null;
 
             return (
@@ -956,7 +1046,10 @@ const LiveMonitor: React.FC = () => {
                           <Move size={14} className="text-gray-400" />
                         </div>
                       )}
-                      <h3 className="text-sm font-bold text-blue-600 uppercase tracking-wide truncate">
+                      <h3
+                        className="font-bold text-blue-600 uppercase tracking-wide truncate"
+                        style={{ fontSize: `${(widgetStates[id]?.fontSize || 12) + 2}px` }}
+                      >
                         {config.title}
                       </h3>
                     </div>
@@ -966,7 +1059,27 @@ const LiveMonitor: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex gap-1 mb-3">
+                  <div className="flex gap-1 mb-3 flex-wrap">
+                    <div className={`flex items-center rounded p-0.5 mr-2 border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'}`}>
+                      <button
+                        onClick={() => updateWidgetState(id, { fontSize: Math.max(8, (widgetStates[id]?.fontSize || 12) - 1) })}
+                        className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-200 text-gray-600 hover:text-black'}`}
+                        title="Decrease Font Size"
+                      >
+                        <Minus size={12} />
+                      </button>
+                      <span className={`text-[10px] px-1 min-w-[20px] text-center font-mono opacity-70 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {widgetStates[id]?.fontSize || 12}
+                      </span>
+                      <button
+                        onClick={() => updateWidgetState(id, { fontSize: Math.min(24, (widgetStates[id]?.fontSize || 12) + 1) })}
+                        className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-200 text-gray-600 hover:text-black'}`}
+                        title="Increase Font Size"
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
+
                     <button
                       onClick={() => updateWidgetState(id, { viewType: 'bar' })}
                       className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'bar'

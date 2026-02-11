@@ -115,6 +115,25 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
     }
   };
 
+  const getDriveDirectUrl = (url: string | undefined) => {
+    if (!url) return '';
+    // Handle Google Drive /view links by converting them to direct download links
+    if (url.includes('drive.google.com') && (url.includes('/view') || url.includes('id='))) {
+      let fileId = '';
+      if (url.includes('id=')) {
+        fileId = url.split('id=')[1].split('&')[0];
+      } else {
+        const parts = url.split('/');
+        const viewIndex = parts.indexOf('view');
+        if (viewIndex > 0) {
+          fileId = parts[viewIndex - 1];
+        }
+      }
+      return fileId ? `https://drive.google.com/uc?export=view&id=${fileId}` : url;
+    }
+    return url;
+  };
+
   return (
     <div
       className={`h-full flex flex-col overflow-hidden ${!isMobile ? 'md:border-l' : ''} relative w-full md:w-auto ${isDarkMode ? 'bg-gray-950 border-white border-opacity-30' : 'bg-gray-50 border-gray-300'
@@ -313,21 +332,25 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
 
             {/* Image 1 */}
             {location.image1_url && (
-              <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+              <div className={`flex flex-col border-b pb-4 gap-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
                 }`}>
-                <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>Image 1</div>
-                <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>
-                  <span className="truncate mr-2">
-                    {location.image1_url}
-                  </span>
-                  <button
-                    className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>Image 1:</div>
+                <div className="relative group">
+                  <img
+                    src={getDriveDirectUrl(location.image1_url)}
+                    alt="Location Image 1"
+                    className="w-full h-auto max-h-64 object-cover rounded-lg border border-gray-300 dark:border-gray-700 shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
                     onClick={() => window.open(location.image1_url)}
+                  />
+                  <button
+                    className={`absolute top-2 right-2 p-1.5 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all opacity-0 group-hover:opacity-100`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(location.image1_url);
+                    }}
                   >
-                    <ExternalLink size={16} />
+                    <ExternalLink size={14} />
                   </button>
                 </div>
               </div>
@@ -335,21 +358,25 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
 
             {/* Image 2 */}
             {location.image2_url && (
-              <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+              <div className={`flex flex-col border-b pb-4 gap-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
                 }`}>
-                <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>Image 2</div>
-                <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>
-                  <span className="truncate mr-2">
-                    {location.image2_url}
-                  </span>
-                  <button
-                    className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>Image 2:</div>
+                <div className="relative group">
+                  <img
+                    src={getDriveDirectUrl(location.image2_url)}
+                    alt="Location Image 2"
+                    className="w-full h-auto max-h-64 object-cover rounded-lg border border-gray-300 dark:border-gray-700 shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
                     onClick={() => window.open(location.image2_url)}
+                  />
+                  <button
+                    className={`absolute top-2 right-2 p-1.5 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all opacity-0 group-hover:opacity-100`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(location.image2_url);
+                    }}
                   >
-                    <ExternalLink size={16} />
+                    <ExternalLink size={14} />
                   </button>
                 </div>
               </div>

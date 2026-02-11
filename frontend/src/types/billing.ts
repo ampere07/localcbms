@@ -15,6 +15,7 @@ export interface BillingRecord {
   regionId?: number | null;
   timestamp?: string;
   billingStatus?: string;
+  billing_status_id?: number;
   dateInstalled?: string;
   contactNumber?: string;
   secondContactNumber?: string;

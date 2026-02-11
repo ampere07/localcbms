@@ -183,6 +183,51 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     fetchLookupData();
   }, []);
 
+  // Idle detection and auto-refresh logic
+  useEffect(() => {
+    const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
+    let idleTimer: NodeJS.Timeout | null = null;
+
+    const refreshData = async () => {
+      console.log('User idle for 15 minutes, auto-refreshing transaction data...');
+      try {
+        await silentRefresh();
+      } catch (err) {
+        console.error('Idle refresh failed:', err);
+      }
+      // Set the timer again to refresh every 15 mins if they remain idle
+      startTimer();
+    };
+
+    const startTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(refreshData, IDLE_TIME_LIMIT);
+    };
+
+    const resetTimer = () => {
+      startTimer();
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    startTimer(); // Initialize timer on mount
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [silentRefresh]);
+
   const toggleLocationExpansion = (e: React.MouseEvent, locationId: string) => {
     e.stopPropagation();
     setExpandedLocations(prev => {
@@ -771,97 +816,97 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
         <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
           }`}>
           <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setMobileMenuOpen(true)}
-                className="md:hidden bg-gray-700 hover:bg-gray-600 text-white p-2 rounded text-sm transition-colors flex items-center justify-center"
-                aria-label="Open filter menu"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  placeholder="Search transactions..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
-                    ? 'bg-gray-800 text-white border border-gray-700'
-                    : 'bg-white text-gray-900 border border-gray-300'
-                    }`}
-                  style={{
-                    '--tw-ring-color': colorPalette?.primary || '#ea580c'
-                  } as React.CSSProperties}
-                  onFocus={(e) => {
-                    if (colorPalette?.primary) {
-                      e.currentTarget.style.borderColor = colorPalette.primary;
-                    }
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
-                  }}
-                />
-                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`} />
-              </div>
-              <button
-                onClick={() => isBatchApproveMode ? handleCancelApprove() : setIsBatchApproveMode(true)}
-                className="px-4 py-2 rounded flex items-center transition-colors text-white"
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden bg-gray-700 hover:bg-gray-600 text-white p-2 rounded text-sm transition-colors flex items-center justify-center"
+              aria-label="Open filter menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Search transactions..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
+                  ? 'bg-gray-800 text-white border border-gray-700'
+                  : 'bg-white text-gray-900 border border-gray-300'
+                  }`}
                 style={{
-                  backgroundColor: isBatchApproveMode ? '#dc2626' : (colorPalette?.primary || '#ea580c')
-                }}
-                onMouseEnter={(e) => {
-                  if (isBatchApproveMode) {
-                    e.currentTarget.style.backgroundColor = '#b91c1c';
-                  } else if (colorPalette?.accent) {
-                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                } as React.CSSProperties}
+                onFocus={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.borderColor = colorPalette.primary;
                   }
                 }}
-                onMouseLeave={(e) => {
-                  if (isBatchApproveMode) {
-                    e.currentTarget.style.backgroundColor = '#dc2626';
-                  } else if (colorPalette?.primary) {
-                    e.currentTarget.style.backgroundColor = colorPalette.primary;
-                  }
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                 }}
-              >
-                {isBatchApproveMode ? (
-                  <>
-                    <X className="h-4 w-4 mr-2" />
-                    <span>Cancel Approve</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCheck className="h-4 w-4 mr-2" />
-                    <span>Batch Approve</span>
-                  </>
-                )}
-              </button>
-              {isBatchApproveMode && (
-                <button
-                  onClick={handleBatchApprove}
-                  disabled={selectedTransactionIds.length === 0 || isApproving}
-                  className={`px-4 py-2 rounded flex items-center transition-colors ${selectedTransactionIds.length === 0 || isApproving
-                    ? isDarkMode
-                      ? 'bg-gray-700 text-gray-500 border border-gray-600 cursor-not-allowed'
-                      : 'bg-gray-300 text-gray-500 border border-gray-400 cursor-not-allowed'
-                    : isDarkMode
-                      ? 'bg-green-600 text-white border border-green-700 hover:bg-green-700'
-                      : 'bg-green-500 text-white border border-green-600 hover:bg-green-600'
-                    }`}
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  <span>{isApproving ? 'Approving...' : `Approve (${selectedTransactionIds.length})`}</span>
-                </button>
+              />
+              <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} />
+            </div>
+            <button
+              onClick={() => isBatchApproveMode ? handleCancelApprove() : setIsBatchApproveMode(true)}
+              className="px-4 py-2 rounded flex items-center transition-colors text-white"
+              style={{
+                backgroundColor: isBatchApproveMode ? '#dc2626' : (colorPalette?.primary || '#ea580c')
+              }}
+              onMouseEnter={(e) => {
+                if (isBatchApproveMode) {
+                  e.currentTarget.style.backgroundColor = '#b91c1c';
+                } else if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (isBatchApproveMode) {
+                  e.currentTarget.style.backgroundColor = '#dc2626';
+                } else if (colorPalette?.primary) {
+                  e.currentTarget.style.backgroundColor = colorPalette.primary;
+                }
+              }}
+            >
+              {isBatchApproveMode ? (
+                <>
+                  <X className="h-4 w-4 mr-2" />
+                  <span>Cancel Approve</span>
+                </>
+              ) : (
+                <>
+                  <CheckCheck className="h-4 w-4 mr-2" />
+                  <span>Batch Approve</span>
+                </>
               )}
+            </button>
+            {isBatchApproveMode && (
               <button
-                onClick={() => setIsFunnelFilterOpen(true)}
-                className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
-                  ? 'hover:bg-gray-700 text-white'
-                  : 'hover:bg-gray-200 text-gray-900 border border-gray-300'
+                onClick={handleBatchApprove}
+                disabled={selectedTransactionIds.length === 0 || isApproving}
+                className={`px-4 py-2 rounded flex items-center transition-colors ${selectedTransactionIds.length === 0 || isApproving
+                  ? isDarkMode
+                    ? 'bg-gray-700 text-gray-500 border border-gray-600 cursor-not-allowed'
+                    : 'bg-gray-300 text-gray-500 border border-gray-400 cursor-not-allowed'
+                  : isDarkMode
+                    ? 'bg-green-600 text-white border border-green-700 hover:bg-green-700'
+                    : 'bg-green-500 text-white border border-green-600 hover:bg-green-600'
                   }`}
               >
-                <Filter className="h-5 w-5" />
+                <Check className="h-4 w-4 mr-2" />
+                <span>{isApproving ? 'Approving...' : `Approve (${selectedTransactionIds.length})`}</span>
               </button>
+            )}
+            <button
+              onClick={() => setIsFunnelFilterOpen(true)}
+              className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                ? 'hover:bg-gray-700 text-white'
+                : 'hover:bg-gray-200 text-gray-900 border border-gray-300'
+                }`}
+            >
+              <Filter className="h-5 w-5" />
+            </button>
           </div>
         </div>
         <div className="flex-1 overflow-hidden flex flex-col">

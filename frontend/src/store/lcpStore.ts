@@ -15,6 +15,7 @@ interface LcpState {
     updateLcpItem: (id: number, name: string) => Promise<void>;
     deleteLcpItem: (id: number) => Promise<void>;
     refreshLcpItems: () => Promise<void>;
+    silentRefresh: () => Promise<void>;
     setSearchQuery: (query: string) => void;
 }
 
@@ -124,7 +125,11 @@ export const useLcpStore = create<LcpState>((set, get) => ({
     },
 
     refreshLcpItems: async () => {
-        await get().fetchLcpItems(1, 50, get().searchQuery);
+        await get().fetchLcpItems(get().currentPage, 50, get().searchQuery);
+    },
+
+    silentRefresh: async () => {
+        await get().fetchLcpItems(get().currentPage, 50, get().searchQuery, true);
     },
 
     setSearchQuery: (query: string) => {

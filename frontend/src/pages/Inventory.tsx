@@ -67,7 +67,7 @@ const Inventory: React.FC = () => {
         console.error('Failed to fetch color palette:', err);
       }
     };
-    
+
     fetchColorPalette();
   }, []);
 
@@ -91,6 +91,55 @@ const Inventory: React.FC = () => {
   useEffect(() => {
     fetchInventoryData();
     fetchCategories();
+  }, []);
+
+  // Idle detection and auto-refresh logic
+  useEffect(() => {
+    const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
+    let idleTimer: NodeJS.Timeout | null = null;
+
+    const refreshData = async () => {
+      console.log('User idle for 15 minutes, auto-refreshing Inventory data...');
+      try {
+        await Promise.all([
+          fetchInventoryData(true), // Silent refresh
+          fetchCategories()
+        ]);
+      } catch (err) {
+        console.error('Idle refresh failed:', err);
+      }
+      // Set the timer again to refresh every 15 mins if they remain idle
+      startTimer();
+    };
+
+    const startTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(refreshData, IDLE_TIME_LIMIT);
+    };
+
+    const resetTimer = () => {
+      startTimer();
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    // Use passive listeners for performance
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    startTimer(); // Initialize timer on mount
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
   }, []);
 
   useEffect(() => {
@@ -118,14 +167,14 @@ const Inventory: React.FC = () => {
     }
   }, [inventoryItems, dbCategories]);
 
-  const fetchInventoryData = async () => {
+  const fetchInventoryData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
-      
+
       const response = await apiClient.get<ApiResponse<InventoryItem[]>>('/inventory');
       const data = response.data;
-      
+
       if (data.success) {
         setInventoryItems(data.data || []);
       } else {
@@ -144,7 +193,7 @@ const Inventory: React.FC = () => {
     try {
       const response = await apiClient.get<ApiResponse<{ id: number; name: string }[]>>('/inventory-categories');
       const data = response.data;
-      
+
       if (data.success) {
         setDbCategories(data.data || []);
       } else {
@@ -158,11 +207,11 @@ const Inventory: React.FC = () => {
   const filteredItems = selectedCategory === '' ? [] : inventoryItems.filter(item => {
     const itemCategory = (item.category || '').toLowerCase().replace(/\s+/g, '-');
     const matchesCategory = selectedCategory === 'all' || itemCategory === selectedCategory;
-    
-    const matchesSearch = searchQuery === '' || 
-                         item.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (item.item_description && item.item_description.toLowerCase().includes(searchQuery.toLowerCase()));
-    
+
+    const matchesSearch = searchQuery === '' ||
+      item.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.item_description && item.item_description.toLowerCase().includes(searchQuery.toLowerCase()));
+
     return matchesCategory && matchesSearch;
   });
 
@@ -196,7 +245,7 @@ const Inventory: React.FC = () => {
     try {
       const response = await apiClient.delete<ApiResponse>(`/inventory/${encodeURIComponent(item.item_name)}`);
       const data = response.data;
-      
+
       if (data.success) {
         alert('Inventory item deleted successfully!');
         if (selectedItem?.item_name === item.item_name) {
@@ -216,7 +265,7 @@ const Inventory: React.FC = () => {
   const handleSaveInventoryItem = async (formData: InventoryFormData) => {
     try {
       console.log('Saving inventory item:', formData);
-      
+
       const isEditing = editingItem !== null;
       const payload = {
         item_name: formData.itemName,
@@ -227,13 +276,13 @@ const Inventory: React.FC = () => {
         item_id: null,
         image: '',
       };
-      
+
       const response = isEditing
         ? await apiClient.put<ApiResponse>(`/inventory/${encodeURIComponent(editingItem.item_name)}`, payload)
         : await apiClient.post<ApiResponse>('/inventory', payload);
 
       const data = response.data;
-      
+
       if (data.success) {
         const message = isEditing ? 'Inventory item updated successfully!' : 'Inventory item added successfully!';
         alert(message);
@@ -253,14 +302,12 @@ const Inventory: React.FC = () => {
 
   if (loading) {
     return (
-      <div className={`h-full flex items-center justify-center ${
-        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-      }`}>
+      <div className={`h-full flex items-center justify-center ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+        }`}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
-          <div className={`text-lg ${
-            isDarkMode ? 'text-white' : 'text-gray-900'
-          }`}>Loading inventory...</div>
+          <div className={`text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Loading inventory...</div>
         </div>
       </div>
     );
@@ -268,19 +315,16 @@ const Inventory: React.FC = () => {
 
   if (error) {
     return (
-      <div className={`h-full flex items-center justify-center ${
-        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-      }`}>
+      <div className={`h-full flex items-center justify-center ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+        }`}>
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 text-red-500 mb-4 mx-auto" />
-          <div className={`text-lg mb-2 ${
-            isDarkMode ? 'text-white' : 'text-gray-900'
-          }`}>Error Loading Inventory</div>
-          <div className={`mb-4 ${
-            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-          }`}>{error}</div>
-          <button 
-            onClick={fetchInventoryData}
+          <div className={`text-lg mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Error Loading Inventory</div>
+          <div className={`mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>{error}</div>
+          <button
+            onClick={() => fetchInventoryData()}
             className="text-white px-4 py-2 rounded transition-colors"
             style={{
               backgroundColor: colorPalette?.primary || '#ea580c'
@@ -304,33 +348,28 @@ const Inventory: React.FC = () => {
   }
 
   return (
-    <div className={`${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    } h-full flex flex-col md:flex-row overflow-hidden`}>
+    <div className={`${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      } h-full flex flex-col md:flex-row overflow-hidden`}>
       {/* Category Sidebar - Desktop Only */}
-      <div className={`hidden md:flex md:w-64 md:border-r flex-shrink-0 flex-col order-1 ${
-        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-      }`}>
-        <div className={`p-4 border-b flex-shrink-0 ${
-          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+      <div className={`hidden md:flex md:w-64 md:border-r flex-shrink-0 flex-col order-1 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
         }`}>
-          <h2 className={`text-lg font-semibold flex items-center ${
-            isDarkMode ? 'text-white' : 'text-gray-900'
+        <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
+          <h2 className={`text-lg font-semibold flex items-center ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
             <Package className="mr-2" size={20} />
             Inventory
           </h2>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto">
           <div className="flex flex-col">
             {categories.map((category) => (
               <button
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
-                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                  isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                }`}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                  }`}
                 style={selectedCategory === category.id ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
                   color: colorPalette?.primary || '#fb923c',
@@ -361,14 +400,12 @@ const Inventory: React.FC = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className={`flex-1 overflow-hidden order-2 pb-16 md:pb-0 ${
-        isDarkMode ? 'bg-gray-900' : 'bg-white'
-      }`}>
+      <div className={`flex-1 overflow-hidden order-2 pb-16 md:pb-0 ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+        }`}>
         <div className="flex flex-col h-full">
           {/* Search Bar */}
-          <div className={`p-4 border-b flex-shrink-0 ${
-            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
+          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
             <div className="flex items-center space-x-3">
               <div className="relative flex-1">
                 <input
@@ -376,11 +413,10 @@ const Inventory: React.FC = () => {
                   placeholder="Search inventory..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 border focus:outline-none ${
-                    isDarkMode 
-                      ? 'bg-gray-800 text-white border-gray-700' 
-                      : 'bg-gray-100 text-gray-900 border-gray-300'
-                  }`}
+                  className={`w-full rounded pl-10 pr-4 py-2 border focus:outline-none ${isDarkMode
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-gray-100 text-gray-900 border-gray-300'
+                    }`}
                   onFocus={(e) => {
                     if (colorPalette?.primary) {
                       e.currentTarget.style.borderColor = colorPalette.primary;
@@ -392,11 +428,10 @@ const Inventory: React.FC = () => {
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 />
-                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`} />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
               </div>
-              <button 
+              <button
                 className="text-white px-4 py-2 rounded text-sm flex items-center space-x-2 transition-colors"
                 onClick={handleAddItem}
                 style={{
@@ -418,33 +453,29 @@ const Inventory: React.FC = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Items List */}
           <div className="flex-1 overflow-y-auto">
             <div className="divide-y divide-gray-700">
               {filteredItems.length > 0 ? (
                 filteredItems.map((item, index) => (
-                  <div 
-                    key={item.item_name + index} 
-                    className={`px-6 py-4 flex items-center justify-between transition-colors cursor-pointer group ${
-                      isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                    } ${
-                      selectedItem?.item_name === item.item_name 
-                        ? isDarkMode ? 'bg-gray-800 border-r-2 border-orange-500' : 'bg-gray-100 border-r-2 border-orange-500' 
+                  <div
+                    key={item.item_name + index}
+                    className={`px-6 py-4 flex items-center justify-between transition-colors cursor-pointer group ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                      } ${selectedItem?.item_name === item.item_name
+                        ? isDarkMode ? 'bg-gray-800 border-r-2 border-orange-500' : 'bg-gray-100 border-r-2 border-orange-500'
                         : ''
-                    }`}
+                      }`}
                     onClick={() => handleItemClick(item)}
                   >
                     <div>
-                      <div className={`font-medium text-base ${
-                        isDarkMode ? 'text-white' : 'text-gray-900'
-                      }`}>
+                      <div className={`font-medium text-base ${isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
                         {item.item_name}
                       </div>
                       {item.modified_date && (
-                        <div className={`text-sm mt-1 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
+                        <div className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
                           {new Date(item.modified_date).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: '2-digit',
@@ -458,10 +489,9 @@ const Inventory: React.FC = () => {
                       )}
                     </div>
                     <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        className={`p-2 rounded transition-colors ${
-                          isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                        }`} 
+                      <button
+                        className={`p-2 rounded transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                          }`}
                         title="View Details"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -473,10 +503,9 @@ const Inventory: React.FC = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                         </svg>
                       </button>
-                      <button 
-                        className={`p-2 rounded transition-colors ${
-                          isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-600 hover:text-red-600'
-                        }`} 
+                      <button
+                        className={`p-2 rounded transition-colors ${isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-600 hover:text-red-600'
+                          }`}
                         title="Delete"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -487,8 +516,8 @@ const Inventory: React.FC = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
-                      <button 
-                        className="p-2 text-gray-400 hover:text-white rounded transition-colors" 
+                      <button
+                        className="p-2 text-gray-400 hover:text-white rounded transition-colors"
                         title="Edit"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -503,18 +532,17 @@ const Inventory: React.FC = () => {
                   </div>
                 ))
               ) : (
-                <div className={`p-12 text-center ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`p-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   <Package size={48} className="mx-auto mb-4 text-gray-600" />
                   <div className="text-lg mb-2">
                     {selectedCategory === '' ? 'Select a category to view items' : 'No items found'}
                   </div>
                   <div className="text-sm">
-                    {selectedCategory === '' 
+                    {selectedCategory === ''
                       ? 'Choose a category from the sidebar to see inventory items'
-                      : inventoryItems.length === 0 
-                        ? 'Start by adding some inventory items' 
+                      : inventoryItems.length === 0
+                        ? 'Start by adding some inventory items'
                         : 'Try adjusting your search or category filter'
                     }
                   </div>
@@ -526,19 +554,17 @@ const Inventory: React.FC = () => {
       </div>
 
       {/* Mobile Bottom Bar */}
-      <div className={`md:hidden fixed bottom-0 left-0 right-0 border-t z-40 ${
-        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-      }`}>
+      <div className={`md:hidden fixed bottom-0 left-0 right-0 border-t z-40 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
         <div className="flex overflow-x-auto hide-scrollbar">
           {categories.map((category) => (
             <button
               key={category.id}
               onClick={() => setSelectedCategory(category.id)}
-              className={`flex-shrink-0 flex flex-col items-center justify-center px-4 py-2 text-xs transition-colors ${
-                selectedCategory === category.id
-                  ? ''
-                  : 'text-gray-300'
-              }`}
+              className={`flex-shrink-0 flex flex-col items-center justify-center px-4 py-2 text-xs transition-colors ${selectedCategory === category.id
+                ? ''
+                : 'text-gray-300'
+                }`}
               style={selectedCategory === category.id ? {
                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
                 color: colorPalette?.primary || '#fb923c'

@@ -81,6 +81,11 @@ export const customerDetailUpdateService = {
 
       if (!response.ok) {
         const errorData = await response.json();
+        if (response.status === 422 && errorData.errors) {
+          console.error('[Validation Failed]', errorData.errors);
+          const errorMessages = Object.values(errorData.errors).flat().join(', ');
+          throw new Error(`Validation failed: ${errorMessages}`);
+        }
         throw new Error(errorData.message || `Failed to update ${editType.replace('_', ' ')}`);
       }
 

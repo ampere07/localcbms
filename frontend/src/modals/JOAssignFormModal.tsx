@@ -1103,7 +1103,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     type="number"
                     step="0.01"
                     min="0"
-                    value={formData.installationFee === 0 ? '' : formData.installationFee}
+                    value={formData.installationFee}
                     onChange={(e) => handleInstallationFeeChange(e.target.value)}
                     className={`flex-1 px-3 py-2 bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield] ${isDarkMode ? 'text-white' : 'text-gray-900'
                       } ${errors.installationFee ? 'border-red-500' : ''}`}

@@ -11,11 +11,13 @@ import { getAllVLANs, VLAN } from '../services/vlanService';
 import { getAllUsageTypes, UsageType } from '../services/usageTypeService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
+import { billingStatusService, BillingStatus } from '../services/billingStatusService';
+import { getUsedPorts } from '../services/portService';
 
 interface CustomerDetailsEditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (formData: any) => void;
+  onSave: (formData: any, type: 'customer_details' | 'billing_details' | 'technical_details') => void;
   recordData?: any;
   editType: 'customer_details' | 'billing_details' | 'technical_details';
 }
@@ -54,8 +56,10 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
   const [ports, setPorts] = useState<string[]>([]);
   const [vlans, setVlans] = useState<VLAN[]>([]);
   const [usageTypes, setUsageTypes] = useState<UsageType[]>([]);
+  const [usedPorts, setUsedPorts] = useState<string[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
+  const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
 
   const [modal, setModal] = useState<ModalConfig>({
     isOpen: false,
@@ -182,26 +186,34 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
         };
 
         setFormData({
-          dateInstalled: formatDateForInput(recordData.dateInstalled || recordData.date_installed),
-          plan: recordData.plan || recordData.desiredPlan || recordData.desired_plan || recordData.Desired_Plan || '',
-          accountBalance: recordData.accountBalance || recordData.account_balance || recordData.balance || '0.00',
-          billingDay: (recordData.billingDay !== undefined ? recordData.billingDay : recordData.billing_day) || '',
-          billingStatus: recordData.billingStatus || recordData.billingAccount?.billingStatusName || recordData.status || recordData.billing_status || recordData.billingAccount?.billing_status || ''
+          billingStatus: recordData.billing_status_id || recordData.billingStatus || recordData.billingAccount?.billingStatusName || recordData.status || recordData.billing_status || recordData.billingAccount?.billing_status || ''
         });
       } else if (editType === 'technical_details') {
-        const lcpnapValue = recordData.lcpnap || recordData.LCPNAP || '';
-        const parts = lcpnapValue.split('-');
+        let lcpnapValue = recordData.lcpnap || recordData.LCPNAP || '';
+
+        // If lcpnap is empty but we have lcp and nap, construct it
+        if (!lcpnapValue && (recordData.lcp || recordData.LCP) && (recordData.nap || recordData.NAP)) {
+          lcpnapValue = `${recordData.lcp || recordData.LCP}-${recordData.nap || recordData.NAP}`;
+        }
+
+        const parts = lcpnapValue.split(/-|\s/); // Split by hyphen or space
+
+        const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
 
         setFormData({
-          username: recordData.pppoe_username || recordData.username || '',
-          usernameStatus: recordData.usernameStatus || recordData.username_status || recordData.onlineStatus || recordData.online_status || '',
-          connectionType: recordData.connectionType || recordData.connection_type || '',
+          username: recordData.pppoe_username || recordData.username || recordData.PPPOE_USERNAME || '',
+          connectionType: recordData.connectionType ? capitalize(recordData.connectionType) : (recordData.connection_type ? capitalize(recordData.connection_type) : ''),
           routerModel: recordData.routerModel || recordData.router_model || '',
           routerModemSn: recordData.routerModemSn || recordData.router_modem_sn || recordData.routerModemSN || '',
           ipAddress: recordData.ipAddress || recordData.ip_address || recordData.sessionIp || recordData.sessionIP || '',
-          lcp: parts.length === 2 ? parts[0] : '',
-          nap: parts.length === 2 ? parts[1] : '',
-          port: recordData.port || recordData.PORT || '',
+          lcp: recordData.lcp || (parts.length >= 1 ? parts[0] : ''),
+          nap: recordData.nap || (parts.length >= 2 ? parts[1] : ''),
+          port: (() => {
+            const rawPort = recordData.port || recordData.PORT || (parts.length >= 3 ? parts[2] : '');
+            if (!rawPort) return '';
+            const portNum = String(rawPort).toUpperCase().replace('P', '').replace(/^0+/, '');
+            return portNum ? `P${portNum.padStart(2, '0')}` : '';
+          })(),
           vlan: recordData.vlan || recordData.VLAN || '',
           lcpnap: lcpnapValue,
           usageType: recordData.usageType || recordData.usage_type || ''
@@ -226,8 +238,27 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
           setAllCities(Array.isArray(fetchedCities) ? fetchedCities : []);
           setAllBarangays(barangaysRes.success && Array.isArray(barangaysRes.data) ? barangaysRes.data : []);
         } else if (editType === 'billing_details') {
-          const fetchedPlans = await planService.getAllPlans();
+          const [fetchedPlans, fetchedBillingStatuses] = await Promise.all([
+            planService.getAllPlans(),
+            billingStatusService.getAll()
+          ]);
           setPlans(Array.isArray(fetchedPlans) ? fetchedPlans : []);
+          const statuses = Array.isArray(fetchedBillingStatuses) ? fetchedBillingStatuses : [];
+          setBillingStatuses(statuses);
+
+          // If current billingStatus is a string name, try to map it to an ID now that we have statuses
+          setFormData((prev: any) => {
+            const currentStatus = prev.billingStatus;
+            if (typeof currentStatus === 'string' && currentStatus && isNaN(Number(currentStatus))) {
+              const matchedStatus = statuses.find(s =>
+                s.status_name.toLowerCase() === currentStatus.toLowerCase()
+              );
+              if (matchedStatus) {
+                return { ...prev, billingStatus: matchedStatus.id };
+              }
+            }
+            return prev;
+          });
 
           // Fix plan field if it matches by name but needs price suffix
           if (formData.plan) {
@@ -265,20 +296,68 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
   }, [isOpen, editType]);
 
   useEffect(() => {
-    if (isOpen && editType === 'technical_details' && formData.lcpnap) {
-      const selectedLcpnap = lcpnaps.find(l => l.lcpnap_name === formData.lcpnap);
-      if (selectedLcpnap && selectedLcpnap.port_total) {
-        const generatedPorts = Array.from({ length: selectedLcpnap.port_total }, (_, i) =>
-          String(i + 1).padStart(3, '0')
-        );
-        setPorts(generatedPorts);
+    const fetchPorts = async () => {
+      if (isOpen && editType === 'technical_details' && formData.lcpnap) {
+        try {
+          const usedRes = await getUsedPorts(formData.lcpnap);
+          const rawUsed = usedRes.success && Array.isArray(usedRes.data.used) ? usedRes.data.used : [];
+
+          // Normalize used ports to PXX format
+          const normalizedUsed = rawUsed.map((p: any) => {
+            const num = String(p).toUpperCase().replace('P', '').replace(/^0+/, '');
+            return num ? `P${num.padStart(2, '0')}` : '';
+          }).filter(Boolean);
+
+          setUsedPorts(normalizedUsed);
+
+          const selectedLcpnap = lcpnaps.find(l => l.lcpnap_name === formData.lcpnap);
+          const portTotal = selectedLcpnap?.port_total || usedRes.data.total || 32;
+
+          // Generate P01 to PXX
+          const generatedPorts = Array.from({ length: portTotal }, (_, i) => {
+            const num = String(i + 1).padStart(2, '0');
+            return `P${num}`;
+          });
+
+          // Get the current port and LCPNAP assigned to this specific record
+          const originalLcpnap = (() => {
+            return recordData?.lcpnap || recordData?.LCPNAP || recordData?.technicalDetails?.lcpnap || '';
+          })();
+
+          const currentRecordPort = (() => {
+            const rawPort = recordData?.port || recordData?.PORT || recordData?.technicalDetails?.port;
+            if (!rawPort) return '';
+            const num = String(rawPort).toUpperCase().replace('P', '').replace(/^0+/, '');
+            return num ? `P${num.padStart(2, '0')}` : '';
+          })();
+
+          // Filter out used ports
+          // Keep the port if:
+          // 1. It's not in normalizedUsed
+          // 2. OR it's the port currently assigned to this record AND we are still on the same LCPNAP
+          // 3. OR it's the port currently selected in the form
+          const filteredPorts = generatedPorts.filter(port => {
+            const isUsed = normalizedUsed.includes(port);
+            const isOriginalPortOnSameLcpnap = (port === currentRecordPort && formData.lcpnap === originalLcpnap);
+            const isCurrentlySelected = (port === formData.port);
+
+            return !isUsed || isOriginalPortOnSameLcpnap || isCurrentlySelected;
+          });
+
+          setPorts(filteredPorts);
+        } catch (error) {
+          console.error('Error fetching used ports:', error);
+          // Fallback
+          setPorts(Array.from({ length: 32 }, (_, i) => `P${String(i + 1).padStart(2, '0')}`));
+        }
       } else {
         setPorts([]);
+        setUsedPorts([]);
       }
-    } else {
-      setPorts([]);
-    }
-  }, [isOpen, editType, formData.lcpnap, lcpnaps]);
+    };
+
+    fetchPorts();
+  }, [isOpen, editType, formData.lcpnap, formData.port, lcpnaps, recordData?.port, recordData?.PORT, recordData?.technicalDetails?.port]);
 
 
 
@@ -550,7 +629,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
         message: 'Please wait while we update the details.'
       });
 
-      await onSave(formData);
+      await onSave(formData, editType);
 
       setModal({
         isOpen: true,
@@ -699,7 +778,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                     type="text"
                     value={formData.middleInitial || ''}
                     onChange={(e) => handleInputChange('middleInitial', e.target.value)}
-                    maxLength={1}
+                    maxLength={10}
                     onFocus={(e) => {
                       if (colorPalette?.primary) {
                         e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1008,36 +1087,6 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
 
             {editType === 'billing_details' && (
               <>
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Date Installed
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="date"
-                      value={formData.dateInstalled || ''}
-                      readOnly
-                      className={`w-full px-3 py-2 border rounded focus:outline-none ${isDarkMode ? 'bg-gray-700 text-gray-400 border-gray-600 cursor-not-allowed' : 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed'
-                        }`}
-                    />
-                    <Calendar className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} size={20} />
-                  </div>
-                </div>
-
-
-
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Account Balance
-                  </label>
-                  <input
-                    type="text"
-                    value={`₱${formData.accountBalance || '0.00'}`}
-                    readOnly
-                    className={`w-full px-3 py-2 border rounded focus:outline-none ${isDarkMode ? 'bg-gray-700 text-gray-400 border-gray-600 cursor-not-allowed' : 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed'
-                      }`}
-                  />
-                </div>
 
 
 
@@ -1063,11 +1112,11 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                     >
                       <option value="">Select Billing Status</option>
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                      <option value="Suspended">Suspended</option>
-                      <option value="Pending">Pending</option>
-                      <option value="Disconnected">Disconnected</option>
+                      {billingStatuses.map((status) => (
+                        <option key={status.id} value={status.id}>
+                          {status.status_name}
+                        </option>
+                      ))}
                     </select>
                     <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
                   </div>
@@ -1100,35 +1149,6 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                   />
                   {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
-                </div>
-
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Username Status
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={formData.usernameStatus || ''}
-                      onChange={(e) => handleInputChange('usernameStatus', e.target.value)}
-                      onFocus={(e) => {
-                        if (colorPalette?.primary) {
-                          e.currentTarget.style.borderColor = colorPalette.primary;
-                          e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
-                        }
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                        }`}
-                    >
-                      <option value="">Select Username Status</option>
-                      <option value="Online">Online</option>
-                      <option value="Offline">Offline</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
-                  </div>
                 </div>
 
                 <div>

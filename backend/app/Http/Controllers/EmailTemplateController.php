@@ -40,6 +40,9 @@ class EmailTemplateController extends Controller
             $validator = Validator::make($request->all(), [
                 'Template_Code' => 'nullable|string|max:50|unique:email_templates,Template_Code',
                 'Subject_Line' => 'nullable|string|max:150',
+                'cc' => 'nullable|string|max:255',
+                'bcc' => 'nullable|string|max:255',
+                'email_sender' => 'nullable|string|max:255',
                 'Body_HTML' => 'nullable|string',
                 'Description' => 'nullable|string|max:255',
                 'Is_Active' => 'nullable|boolean',
@@ -66,6 +69,9 @@ class EmailTemplateController extends Controller
             $template = EmailTemplate::create([
                 'Template_Code' => $templateCode,
                 'Subject_Line' => $request->input('Subject_Line'),
+                'cc' => $request->input('cc'),
+                'bcc' => $request->input('bcc'),
+                'email_sender' => $request->input('email_sender'),
                 'Body_HTML' => $request->input('Body_HTML'),
                 'Description' => $request->input('Description'),
                 'Is_Active' => $request->input('Is_Active', 1),
@@ -135,6 +141,9 @@ class EmailTemplateController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'Subject_Line' => 'nullable|string|max:150',
+                'cc' => 'nullable|string|max:255',
+                'bcc' => 'nullable|string|max:255',
+                'email_sender' => 'nullable|string|max:255',
                 'Body_HTML' => 'nullable|string',
                 'Description' => 'nullable|string|max:255',
                 'Is_Active' => 'nullable|boolean',
@@ -158,6 +167,15 @@ class EmailTemplateController extends Controller
 
             if ($request->has('Subject_Line')) {
                 $updateData['Subject_Line'] = $request->input('Subject_Line');
+            }
+            if ($request->has('cc')) {
+                $updateData['cc'] = $request->input('cc');
+            }
+            if ($request->has('bcc')) {
+                $updateData['bcc'] = $request->input('bcc');
+            }
+            if ($request->has('email_sender')) {
+                $updateData['email_sender'] = $request->input('email_sender');
             }
             if ($request->has('Body_HTML')) {
                 $updateData['Body_HTML'] = $request->input('Body_HTML');

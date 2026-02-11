@@ -10,6 +10,9 @@ interface EmailTemplateData {
   Description: string;
   Is_Active: boolean;
   email_body: string;
+  cc: string;
+  bcc: string;
+  email_sender: string;
 }
 
 interface EmailTemplateResponse {
@@ -42,6 +45,9 @@ const EmailTemplates: React.FC = () => {
   const [formData, setFormData] = useState({
     Template_Code: '',
     Subject_Line: '',
+    cc: '',
+    bcc: '',
+    email_sender: '',
     Body_HTML: '',
     Description: '',
     Is_Active: true,
@@ -66,6 +72,9 @@ const EmailTemplates: React.FC = () => {
           setFormData({
             Template_Code: response.data.data[0].Template_Code,
             Subject_Line: response.data.data[0].Subject_Line,
+            cc: response.data.data[0].cc || '',
+            bcc: response.data.data[0].bcc || '',
+            email_sender: response.data.data[0].email_sender || '',
             Body_HTML: response.data.data[0].Body_HTML,
             Description: response.data.data[0].Description || '',
             Is_Active: response.data.data[0].Is_Active,
@@ -118,6 +127,9 @@ const EmailTemplates: React.FC = () => {
     setFormData({
       Template_Code: template.Template_Code,
       Subject_Line: template.Subject_Line,
+      cc: template.cc || '',
+      bcc: template.bcc || '',
+      email_sender: template.email_sender || '',
       Body_HTML: template.Body_HTML,
       Description: template.Description || '',
       Is_Active: template.Is_Active,
@@ -146,6 +158,9 @@ const EmailTemplates: React.FC = () => {
     setFormData({
       Template_Code: '',
       Subject_Line: '',
+      cc: '',
+      bcc: '',
+      email_sender: '',
       Body_HTML: '',
       Description: '',
       Is_Active: true,
@@ -244,6 +259,9 @@ const EmailTemplates: React.FC = () => {
       setFormData({
         Template_Code: selectedTemplate.Template_Code,
         Subject_Line: selectedTemplate.Subject_Line,
+        cc: selectedTemplate.cc || '',
+        bcc: selectedTemplate.bcc || '',
+        email_sender: selectedTemplate.email_sender || '',
         Body_HTML: selectedTemplate.Body_HTML,
         Description: selectedTemplate.Description || '',
         Is_Active: selectedTemplate.Is_Active,
@@ -377,100 +395,108 @@ const EmailTemplates: React.FC = () => {
         {/* Variable Tags */}
         <div className={`p-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-300'
           }`}>
-          <h3 className={`text-xs font-semibold mb-2 uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Design Elements</h3>
-          <button
-            onClick={insertHeader}
-            className={`w-full text-left px-2 py-1 mb-1 text-xs rounded ${isDarkMode
-              ? 'text-orange-400 bg-gray-700 hover:bg-gray-600'
-              : 'text-orange-600 bg-gray-100 hover:bg-gray-200'
-              }`}
-          >
-            [+] Header (Full Bleed)
-          </button>
-          <button
-            onClick={insertFooter}
-            className={`w-full text-left px-2 py-1 mb-3 text-xs rounded ${isDarkMode
-              ? 'text-orange-400 bg-gray-700 hover:bg-gray-600'
-              : 'text-orange-600 bg-gray-100 hover:bg-gray-200'
-              }`}
-          >
-            [+] Footer (Full Bleed)
-          </button>
-
-          <h3 className={`text-xs font-semibold mb-2 uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Smart Rows</h3>
-          {['Row_Discounts', 'Row_Rebates', 'Row_Service', 'Row_Staggered', 'Row_Install'].map(tag => (
-            <button
-              key={tag}
-              onClick={() => insertTag(`{{${tag}}}`)}
-              className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-green-500 ${isDarkMode
-                ? 'text-green-400 bg-gray-700 hover:bg-gray-600'
-                : 'text-green-600 bg-gray-100 hover:bg-gray-200'
-                }`}
-            >
-              {`{{${tag}}}`}
-            </button>
-          ))}
-
-          <h3 className={`text-xs font-semibold mb-2 mt-3 uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Others & Basic Charges</h3>
-          <div className="mb-2">
-            <p className={`text-xs mb-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>Labels (always show):</p>
-            <button
-              onClick={() => insertTag('{{Label_Discounts}}')}
-              className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-purple-500 ${isDarkMode
-                ? 'text-purple-400 bg-gray-700 hover:bg-gray-600'
-                : 'text-purple-600 bg-gray-100 hover:bg-gray-200'
-                }`}
-            >
-              {'{{Label_Discounts}}'}
-            </button>
-            <button
-              onClick={() => insertTag('{{Label_Rebates}}')}
-              className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-purple-500 ${isDarkMode
-                ? 'text-purple-400 bg-gray-700 hover:bg-gray-600'
-                : 'text-purple-600 bg-gray-100 hover:bg-gray-200'
-                }`}
-            >
-              {'{{Label_Rebates}}'}
-            </button>
-            <button
-              onClick={() => insertTag('{{Label_Service}}')}
-              className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-purple-500 ${isDarkMode
-                ? 'text-purple-400 bg-gray-700 hover:bg-gray-600'
-                : 'text-purple-600 bg-gray-100 hover:bg-gray-200'
-                }`}
-            >
-              {'{{Label_Service}}'}
-            </button>
-            <button
-              onClick={() => insertTag('{{Label_Staggered}}')}
-              className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-purple-500 ${isDarkMode
-                ? 'text-purple-400 bg-gray-700 hover:bg-gray-600'
-                : 'text-purple-600 bg-gray-100 hover:bg-gray-200'
-                }`}
-            >
-              {'{{Label_Staggered}}'}
-            </button>
-          </div>
-          <div className="mb-3">
-            <p className={`text-xs mb-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>Amounts (always show):</p>
-            {['Amount_Discounts', 'Amount_Rebates', 'Amount_Service', 'Amount_Install'].map(tag => (
+          {formData.Template_Code === 'SOA_TEMPLATE' && (
+            <>
+              <h3 className={`text-xs font-semibold mb-2 uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Design Elements</h3>
               <button
-                key={tag}
-                onClick={() => insertTag(`{{${tag}}}`)}
-                className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-yellow-500 ${isDarkMode
-                  ? 'text-yellow-400 bg-gray-700 hover:bg-gray-600'
-                  : 'text-yellow-600 bg-gray-100 hover:bg-gray-200'
+                onClick={insertHeader}
+                className={`w-full text-left px-2 py-1 mb-1 text-xs rounded ${isDarkMode
+                  ? 'text-orange-400 bg-gray-700 hover:bg-gray-600'
+                  : 'text-orange-600 bg-gray-100 hover:bg-gray-200'
                   }`}
               >
-                {`{{${tag}}}`}
+                [+] Header (Full Bleed)
               </button>
-            ))}
-          </div>
+              <button
+                onClick={insertFooter}
+                className={`w-full text-left px-2 py-1 mb-3 text-xs rounded ${isDarkMode
+                  ? 'text-orange-400 bg-gray-700 hover:bg-gray-600'
+                  : 'text-orange-600 bg-gray-100 hover:bg-gray-200'
+                  }`}
+              >
+                [+] Footer (Full Bleed)
+              </button>
+
+              <h3 className={`text-xs font-semibold mb-2 uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Smart Rows</h3>
+              {['Row_Discounts', 'Row_Rebates', 'Row_Service', 'Row_Staggered', 'Row_Install'].map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => insertTag(`{{${tag}}}`)}
+                  className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-green-500 ${isDarkMode
+                    ? 'text-green-400 bg-gray-700 hover:bg-gray-600'
+                    : 'text-green-600 bg-gray-100 hover:bg-gray-200'
+                    }`}
+                >
+                  {`{{${tag}}}`}
+                </button>
+              ))}
+            </>
+          )}
+
+          {formData.Template_Code === 'SOA_TEMPLATE' && (
+            <>
+              <h3 className={`text-xs font-semibold mb-2 mt-3 uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Others & Basic Charges</h3>
+              <div className="mb-2">
+                <p className={`text-xs mb-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                  }`}>Labels (always show):</p>
+                <button
+                  onClick={() => insertTag('{{Label_Discounts}}')}
+                  className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-purple-500 ${isDarkMode
+                    ? 'text-purple-400 bg-gray-700 hover:bg-gray-600'
+                    : 'text-purple-600 bg-gray-100 hover:bg-gray-200'
+                    }`}
+                >
+                  {'{{Label_Discounts}}'}
+                </button>
+                <button
+                  onClick={() => insertTag('{{Label_Rebates}}')}
+                  className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-purple-500 ${isDarkMode
+                    ? 'text-purple-400 bg-gray-700 hover:bg-gray-600'
+                    : 'text-purple-600 bg-gray-100 hover:bg-gray-200'
+                    }`}
+                >
+                  {'{{Label_Rebates}}'}
+                </button>
+                <button
+                  onClick={() => insertTag('{{Label_Service}}')}
+                  className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-purple-500 ${isDarkMode
+                    ? 'text-purple-400 bg-gray-700 hover:bg-gray-600'
+                    : 'text-purple-600 bg-gray-100 hover:bg-gray-200'
+                    }`}
+                >
+                  {'{{Label_Service}}'}
+                </button>
+                <button
+                  onClick={() => insertTag('{{Label_Staggered}}')}
+                  className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-purple-500 ${isDarkMode
+                    ? 'text-purple-400 bg-gray-700 hover:bg-gray-600'
+                    : 'text-purple-600 bg-gray-100 hover:bg-gray-200'
+                    }`}
+                >
+                  {'{{Label_Staggered}}'}
+                </button>
+              </div>
+              <div className="mb-3">
+                <p className={`text-xs mb-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                  }`}>Amounts (always show):</p>
+                {['Amount_Discounts', 'Amount_Rebates', 'Amount_Service', 'Amount_Install'].map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => insertTag(`{{${tag}}}`)}
+                    className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-yellow-500 ${isDarkMode
+                      ? 'text-yellow-400 bg-gray-700 hover:bg-gray-600'
+                      : 'text-yellow-600 bg-gray-100 hover:bg-gray-200'
+                      }`}
+                  >
+                    {`{{${tag}}}`}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           <h3 className={`text-xs font-semibold mb-2 mt-3 uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Customer</h3>
@@ -516,17 +542,36 @@ const EmailTemplates: React.FC = () => {
             <div className="flex-1">
               {isCreating || isEditing ? (
                 <div className="space-y-2">
-                  <input
-                    type="text"
+                  <select
                     value={formData.Template_Code}
                     onChange={(e) => handleInputChange('Template_Code', e.target.value)}
-                    placeholder="Template Code (Auto-generated if empty)"
                     className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
                       ? 'bg-gray-700 border-gray-600 text-white'
                       : 'bg-white border-gray-300 text-gray-900'
                       }`}
                     disabled={!isCreating}
-                  />
+                  >
+                    <option value="">Select Template Code</option>
+                    {[
+                      'WELCOME',
+                      'SOA_TEMPLATE',
+                      'RECONNECT',
+                      'PAID',
+                      'OVERDUE_DESIGN',
+                      'DISCONNECTED',
+                      'DCNOTICE_DESIGN',
+                      'APPLY'
+                    ]
+                      .filter(choice =>
+                        isEditing ||
+                        selectedTemplate?.Template_Code === choice ||
+                        !templates.some(t => t.Template_Code === choice)
+                      )
+                      .map(choice => (
+                        <option key={choice} value={choice}>{choice}</option>
+                      ))
+                    }
+                  </select>
                   {/* Warning: Template Code cannot be changed after creation */}
                   <input
                     type="text"
@@ -538,6 +583,38 @@ const EmailTemplates: React.FC = () => {
                       : 'bg-white border-gray-300 text-gray-900'
                       }`}
                   />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      value={formData.email_sender}
+                      onChange={(e) => handleInputChange('email_sender', e.target.value)}
+                      placeholder="Email Sender (Optional)"
+                      className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                    />
+                    <input
+                      type="text"
+                      value={formData.cc}
+                      onChange={(e) => handleInputChange('cc', e.target.value)}
+                      placeholder="CC (Comma separated)"
+                      className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                    />
+                    <input
+                      type="text"
+                      value={formData.bcc}
+                      onChange={(e) => handleInputChange('bcc', e.target.value)}
+                      placeholder="BCC (Comma separated)"
+                      className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                    />
+                  </div>
                   <input
                     type="text"
                     value={formData.Description}
@@ -569,6 +646,23 @@ const EmailTemplates: React.FC = () => {
                     <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'
                       }`}>{selectedTemplate.Description}</p>
                   )}
+                  <div className="flex gap-4 mt-1">
+                    {selectedTemplate.email_sender && (
+                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <span className="font-semibold">From:</span> {selectedTemplate.email_sender}
+                      </p>
+                    )}
+                    {selectedTemplate.cc && (
+                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <span className="font-semibold">CC:</span> {selectedTemplate.cc}
+                      </p>
+                    )}
+                    {selectedTemplate.bcc && (
+                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <span className="font-semibold">BCC:</span> {selectedTemplate.bcc}
+                      </p>
+                    )}
+                  </div>
                   {selectedTemplate.email_body && (
                     <p className={`text-xs mt-1 italic ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Preview: {selectedTemplate.email_body}</p>
@@ -640,7 +734,7 @@ const EmailTemplates: React.FC = () => {
 
         {/* Editor */}
         <div className="flex-1 overflow-auto p-4">
-          {(selectedTemplate || isCreating) ? (
+          {(selectedTemplate || isCreating) && formData.Template_Code === 'SOA_TEMPLATE' ? (
             <div className="max-w-5xl mx-auto">
               <Editor
                 apiKey="koft0pszyzdf8zd077qxchxr3welx07gfttfzgexnte5qx4z"
