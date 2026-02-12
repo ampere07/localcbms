@@ -43,6 +43,7 @@ class EmailTemplateController extends Controller
                 'cc' => 'nullable|string|max:255',
                 'bcc' => 'nullable|string|max:255',
                 'email_sender' => 'nullable|string|max:255',
+                'sender_name' => 'nullable|string|max:255',
                 'reply_to' => 'nullable|string|max:255',
                 'Body_HTML' => 'nullable|string',
                 'Description' => 'nullable|string|max:255',
@@ -73,6 +74,7 @@ class EmailTemplateController extends Controller
                 'cc' => $request->input('cc'),
                 'bcc' => $request->input('bcc'),
                 'email_sender' => $request->input('email_sender'),
+                'sender_name' => $request->input('sender_name'),
                 'reply_to' => $request->input('reply_to'),
                 'Body_HTML' => $request->input('Body_HTML'),
                 'Description' => $request->input('Description'),
@@ -146,6 +148,7 @@ class EmailTemplateController extends Controller
                 'cc' => 'nullable|string|max:255',
                 'bcc' => 'nullable|string|max:255',
                 'email_sender' => 'nullable|string|max:255',
+                'sender_name' => 'nullable|string|max:255',
                 'reply_to' => 'nullable|string|max:255',
                 'Body_HTML' => 'nullable|string',
                 'Description' => 'nullable|string|max:255',
@@ -179,6 +182,9 @@ class EmailTemplateController extends Controller
             }
             if ($request->has('email_sender')) {
                 $updateData['email_sender'] = $request->input('email_sender');
+            }
+            if ($request->has('sender_name')) {
+                $updateData['sender_name'] = $request->input('sender_name');
             }
             if ($request->has('reply_to')) {
                 $updateData['reply_to'] = $request->input('reply_to');

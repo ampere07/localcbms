@@ -13,6 +13,7 @@ interface EmailTemplateData {
   cc: string;
   bcc: string;
   email_sender: string;
+  sender_name: string;
   reply_to: string;
 }
 
@@ -49,6 +50,7 @@ const EmailTemplates: React.FC = () => {
     cc: '',
     bcc: '',
     email_sender: '',
+    sender_name: '',
     reply_to: '',
     Body_HTML: '',
     Description: '',
@@ -77,6 +79,7 @@ const EmailTemplates: React.FC = () => {
             cc: response.data.data[0].cc || '',
             bcc: response.data.data[0].bcc || '',
             email_sender: response.data.data[0].email_sender || '',
+            sender_name: response.data.data[0].sender_name || '',
             reply_to: response.data.data[0].reply_to || '',
             Body_HTML: response.data.data[0].Body_HTML,
             Description: response.data.data[0].Description || '',
@@ -133,6 +136,7 @@ const EmailTemplates: React.FC = () => {
       cc: template.cc || '',
       bcc: template.bcc || '',
       email_sender: template.email_sender || '',
+      sender_name: template.sender_name || '',
       reply_to: template.reply_to || '',
       Body_HTML: template.Body_HTML,
       Description: template.Description || '',
@@ -165,6 +169,7 @@ const EmailTemplates: React.FC = () => {
       cc: '',
       bcc: '',
       email_sender: '',
+      sender_name: '',
       reply_to: '',
       Body_HTML: '',
       Description: '',
@@ -267,6 +272,7 @@ const EmailTemplates: React.FC = () => {
         cc: selectedTemplate.cc || '',
         bcc: selectedTemplate.bcc || '',
         email_sender: selectedTemplate.email_sender || '',
+        sender_name: selectedTemplate.sender_name || '',
         reply_to: selectedTemplate.reply_to || '',
         Body_HTML: selectedTemplate.Body_HTML,
         Description: selectedTemplate.Description || '',
@@ -592,26 +598,38 @@ const EmailTemplates: React.FC = () => {
                     />
                     <input
                       type="text"
-                      value={formData.email_sender}
-                      onChange={(e) => handleInputChange('email_sender', e.target.value)}
-                      placeholder="Email Sender (Optional)"
+                      value={formData.sender_name}
+                      onChange={(e) => handleInputChange('sender_name', e.target.value)}
+                      placeholder="Sender Name"
                       className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
                         ? 'bg-gray-700 border-gray-600 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
                         }`}
                     />
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <input
                       type="text"
-                      value={formData.reply_to}
-                      onChange={(e) => handleInputChange('reply_to', e.target.value)}
-                      placeholder="Reply To (Optional)"
+                      value={formData.email_sender}
+                      onChange={(e) => handleInputChange('email_sender', e.target.value)}
+                      placeholder="Email Sender"
                       className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
                         ? 'bg-gray-700 border-gray-600 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
                         }`}
                     />
+                    <input
+                      type="text"
+                      value={formData.reply_to}
+                      onChange={(e) => handleInputChange('reply_to', e.target.value)}
+                      placeholder="Reply To"
+                      className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
                     <input
                       type="text"
                       value={formData.cc}
@@ -637,7 +655,7 @@ const EmailTemplates: React.FC = () => {
                     type="text"
                     value={formData.Description}
                     onChange={(e) => handleInputChange('Description', e.target.value)}
-                    placeholder="Description (optional)"
+                    placeholder="Description"
                     className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
                       ? 'bg-gray-700 border-gray-600 text-white'
                       : 'bg-white border-gray-300 text-gray-900'
@@ -665,9 +683,9 @@ const EmailTemplates: React.FC = () => {
                       }`}>{selectedTemplate.Description}</p>
                   )}
                   <div className="flex flex-wrap gap-4 mt-1">
-                    {selectedTemplate.email_sender && (
+                    {(selectedTemplate.email_sender || selectedTemplate.sender_name) && (
                       <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        <span className="font-semibold">From:</span> {selectedTemplate.email_sender}
+                        <span className="font-semibold">From:</span> {selectedTemplate.sender_name ? `${selectedTemplate.sender_name} <${selectedTemplate.email_sender}>` : selectedTemplate.email_sender}
                       </p>
                     )}
                     {selectedTemplate.reply_to && (

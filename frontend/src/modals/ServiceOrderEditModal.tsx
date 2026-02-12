@@ -802,6 +802,43 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       return;
     }
 
+    // Validate Router Modem SN with SmartOLT if provided
+    if (formData.routerModemSN && formData.routerModemSN.trim() !== '') {
+      try {
+        setModal({
+          isOpen: true,
+          type: 'loading',
+          title: 'Validating',
+          message: 'Validating Router Modem SN...'
+        });
+
+        const validationResponse = await apiClient.get<{ success: boolean; message?: string }>('/smart-olt/validate-sn', {
+          params: { sn: formData.routerModemSN }
+        });
+
+        if (!validationResponse.data.success) {
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Invalid Router Modem SN',
+            message: validationResponse.data.message || 'Missing router model sn value'
+          });
+          return;
+        }
+      } catch (error: any) {
+        console.error('SmartOLT Validation Error:', error);
+        const errorMessage = error.response?.data?.message || 'Invalid router model sn';
+
+        setModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Validation Error',
+          message: errorMessage
+        });
+        return;
+      }
+    }
+
     if (!serviceOrderData?.id) {
       setModal({
         isOpen: true,

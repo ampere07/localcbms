@@ -23,6 +23,7 @@ class Inventory extends Model
         'category_id',
         'supplier_id',
         'quantity_alert',
+        'total_quantity',
         'image_url',
         'created_by_user_id',
         'updated_by_user_id'

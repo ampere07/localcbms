@@ -1168,6 +1168,10 @@ Route::get('/debug/organizations', function () {
     }
 });
 
+// SmartOLT Validation Route
+Route::get('/smart-olt/validate-sn', [\App\Http\Controllers\SmartOltController::class, 'validateOnuSn']);
+
+
 // Group Management Routes
 Route::prefix('groups')->middleware('ensure.database.tables')->group(function () {
     Route::get('/', [GroupController::class, 'index']);
@@ -1568,6 +1572,12 @@ Route::prefix('inventory-items')->group(function () {
     Route::get('/{itemName}', [\App\Http\Controllers\Api\InventoryApiController::class, 'show']);
     Route::put('/{itemName}', [\App\Http\Controllers\Api\InventoryApiController::class, 'update']);
     Route::delete('/{itemName}', [\App\Http\Controllers\Api\InventoryApiController::class, 'destroy']);
+});
+
+// Inventory Logs
+Route::prefix('inventory-logs')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\InventoryLogApiController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Api\InventoryLogApiController::class, 'store']);
 });
 
 
