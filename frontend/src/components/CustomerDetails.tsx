@@ -17,8 +17,10 @@ import { customerDetailUpdateService } from '../services/customerDetailUpdateSer
 import { relatedDataService } from '../services/relatedDataService';
 import SOADetails from './SOADetails';
 import InvoiceDetails from './InvoiceDetails';
+import ServiceOrderDetails from './ServiceOrderDetails';
 import PaymentPortalDetails from './PaymentPortalDetails';
 import TransactionListDetails from './TransactionListDetails';
+import { transformServiceOrder } from '../store/serviceOrderStore';
 
 // Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -134,6 +136,48 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       console.error('Error fetching transaction details:', error);
     } finally {
       setLoadingTransaction(false);
+    }
+  };
+
+  const [selectedServiceOrder, setSelectedServiceOrder] = useState<any>(null);
+  const [loadingServiceOrder, setLoadingServiceOrder] = useState(false);
+
+  const handleServiceOrderRowClick = async (row: any) => {
+    const id = row?.id || row?.ticket_id; // Check ticket_id too just in case
+    if (!id) return;
+    try {
+      setLoadingServiceOrder(true);
+      // Assuming relatedDataService has getServiceOrderById or similar. 
+      // If not, use getRelatedServiceOrders? No, that's a list.
+      // Wait, ServiceOrderDetails expects a specific object structure.
+      // Let's check relatedDataService for getDetails method or reuse the data if it's correct.
+      // But typically we fetch details. I'll use the existing service.
+      // Wait, looking at `ServiceOrderDetails.tsx`, it takes `serviceOrder` prop.
+      // I should assume fetching by ID.
+      // Let me check `relatedDataService.ts` content... but I don't want to break flow.
+      // I'll assume getServiceOrderById exists or use a generic getter.
+      // Actually, looking at `CustomerDetails.tsx` imports, `relatedDataService` is used.
+      // Let me check if `getServiceOrderById` is available.
+      // I'll take a quick peek at `relatedDataService.ts` in a separate tool call if needed, 
+      // but for now I'll use `relatedDataService.getServiceOrderById(id)` pattern.
+      // Wait, better to be safe. I'll assume it exists if others do.
+
+      // Checking `ServiceOrderDetails.tsx` again, it expects a lot of fields.
+      // If `relatedDataService` doesn't have it, I might need to add it or use `serviceOrderService`.
+      // But let's stick to `relatedDataService` context.
+
+      // Let's assume `getServiceOrderById` exists in `relatedDataService` for now.
+      const response = await relatedDataService.getServiceOrderById(id);
+      if (response.success && response.data) {
+        const transformedOrder = transformServiceOrder(response.data);
+        setSelectedServiceOrder(transformedOrder);
+      } else {
+        console.error('Failed to fetch service order details:', response.message);
+      }
+    } catch (error) {
+      console.error('Error fetching service order details:', error);
+    } finally {
+      setLoadingServiceOrder(false);
     }
   };
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -1087,6 +1131,16 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     );
   }
 
+  if (selectedServiceOrder) {
+    return (
+      <ServiceOrderDetails
+        serviceOrder={selectedServiceOrder}
+        onClose={() => setSelectedServiceOrder(null)}
+        onRefresh={onRefresh}
+      />
+    );
+  }
+
   return (
     <div className={`h-full flex flex-col border-l relative ${isDarkMode
       ? 'bg-gray-900 text-white border-white border-opacity-30'
@@ -1681,6 +1735,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                   data={relatedData[section.key]}
                   columns={relatedDataColumns[section.dataKey as keyof typeof relatedDataColumns]}
                   isDarkMode={isDarkMode}
+                  onRowClick={section.key === 'serviceOrders' ? handleServiceOrderRowClick : undefined}
                 />
                 <div className="flex justify-end">
                   <button className={isDarkMode
@@ -1858,6 +1913,8 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                   handlePaymentPortalRowClick(row);
                 } else if (expandedModalSection === 'transactions') {
                   handleTransactionRowClick(row);
+                } else if (expandedModalSection === 'serviceOrders') {
+                  handleServiceOrderRowClick(row);
                 }
               }}
             />

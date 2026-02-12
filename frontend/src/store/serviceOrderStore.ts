@@ -50,7 +50,7 @@ export interface ServiceOrder {
     rawUpdatedAt?: string;
 }
 
-const transformServiceOrder = (order: ServiceOrderData): ServiceOrder => {
+export const transformServiceOrder = (order: ServiceOrderData): ServiceOrder => {
     return {
         id: order.id || '',
         ticketId: order.ticket_id || order.id || '',

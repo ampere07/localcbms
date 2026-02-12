@@ -231,6 +231,11 @@ const Invoice: React.FC = () => {
     fetchColorPalette();
   }, []);
 
+  // Initial data fetch
+  useEffect(() => {
+    fetchInvoiceRecords();
+  }, [fetchInvoiceRecords]);
+
   // Idle detection and auto-refresh logic
   useEffect(() => {
     const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes

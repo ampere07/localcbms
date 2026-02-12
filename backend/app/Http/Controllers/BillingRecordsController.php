@@ -180,35 +180,26 @@ class BillingRecordsController extends Controller
             $page = $request->get('page', 1);
             $fastMode = $request->get('fast', false); // Fast mode: skip customer data loading
             
-            // Build base query - use simple query for fast mode, joins for normal mode
-            if ($fastMode) {
-                // Fast mode: Direct query without joins
-                $query = Invoice::query();
-            } else {
-                // Normal mode: Include joins for customer data
-                $query = Invoice::query()
-                    ->select('invoices.*')
-                    ->leftJoin('billing_accounts', 'invoices.account_no', '=', 'billing_accounts.account_no')
-                    ->leftJoin('customers', 'billing_accounts.customer_id', '=', 'customers.id');
-            }
+            // Base query - direct fetch for both modes since we load relations manually
+            $query = Invoice::query();
             
             // Filter by account number
             if ($request->has('account_no')) {
-                $query->where($fastMode ? 'account_no' : 'invoices.account_no', $request->account_no);
+                $query->where('account_no', $request->account_no);
             }
             
             if ($request->has('account_id')) {
-                $query->where($fastMode ? 'account_no' : 'invoices.account_no', $request->account_id);
+                $query->where('account_no', $request->account_id);
             }
             
             // Filter by status
             if ($request->has('status')) {
-                $query->where($fastMode ? 'status' : 'invoices.status', $request->status);
+                $query->where('status', $request->status);
             }
             
             // Filter by date range
             if ($request->has('date_from') && $request->has('date_to')) {
-                $query->whereBetween($fastMode ? 'invoice_date' : 'invoices.invoice_date', [
+                $query->whereBetween('invoice_date', [
                     $request->date_from,
                     $request->date_to
                 ]);
@@ -216,7 +207,7 @@ class BillingRecordsController extends Controller
             
             // Fetch one extra record to check if there are more pages (more efficient than COUNT)
             $invoices = $query
-                ->orderBy('invoices.invoice_date', 'desc')
+                ->orderBy('invoice_date', 'desc')
                 ->skip(($page - 1) * $perPage)
                 ->take($perPage + 1) // Fetch one extra
                 ->get();

@@ -123,6 +123,25 @@ export const relatedDataService = {
     }
   },
 
+  // Fetch service order by ID
+  getServiceOrderById: async (id: string | number): Promise<ApiResponse> => {
+    try {
+      const response = await apiClient.get<ApiResponse>(`/service-orders/${id}`);
+      return {
+        success: true,
+        data: response.data.data || null,
+        count: 1
+      };
+    } catch (error: any) {
+      console.error('Error fetching service order:', error);
+      return {
+        success: false,
+        data: null,
+        message: error.response?.data?.message || 'Failed to fetch service order'
+      };
+    }
+  },
+
   // Fetch related reconnection logs by account number
   getRelatedReconnectionLogs: async (accountNo: string): Promise<ApiResponse> => {
     try {
