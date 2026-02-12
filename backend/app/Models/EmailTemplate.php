@@ -25,6 +25,7 @@ class EmailTemplate extends Model
         'cc',
         'bcc',
         'email_sender',
+        'reply_to',
         'Body_HTML',
         'Description',
         'Is_Active',

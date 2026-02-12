@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { X, Calendar, ChevronDown, Camera, MapPin, CheckCircle, AlertCircle, XCircle, Loader2, Search } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Calendar, ChevronDown, Camera, MapPin, CheckCircle, AlertCircle, XCircle, Loader2, Search, Eraser } from 'lucide-react';
+import SignatureCanvas from 'react-signature-canvas';
 import { UserData } from '../types/api';
 import { updateJobOrder } from '../services/jobOrderService';
 import { userService } from '../services/userService';
 import { planService, Plan } from '../services/planService';
 import { routerModelService, RouterModel } from '../services/routerModelService';
-import { getAllPorts, getUsedPorts, Port } from '../services/portService';
+import { getAllPorts, Port } from '../services/portService';
 import { getAllLCPNAPs, LCPNAP } from '../services/lcpnapService';
 import { getAllVLANs, VLAN } from '../services/vlanService';
 
@@ -186,7 +187,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
   const [plans, setPlans] = useState<Plan[]>([]);
   const [routerModels, setRouterModels] = useState<RouterModel[]>([]);
   const [lcpnaps, setLcpnaps] = useState<LCPNAP[]>([]);
-  const [usedPorts, setUsedPorts] = useState<string[]>([]);
+  const [usedPorts, setUsedPorts] = useState<Set<string>>(new Set());
   const [totalPorts, setTotalPorts] = useState<number>(32);
   const [vlans, setVlans] = useState<VLAN[]>([]);
 
@@ -224,6 +225,15 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
   const [techInputValue, setTechInputValue] = useState<string>('');
   const [lcpnapSearch, setLcpnapSearch] = useState('');
   const [isLcpnapOpen, setIsLcpnapOpen] = useState(false);
+  const [activeItemIndex, setActiveItemIndex] = useState<number | null>(null);
+  const [itemSearchTerm, setItemSearchTerm] = useState('');
+  const sigCanvas = useRef<SignatureCanvas>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      sigCanvas.current?.clear();
+    }
+  }, [isOpen]);
 
   const convertGoogleDriveUrl = (url: string | null | undefined): string | null => {
     if (!url) return null;
@@ -532,31 +542,52 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     fetchLcpnaps();
   }, [isOpen]);
 
+  // Fetch used ports for the selected LCPNAP
   useEffect(() => {
     const fetchUsedPorts = async () => {
-      if (isOpen && formData.lcpnap) {
-        try {
-          const jobOrderId = jobOrderData?.id || jobOrderData?.JobOrder_ID;
-          const response = await getUsedPorts(formData.lcpnap, jobOrderId);
+      if (!isOpen || !formData.lcpnap) {
+        setUsedPorts(new Set());
+        return;
+      }
 
-          if (response.success && response.data) {
-            setUsedPorts(response.data.used);
-            setTotalPorts(response.data.total);
-          } else {
-            setUsedPorts([]);
-            setTotalPorts(32);
+      try {
+        // Fetch job orders to check for used ports
+        // We use a large limit to capture as many as possible
+        const response = await apiClient.get<{ success: boolean; data: any[] }>('/job-orders', {
+          params: {
+            lcpnap: formData.lcpnap,
+            limit: 2000
           }
-        } catch (error) {
-          setUsedPorts([]);
-          setTotalPorts(32);
+        });
+
+        if (response.data && response.data.success && Array.isArray(response.data.data)) {
+          const used = new Set<string>();
+          const currentId = jobOrderData?.id || jobOrderData?.JobOrder_ID;
+
+          response.data.data.forEach((jo: any) => {
+            // Check LCPNAP match (in case backend didn't filter)
+            const joLcpnap = jo.lcpnap || jo.LCPNAP;
+
+            if (joLcpnap === formData.lcpnap) {
+              const joPort = jo.port || jo.PORT;
+              const joId = jo.id || jo.JobOrder_ID;
+
+              // If port is used by ANOTHER job order, mark it as used
+              if (joPort && String(joId) !== String(currentId)) {
+                used.add(joPort.toString());
+              }
+            }
+          });
+
+          setUsedPorts(used);
         }
-      } else if (isOpen && !formData.lcpnap) {
-        setUsedPorts([]);
-        setTotalPorts(32);
+      } catch (error) {
+        console.error('Failed to fetch used ports:', error);
       }
     };
+
     fetchUsedPorts();
-  }, [isOpen, jobOrderData, formData.lcpnap]);
+  }, [isOpen, formData.lcpnap, jobOrderData]);
 
   useEffect(() => {
     const fetchVlans = async () => {
@@ -1148,6 +1179,19 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
 
         console.log('[UPLOAD START] Preparing images for upload...');
 
+        let tempSigFile: File | null = null;
+        if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
+          try {
+            const trimmedCanvas = sigCanvas.current.getTrimmedCanvas();
+            const blob = await new Promise<Blob | null>(resolve => trimmedCanvas.toBlob(resolve, 'image/png'));
+            if (blob) {
+              tempSigFile = new File([blob], 'signature.png', { type: 'image/png' });
+            }
+          } catch (sigError) {
+            console.error('[SAVE ERROR] Failed to extract signature from canvas:', sigError);
+          }
+        }
+
         if (formData.signedContractImage) {
           console.log(`[APPEND] Signed Contract: ${(formData.signedContractImage.size / 1024 / 1024).toFixed(2)}MB`);
           imageFormData.append('signed_contract_image', formData.signedContractImage, formData.signedContractImage.name);
@@ -1171,6 +1215,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         if (formData.clientSignatureImage) {
           console.log(`[APPEND] Client Signature: ${(formData.clientSignatureImage.size / 1024 / 1024).toFixed(2)}MB`);
           imageFormData.append('client_signature_image', formData.clientSignatureImage, formData.clientSignatureImage.name);
+        } else if (tempSigFile) {
+          console.log(`[APPEND] Client Signature (from canvas): ${(tempSigFile.size / 1024 / 1024).toFixed(2)}MB`);
+          imageFormData.append('client_signature_image', tempSigFile, 'signature.png');
         }
         if (formData.speedTestImage) {
           console.log(`[APPEND] Speed Test: ${(formData.speedTestImage.size / 1024 / 1024).toFixed(2)}MB`);
@@ -1539,7 +1586,8 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
 
   const fullName = `${jobOrderData?.First_Name || jobOrderData?.first_name || ''} ${jobOrderData?.Middle_Initial || jobOrderData?.middle_initial || ''} ${jobOrderData?.Last_Name || jobOrderData?.last_name || ''}`.trim();
 
-
+  const selectedLcpnap = lcpnaps.find(ln => ln.lcpnap_name === formData.lcpnap);
+  const portTotal = selectedLcpnap?.port_total || 32;
 
   return (
     <>
@@ -2009,20 +2057,32 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                           <input
                             type="text"
                             placeholder="Type to search LCP-NAP..."
-                            value={formData.lcpnap}
+                            value={isLcpnapOpen ? lcpnapSearch : (formData.lcpnap || lcpnapSearch)}
                             onChange={(e) => {
-                              handleInputChange('lcpnap', e.target.value);
-                              setIsLcpnapOpen(true);
+                              setLcpnapSearch(e.target.value);
+                              if (!isLcpnapOpen) setIsLcpnapOpen(true);
                             }}
                             onFocus={() => setIsLcpnapOpen(true)}
                             className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           />
                           <button
                             type="button"
-                            onClick={() => setIsLcpnapOpen(!isLcpnapOpen)}
-                            className={`ml-2 transition-transform duration-200 ${isLcpnapOpen ? 'rotate-180' : ''}`}
+                            onClick={() => {
+                              if (isLcpnapOpen) {
+                                setIsLcpnapOpen(false);
+                                setLcpnapSearch('');
+                              } else {
+                                handleInputChange('lcpnap', '');
+                                setLcpnapSearch('');
+                              }
+                            }}
+                            className={`ml-2 transition-transform duration-200`}
                           >
-                            <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                            {isLcpnapOpen || formData.lcpnap ? (
+                              <X size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                            ) : (
+                              <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                            )}
                           </button>
                         </div>
 
@@ -2035,7 +2095,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                           >
                             <div className="max-h-60 overflow-y-auto custom-scrollbar">
                               {lcpnaps
-                                .filter(ln => ln.lcpnap_name.toLowerCase().includes((formData.lcpnap || '').toLowerCase()))
+                                .filter(ln => ln.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase()))
                                 .map((lcpnap) => (
                                   <div
                                     key={lcpnap.id}
@@ -2045,6 +2105,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                                       } ${formData.lcpnap === lcpnap.lcpnap_name ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
                                     onClick={() => {
                                       handleInputChange('lcpnap', lcpnap.lcpnap_name);
+                                      setLcpnapSearch('');
                                       setIsLcpnapOpen(false);
                                     }}
                                   >
@@ -2056,9 +2117,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                                     </div>
                                   </div>
                                 ))}
-                              {lcpnaps.filter(ln => ln.lcpnap_name.toLowerCase().includes((formData.lcpnap || '').toLowerCase())).length === 0 && (
+                              {lcpnaps.filter(ln => ln.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase())).length === 0 && (
                                 <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                  No recommendations for "{formData.lcpnap}"
+                                  No recommendations for "{lcpnapSearch}"
                                 </div>
                               )}
                             </div>
@@ -2071,6 +2132,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                             className="fixed inset-0 z-40 bg-transparent"
                             onClick={() => {
                               setIsLcpnapOpen(false);
+                              setLcpnapSearch('');
                             }}
                           />
                         )}
@@ -2093,17 +2155,28 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                         <select value={formData.port} onChange={(e) => handleInputChange('port', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                           } ${errors.port ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
                           <option value="">Select PORT</option>
-                          {Array.from({ length: totalPorts }, (_, i) => {
-                            const portName = `PORT ${String(i + 1).padStart(3, '0')}`;
-                            const isUsed = usedPorts.includes(portName);
-                            const isSelected = formData.port === portName;
+                          {(() => {
+                            if (!formData.port) return null;
+                            const p = String(formData.port);
+                            const low = p.toLowerCase().trim();
+                            if (low === 'undefined' || low === 'null' || low.includes('undefined')) return null;
 
-                            // Only show if not used, OR if it's the currently selected one (in case editing)
-                            if (isUsed && !isSelected) return null;
+                            const isGenerated = Array.from({ length: totalPorts }).some((_, i) => `p${(i + 1).toString().padStart(2, '0')}` === p);
+                            if (isGenerated) return null;
+
+                            return <option value={p}>{p}</option>;
+                          })()}
+                          {Array.from({ length: totalPorts }, (_, i) => {
+                            const portVal = `p${(i + 1).toString().padStart(2, '0')}`;
+
+                            // Hide port if it is used
+                            if (usedPorts.has(portVal)) {
+                              return null;
+                            }
 
                             return (
-                              <option key={portName} value={portName}>
-                                {portName}
+                              <option key={portVal} value={portVal}>
+                                {portVal}
                               </option>
                             );
                           })}
@@ -2293,12 +2366,88 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                   error={errors.signedContractImage}
                 />
 
-                <ImagePreview
-                  imageUrl={imagePreviews.clientSignatureImage}
-                  label="Client Signature Image"
-                  onUpload={(file) => handleImageUpload('clientSignatureImage', file)}
-                  error={errors.clientSignatureImage}
-                />
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Client Signature</label>
+
+                  <div className={`border rounded overflow-hidden ${isDarkMode ? 'bg-white border-gray-700' : 'bg-white border-gray-300'}`}>
+                    {(imagePreviews.clientSignatureImage || formData.clientSignatureImage) ? (
+                      <div className="relative w-full h-48 bg-white flex items-center justify-center">
+                        <img
+                          src={imagePreviews.clientSignatureImage || (typeof formData.clientSignatureImage === 'string' ? formData.clientSignatureImage : '')}
+                          alt="Client Signature"
+                          className="max-w-full max-h-full object-contain"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImagePreviews(prev => ({ ...prev, clientSignatureImage: null }));
+                            setFormData(prev => ({ ...prev, clientSignatureImage: null }));
+                          }}
+                          className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-colors"
+                          title="Clear Signature"
+                        >
+                          <Eraser size={16} />
+                        </button>
+                        {imagePreviews.clientSignatureImage && imagePreviews.clientSignatureImage.startsWith('blob:') && (
+                          <div className="absolute bottom-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center pointer-events-none">
+                            <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            New
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="relative w-full h-48 bg-white">
+                        <SignatureCanvas
+                          ref={sigCanvas}
+                          penColor="black"
+                          canvasProps={{
+                            className: 'w-full h-full cursor-crosshair'
+                          }}
+                          backgroundColor="white"
+                        />
+                        <div className="absolute top-2 right-2 flex space-x-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleImageUpload('clientSignatureImage', file);
+                            }}
+                            className="hidden"
+                            id="sigUploadInput"
+                          />
+                          <label
+                            htmlFor="sigUploadInput"
+                            className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow transition-colors cursor-pointer"
+                            title="Upload Image"
+                          >
+                            <Camera size={16} />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => sigCanvas.current?.clear()}
+                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded-full shadow transition-colors"
+                            title="Clear Canvas"
+                          >
+                            <Eraser size={16} />
+                          </button>
+                        </div>
+                        <div className="absolute bottom-2 left-2 pointer-events-none opacity-50 text-xs text-gray-500">
+                          Sign above or upload image
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {errors.clientSignatureImage && (
+                    <div className="flex items-center mt-1">
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    </div>
+                  )}
+                </div>
 
                 <ImagePreview
                   imageUrl={imagePreviews.speedTestImage}
@@ -2315,21 +2464,94 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       <div className="flex items-start gap-2">
                         <div className="flex-1">
                           <div className="relative">
-                            <select
-                              value={item.itemId}
-                              onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                                }`}
-                            >
-                              <option value="">Select Item {index + 1}</option>
-                              {inventoryItems.map((invItem) => (
-                                <option key={invItem.id} value={invItem.item_name}>
-                                  {invItem.item_name}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} size={20} />
+                            <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                              } ${errors[`item_${index}`] ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
+                              <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                              <input
+                                type="text"
+                                placeholder={`Search Item ${index + 1}...`}
+                                value={activeItemIndex === index ? itemSearchTerm : (item.itemId || '')}
+                                onChange={(e) => {
+                                  setItemSearchTerm(e.target.value);
+                                  if (activeItemIndex !== index) setActiveItemIndex(index);
+                                }}
+                                onFocus={() => {
+                                  setActiveItemIndex(index);
+                                  setItemSearchTerm(item.itemId || '');
+                                }}
+                                className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (activeItemIndex === index) {
+                                    setActiveItemIndex(null);
+                                    setItemSearchTerm('');
+                                  } else {
+                                    handleItemChange(index, 'itemId', '');
+                                    setItemSearchTerm('');
+                                  }
+                                }}
+                                className={`ml-2 transition-transform duration-200`}
+                              >
+                                {activeItemIndex === index || item.itemId ? (
+                                  <X size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                                ) : (
+                                  <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                                )}
+                              </button>
+                            </div>
+
+                            {/* Recommendation Dropdown */}
+                            {activeItemIndex === index && (
+                              <div
+                                className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                                  }`}
+                                style={{ minWidth: '100%' }}
+                              >
+                                <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                  {inventoryItems
+                                    .filter(invItem => invItem.item_name.toLowerCase().includes(itemSearchTerm.toLowerCase()))
+                                    .map((invItem) => (
+                                      <div
+                                        key={invItem.id}
+                                        className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode
+                                          ? 'hover:bg-gray-700 text-gray-200'
+                                          : 'hover:bg-gray-100 text-gray-700'
+                                          } ${item.itemId === invItem.item_name ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                                        onClick={() => {
+                                          handleItemChange(index, 'itemId', invItem.item_name);
+                                          setItemSearchTerm(invItem.item_name);
+                                          setActiveItemIndex(null);
+                                        }}
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <span>{invItem.item_name}</span>
+                                          {item.itemId === invItem.item_name && (
+                                            <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  {inventoryItems.filter(invItem => invItem.item_name.toLowerCase().includes(itemSearchTerm.toLowerCase())).length === 0 && (
+                                    <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                      No items found for "{itemSearchTerm}"
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Click outside to close */}
+                            {activeItemIndex === index && (
+                              <div
+                                className="fixed inset-0 z-40 bg-transparent"
+                                onClick={() => {
+                                  setActiveItemIndex(null);
+                                  setItemSearchTerm('');
+                                }}
+                              />
+                            )}
                           </div>
                           {errors[`item_${index}`] && (
                             <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors[`item_${index}`]}</p>

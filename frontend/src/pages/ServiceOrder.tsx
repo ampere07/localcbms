@@ -47,7 +47,7 @@ const ServiceOrderPage: React.FC = () => {
   const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
   const [userRole, setUserRole] = useState<string>('');
   const [roleId, setRoleId] = useState<number | null>(null);
-  const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('table');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(allColumns.map(col => col.key));
@@ -232,6 +232,16 @@ const ServiceOrderPage: React.FC = () => {
       });
     };
   }, [silentRefresh]);
+
+  // Update selectedServiceOrder with fresh data after refresh
+  useEffect(() => {
+    if (selectedServiceOrder) {
+      const updatedOrder = serviceOrders.find(order => order.id === selectedServiceOrder.id);
+      if (updatedOrder && JSON.stringify(updatedOrder) !== JSON.stringify(selectedServiceOrder)) {
+        setSelectedServiceOrder(updatedOrder);
+      }
+    }
+  }, [serviceOrders]);
 
   const handleRefresh = async () => {
     await refreshServiceOrders();
@@ -1786,6 +1796,7 @@ const ServiceOrderPage: React.FC = () => {
             <ServiceOrderDetails
               serviceOrder={selectedServiceOrder}
               onClose={handleMobileBack}
+              onRefresh={refreshServiceOrders}
               isMobile={true}
             />
           </div>
@@ -1798,6 +1809,7 @@ const ServiceOrderPage: React.FC = () => {
             <ServiceOrderDetails
               serviceOrder={selectedServiceOrder}
               onClose={() => setSelectedServiceOrder(null)}
+              onRefresh={refreshServiceOrders}
               isMobile={false}
             />
           </div>

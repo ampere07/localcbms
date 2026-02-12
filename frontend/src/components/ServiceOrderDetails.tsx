@@ -36,14 +36,12 @@ interface ServiceOrderDetailsProps {
     visitRemarks: string;
     modifiedBy: string;
     modifiedDate: string;
-    userEmail: string;
     requestedBy: string;
     assignedEmail: string;
     supportRemarks: string;
     serviceCharge: string;
     repairCategory?: string;
     supportStatus?: string;
-    priorityLevel?: string;
     newRouterSn?: string;
     newLcpnap?: string;
     newPlan?: string;
@@ -53,10 +51,11 @@ interface ServiceOrderDetailsProps {
     image3Url?: string;
   };
   onClose: () => void;
+  onRefresh?: () => void;
   isMobile?: boolean;
 }
 
-const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder, onClose, isMobile = false }) => {
+const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder, onClose, onRefresh, isMobile = false }) => {
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
@@ -98,13 +97,11 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
     'visitRemarks',
     'modifiedBy',
     'modifiedDate',
-    'userEmail',
     'requestedBy',
     'assignedEmail',
     'supportRemarks',
     'supportStatus',
     'repairCategory',
-    'priorityLevel',
     'newRouterSn',
     'newLcpnap',
     'newPlan',
@@ -199,6 +196,12 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
   const handleSaveEdit = (formData: any) => {
     console.log('Service order updated:', formData);
     setIsEditModalOpen(false);
+    // Trigger refresh after a short delay to ensure modal closes first
+    setTimeout(() => {
+      if (onRefresh) {
+        onRefresh();
+      }
+    }, 100);
   };
 
   const getFieldLabel = (fieldKey: string): string => {
@@ -230,13 +233,11 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       visitRemarks: 'Visit Remarks',
       modifiedBy: 'Modified By',
       modifiedDate: 'Modified Date',
-      userEmail: 'User Email',
       requestedBy: 'Requested by',
       assignedEmail: 'Assigned Email',
       supportRemarks: 'Support Remarks',
       supportStatus: 'Support Status',
       repairCategory: 'Repair Category',
-      priorityLevel: 'Priority Level',
       newRouterSn: 'New Router SN',
       newLcpnap: 'New LCP/NAP',
       newPlan: 'New Plan',
@@ -440,8 +441,6 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
         return renderField('Modified By', serviceOrder.modifiedBy);
       case 'modifiedDate':
         return renderField('Modified Date', serviceOrder.modifiedDate);
-      case 'userEmail':
-        return renderField('User Email', serviceOrder.userEmail);
       case 'requestedBy':
         return renderField('Requested by', serviceOrder.requestedBy);
       case 'assignedEmail':
@@ -462,8 +461,6 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
         );
       case 'repairCategory':
         return renderField('Repair Category', serviceOrder.repairCategory);
-      case 'priorityLevel':
-        return renderField('Priority Level', serviceOrder.priorityLevel);
       case 'newRouterSn':
         return renderField('New Router SN', serviceOrder.newRouterSn);
       case 'newLcpnap':

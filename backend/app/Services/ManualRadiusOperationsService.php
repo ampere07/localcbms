@@ -152,8 +152,8 @@ class ManualRadiusOperationsService
                 throw new Exception("Current username is required");
             }
 
-            if (empty($newUsername) || empty($newPassword)) {
-                throw new Exception("New username and password are required");
+            if (empty($newUsername)) {
+                throw new Exception("New username is required");
             }
 
             // Get RADIUS configurations
@@ -204,7 +204,7 @@ class ManualRadiusOperationsService
     /**
      * Update RADIUS credentials (username and password)
      */
-    private function updateRadiusCredentials(array $radiusEndpoints, string $oldUsername, string $newUsername, string $newPassword): bool
+    public function updateRadiusCredentials(array $radiusEndpoints, string $oldUsername, string $newUsername, ?string $newPassword = null): bool
     {
         $this->writeLog("[CREDENTIALS] Attempting to update from '$oldUsername' to '$newUsername'");
 
@@ -237,11 +237,14 @@ class ManualRadiusOperationsService
             return false;
         }
 
-        // Step 2: Patch the user (rename & new password)
+        // Step 2: Patch the user (rename & optionally new password)
         $payload = [
-            'name' => $newUsername,
-            'password' => $newPassword
+            'name' => $newUsername
         ];
+
+        if (!empty($newPassword)) {
+            $payload['password'] = $newPassword;
+        }
 
         $updateSuccess = false;
         foreach ($radiusEndpoints as $endpoint) {
@@ -357,7 +360,9 @@ class ManualRadiusOperationsService
                 $this->writeLog("[PATCH] Mismatch ($currentRadiusGroup != $targetGroup). Updating group...");
                 $payload = ['group' => $targetGroup];
 
-                foreach ($radiusEndpoints as $endpoint) {
+                // FAILOVER LOGIC: Try each server in order, stop on first success
+                foreach ($radiusEndpoints as $index => $endpoint) {
+                    $this->writeLog("[PATCH] Trying RADIUS server #" . ($index + 1) . ": {$endpoint['url']}");
                     $targetUrl = $endpoint['url'] . "/rest/user-manage/user/" . $radiusId;
                     $result = $this->callApiWithRetry(
                         $targetUrl,
@@ -368,8 +373,11 @@ class ManualRadiusOperationsService
                     );
 
                     if ($result !== false) {
-                        $this->writeLog("[PATCH] Success at {$endpoint['url']}");
+                        $this->writeLog("[PATCH] Success at {$endpoint['url']} (Server #" . ($index + 1) . ")");
                         $patchHappened = true;
+                        break; // Stop on first successful server
+                    } else {
+                        $this->writeLog("[PATCH] Failed at {$endpoint['url']}, trying next server...");
                     }
                 }
             }
@@ -379,7 +387,7 @@ class ManualRadiusOperationsService
 
             if ($shouldKill) {
                 $this->writeLog("[DECISION] Killing session...");
-                $this->killUserSession($radiusEndpoints, $username);
+                $this->killUserSession($radiusEndpoints, $username, $patchHappened);
             } else {
                 $this->writeLog("[DECISION] No changes needed, keeping session");
             }
@@ -448,12 +456,13 @@ class ManualRadiusOperationsService
     }
 
     /**
-     * Kill active user sessions
+     * Kill active user sessions (with failover support)
      */
-    private function killUserSession(array $radiusEndpoints, string $username): void
+    private function killUserSession(array $radiusEndpoints, string $username, bool $useFailover = true): void
     {
         $sessPath = "/rest/user-manage/session?user=" . urlencode($username);
         $sessions = null;
+        $activeEndpoint = null;
 
         // Find active sessions
         foreach ($radiusEndpoints as $endpoint) {
@@ -468,7 +477,8 @@ class ManualRadiusOperationsService
 
             if ($result && is_array($result)) {
                 $sessions = $result;
-                $this->writeLog("[SESSION] Found " . count($sessions) . " active session(s)");
+                $activeEndpoint = $endpoint;
+                $this->writeLog("[SESSION] Found " . count($sessions) . " active session(s) on {$endpoint['url']}");
                 break;
             }
         }
@@ -478,21 +488,37 @@ class ManualRadiusOperationsService
             return;
         }
 
-        // Kill all sessions
+        // Kill sessions - FAILOVER LOGIC: only kill on the server where we found the session
         foreach ($sessions as $session) {
             if (isset($session['.id'])) {
                 $sessionId = $session['.id'];
                 
-                foreach ($radiusEndpoints as $endpoint) {
-                    $delUrl = $endpoint['url'] . "/rest/user-manage/session/" . $sessionId;
-                    $this->callApiWithRetry(
+                if ($useFailover && $activeEndpoint) {
+                    // Only kill on the active endpoint
+                    $delUrl = $activeEndpoint['url'] . "/rest/user-manage/session/" . $sessionId;
+                    $result = $this->callApiWithRetry(
                         $delUrl,
                         'DELETE',
                         null,
-                        $endpoint['username'],
-                        $endpoint['password']
+                        $activeEndpoint['username'],
+                        $activeEndpoint['password']
                     );
-                    $this->writeLog("[KILL] Terminated session ID $sessionId");
+                    if ($result !== false) {
+                        $this->writeLog("[KILL] Terminated session ID $sessionId on {$activeEndpoint['url']}");
+                    }
+                } else {
+                    // Legacy: Kill on all endpoints
+                    foreach ($radiusEndpoints as $endpoint) {
+                        $delUrl = $endpoint['url'] . "/rest/user-manage/session/" . $sessionId;
+                        $this->callApiWithRetry(
+                            $delUrl,
+                            'DELETE',
+                            null,
+                            $endpoint['username'],
+                            $endpoint['password']
+                        );
+                        $this->writeLog("[KILL] Terminated session ID $sessionId on {$endpoint['url']}");
+                    }
                 }
             }
         }

@@ -366,9 +366,9 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
               <input
                 type="date"
                 value={formData.dateInstalled}
-                onChange={(e) => handleInputChange('dateInstalled', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-red-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.dateInstalled ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                readOnly
+                className={`w-full px-3 py-2 border rounded cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.dateInstalled ? 'border-red-500' : ''
                   }`}
               />
               {errors.dateInstalled && <p className="text-red-500 text-xs mt-1">{errors.dateInstalled}</p>}
@@ -399,9 +399,9 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
               <input
                 type="text"
                 value={formData.contactNumber}
-                onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-red-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.contactNumber ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                readOnly
+                className={`w-full px-3 py-2 border rounded cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.contactNumber ? 'border-red-500' : ''
                   }`}
               />
               {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
@@ -429,9 +429,9 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
               <input
                 type="text"
                 value={formData.username}
-                onChange={(e) => handleInputChange('username', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-red-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.username ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                readOnly
+                className={`w-full px-3 py-2 border rounded cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.username ? 'border-red-500' : ''
                   }`}
               />
               {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}

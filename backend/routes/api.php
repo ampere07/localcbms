@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\ExpensesLogController;
 use App\Http\Controllers\Api\DisconnectionLogsController;
 use App\Http\Controllers\Api\ReconnectionLogsController;
 use App\Http\Controllers\ConsolidatedNotificationController;
+use App\Http\Controllers\Api\ServiceOrderItemApiController;
 
 Route::get('/monitor/handle', [MonitorController::class, 'handle']);
 Route::post('/monitor/handle', [MonitorController::class, 'handle']); // Ensure POST is also handled for save_template actions if not using REST
@@ -1456,6 +1457,7 @@ Route::get('/debug/status-remarks-structure', function() {
 Route::prefix('inventory')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\InventoryApiController::class, 'index']);
     Route::post('/', [\App\Http\Controllers\Api\InventoryApiController::class, 'store']);
+    Route::post('/upload-image', [\App\Http\Controllers\Api\InventoryApiController::class, 'uploadImage']);
     Route::get('/debug', [\App\Http\Controllers\Api\InventoryApiController::class, 'debug']);
     Route::get('/statistics', [\App\Http\Controllers\Api\InventoryApiController::class, 'getStatistics']);
     Route::get('/categories', [\App\Http\Controllers\Api\InventoryApiController::class, 'getCategories']);
@@ -1670,6 +1672,24 @@ Route::prefix('service-orders')->group(function () {
     Route::get('/{id}', [\App\Http\Controllers\Api\ServiceOrderApiController::class, 'show']);
     Route::put('/{id}', [\App\Http\Controllers\Api\ServiceOrderApiController::class, 'update']);
     Route::delete('/{id}', [\App\Http\Controllers\Api\ServiceOrderApiController::class, 'destroy']);
+});
+
+// Service Order Items Management Routes
+Route::prefix('service-order-items')->group(function () {
+    Route::get('/', [ServiceOrderItemApiController::class, 'index']);
+    Route::post('/', [ServiceOrderItemApiController::class, 'store']);
+    Route::get('/{id}', [ServiceOrderItemApiController::class, 'show']);
+    Route::put('/{id}', [ServiceOrderItemApiController::class, 'update']);
+    Route::delete('/{id}', [ServiceOrderItemApiController::class, 'destroy']);
+});
+
+// Also add underscore version for compatibility
+Route::prefix('service_order_items')->group(function () {
+    Route::get('/', [ServiceOrderItemApiController::class, 'index']);
+    Route::post('/', [ServiceOrderItemApiController::class, 'store']);
+    Route::get('/{id}', [ServiceOrderItemApiController::class, 'show']);
+    Route::put('/{id}', [ServiceOrderItemApiController::class, 'update']);
+    Route::delete('/{id}', [ServiceOrderItemApiController::class, 'destroy']);
 });
 
 // Also add underscore version for compatibility

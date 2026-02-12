@@ -211,20 +211,31 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
 
   const getDriveDirectUrl = (url: string | undefined) => {
     if (!url) return '';
-    // Handle Google Drive /view links by converting them to direct download links
-    if (url.includes('drive.google.com') && (url.includes('/view') || url.includes('id='))) {
+
+    // Check for Google Drive URLs
+    if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
       let fileId = '';
-      if (url.includes('id=')) {
-        fileId = url.split('id=')[1].split('&')[0];
-      } else {
-        const parts = url.split('/');
-        const viewIndex = parts.indexOf('view');
-        if (viewIndex > 0) {
-          fileId = parts[viewIndex - 1];
+
+      // Try to match /d/ID pattern
+      const matchD = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (matchD && matchD[1]) {
+        fileId = matchD[1];
+      }
+
+      // If not found, try id=ID pattern
+      if (!fileId) {
+        const matchId = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        if (matchId && matchId[1]) {
+          fileId = matchId[1];
         }
       }
-      return fileId ? `https://drive.google.com/uc?export=view&id=${fileId}` : url;
+
+      if (fileId) {
+        // Use thumbnail endpoint which is more reliable for images
+        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+      }
     }
+
     return url;
   };
 
@@ -411,18 +422,6 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
                         }`}>{item.item_description || item.item_name}</span>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Total Stock IN</span>
-                      <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>{totalStockIn}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Total Stock Available</span>
-                      <span className="text-green-400 font-bold text-lg">{totalStockAvailable}</span>
-                    </div>
                   </div>
                 </div>
 
@@ -787,255 +786,241 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
               }`}>{item.item_description || item.item_name}</span>
           </div>
 
-          {/* Total Stock IN */}
-          <div className="flex items-center justify-between py-2">
-            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Total Stock IN</span>
-            <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{totalStockIn}</span>
-          </div>
+        </div>
+      </div>
 
-          {/* Total Stock Available */}
-          <div className="flex items-center justify-between py-2">
-            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>Total Stock Available</span>
-            <span className="text-green-400 font-bold text-lg">{totalStockAvailable}</span>
-          </div>
+      {/* Related Sections */}
+      <div className={`border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
+        {/* Related Inventory Logs */}
+        <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
+          <button
+            onClick={() => toggleSection('inventoryLogs')}
+            className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              }`}
+          >
+            <div className="flex items-center space-x-3">
+              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Related Inventory Logs</span>
+              <span className={`text-xs px-2 py-1 rounded min-w-[20px] text-center ${isDarkMode
+                ? 'bg-gray-600 text-white'
+                : 'bg-gray-300 text-gray-700'
+                }`}>
+                {inventoryLogsCount}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              {expandedSections.inventoryLogs ? (
+                <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+              ) : (
+                <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+              )}
+            </div>
+          </button>
+
+          {expandedSections.inventoryLogs && (
+            <div className={isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}>
+              {inventoryLogsData.length > 0 ? (
+                <div>
+                  {/* Table Header */}
+                  <div className={`grid grid-cols-4 gap-4 px-6 py-3 text-sm font-medium ${isDarkMode
+                    ? 'bg-gray-700 text-gray-300'
+                    : 'bg-gray-200 text-gray-700'
+                    }`}>
+                    <div className="flex items-center">
+                      Date <ChevronDown size={14} className="ml-1" />
+                    </div>
+                    <div className="text-center">Item Quantity</div>
+                    <div className="text-center">Requested By</div>
+                    <div className="text-center">Requested With</div>
+                  </div>
+
+                  {/* Table Row */}
+                  {inventoryLogsData.map((log) => (
+                    <div key={log.id} className={`grid grid-cols-4 gap-4 px-6 py-3 border-b last:border-b-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                      }`}>
+                      <div className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>{formatDate(log.date)}</div>
+                      <div className={`text-sm text-center ${isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>{log.itemQuantity}</div>
+                      <div className={`text-sm text-center ${isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>{log.requestedBy}</div>
+                      <div className={`text-sm text-center ${isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>{log.requestedWith}</div>
+                    </div>
+                  ))}
+
+                  {/* Navigation */}
+                  <div className={`px-6 py-2 flex items-center justify-between ${isDarkMode ? 'bg-gray-750' : 'bg-gray-100'
+                    }`}>
+                    <button className={isDarkMode
+                      ? 'p-1 text-gray-400 hover:text-white'
+                      : 'p-1 text-gray-600 hover:text-gray-900'
+                    }>
+                      <ChevronLeft size={16} />
+                    </button>
+                    <div className={`flex-1 h-1 rounded mx-4 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'
+                      }`}>
+                      <div className={`h-full rounded ${isDarkMode ? 'bg-gray-500' : 'bg-gray-400'
+                        }`} style={{ width: '50%' }}></div>
+                    </div>
+                    <button className={isDarkMode
+                      ? 'p-1 text-gray-400 hover:text-white'
+                      : 'p-1 text-gray-600 hover:text-gray-900'
+                    }>
+                      <ChevronRightNav size={16} />
+                    </button>
+                  </div>
+
+                  <div className="px-6 py-2 text-right">
+                    <button
+                      onClick={handleExpand}
+                      className="text-red-500 text-sm cursor-pointer hover:underline bg-transparent border-none"
+                    >
+                      Expand
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className={`text-center py-8 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                  }`}>
+                  No items
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Related Sections */}
-        <div className={`border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        {/* Related Borrowed Logs */}
+        <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
-          {/* Related Inventory Logs */}
-          <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-            }`}>
-            <button
-              onClick={() => toggleSection('inventoryLogs')}
-              className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                }`}
-            >
-              <div className="flex items-center space-x-3">
-                <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>Related Inventory Logs</span>
-                <span className={`text-xs px-2 py-1 rounded min-w-[20px] text-center ${isDarkMode
-                  ? 'bg-gray-600 text-white'
-                  : 'bg-gray-300 text-gray-700'
-                  }`}>
-                  {inventoryLogsCount}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                {expandedSections.inventoryLogs ? (
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                ) : (
-                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                )}
-              </div>
-            </button>
-
-            {expandedSections.inventoryLogs && (
-              <div className={isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}>
-                {inventoryLogsData.length > 0 ? (
-                  <div>
-                    {/* Table Header */}
-                    <div className={`grid grid-cols-4 gap-4 px-6 py-3 text-sm font-medium ${isDarkMode
-                      ? 'bg-gray-700 text-gray-300'
-                      : 'bg-gray-200 text-gray-700'
-                      }`}>
-                      <div className="flex items-center">
-                        Date <ChevronDown size={14} className="ml-1" />
-                      </div>
-                      <div className="text-center">Item Quantity</div>
-                      <div className="text-center">Requested By</div>
-                      <div className="text-center">Requested With</div>
-                    </div>
-
-                    {/* Table Row */}
-                    {inventoryLogsData.map((log) => (
-                      <div key={log.id} className={`grid grid-cols-4 gap-4 px-6 py-3 border-b last:border-b-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                        }`}>
-                        <div className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
-                          }`}>{formatDate(log.date)}</div>
-                        <div className={`text-sm text-center ${isDarkMode ? 'text-white' : 'text-gray-900'
-                          }`}>{log.itemQuantity}</div>
-                        <div className={`text-sm text-center ${isDarkMode ? 'text-white' : 'text-gray-900'
-                          }`}>{log.requestedBy}</div>
-                        <div className={`text-sm text-center ${isDarkMode ? 'text-white' : 'text-gray-900'
-                          }`}>{log.requestedWith}</div>
-                      </div>
-                    ))}
-
-                    {/* Navigation */}
-                    <div className={`px-6 py-2 flex items-center justify-between ${isDarkMode ? 'bg-gray-750' : 'bg-gray-100'
-                      }`}>
-                      <button className={isDarkMode
-                        ? 'p-1 text-gray-400 hover:text-white'
-                        : 'p-1 text-gray-600 hover:text-gray-900'
-                      }>
-                        <ChevronLeft size={16} />
-                      </button>
-                      <div className={`flex-1 h-1 rounded mx-4 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'
-                        }`}>
-                        <div className={`h-full rounded ${isDarkMode ? 'bg-gray-500' : 'bg-gray-400'
-                          }`} style={{ width: '50%' }}></div>
-                      </div>
-                      <button className={isDarkMode
-                        ? 'p-1 text-gray-400 hover:text-white'
-                        : 'p-1 text-gray-600 hover:text-gray-900'
-                      }>
-                        <ChevronRightNav size={16} />
-                      </button>
-                    </div>
-
-                    <div className="px-6 py-2 text-right">
-                      <button
-                        onClick={handleExpand}
-                        className="text-red-500 text-sm cursor-pointer hover:underline bg-transparent border-none"
-                      >
-                        Expand
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className={`text-center py-8 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                    }`}>
-                    No items
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Related Borrowed Logs */}
-          <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-            }`}>
-            <button
-              onClick={() => toggleSection('borrowedLogs')}
-              className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                }`}
-            >
-              <div className="flex items-center space-x-3">
-                <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>Related Borrowed Logs</span>
-                <span className={`text-xs px-2 py-1 rounded min-w-[20px] text-center ${isDarkMode
-                  ? 'bg-gray-600 text-white'
-                  : 'bg-gray-300 text-gray-700'
-                  }`}>
-                  {borrowedLogsCount}
-                </span>
-              </div>
-              {expandedSections.borrowedLogs ? (
-                <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-              ) : (
-                <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-              )}
-            </button>
-
-            {expandedSections.borrowedLogs && (
-              <div className={`px-6 py-8 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+          <button
+            onClick={() => toggleSection('borrowedLogs')}
+            className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              }`}
+          >
+            <div className="flex items-center space-x-3">
+              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Related Borrowed Logs</span>
+              <span className={`text-xs px-2 py-1 rounded min-w-[20px] text-center ${isDarkMode
+                ? 'bg-gray-600 text-white'
+                : 'bg-gray-300 text-gray-700'
                 }`}>
-                No items
-              </div>
+                {borrowedLogsCount}
+              </span>
+            </div>
+            {expandedSections.borrowedLogs ? (
+              <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+            ) : (
+              <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
             )}
-          </div>
+          </button>
 
-          {/* Related Job Orders */}
-          <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-            }`}>
-            <button
-              onClick={() => toggleSection('jobOrders')}
-              className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                }`}
-            >
-              <div className="flex items-center space-x-3">
-                <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>Related Job Orders</span>
-                <span className={`text-xs px-2 py-1 rounded min-w-[20px] text-center ${isDarkMode
-                  ? 'bg-gray-600 text-white'
-                  : 'bg-gray-300 text-gray-700'
-                  }`}>
-                  {jobOrdersCount}
-                </span>
-              </div>
-              {expandedSections.jobOrders ? (
-                <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-              ) : (
-                <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-              )}
-            </button>
+          {expandedSections.borrowedLogs && (
+            <div className={`px-6 py-8 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+              }`}>
+              No items
+            </div>
+          )}
+        </div>
 
-            {expandedSections.jobOrders && (
-              <div className={`px-6 py-8 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+        {/* Related Job Orders */}
+        <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
+          <button
+            onClick={() => toggleSection('jobOrders')}
+            className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              }`}
+          >
+            <div className="flex items-center space-x-3">
+              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Related Job Orders</span>
+              <span className={`text-xs px-2 py-1 rounded min-w-[20px] text-center ${isDarkMode
+                ? 'bg-gray-600 text-white'
+                : 'bg-gray-300 text-gray-700'
                 }`}>
-                No items
-              </div>
+                {jobOrdersCount}
+              </span>
+            </div>
+            {expandedSections.jobOrders ? (
+              <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+            ) : (
+              <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
             )}
-          </div>
+          </button>
 
-          {/* Related Service Orders */}
-          <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-            }`}>
-            <button
-              onClick={() => toggleSection('serviceOrders')}
-              className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                }`}
-            >
-              <div className="flex items-center space-x-3">
-                <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>Related Service Orders</span>
-                <span className={`text-xs px-2 py-1 rounded min-w-[20px] text-center ${isDarkMode
-                  ? 'bg-gray-600 text-white'
-                  : 'bg-gray-300 text-gray-700'
-                  }`}>
-                  {serviceOrdersCount}
-                </span>
-              </div>
-              {expandedSections.serviceOrders ? (
-                <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-              ) : (
-                <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-              )}
-            </button>
+          {expandedSections.jobOrders && (
+            <div className={`px-6 py-8 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+              }`}>
+              No items
+            </div>
+          )}
+        </div>
 
-            {expandedSections.serviceOrders && (
-              <div className={`px-6 py-8 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+        {/* Related Service Orders */}
+        <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
+          <button
+            onClick={() => toggleSection('serviceOrders')}
+            className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              }`}
+          >
+            <div className="flex items-center space-x-3">
+              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Related Service Orders</span>
+              <span className={`text-xs px-2 py-1 rounded min-w-[20px] text-center ${isDarkMode
+                ? 'bg-gray-600 text-white'
+                : 'bg-gray-300 text-gray-700'
                 }`}>
-                No items
-              </div>
+                {serviceOrdersCount}
+              </span>
+            </div>
+            {expandedSections.serviceOrders ? (
+              <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+            ) : (
+              <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
             )}
-          </div>
+          </button>
 
-          {/* Related Defective Logs */}
-          <div>
-            <button
-              onClick={() => toggleSection('defectiveLogs')}
-              className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                }`}
-            >
-              <div className="flex items-center space-x-3">
-                <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>Related Defective Logs</span>
-                <span className={`text-xs px-2 py-1 rounded min-w-[20px] text-center ${isDarkMode
-                  ? 'bg-gray-600 text-white'
-                  : 'bg-gray-300 text-gray-700'
-                  }`}>
-                  {defectiveLogsCount}
-                </span>
-              </div>
-              {expandedSections.defectiveLogs ? (
-                <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-              ) : (
-                <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-              )}
-            </button>
+          {expandedSections.serviceOrders && (
+            <div className={`px-6 py-8 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+              }`}>
+              No items
+            </div>
+          )}
+        </div>
 
-            {expandedSections.defectiveLogs && (
-              <div className={`px-6 py-8 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+        {/* Related Defective Logs */}
+        <div>
+          <button
+            onClick={() => toggleSection('defectiveLogs')}
+            className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              }`}
+          >
+            <div className="flex items-center space-x-3">
+              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Related Defective Logs</span>
+              <span className={`text-xs px-2 py-1 rounded min-w-[20px] text-center ${isDarkMode
+                ? 'bg-gray-600 text-white'
+                : 'bg-gray-300 text-gray-700'
                 }`}>
-                No items
-              </div>
+                {defectiveLogsCount}
+              </span>
+            </div>
+            {expandedSections.defectiveLogs ? (
+              <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+            ) : (
+              <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
             )}
-          </div>
+          </button>
+
+          {expandedSections.defectiveLogs && (
+            <div className={`px-6 py-8 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+              }`}>
+              No items
+            </div>
+          )}
         </div>
       </div>
     </div>

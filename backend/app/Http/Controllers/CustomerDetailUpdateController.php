@@ -223,6 +223,7 @@ class CustomerDetailUpdateController extends Controller
                 'ipAddress' => 'nullable|string|max:45',
                 'lcp' => 'nullable|string|max:255',
                 'nap' => 'nullable|string|max:255',
+                'lcpnap' => 'nullable|string|max:255',
                 'port' => 'nullable|string|max:255',
                 'vlan' => 'nullable|string|max:255',
                 'usageType' => 'nullable|string|max:255'
@@ -242,10 +243,24 @@ class CustomerDetailUpdateController extends Controller
                 $technicalDetail->created_by = $request->user()->id ?? 1;
             }
 
-            // Generate LCPNAP if LCP and NAP are provided
+            // Generate LCPNAP if LCP and NAP are provided, or use direct lcpnap
             $lcpnap = $technicalDetail->lcpnap;
-            if (!empty($validated['lcp']) && !empty($validated['nap'])) {
-                $lcpnap = $validated['lcp'] . '-' . $validated['nap'];
+            $newLcp = $validated['lcp'] ?? null;
+            $newNap = $validated['nap'] ?? null;
+            $newLcpNapInput = $validated['lcpnap'] ?? null;
+
+            if ($newLcp && $newNap) {
+                $lcpnap = trim($newLcp . ' - ' . $newNap);
+            } elseif ($newLcpNapInput) {
+                $lcpnap = $newLcpNapInput;
+                // If lcp/nap are missing but lcpnap is present, try to split them
+                if (!$newLcp || !$newNap) {
+                    $parts = preg_split('/[-\s]+/', $newLcpNapInput);
+                    if (count($parts) >= 2) {
+                        $newLcp = $parts[0];
+                        $newNap = $parts[1];
+                    }
+                }
             }
 
             $technicalDetail->username = (!empty($validated['username'])) ? $validated['username'] : $technicalDetail->username;
@@ -253,8 +268,8 @@ class CustomerDetailUpdateController extends Controller
             $technicalDetail->router_model = (!empty($validated['routerModel'])) ? $validated['routerModel'] : $technicalDetail->router_model;
             $technicalDetail->router_modem_sn = $validated['routerModemSn'] ?? $technicalDetail->router_modem_sn;
             $technicalDetail->ip_address = $validated['ipAddress'] ?? $technicalDetail->ip_address;
-            $technicalDetail->lcp = $validated['lcp'] ?? $technicalDetail->lcp;
-            $technicalDetail->nap = $validated['nap'] ?? $technicalDetail->nap;
+            $technicalDetail->lcp = $newLcp ?? $technicalDetail->lcp;
+            $technicalDetail->nap = $newNap ?? $technicalDetail->nap;
             $technicalDetail->port = $validated['port'] ?? $technicalDetail->port;
             $technicalDetail->vlan = $validated['vlan'] ?? $technicalDetail->vlan;
             $technicalDetail->lcpnap = $lcpnap;

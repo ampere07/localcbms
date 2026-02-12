@@ -60,7 +60,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     'connectionType',
     'modemRouterSn',
     'routerModel',
-    'affiliateName',
+
     'lcpnap',
     'port',
     'vlan',
@@ -72,8 +72,8 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     'visitWith',
     'visitWithOther',
     'onsiteStatus',
-    'contractTemplate',
-    'contractLink',
+    'jobOrderItems',
+
     'modifiedBy',
     'modifiedDate',
     'assignedEmail',
@@ -355,93 +355,25 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     setIsEditModalOpen(true);
   };
 
-  const handleDoneSave = async (formData: any) => {
-    if (loading) return;
-    try {
-      setLoading(true);
-
-      if (!jobOrder.id) {
-        throw new Error('Cannot update job order: Missing ID');
-      }
-
-      await updateJobOrder(jobOrder.id, {
-        Onsite_Status: formData.onsiteStatus,
-        Modified_By: formData.modifiedBy,
-        Modified_Date: formData.modifiedDate,
-        Contract_Link: formData.contractLink,
-        Contract_Template: formData.contractTemplate,
-        Assigned_Email: formData.assignedEmail
-      });
-
-      setSuccessMessage('Job Order updated successfully!');
-      setShowSuccessModal(true);
-      setIsDoneModalOpen(false);
-    } catch (err: any) {
-      setError(`Failed to update job order: ${err.message}`);
-      console.error('Update error:', err);
-    } finally {
-      setLoading(false);
+  const handleDoneSave = (formData: any) => {
+    console.log('Job order done save:', formData);
+    setSuccessMessage('Job Order updated successfully!');
+    setShowSuccessModal(true);
+    if (onRefresh) {
+      onRefresh();
     }
+    setIsDoneModalOpen(false);
+    setIsDoneTechModalOpen(false);
   };
 
-  const handleEditSave = async (formData: any) => {
-    if (loading) return;
-    try {
-      setLoading(true);
-
-      if (!jobOrder.id) {
-        throw new Error('Cannot update job order: Missing ID');
-      }
-
-      await updateJobOrder(jobOrder.id, {
-        Referred_By: formData.referredBy,
-        Date_Installed: formData.dateInstalled,
-        Usage_Type: formData.usageType,
-        First_Name: formData.firstName,
-        Middle_Initial: formData.middleInitial,
-        Last_Name: formData.lastName,
-        Contact_Number: formData.contactNumber,
-        Second_Contact_Number: formData.secondContactNumber,
-        Email_Address: formData.email,
-        Address: formData.address,
-        Barangay: formData.barangay,
-        City: formData.city,
-        Region: formData.region,
-        Address_Coordinates: formData.addressCoordinates,
-        Choose_Plan: formData.choosePlan,
-        Status: formData.status,
-        Connection_Type: formData.connectionType,
-        Router_Model: formData.routerModel,
-        Modem_SN: formData.modemSN,
-        Provider: formData.provider,
-        LCP: formData.lcp,
-        NAP: formData.nap,
-        PORT: formData.port,
-        VLAN: formData.vlan,
-        Username: formData.username,
-        Onsite_Status: formData.onsiteStatus,
-        Onsite_Remarks: formData.onsiteRemarks,
-        Modified_By: formData.modifiedBy,
-        Modified_Date: formData.modifiedDate,
-        Contract_Link: formData.contractLink,
-        Contract_Template: formData.contractTemplate,
-        Assigned_Email: formData.assignedEmail,
-        Item_Name_1: formData.itemName1,
-        Visit_By: formData.visitBy,
-        Visit_With: formData.visitWith,
-        Visit_With_Other: formData.visitWithOther,
-        Status_Remarks: formData.statusRemarks
-      });
-
-      setSuccessMessage('Job Order updated successfully!');
-      setShowSuccessModal(true);
-      setIsEditModalOpen(false);
-    } catch (err: any) {
-      setError(`Failed to update job order: ${err.message}`);
-      console.error('Update error:', err);
-    } finally {
-      setLoading(false);
+  const handleEditSave = (formData: any) => {
+    console.log('Job order edit save:', formData);
+    setSuccessMessage('Job Order updated successfully!');
+    setShowSuccessModal(true);
+    if (onRefresh) {
+      onRefresh();
     }
+    setIsEditModalOpen(false);
   };
 
   const handleApproveClick = () => {
@@ -528,6 +460,9 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
 
       setSuccessMessage(`Status updated to ${newStatus}`);
       setShowSuccessModal(true);
+      if (onRefresh) {
+        onRefresh();
+      }
     } catch (err: any) {
       setError(`Failed to update status: ${err.message}`);
       console.error('Status update error:', err);
@@ -555,7 +490,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       connectionType: 'Connection Type',
       modemRouterSn: 'Modem/Router SN',
       routerModel: 'Router Model',
-      affiliateName: 'Affiliate Name',
+
       lcpnap: 'LCPNAP',
       port: 'PORT',
       vlan: 'VLAN',
@@ -567,8 +502,8 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       visitWith: 'Visit With',
       visitWithOther: 'Visit With Other',
       onsiteStatus: 'Onsite Status',
-      contractTemplate: 'Contract Template',
-      contractLink: 'Contract Link',
+      jobOrderItems: 'Job Order Items',
+
       modifiedBy: 'Modified By',
       modifiedDate: 'Modified Date',
       assignedEmail: 'Assigned Email',
@@ -776,13 +711,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           </div>
         );
 
-      case 'affiliateName':
-        return (
-          <div className={baseFieldClass}>
-            <div className={labelClass}>Affiliate Name:</div>
-            <div className={valueClass}>{jobOrder.group_name || jobOrder.Group_Name || 'Not specified'}</div>
-          </div>
-        );
+
 
       case 'lcpnap':
         return (
@@ -878,26 +807,36 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           </div>
         );
 
-      case 'contractTemplate':
-        return (
-          <div className={baseFieldClass}>
-            <div className={labelClass}>Contract Template:</div>
-            <div className={valueClass}>{jobOrder.Contract_Template || 'Standard'}</div>
-          </div>
-        );
 
-      case 'contractLink':
+
+
+
+      case 'jobOrderItems':
         return (
-          <div className={baseFieldClass}>
-            <div className={labelClass}>Contract Link:</div>
-            <div className={`flex-1 truncate flex items-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {jobOrder.Contract_Link || 'Not available'}
-              {jobOrder.Contract_Link && (
-                <button className={isDarkMode ? 'text-gray-400 hover:text-white ml-2' : 'text-gray-600 hover:text-gray-900 ml-2'}>
-                  <ExternalLink size={16} />
-                </button>
-              )}
-            </div>
+          <div className={`flex flex-col border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`text-sm mb-2 font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Job Order Items</div>
+            {jobOrder.job_order_items && jobOrder.job_order_items.length > 0 ? (
+              <div className={`overflow-x-auto rounded border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <table className={`min-w-full text-sm text-left ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <thead className={isDarkMode ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-700'}>
+                    <tr>
+                      <th className={`px-4 py-2 font-medium border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>Item Name</th>
+                      <th className={`px-4 py-2 font-medium border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>Quantity</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {jobOrder.job_order_items.map((item, index) => (
+                      <tr key={index} className={isDarkMode ? 'bg-gray-900 border-gray-700 hover:bg-gray-800' : 'bg-white border-gray-200 hover:bg-gray-50'}>
+                        <td className={`px-4 py-2 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>{item.item_name}</td>
+                        <td className={`px-4 py-2 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>{item.quantity}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className={`text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>No items found</div>
+            )}
           </div>
         );
 
@@ -1093,16 +1032,6 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         </div>
 
         <div className="flex items-center space-x-3">
-          {(userRole !== 'technician' && roleId !== 2) && (
-            <>
-              <button className={`p-1 rounded-sm border flex items-center justify-center ${isDarkMode
-                ? 'bg-gray-800 hover:bg-gray-700 text-white border-gray-700'
-                : 'bg-gray-200 hover:bg-gray-300 text-gray-900 border-gray-300'
-                }`}>
-                <ExternalLink size={16} />
-              </button>
-            </>
-          )}
           {shouldShowApproveButton() && (
             <button
               className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-sm flex items-center"
@@ -1129,7 +1058,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
               onClick={handleDoneClick}
               disabled={loading}
             >
-              <span>{(roleId === 2 || userRole === 'technician') ? 'Edit' : 'Done'}</span>
+              <span>Edit</span>
             </button>
           )}
 
@@ -1221,41 +1150,6 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           </button>
         </div>
       </div>
-
-      {(userRole !== 'technician' && roleId !== 2) && (
-        <div className={`py-3 border-b ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-200'
-          }`}>
-          <div className="flex items-center justify-center px-4">
-            <button
-              onClick={handleEditClick}
-              disabled={loading}
-              className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
-                }`}
-            >
-              <div
-                className="p-2 rounded-full transition-colors"
-                style={{
-                  backgroundColor: loading ? (isDarkMode ? '#4b5563' : '#9ca3af') : (colorPalette?.primary || '#ea580c')
-                }}
-                onMouseEnter={(e) => {
-                  if (!loading && colorPalette?.accent) {
-                    e.currentTarget.style.backgroundColor = colorPalette.accent;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!loading) {
-                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
-                  }
-                }}
-              >
-                <Edit className="text-white" size={18} />
-              </div>
-              <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Edit</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {error && (
         <div className={`p-3 m-3 rounded ${isDarkMode

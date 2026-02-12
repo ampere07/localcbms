@@ -14,6 +14,7 @@ interface JOAssignFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (formData: JobOrderData) => void;
+  onRefresh?: () => void;
   applicationData?: any;
 }
 
@@ -57,6 +58,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  onRefresh,
   applicationData
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
@@ -612,6 +614,11 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
 
       clearInterval(progressInterval);
       setLoadingPercentage(100);
+
+      if (onRefresh) {
+        onRefresh();
+      }
+
       await new Promise(resolve => setTimeout(resolve, 500));
 
       setPendingJobOrder(result.data);

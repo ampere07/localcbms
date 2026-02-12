@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
+import {
   X, ExternalLink, Edit, XOctagon, RotateCw, Settings
 } from 'lucide-react';
 import { getApplication } from '../services/applicationService';
@@ -132,15 +132,15 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
       const theme = localStorage.getItem('theme');
       setIsDarkMode(theme === 'dark');
     };
-    
+
     checkDarkMode();
-    
+
     const observer = new MutationObserver(checkDarkMode);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['class']
     });
-    
+
     return () => observer.disconnect();
   }, []);
 
@@ -163,7 +163,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
   useEffect(() => {
     const fetchApplicationData = async () => {
       if (!applicationVisit.application_id) return;
-      
+
       try {
         setLoading(true);
         const appData = await getApplication(applicationVisit.application_id);
@@ -211,10 +211,10 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
-      
+
       const diff = startXRef.current - e.clientX;
       const newWidth = Math.max(600, Math.min(1200, startWidthRef.current + diff));
-      
+
       setDetailsWidth(newWidth);
     };
 
@@ -260,9 +260,9 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
     setShowInlineConfirmation(false);
     const newStatus = pendingStatusUpdate;
     setPendingStatusUpdate(null);
-    
+
     if (newStatus === undefined) return;
-    
+
     await handleStatusUpdate(newStatus);
   };
 
@@ -275,10 +275,10 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
     try {
       setLoading(true);
       setError(null);
-      
+
       const authData = localStorage.getItem('authData');
       let updatedByEmail = null;
-      
+
       if (authData) {
         try {
           const user = JSON.parse(authData);
@@ -287,18 +287,18 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
           // Error parsing auth data
         }
       }
-      
-      await updateApplicationVisit(applicationVisit.id, { 
+
+      await updateApplicationVisit(applicationVisit.id, {
         visit_status: newStatus,
         updated_by_user_email: updatedByEmail
       });
-      
+
       setCurrentVisitData({ ...currentVisitData, visit_status: newStatus || '' });
-      
+
       const statusMessage = newStatus ? `Status updated to ${newStatus}` : 'Status cleared successfully';
       setSuccessMessage(statusMessage);
       setShowSuccessModal(true);
-      
+
       if (onUpdate) {
         onUpdate();
       }
@@ -386,57 +386,45 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
     switch (fieldKey) {
       case 'timestamp':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Timestamp:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{formatDate(currentVisitData.created_at) || 'Not available'}</div>
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Timestamp:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{formatDate(currentVisitData.created_at) || 'Not available'}</div>
           </div>
         );
 
       case 'referredBy':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Referred By:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{currentVisitData.referred_by || 'Not specified'}</div>
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Referred By:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{currentVisitData.referred_by || 'Not specified'}</div>
           </div>
         );
 
       case 'fullName':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Full Name:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{getFullName()}</div>
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Full Name:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{getFullName()}</div>
           </div>
         );
 
       case 'contactNumber':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Contact Number:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Contact Number:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               {applicationDetails?.mobile_number || 'Not provided'}
             </div>
           </div>
@@ -444,15 +432,12 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
 
       case 'secondContactNumber':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Second Contact Number:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Second Contact Number:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               {applicationDetails?.secondary_mobile_number || 'Not provided'}
             </div>
           </div>
@@ -460,15 +445,12 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
 
       case 'emailAddress':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Email Address:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Email Address:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               {applicationDetails?.email_address || 'Not provided'}
             </div>
           </div>
@@ -476,29 +458,23 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
 
       case 'address':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Address:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{currentVisitData.full_address || 'Not provided'}</div>
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Address:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{currentVisitData.full_address || 'Not provided'}</div>
           </div>
         );
 
       case 'chosenPlan':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Chosen Plan:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Chosen Plan:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               {applicationDetails?.desired_plan || 'Not specified'}
             </div>
           </div>
@@ -506,43 +482,34 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
 
       case 'landmark':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Landmark:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{applicationDetails?.landmark || 'Not provided'}</div>
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Landmark:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{applicationDetails?.landmark || 'Not provided'}</div>
           </div>
         );
 
       case 'visitBy':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Visit By:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{currentVisitData.visit_by || 'Not assigned'}</div>
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Visit By:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{currentVisitData.visit_by || 'Not assigned'}</div>
           </div>
         );
 
       case 'visitWith':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Visit With:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Visit With:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               {currentVisitData.visit_with || 'None'}
             </div>
           </div>
@@ -550,15 +517,12 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
 
       case 'visitWithOther':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Visit With (Other):</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Visit With (Other):</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               {currentVisitData.visit_with_other || 'None'}
             </div>
           </div>
@@ -566,35 +530,29 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
 
       case 'visitType':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Visit Type:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Initial Visit</div>
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Visit Type:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Initial Visit</div>
           </div>
         );
 
       case 'visitStatus':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Visit Status:</div>
-            <div className={`flex-1 capitalize ${
-              currentVisitData.visit_status?.toLowerCase() === 'completed' ? 'text-green-400' :
-              currentVisitData.visit_status?.toLowerCase() === 'failed' ? 'text-red-500' :
-              currentVisitData.visit_status?.toLowerCase() === 'in progress' ? 'text-blue-400' :
-              currentVisitData.visit_status?.toLowerCase() === 'scheduled' ? 'text-green-400' :
-              currentVisitData.visit_status?.toLowerCase() === 'pending' ? 'text-orange-400' :
-              currentVisitData.visit_status?.toLowerCase() === 'cancelled' ? 'text-red-500' :
-              'text-orange-400'
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Visit Status:</div>
+            <div className={`flex-1 capitalize ${currentVisitData.visit_status?.toLowerCase() === 'completed' ? 'text-green-400' :
+                currentVisitData.visit_status?.toLowerCase() === 'failed' ? 'text-red-500' :
+                  currentVisitData.visit_status?.toLowerCase() === 'in progress' ? 'text-blue-400' :
+                    currentVisitData.visit_status?.toLowerCase() === 'scheduled' ? 'text-green-400' :
+                      currentVisitData.visit_status?.toLowerCase() === 'pending' ? 'text-orange-400' :
+                        currentVisitData.visit_status?.toLowerCase() === 'cancelled' ? 'text-red-500' :
+                          'text-orange-400'
+              }`}>
               {currentVisitData.visit_status || 'Scheduled'}
             </div>
           </div>
@@ -602,29 +560,23 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
 
       case 'visitNotes':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Visit Notes:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{currentVisitData.visit_remarks || 'No notes'}</div>
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Visit Notes:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{currentVisitData.visit_remarks || 'No notes'}</div>
           </div>
         );
 
       case 'assignedEmail':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Assigned Email:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Assigned Email:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               {currentVisitData.assigned_email || 'Not assigned'}
             </div>
           </div>
@@ -632,24 +584,21 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
 
       case 'applicationStatus':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Application Status:</div>
-            <div className={`flex-1 capitalize ${
-              currentVisitData.application_status?.toLowerCase() === 'approved' ? 'text-green-400' :
-              currentVisitData.application_status?.toLowerCase() === 'schedule' ? 'text-green-400' :
-              currentVisitData.application_status?.toLowerCase() === 'completed' ? 'text-green-400' :
-              currentVisitData.application_status?.toLowerCase() === 'pending' ? 'text-orange-400' :
-              currentVisitData.application_status?.toLowerCase() === 'in progress' ? 'text-blue-400' :
-              currentVisitData.application_status?.toLowerCase() === 'cancelled' ? 'text-red-500' :
-              currentVisitData.application_status?.toLowerCase() === 'no facility' ? 'text-red-400' :
-              currentVisitData.application_status?.toLowerCase() === 'no slot' ? 'text-purple-400' :
-              currentVisitData.application_status?.toLowerCase() === 'duplicate' ? 'text-pink-400' :
-              'text-orange-400'
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Application Status:</div>
+            <div className={`flex-1 capitalize ${currentVisitData.application_status?.toLowerCase() === 'approved' ? 'text-green-400' :
+                currentVisitData.application_status?.toLowerCase() === 'schedule' ? 'text-green-400' :
+                  currentVisitData.application_status?.toLowerCase() === 'completed' ? 'text-green-400' :
+                    currentVisitData.application_status?.toLowerCase() === 'pending' ? 'text-orange-400' :
+                      currentVisitData.application_status?.toLowerCase() === 'in progress' ? 'text-blue-400' :
+                        currentVisitData.application_status?.toLowerCase() === 'cancelled' ? 'text-red-500' :
+                          currentVisitData.application_status?.toLowerCase() === 'no facility' ? 'text-red-400' :
+                            currentVisitData.application_status?.toLowerCase() === 'no slot' ? 'text-purple-400' :
+                              currentVisitData.application_status?.toLowerCase() === 'duplicate' ? 'text-pink-400' :
+                                'text-orange-400'
+              }`}>
               {currentVisitData.application_status || applicationDetails?.status || 'Pending'}
             </div>
           </div>
@@ -657,29 +606,23 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
 
       case 'modifiedBy':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Modified By:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{currentVisitData.updated_by_user_email || 'System'}</div>
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+            }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Modified By:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{currentVisitData.updated_by_user_email || 'System'}</div>
           </div>
         );
 
       case 'modifiedDate':
         return (
-          <div className={`flex border-b pb-4 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Modified Date:</div>
-            <div className={`flex-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Modified Date:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               {formatDate(currentVisitData.updated_at) || 'Not modified'}
             </div>
           </div>
@@ -687,23 +630,19 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
 
       case 'houseFrontPicture':
         return (
-          <div className={`flex border-b py-2 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm whitespace-nowrap ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>House Front Picture</div>
-            <div className={`flex-1 flex items-center justify-between min-w-0 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>House Front Picture</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               <span className="truncate mr-2">
                 {currentVisitData.house_front_picture_url || 'No image available'}
               </span>
               {currentVisitData.house_front_picture_url && (
-                <button 
-                  className={`flex-shrink-0 ${
-                    isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                <button
+                  className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                   onClick={() => window.open(currentVisitData.house_front_picture_url)}
                 >
                   <ExternalLink size={16} />
@@ -715,23 +654,19 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
 
       case 'image1':
         return (
-          <div className={`flex border-b py-2 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm whitespace-nowrap ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Image 1</div>
-            <div className={`flex-1 flex items-center justify-between min-w-0 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Image 1</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               <span className="truncate mr-2">
                 {currentVisitData.image1_url || 'No image available'}
               </span>
               {currentVisitData.image1_url && (
-                <button 
-                  className={`flex-shrink-0 ${
-                    isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                <button
+                  className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                   onClick={() => window.open(currentVisitData.image1_url)}
                 >
                   <ExternalLink size={16} />
@@ -743,23 +678,19 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
 
       case 'image2':
         return (
-          <div className={`flex border-b py-2 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm whitespace-nowrap ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Image 2</div>
-            <div className={`flex-1 flex items-center justify-between min-w-0 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Image 2</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               <span className="truncate mr-2">
                 {currentVisitData.image2_url || 'No image available'}
               </span>
               {currentVisitData.image2_url && (
-                <button 
-                  className={`flex-shrink-0 ${
-                    isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                <button
+                  className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                   onClick={() => window.open(currentVisitData.image2_url)}
                 >
                   <ExternalLink size={16} />
@@ -771,23 +702,19 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
 
       case 'image3':
         return (
-          <div className={`flex border-b py-2 ${
-            isDarkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
-            <div className={`w-40 text-sm whitespace-nowrap ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Image 3</div>
-            <div className={`flex-1 flex items-center justify-between min-w-0 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Image 3</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               <span className="truncate mr-2">
                 {currentVisitData.image3_url || 'No image available'}
               </span>
               {currentVisitData.image3_url && (
-                <button 
-                  className={`flex-shrink-0 ${
-                    isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                <button
+                  className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                   onClick={() => window.open(currentVisitData.image3_url)}
                 >
                   <ExternalLink size={16} />
@@ -803,35 +730,30 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
   };
 
   return (
-    <div 
-      className={`h-full flex flex-col overflow-hidden ${!isMobile ? 'md:border-l' : ''} relative w-full md:w-auto ${
-        isDarkMode ? 'bg-gray-950 border-white border-opacity-30' : 'bg-gray-50 border-gray-300'
-      }`}
+    <div
+      className={`h-full flex flex-col overflow-hidden ${!isMobile ? 'md:border-l' : ''} relative w-full md:w-auto ${isDarkMode ? 'bg-gray-950 border-white border-opacity-30' : 'bg-gray-50 border-gray-300'
+        }`}
       style={!isMobile && window.innerWidth >= 768 ? { width: `${detailsWidth}px` } : undefined}
     >
       {!isMobile && (
         <div
-          className={`hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${
-            isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
-          }`}
+          className={`hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
+            }`}
           onMouseDown={handleMouseDownResize}
         />
       )}
-      <div className={`p-3 flex items-center justify-between border-b ${
-        isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-      }`}>
+      <div className={`p-3 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
         <div className="flex items-center flex-1 min-w-0">
-          <h2 className={`font-medium truncate ${isMobile ? 'max-w-[200px] text-sm' : ''} ${
-            isDarkMode ? 'text-white' : 'text-gray-900'
-          }`}>{getFullName()}</h2>
-          {loading && <div className={`ml-3 animate-pulse text-sm flex-shrink-0 ${
-            isDarkMode ? 'text-orange-500' : 'text-orange-600'
-          }`}>Loading...</div>}
+          <h2 className={`font-medium truncate ${isMobile ? 'max-w-[200px] text-sm' : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{getFullName()}</h2>
+          {loading && <div className={`ml-3 animate-pulse text-sm flex-shrink-0 ${isDarkMode ? 'text-orange-500' : 'text-orange-600'
+            }`}>Loading...</div>}
         </div>
-        
+
         <div className="flex items-center space-x-3">
           {userRole !== 'technician' && userRole === 'administrator' && (
-            <button 
+            <button
               className="text-white px-3 py-1 rounded-sm flex items-center transition-colors"
               style={{
                 backgroundColor: colorPalette?.primary || '#ea580c'
@@ -850,7 +772,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               <span>Move to JO</span>
             </button>
           )}
-          <button 
+          <button
             className="text-white px-3 py-1 rounded-sm flex items-center transition-colors"
             style={{
               backgroundColor: colorPalette?.primary || '#ea580c'
@@ -869,7 +791,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             <Edit size={16} className="mr-1" />
             <span className="hidden md:inline">Visit Status</span>
           </button>
-          
+
           <div className="relative">
             <button
               onClick={() => setShowFieldSettings(!showFieldSettings)}
@@ -879,17 +801,14 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               <Settings size={16} />
             </button>
             {showFieldSettings && (
-              <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${
-                isDarkMode
+              <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${isDarkMode
                   ? 'bg-gray-800 border-gray-700'
                   : 'bg-white border-gray-200'
-              }`}>
-                <div className={`px-4 py-3 border-b flex items-center justify-between ${
-                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
                 }`}>
-                  <h3 className={`font-semibold ${
-                    isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>Field Visibility & Order</h3>
+                <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                  }`}>
+                  <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>Field Visibility & Order</h3>
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={selectAllFields}
@@ -914,9 +833,8 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
                   </div>
                 </div>
                 <div className="p-2">
-                  <div className={`text-xs mb-2 px-2 ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`}>
+                  <div className={`text-xs mb-2 px-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
                     Drag to reorder fields
                   </div>
                   {fieldOrder.map((fieldKey, index) => (
@@ -927,13 +845,11 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
                       onDragOver={handleDragOver}
                       onDrop={() => handleDrop(index)}
                       onDragEnd={handleDragEnd}
-                      className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-move transition-colors ${
-                        isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                      } ${
-                        draggedIndex === index
+                      className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-move transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                        } ${draggedIndex === index
                           ? isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
                           : ''
-                      }`}
+                        }`}
                     >
                       <input
                         type="checkbox"
@@ -942,12 +858,10 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
                         onClick={(e) => e.stopPropagation()}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
-                      <span className={`text-xs ${
-                        isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                      }`}>☰</span>
-                      <span className={`text-sm ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
+                      <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                        }`}>☰</span>
+                      <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
                         {getFieldLabel(fieldKey)}
                       </span>
                     </div>
@@ -956,8 +870,8 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               </div>
             )}
           </div>
-          
-          <button 
+
+          <button
             onClick={onClose}
             className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
             aria-label="Close"
@@ -966,19 +880,18 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
           </button>
         </div>
       </div>
-      
+
       {userRole !== 'technician' && userRole === 'administrator' && (
-        <div className={`py-3 border-b ${
-          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-200'
-        }`}>
+        <div className={`py-3 border-b ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-200'
+          }`}>
           <div className="flex items-center justify-center px-4 space-x-4 md:space-x-8">
-            <button 
+            <button
               className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
               onClick={() => handleStatusClick('Failed')}
               disabled={loading}
               title="Mark visit as failed"
             >
-              <div 
+              <div
                 className="p-2 rounded-full transition-colors"
                 style={{
                   backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
@@ -996,18 +909,17 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               >
                 <XOctagon className="text-white" size={18} />
               </div>
-              <span className={`text-xs mt-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Failed</span>
+              <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Failed</span>
             </button>
-            
-            <button 
+
+            <button
               className="flex flex-col items-center text-center p-2 rounded-md hover:bg-gray-800 transition-colors"
               onClick={() => handleStatusClick('In Progress')}
               disabled={loading}
               title="Mark visit as in progress"
             >
-              <div 
+              <div
                 className="p-2 rounded-full transition-colors"
                 style={{
                   backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
@@ -1025,23 +937,21 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               >
                 <RotateCw className="text-white" size={18} />
               </div>
-              <span className={`text-xs mt-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Visit In Progress</span>
+              <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Visit In Progress</span>
             </button>
           </div>
         </div>
       )}
-      
+
       {showInlineConfirmation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border ${
-            isDarkMode
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border ${isDarkMode
               ? 'bg-gray-800 border-gray-700'
               : 'bg-white border-gray-300'
-          }`}>
+            }`}>
             <div className="flex items-center mb-4">
-              <div 
+              <div
                 className="p-2 rounded-full mr-3"
                 style={{
                   backgroundColor: colorPalette?.primary || '#ea580c'
@@ -1053,13 +963,11 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
                   <RotateCw className="text-white" size={20} />
                 )}
               </div>
-              <h3 className={`text-xl font-semibold ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Confirm Status Change</h3>
+              <h3 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Confirm Status Change</h3>
             </div>
-            <p className={`mb-6 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               {pendingStatusUpdate === 'Failed'
                 ? 'Are you sure you want to mark this visit as "Failed"?'
                 : 'Are you sure you want to mark this visit as "In Progress"?'
@@ -1068,11 +976,10 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             <div className="flex justify-end space-x-3">
               <button
                 onClick={handleCancelStatusUpdate}
-                className={`px-4 py-2 rounded transition-colors ${
-                  isDarkMode 
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                className={`px-4 py-2 rounded transition-colors ${isDarkMode
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
                     : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                }`}
+                  }`}
               >
                 Cancel
               </button>
@@ -1099,19 +1006,17 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
       )}
 
       {error && (
-        <div className={`p-3 m-3 rounded ${
-          isDarkMode 
+        <div className={`p-3 m-3 rounded ${isDarkMode
             ? 'bg-red-900 bg-opacity-20 border border-red-700 text-red-400'
             : 'bg-red-100 border border-red-300 text-red-700'
-        }`}>
+          }`}>
           {error}
         </div>
       )}
-      
+
       <div className="flex-1 overflow-y-auto">
-        <div className={`max-w-2xl mx-auto py-6 px-4 ${
-          isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-        }`}>
+        <div className={`max-w-2xl mx-auto py-6 px-4 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+          }`}>
           <div className="space-y-4">
             {fieldOrder.map((fieldKey) => (
               <React.Fragment key={fieldKey}>
@@ -1136,6 +1041,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
         isOpen={showJOAssignForm}
         onClose={() => setShowJOAssignForm(false)}
         onSave={handleSaveJOForm}
+        onRefresh={onUpdate}
         applicationData={{
           id: currentVisitData.application_id,
           referred_by: applicationDetails?.referred_by || currentVisitData.referred_by,

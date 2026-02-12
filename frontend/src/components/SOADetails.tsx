@@ -18,7 +18,10 @@ interface SOARecord {
   paymentReceived?: number;
   remainingBalance?: number;
   monthlyServiceFee?: number;
-  otherCharges?: number;
+  serviceCharge?: number;
+  rebate?: number;
+  discounts?: number;
+  staggered?: number;
   vat?: number;
   dueDate?: string;
   amountDue?: number;
@@ -250,9 +253,30 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Others and Basic Charges</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Service Charge</span>
               <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                ₱{Number(soaRecord.otherCharges || 0).toFixed(2)}
+                ₱{Number(soaRecord.serviceCharge || 0).toFixed(2)}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center py-2">
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Rebate</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
+                ₱{Number(soaRecord.rebate || 0).toFixed(2)}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center py-2">
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Discounts</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
+                ₱{Number(soaRecord.discounts || 0).toFixed(2)}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center py-2">
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Staggered</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
+                ₱{Number(soaRecord.staggered || 0).toFixed(2)}
               </span>
             </div>
 

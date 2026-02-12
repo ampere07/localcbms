@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown, Calendar, Camera } from 'lucide-react';
+import { X, ChevronDown, Calendar, Camera, Search } from 'lucide-react';
 import { getRegions, getCities, City } from '../services/cityService';
 import { barangayService, Barangay } from '../services/barangayService';
 import { locationDetailService, LocationDetail } from '../services/locationDetailService';
@@ -56,8 +56,10 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
 
   const [vlans, setVlans] = useState<VLAN[]>([]);
   const [usageTypes, setUsageTypes] = useState<UsageType[]>([]);
-  const [usedPorts, setUsedPorts] = useState<string[]>([]);
+  const [usedPorts, setUsedPorts] = useState<Set<string>>(new Set());
   const [totalPorts, setTotalPorts] = useState<number>(32);
+  const [lcpnapSearch, setLcpnapSearch] = useState('');
+  const [isLcpnapOpen, setIsLcpnapOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
   const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
@@ -212,8 +214,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
           port: (() => {
             const rawPort = recordData.port || recordData.PORT || (parts.length >= 3 ? parts[2] : '');
             if (!rawPort) return '';
-            const portNum = String(rawPort).toUpperCase().replace(/[^\d]/g, '');
-            return portNum ? `PORT ${portNum.padStart(3, '0')}` : '';
+            const portNum = String(rawPort).replace(/[^\d]/g, '');
+            return portNum ? `p${portNum.padStart(2, '0')}` : '';
           })(),
           vlan: recordData.vlan || recordData.VLAN || '',
           lcpnap: lcpnapValue,
@@ -300,29 +302,30 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
     const fetchPorts = async () => {
       if (isOpen && editType === 'technical_details' && formData.lcpnap) {
         try {
-          const jobOrderId = recordData?.job_order_id || recordData?.JobOrder_ID;
-          const usedRes = await getUsedPorts(formData.lcpnap, jobOrderId);
+          // Use any available ID variation
+          const id = recordData?.id || recordData?.job_order_id || recordData?.JobOrder_ID;
+          const usedRes = await getUsedPorts(formData.lcpnap, id);
 
           if (usedRes.success && usedRes.data) {
-            setUsedPorts(usedRes.data.used);
+            setUsedPorts(new Set(usedRes.data.used));
             setTotalPorts(usedRes.data.total);
           } else {
-            setUsedPorts([]);
+            setUsedPorts(new Set());
             setTotalPorts(32);
           }
         } catch (error) {
           console.error('Error fetching used ports:', error);
-          setUsedPorts([]);
+          setUsedPorts(new Set());
           setTotalPorts(32);
         }
       } else {
-        setUsedPorts([]);
+        setUsedPorts(new Set());
         setTotalPorts(32);
       }
     };
 
     fetchPorts();
-  }, [isOpen, editType, formData.lcpnap, recordData?.job_order_id, recordData?.JobOrder_ID]);
+  }, [isOpen, editType, formData.lcpnap, recordData?.id, recordData?.job_order_id, recordData?.JobOrder_ID]);
 
 
 
@@ -1099,7 +1102,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                   <input
                     type="text"
                     value={formData.username || ''}
-                    onChange={(e) => handleInputChange('username', e.target.value)}
+                    readOnly
                     onFocus={(e) => {
                       if (colorPalette?.primary) {
                         e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1110,8 +1113,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       e.currentTarget.style.borderColor = errors.username ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${errors.username ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors cursor-not-allowed opacity-75 ${errors.username ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-900'}`}
                   />
                   {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
                 </div>
@@ -1251,36 +1254,86 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
 
                 {formData.connectionType === 'Fiber' && (
                   <>
-                    <div>
+                    <div className="relative">
                       <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                         LCP-NAP<span className="text-red-500">*</span>
                       </label>
-                      <div className="relative">
-                        <select
-                          value={formData.lcpnap || ''}
-                          onChange={(e) => handleInputChange('lcpnap', e.target.value)}
-                          onFocus={(e) => {
-                            if (colorPalette?.primary) {
-                              e.currentTarget.style.borderColor = colorPalette.primary;
-                              e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                      <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                        } ${errors.lcpnap ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
+                        <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                        <input
+                          type="text"
+                          placeholder="Search LCP-NAP..."
+                          value={isLcpnapOpen ? lcpnapSearch : (formData.lcpnap || '')}
+                          onChange={(e) => {
+                            setLcpnapSearch(e.target.value);
+                            if (!isLcpnapOpen) setIsLcpnapOpen(true);
+                          }}
+                          onFocus={() => {
+                            setIsLcpnapOpen(true);
+                          }}
+                          className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isLcpnapOpen) {
+                              setIsLcpnapOpen(false);
+
+                            } else {
+                              handleInputChange('lcpnap', '');
+                              setLcpnapSearch('');
                             }
                           }}
-                          onBlur={(e) => {
-                            e.currentTarget.style.borderColor = errors.lcpnap ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
-                            e.currentTarget.style.boxShadow = 'none';
-                          }}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.lcpnap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                            } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                          className={`ml-2 transition-transform duration-200 ${isLcpnapOpen ? 'rotate-180' : ''}`}
                         >
-                          <option value="">Select LCP-NAP</option>
-                          {lcpnaps.map((item) => (
-                            <option key={item.id || item.lcpnap_name} value={item.lcpnap_name}>
-                              {item.lcpnap_name}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                          <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                        </button>
                       </div>
+
+                      {/* LCP-NAP Recommendation Dropdown */}
+                      {isLcpnapOpen && (
+                        <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`} style={{ minWidth: '100%' }}>
+                          <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                            {lcpnaps
+                              .filter(item => item.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase()))
+                              .map((item) => (
+                                <div
+                                  key={item.id}
+                                  className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'} ${formData.lcpnap === item.lcpnap_name ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                                  onClick={() => {
+                                    handleInputChange('lcpnap', item.lcpnap_name);
+                                    setIsLcpnapOpen(false);
+                                    setLcpnapSearch('');
+                                  }}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span>{item.lcpnap_name}</span>
+                                    {formData.lcpnap === item.lcpnap_name && (
+                                      <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            {lcpnaps.filter(item => item.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase())).length === 0 && (
+                              <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                No LCP-NAP found for "{lcpnapSearch}"
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Click outside to close */}
+                      {isLcpnapOpen && (
+                        <div
+                          className="fixed inset-0 z-40 bg-transparent"
+                          onClick={() => {
+                            setIsLcpnapOpen(false);
+                            setLcpnapSearch('');
+                          }}
+                        />
+                      )}
                       {errors.lcpnap && <p className="text-red-500 text-xs mt-1">{errors.lcpnap}</p>}
                     </div>
 
@@ -1307,17 +1360,25 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                             } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                         >
                           <option value="">{formData.lcpnap ? 'Select Port' : 'Select LCP-NAP first'}</option>
+                          {(() => {
+                            // Support existing non-standard port names if they're not in the generated list
+                            if (!formData.port) return null;
+                            const currentPort = String(formData.port);
+                            const isGenerated = Array.from({ length: totalPorts }).some((_, i) => `p${(i + 1).toString().padStart(2, '0')}` === currentPort);
+                            if (isGenerated) return null;
+                            return <option value={currentPort}>{currentPort}</option>;
+                          })()}
                           {Array.from({ length: totalPorts }, (_, i) => {
-                            const portName = `PORT ${String(i + 1).padStart(3, '0')}`;
-                            const isUsed = usedPorts.includes(portName);
-                            const isSelected = formData.port === portName;
+                            const portVal = `p${(i + 1).toString().padStart(2, '0')}`;
 
-                            // Only show if not used, OR if it's the currently selected one (in case editing)
-                            if (isUsed && !isSelected) return null;
+                            // Hide port if it is used AND not the one currently selected
+                            if (usedPorts.has(portVal) && formData.port !== portVal) {
+                              return null;
+                            }
 
                             return (
-                              <option key={portName} value={portName}>
-                                {portName}
+                              <option key={portVal} value={portVal}>
+                                {portVal}
                               </option>
                             );
                           })}

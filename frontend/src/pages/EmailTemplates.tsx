@@ -13,6 +13,7 @@ interface EmailTemplateData {
   cc: string;
   bcc: string;
   email_sender: string;
+  reply_to: string;
 }
 
 interface EmailTemplateResponse {
@@ -48,6 +49,7 @@ const EmailTemplates: React.FC = () => {
     cc: '',
     bcc: '',
     email_sender: '',
+    reply_to: '',
     Body_HTML: '',
     Description: '',
     Is_Active: true,
@@ -75,6 +77,7 @@ const EmailTemplates: React.FC = () => {
             cc: response.data.data[0].cc || '',
             bcc: response.data.data[0].bcc || '',
             email_sender: response.data.data[0].email_sender || '',
+            reply_to: response.data.data[0].reply_to || '',
             Body_HTML: response.data.data[0].Body_HTML,
             Description: response.data.data[0].Description || '',
             Is_Active: response.data.data[0].Is_Active,
@@ -130,6 +133,7 @@ const EmailTemplates: React.FC = () => {
       cc: template.cc || '',
       bcc: template.bcc || '',
       email_sender: template.email_sender || '',
+      reply_to: template.reply_to || '',
       Body_HTML: template.Body_HTML,
       Description: template.Description || '',
       Is_Active: template.Is_Active,
@@ -161,6 +165,7 @@ const EmailTemplates: React.FC = () => {
       cc: '',
       bcc: '',
       email_sender: '',
+      reply_to: '',
       Body_HTML: '',
       Description: '',
       Is_Active: true,
@@ -262,6 +267,7 @@ const EmailTemplates: React.FC = () => {
         cc: selectedTemplate.cc || '',
         bcc: selectedTemplate.bcc || '',
         email_sender: selectedTemplate.email_sender || '',
+        reply_to: selectedTemplate.reply_to || '',
         Body_HTML: selectedTemplate.Body_HTML,
         Description: selectedTemplate.Description || '',
         Is_Active: selectedTemplate.Is_Active,
@@ -573,22 +579,34 @@ const EmailTemplates: React.FC = () => {
                     }
                   </select>
                   {/* Warning: Template Code cannot be changed after creation */}
-                  <input
-                    type="text"
-                    value={formData.Subject_Line}
-                    onChange={(e) => handleInputChange('Subject_Line', e.target.value)}
-                    placeholder="Subject Line"
-                    className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
-                      ? 'bg-gray-700 border-gray-600 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
-                      }`}
-                  />
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={formData.Subject_Line}
+                      onChange={(e) => handleInputChange('Subject_Line', e.target.value)}
+                      placeholder="Subject Line"
+                      className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                    />
                     <input
                       type="text"
                       value={formData.email_sender}
                       onChange={(e) => handleInputChange('email_sender', e.target.value)}
                       placeholder="Email Sender (Optional)"
+                      className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      value={formData.reply_to}
+                      onChange={(e) => handleInputChange('reply_to', e.target.value)}
+                      placeholder="Reply To (Optional)"
                       className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
                         ? 'bg-gray-700 border-gray-600 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
@@ -646,10 +664,15 @@ const EmailTemplates: React.FC = () => {
                     <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'
                       }`}>{selectedTemplate.Description}</p>
                   )}
-                  <div className="flex gap-4 mt-1">
+                  <div className="flex flex-wrap gap-4 mt-1">
                     {selectedTemplate.email_sender && (
                       <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         <span className="font-semibold">From:</span> {selectedTemplate.email_sender}
+                      </p>
+                    )}
+                    {selectedTemplate.reply_to && (
+                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <span className="font-semibold">Reply To:</span> {selectedTemplate.reply_to}
                       </p>
                     )}
                     {selectedTemplate.cc && (

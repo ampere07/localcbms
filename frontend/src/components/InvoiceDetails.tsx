@@ -19,7 +19,10 @@ interface InvoiceRecord {
   provider?: string;
   invoiceNo?: string;
   invoiceBalance?: number;
-  otherCharges?: number;
+  serviceCharge?: number;
+  rebate?: number;
+  discounts?: number;
+  staggered?: number;
   totalAmountDue?: number;
   dueDate?: string;
   invoicePayment?: number;
@@ -277,9 +280,30 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord, onViewCu
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Others and Basic Charges</span>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Service Charge</span>
               <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                ₱{invoiceRecord.otherCharges?.toFixed(2) || '0.00'}
+                ₱{invoiceRecord.serviceCharge?.toFixed(2) || '0.00'}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center py-2">
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Rebate</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
+                ₱{invoiceRecord.rebate?.toFixed(2) || '0.00'}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center py-2">
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Discounts</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
+                ₱{invoiceRecord.discounts?.toFixed(2) || '0.00'}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center py-2">
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Staggered</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
+                ₱{invoiceRecord.staggered?.toFixed(2) || '0.00'}
               </span>
             </div>
 

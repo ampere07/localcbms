@@ -1,4 +1,13 @@
 // Define the JobOrder interface to match job_orders database table
+export interface JobOrderItem {
+  id: number;
+  job_order_id: number;
+  item_name: string;
+  quantity: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface JobOrder {
   // Primary identifiers
   id?: string | number;
@@ -100,6 +109,10 @@ export interface JobOrder {
   Router_Reading_Image?: string | null;
   House_Front_Picture?: string | null;
   Image?: string | null;
+
+  // Items
+  job_order_items?: JobOrderItem[];
+
 
   // Additional Fields
   Renter?: string | null;

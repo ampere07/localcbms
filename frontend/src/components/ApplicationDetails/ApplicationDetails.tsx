@@ -1095,6 +1095,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         isOpen={showJOAssignForm}
         onClose={() => setShowJOAssignForm(false)}
         onSave={handleSaveJOForm}
+        onRefresh={onApplicationUpdate}
         applicationData={{
           ...detailedApplication,
           installation_address: detailedApplication?.installation_address || application.address,

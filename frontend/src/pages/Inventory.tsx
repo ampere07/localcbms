@@ -29,13 +29,10 @@ interface InventoryFormData {
   itemDescription: string;
   supplier: string;
   quantityAlert: number;
-  image: File | null;
+  image: File | string | null;
   modifiedBy: string;
   modifiedDate: string;
-  userEmail: string;
   category: string;
-  totalStockAvailable: number;
-  totalStockIn: number;
 }
 
 interface ApiResponse<T = any> {
@@ -274,10 +271,11 @@ const Inventory: React.FC = () => {
         quantity_alert: formData.quantityAlert,
         category: formData.category,
         item_id: null,
-        image: '',
+        image: typeof formData.image === 'string' ? formData.image : '',
       };
 
       const response = isEditing
+
         ? await apiClient.put<ApiResponse>(`/inventory/${encodeURIComponent(editingItem.item_name)}`, payload)
         : await apiClient.post<ApiResponse>('/inventory', payload);
 
@@ -632,13 +630,10 @@ const Inventory: React.FC = () => {
           itemDescription: editingItem.item_description || '',
           supplier: editingItem.supplier || '',
           quantityAlert: editingItem.quantity_alert || 0,
-          image: null,
-          modifiedBy: editingItem.modified_by || 'ravenampere0123@gmail.com',
+          image: editingItem.image || null,
+          modifiedBy: editingItem.modified_by || '',
           modifiedDate: editingItem.modified_date || new Date().toISOString().slice(0, 16),
-          userEmail: editingItem.user_email || 'ravenampere0123@gmail.com',
           category: editingItem.category || '',
-          totalStockAvailable: 0,
-          totalStockIn: 0
         } : null}
       />
     </div>
