@@ -13,6 +13,7 @@ import { settingsColorPaletteService, ColorPalette } from '../services/settingsC
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 import { billingStatusService, BillingStatus } from '../services/billingStatusService';
 import { getUsedPorts } from '../services/portService';
+import apiClient from '../config/api';
 
 interface CustomerDetailsEditModalProps {
   isOpen: boolean;
@@ -586,6 +587,59 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
         message: 'Please fill in all required fields before saving.'
       });
       return;
+    }
+
+    // SmartOLT Validation Logic for Technical Details
+    if (editType === 'technical_details' && formData.connectionType === 'Fiber' && formData.routerModemSn?.trim()) {
+      try {
+        console.log('[SMARTOLT VALIDATION] Validating Modem SN:', formData.routerModemSn);
+        setLoading(true);
+
+        const smartOltResponse = await apiClient.get('/smart-olt/validate-sn', {
+          params: { sn: formData.routerModemSn }
+        });
+
+        if (!(smartOltResponse.data as any).success) {
+          console.log('[SMARTOLT VALIDATION] Failed:', smartOltResponse.data);
+          setLoading(false);
+
+          const errorMessage = (smartOltResponse.data as any).message || 'Invalid Modem SN';
+          setErrors(prev => ({
+            ...prev,
+            routerModemSn: errorMessage
+          }));
+
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'SmartOLT Verification Failed',
+            message: errorMessage,
+            onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
+          });
+          return;
+        }
+
+        console.log('[SMARTOLT VALIDATION] Success');
+        setLoading(false);
+      } catch (error: any) {
+        console.error('[SMARTOLT VALIDATION] API Error:', error);
+        setLoading(false);
+        const errorMessage = error.response?.data?.message || 'Failed to validate Modem SN with SmartOLT system.';
+
+        setErrors(prev => ({
+          ...prev,
+          routerModemSn: errorMessage
+        }));
+
+        setModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Validation Error',
+          message: errorMessage,
+          onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
+        });
+        return;
+      }
     }
 
     try {

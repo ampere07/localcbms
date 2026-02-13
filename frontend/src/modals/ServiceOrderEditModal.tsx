@@ -802,40 +802,117 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       return;
     }
 
-    // Validate Router Modem SN with SmartOLT if provided
-    if (formData.routerModemSN && formData.routerModemSN.trim() !== '') {
-      try {
-        setModal({
-          isOpen: true,
-          type: 'loading',
-          title: 'Validating',
-          message: 'Validating Router Modem SN...'
-        });
+    // SmartOLT Validation Logic
+    if (formData.connectionType === 'Fiber') {
+      // Validate Router Modem SN if provided
+      if (formData.routerModemSN?.trim()) {
+        try {
+          console.log('[SMARTOLT VALIDATION] Validating Modem SN:', formData.routerModemSN);
 
-        const validationResponse = await apiClient.get<{ success: boolean; message?: string }>('/smart-olt/validate-sn', {
-          params: { sn: formData.routerModemSN }
-        });
+          // Use modal for loading feedback here as ServiceOrderEditModal uses modal for loading
+          setModal({
+            isOpen: true,
+            type: 'loading',
+            title: 'Validating',
+            message: 'Validating Router Modem SN...'
+          });
 
-        if (!validationResponse.data.success) {
+          const smartOltResponse = await apiClient.get('/smart-olt/validate-sn', {
+            params: { sn: formData.routerModemSN }
+          });
+
+          if (!(smartOltResponse.data as any).success) {
+            console.log('[SMARTOLT VALIDATION] Failed:', smartOltResponse.data);
+
+            const errorMessage = (smartOltResponse.data as any).message || 'Invalid Modem SN';
+            setErrors(prev => ({
+              ...prev,
+              routerModemSN: errorMessage
+            }));
+
+            setModal({
+              isOpen: true,
+              type: 'error',
+              title: 'SmartOLT Verification Failed',
+              message: errorMessage,
+              onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
+            });
+            return;
+          }
+          console.log('[SMARTOLT VALIDATION] Router Modem SN Success');
+        } catch (error: any) {
+          console.error('[SMARTOLT VALIDATION] API Error:', error);
+          const errorMessage = error.response?.data?.message || 'Failed to validate Modem SN with SmartOLT system.';
+
+          setErrors(prev => ({
+            ...prev,
+            routerModemSN: errorMessage
+          }));
+
           setModal({
             isOpen: true,
             type: 'error',
-            title: 'Invalid Router Modem SN',
-            message: validationResponse.data.message || 'Missing router model sn value'
+            title: 'Validation Error',
+            message: errorMessage,
+            onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
           });
           return;
         }
-      } catch (error: any) {
-        console.error('SmartOLT Validation Error:', error);
-        const errorMessage = error.response?.data?.message || 'Invalid router model sn';
+      }
 
-        setModal({
-          isOpen: true,
-          type: 'error',
-          title: 'Validation Error',
-          message: errorMessage
-        });
-        return;
+      // Validate New Router Modem SN if provided
+      if (formData.newRouterModemSN?.trim()) {
+        try {
+          console.log('[SMARTOLT VALIDATION] Validating New Modem SN:', formData.newRouterModemSN);
+
+          setModal({
+            isOpen: true,
+            type: 'loading',
+            title: 'Validating',
+            message: 'Validating New Router Modem SN...'
+          });
+
+          const smartOltResponse = await apiClient.get('/smart-olt/validate-sn', {
+            params: { sn: formData.newRouterModemSN }
+          });
+
+          if (!(smartOltResponse.data as any).success) {
+            console.log('[SMARTOLT VALIDATION] Failed:', smartOltResponse.data);
+
+            const errorMessage = (smartOltResponse.data as any).message || 'Invalid New Modem SN';
+            setErrors(prev => ({
+              ...prev,
+              newRouterModemSN: errorMessage
+            }));
+
+            setModal({
+              isOpen: true,
+              type: 'error',
+              title: 'SmartOLT Verification Failed',
+              message: errorMessage,
+              onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
+            });
+            return;
+          }
+          console.log('[SMARTOLT VALIDATION] New Router Modem SN Success');
+        } catch (error: any) {
+          console.error('[SMARTOLT VALIDATION] API Error:', error);
+          const errorMessage = error.response?.data?.message || 'Failed to validate New Modem SN with SmartOLT system.';
+
+          setErrors(prev => ({
+            ...prev,
+            newRouterModemSN: errorMessage
+          }));
+
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Validation Error',
+            message: errorMessage,
+            onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
+          });
+          return;
+        }
       }
     }
 
