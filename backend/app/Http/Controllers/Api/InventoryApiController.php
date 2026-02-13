@@ -43,7 +43,9 @@ class InventoryApiController extends Controller
                     'item_id' => $item->id,
                     'modified_by' => $this->getCurrentUser(),
                     'modified_date' => $item->updated_at,
-                    'user_email' => $this->getCurrentUser()
+                    'modified_date' => $item->updated_at,
+                    'user_email' => $this->getCurrentUser(),
+                    'total_quantity' => $item->total_quantity
                 ];
             });
             
@@ -126,7 +128,9 @@ class InventoryApiController extends Controller
                     'item_id' => $item->id,
                     'modified_by' => $this->getCurrentUser(),
                     'modified_date' => $item->updated_at,
-                    'user_email' => $this->getCurrentUser()
+                    'modified_date' => $item->updated_at,
+                    'user_email' => $this->getCurrentUser(),
+                    'total_quantity' => $item->total_quantity
                 ]
             ], 201);
             
@@ -170,7 +174,9 @@ class InventoryApiController extends Controller
                     'item_id' => $item->id,
                     'modified_by' => $this->getCurrentUser(),
                     'modified_date' => $item->updated_at,
-                    'user_email' => $this->getCurrentUser()
+                    'modified_date' => $item->updated_at,
+                    'user_email' => $this->getCurrentUser(),
+                    'total_quantity' => $item->total_quantity
                 ]
             ]);
             
@@ -256,7 +262,9 @@ class InventoryApiController extends Controller
                     'item_id' => $item->id,
                     'modified_by' => $this->getCurrentUser(),
                     'modified_date' => $item->updated_at,
-                    'user_email' => $this->getCurrentUser()
+                    'modified_date' => $item->updated_at,
+                    'user_email' => $this->getCurrentUser(),
+                    'total_quantity' => $item->total_quantity
                 ]
             ]);
             

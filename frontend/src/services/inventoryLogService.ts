@@ -30,7 +30,13 @@ export const createInventoryLog = async (logData: Partial<InventoryLog>): Promis
         const response = await apiClient.post<ApiResponse<InventoryLog>>('/inventory-logs', logData);
         return response.data;
     } catch (error: any) {
-        console.error('Error creating inventory log:', error);
+        console.error('Error creating inventory log:', {
+            status: error.response?.status,
+            data: error.response?.data,
+            message: error.message,
+            url: error.config?.url,
+            method: error.config?.method
+        });
         throw error;
     }
 };

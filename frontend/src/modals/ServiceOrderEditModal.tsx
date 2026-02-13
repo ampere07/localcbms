@@ -1419,6 +1419,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         } ${errors.assignedEmail ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                     >
                       <option value="">Select Technician</option>
+                      <option value="None">None</option>
                       {technicians.map((tech) => {
                         const emailValue = (tech as any).email_address || tech.email || '';
                         console.log('Technician option:', tech, 'Email:', emailValue);
@@ -1452,6 +1453,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                             } ${errors.repairCategory ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                         >
                           <option value="">Select Repair Category</option>
+                          <option value="None">None</option>
                           <option value="Fiber Relaying">Fiber Relaying</option>
                           <option value="Migrate">Migrate</option>
                           <option value="others">others</option>
@@ -1620,6 +1622,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                                 } ${errors.newVlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
                               <option value="">Select VLAN</option>
+                              <option value="None">None</option>
                               {vlans.map((vlan) => (
                                 <option key={vlan} value={vlan}>{vlan}</option>
                               ))}
@@ -1646,6 +1649,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                                 } ${errors.routerModel ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
                               <option value=""></option>
+                              <option value="None">None</option>
                               {formData.routerModel && !routerModels.some(rm => rm.model === formData.routerModel) && (
                                 <option value={formData.routerModel}>{formData.routerModel}</option>
                               )}
@@ -1700,6 +1704,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                               } ${errors.newVlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                           >
                             <option value="">Select VLAN</option>
+                            <option value="None">None</option>
                             {vlans.map((vlan) => (
                               <option key={vlan} value={vlan}>{vlan}</option>
                             ))}
@@ -1727,6 +1732,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                             } ${errors.visitBy ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                         >
                           <option value="">Select Visit By</option>
+                          <option value="None">None</option>
                           {technicians.filter(t => t.name !== formData.visitWith && t.name !== formData.visitWithOther).map((tech, index) => (
                             <option key={index} value={tech.name}>
                               {tech.name}
@@ -1927,6 +1933,27 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                                     style={{ minWidth: '100%' }}
                                   >
                                     <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                      {/* Show None option if it matches search term */}
+                                      {('none'.includes(itemSearchTerm.toLowerCase()) || itemSearchTerm === '') && (
+                                        <div
+                                          className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode
+                                            ? 'hover:bg-gray-700 text-gray-200'
+                                            : 'hover:bg-gray-100 text-gray-700'
+                                            } ${item.itemId === 'None' ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                                          onClick={() => {
+                                            handleItemChange(index, 'itemId', 'None');
+                                            setItemSearchTerm('None');
+                                            setActiveItemIndex(null);
+                                          }}
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <span>None</span>
+                                            {item.itemId === 'None' && (
+                                              <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
                                       {inventoryItems
                                         .filter(invItem => invItem.item_name.toLowerCase().includes(itemSearchTerm.toLowerCase()))
                                         .map((invItem) => (
@@ -2172,6 +2199,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                           className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitBy ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus-primary appearance-none`}
                         >
                           <option value="">Select Visit By</option>
+                          <option value="None">None</option>
                           {technicians.map((tech, index) => (
                             <option key={index} value={tech.name}>
                               {tech.name}
@@ -2197,6 +2225,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                           className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitWith ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus-primary appearance-none`}
                         >
                           <option value="">Select Visit With</option>
+                          <option value="None">None</option>
                           {technicians.filter(tech => tech.name !== formData.visitBy).map((tech, index) => (
                             <option key={index} value={tech.name}>
                               {tech.name}
@@ -2222,6 +2251,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                           className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitWithOther ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus-primary appearance-none`}
                         >
                           <option value="">Select Visit With Other</option>
+                          <option value="None">None</option>
                           {technicians.filter(tech => tech.name !== formData.visitBy).map((tech, index) => (
                             <option key={index} value={tech.name}>
                               {tech.name}
@@ -2281,6 +2311,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         } ${errors.concern ? 'border-red-500' : ''}`}
                     >
                       <option value="">Select Concern</option>
+                      <option value="None">None</option>
                       {concerns.map((concern) => (
                         <option key={concern.id} value={concern.concern_name}>
                           {concern.concern_name}

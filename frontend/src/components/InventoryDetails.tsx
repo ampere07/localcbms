@@ -4,6 +4,9 @@ import { settingsColorPaletteService, ColorPalette } from '../services/settingsC
 import { relatedDataService } from '../services/relatedDataService';
 import RelatedDataTable from './RelatedDataTable';
 import { relatedDataColumns } from '../config/relatedDataColumns';
+import InventoryLogsFormModal from './InventoryLogsFormModal';
+import { InventoryItem as FullInventoryItem } from '../services/inventoryItemService';
+
 
 interface InventoryItem {
   item_name: string;
@@ -107,6 +110,8 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
     defectiveLogs: false
   });
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
+
 
   // Related data counts
   const [inventoryLogsCount, setInventoryLogsCount] = useState(inventoryLogs.length);
@@ -330,6 +335,24 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
               >
                 <span>Edit</span>
               </button>
+              <button
+                onClick={() => setIsLogsModalOpen(true)}
+                className="px-3 py-1.5 rounded text-sm transition-colors flex items-center space-x-1 text-white"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                }}
+              >
+                <span>Stock In/Out</span>
+              </button>
+
               <button
                 onClick={handleCollapse}
                 className={`p-2 rounded transition-colors ${isDarkMode
@@ -619,6 +642,19 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
             </div>
           </div>
         </div>
+        <InventoryLogsFormModal
+          isOpen={isLogsModalOpen}
+          onClose={() => setIsLogsModalOpen(false)}
+          selectedItem={{
+            id: item.item_id || 0,
+            item_name: item.item_name,
+            item_description: item.item_description,
+            image_url: item.image
+          }}
+          onSuccess={() => {
+            // Re-fetch related data
+          }}
+        />
       </div>
     );
   }
@@ -701,6 +737,24 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
           >
             <span>Edit</span>
           </button>
+          <button
+            onClick={() => setIsLogsModalOpen(true)}
+            className="px-3 py-1.5 rounded text-sm transition-colors flex items-center space-x-1 text-white"
+            style={{
+              backgroundColor: colorPalette?.primary || '#ea580c'
+            }}
+            onMouseEnter={(e) => {
+              if (colorPalette?.accent) {
+                e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+            }}
+          >
+            <span>Stock In/Out</span>
+          </button>
+
           <button className={`p-2 rounded transition-colors ${isDarkMode
             ? 'text-gray-400 hover:text-white hover:bg-gray-700'
             : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
@@ -1023,6 +1077,19 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
           )}
         </div>
       </div>
+      <InventoryLogsFormModal
+        isOpen={isLogsModalOpen}
+        onClose={() => setIsLogsModalOpen(false)}
+        selectedItem={{
+          id: item.item_id || 0,
+          item_name: item.item_name,
+          item_description: item.item_description,
+          image_url: item.image
+        }}
+        onSuccess={() => {
+          // Re-fetch related data could be done here if a callback was provided
+        }}
+      />
     </div>
   );
 };

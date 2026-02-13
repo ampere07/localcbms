@@ -78,7 +78,7 @@ class InventoryLogApiController extends Controller
             $log->id = (string) Str::uuid(); // Generate a UUID for the ID
             $log->date = now();
             $log->item_name = $item->item_name;
-            $log->item_description = $item->item_description;
+            $log->item_description = Str::limit($item->item_description, 192, ''); // Truncate to 192 chars without '...' suffix
             $log->item_id = $item->id;
             $log->item_quantity = $request->item_quantity;
             $log->requested_by = $request->requested_by;

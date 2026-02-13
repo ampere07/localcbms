@@ -31,6 +31,7 @@ class Inventory extends Model
     
     protected $casts = [
         'quantity_alert' => 'integer',
+        'total_quantity' => 'integer',
         'category_id' => 'integer',
         'supplier_id' => 'integer',
         'created_at' => 'datetime',

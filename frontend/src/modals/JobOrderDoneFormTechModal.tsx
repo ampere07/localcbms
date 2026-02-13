@@ -1076,6 +1076,51 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       return;
     }
 
+    // SmartOLT Validation Logic
+    if (formData.onsiteStatus === 'Done' && formData.connectionType === 'Fiber' && formData.modemSN.trim()) {
+      try {
+        console.log('[SMARTOLT VALIDATION] Validating Modem SN:', formData.modemSN);
+
+        // Show a smaller loading indicator or just set loading state if preferred, 
+        // but user asked for validation BEFORE the main loading modal.
+        // We will momentarily show loading just for this check if needed, 
+        // or relies on the fact that we haven't shown the main modal yet.
+        setLoading(true);
+
+        const smartOltResponse = await apiClient.get('/smart-olt/validate-sn', {
+          params: { sn: formData.modemSN }
+        });
+
+        if (!(smartOltResponse.data as any).success) {
+          console.log('[SMARTOLT VALIDATION] Failed:', smartOltResponse.data);
+          setLoading(false); // Stop loading on failure
+          setErrors(prev => ({
+            ...prev,
+            modemSN: (smartOltResponse.data as any).message || 'Invalid Modem SN'
+          }));
+          showMessageModal('SmartOLT Verification Failed', [
+            { type: 'error', text: (smartOltResponse.data as any).message || 'The provided Modem SN is invalid or not authorized.' }
+          ]);
+          return;
+        }
+
+        console.log('[SMARTOLT VALIDATION] Success');
+        setLoading(false); // Stop loading after success, before main save starts
+      } catch (error: any) {
+        console.error('[SMARTOLT VALIDATION] API Error:', error);
+        setLoading(false); // Stop loading on error
+        const errorMessage = error.response?.data?.message || 'Failed to validate Modem SN with SmartOLT system.';
+        setErrors(prev => ({
+          ...prev,
+          modemSN: errorMessage
+        }));
+        showMessageModal('Validation Error', [
+          { type: 'error', text: errorMessage }
+        ]);
+        return;
+      }
+    }
+
     console.log('[SAVE VALIDATION] Form validation passed');
 
     if (!jobOrderData?.id && !jobOrderData?.JobOrder_ID) {
@@ -1089,6 +1134,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
 
     console.log('[SAVE ID CHECK] Job order has ID, proceeding...');
 
+    // NOW show the main loading modal for the actual save process
     setLoading(true);
     setShowLoadingModal(true);
     setLoadingPercentage(0);
@@ -1874,6 +1920,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                     <select value={formData.usageType} onChange={(e) => handleInputChange('usageType', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                       } ${errors.usageType ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
                       <option value=""></option>
+                      <option value="None">None</option>
                       {formData.usageType && !usageTypes.some(ut => ut.usage_name === formData.usageType) && (
                         <option value={formData.usageType}>{formData.usageType}</option>
                       )}
@@ -1956,6 +2003,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                     <select value={formData.routerModel} onChange={(e) => handleInputChange('routerModel', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                       } ${errors.routerModel ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
                       <option value=""></option>
+                      <option value="None">None</option>
                       {formData.routerModel && !routerModels.some(rm => rm.model === formData.routerModel) && (
                         <option value={formData.routerModel}>{formData.routerModel}</option>
                       )}
@@ -2202,6 +2250,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                         <select value={formData.vlan} onChange={(e) => handleInputChange('vlan', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                           } ${errors.vlan ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
                           <option value="">Select VLAN</option>
+                          <option value="None">None</option>
                           {formData.vlan && !vlans.some(v => v.value.toString() === formData.vlan) && (
                             <option value={formData.vlan}>{formData.vlan}</option>
                           )}
@@ -2234,6 +2283,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                     <select value={formData.visit_by} onChange={(e) => handleInputChange('visit_by', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                       } ${errors.visit_by ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
                       <option value=""></option>
+                      <option value="None">None</option>
                       {formData.visit_by && !technicians.some(t => t.name === formData.visit_by) && (
                         <option value={formData.visit_by}>{formData.visit_by}</option>
                       )}
@@ -2510,6 +2560,27 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                                 style={{ minWidth: '100%' }}
                               >
                                 <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                  {/* Show None option if it matches search term */}
+                                  {('none'.includes(itemSearchTerm.toLowerCase()) || itemSearchTerm === '') && (
+                                    <div
+                                      className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode
+                                        ? 'hover:bg-gray-700 text-gray-200'
+                                        : 'hover:bg-gray-100 text-gray-700'
+                                        } ${item.itemId === 'None' ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                                      onClick={() => {
+                                        handleItemChange(index, 'itemId', 'None');
+                                        setItemSearchTerm('None');
+                                        setActiveItemIndex(null);
+                                      }}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <span>None</span>
+                                        {item.itemId === 'None' && (
+                                          <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                   {inventoryItems
                                     .filter(invItem => invItem.item_name.toLowerCase().includes(itemSearchTerm.toLowerCase()))
                                     .map((invItem) => (
@@ -2618,6 +2689,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                     <select value={formData.visit_by} onChange={(e) => handleInputChange('visit_by', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                       } ${errors.visit_by ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
                       <option value=""></option>
+                      <option value="None">None</option>
                       {formData.visit_by && !technicians.some(t => t.name === formData.visit_by) && (
                         <option value={formData.visit_by}>{formData.visit_by}</option>
                       )}
@@ -2720,6 +2792,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                     <select value={formData.statusRemarks} onChange={(e) => handleInputChange('statusRemarks', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                       } ${errors.statusRemarks ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
                       <option value=""></option>
+                      <option value="None">None</option>
                       <option value="Customer Request">Customer Request</option>
                       <option value="Bad Weather">Bad Weather</option>
                       <option value="Technician Unavailable">Technician Unavailable</option>

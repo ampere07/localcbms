@@ -40,7 +40,7 @@ class SmartOltController extends Controller
 
             // Construct URL
             // https://{{subdomain}}.smartolt.com/api/onu/get_onus_details_by_sn/{{onu_sn}}
-            $url = "https://{$subDomain}.smartolt.com/api/onu/get_onus_details_by_sn/{$sn}";
+                $url = "https://{$subDomain}.smartolt.com/api/onu/get_all_onus_details";
 
             Log::info("Calling SmartOLT API: $url");
 
@@ -50,30 +50,46 @@ class SmartOltController extends Controller
             ])->get($url);
 
             Log::info('SmartOLT API Response Status: ' . $response->status());
-            Log::info('SmartOLT API Response Body: ' . $response->body());
-
+            
             if ($response->successful()) {
                 $data = $response->json();
                 
-                // Check if response contains valid data
-                // Assuming successful response means valid SN
-                if (isset($data['status']) && $data['status'] === false) {
+                if (isset($data['onus']) && is_array($data['onus'])) {
+                    $found = false;
+                    $onuDetails = null;
+
+                    foreach ($data['onus'] as $onu) {
+                        if (isset($onu['sn']) && $onu['sn'] === $sn) {
+                            $found = true;
+                            $onuDetails = $onu;
+                            break;
+                        }
+                    }
+
+                    if ($found) {
+                        return response()->json([
+                            'success' => true,
+                            'data' => $onuDetails,
+                            'message' => 'Valid router model sn'
+                        ]);
+                    } else {
+                         return response()->json([
+                            'success' => false,
+                            'message' => 'Invalid router model sn: SN not found in SmartOLT system'
+                        ], 200);
+                    }
+                } else {
                      return response()->json([
                         'success' => false,
-                        'message' => 'Invalid router model sn: ' . ($data['error'] ?? 'Unknown error')
-                    ], 400);
+                        'message' => 'Invalid response structure from SmartOLT'
+                    ], 500);
                 }
 
-                return response()->json([
-                    'success' => true,
-                    'data' => $data,
-                    'message' => 'Valid router model sn'
-                ]);
             } else {
                 // Return 400 if not found or error
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid router model sn: ' . $response->status()
+                    'message' => 'Error communicating with SmartOLT: ' . $response->status()
                 ], 400);
             }
 
