@@ -35,17 +35,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   }, []);
 
   useEffect(() => {
-    // Auto-expand the parent of the active section
-    if (activeSection) {
-      menuItems.forEach(item => {
-        if (item.children && item.children.some(child => child.id === activeSection)) {
-          setExpandedItems(prev => prev.includes(item.id) ? prev : [...prev, item.id]);
-        }
-      });
-    }
-  }, [activeSection]);
-
-  useEffect(() => {
     const updateDateTime = () => {
       const now = new Date();
       const dateOptions: Intl.DateTimeFormatOptions = {
@@ -107,10 +96,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
     fetchColorPalette();
   }, []);
 
-  if (userRole?.toLowerCase() === 'customer') return null;
-
   const menuItems: MenuItem[] = [
-    // { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['administrator', 'customer'] },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['administrator', 'customer'] },
     { id: 'live-monitor', label: 'Live Monitor', icon: Activity, allowedRoles: ['administrator'] },
     {
       id: 'billing',
@@ -225,6 +212,21 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
     },
     { id: 'settings', label: 'Settings', icon: Settings, allowedRoles: ['administrator', 'technician'] },
   ];
+
+
+  // Auto-expand the parent of the active section
+  useEffect(() => {
+    if (activeSection) {
+      menuItems.forEach(item => {
+        if (item.children && item.children.some(child => child.id === activeSection)) {
+          setExpandedItems(prev => prev.includes(item.id) ? prev : [...prev, item.id]);
+        }
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection]);
+
+  if (userRole?.toLowerCase() === 'customer') return null;
 
   const filterMenuByRole = (items: MenuItem[]): MenuItem[] => {
     // If the user is a customer, always return an empty menu (hide sidebar content)

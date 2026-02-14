@@ -710,6 +710,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     if (!formData.supportStatus.trim()) newErrors.supportStatus = 'Support Status is required';
     if (!formData.concern.trim()) newErrors.concern = 'Concern is required';
 
+    // Only validate newPlan if the concern is 'Upgrade/Downgrade Plan' (when the field is visible)
     if (formData.concern === 'Upgrade/Downgrade Plan' && !formData.newPlan.trim()) {
       newErrors.newPlan = 'New Plan is required';
     }
@@ -731,15 +732,18 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       }
     }
 
-    if (['Migrate', 'Relocate', 'Relocate Router', 'Transfer LCP/NAP/PORT'].includes(formData.repairCategory)) {
-      if (!formData.newRouterModemSN.trim()) newErrors.newRouterModemSN = 'New Router Modem SN is required';
-      if (!formData.newLcpnap.trim()) newErrors.newLcpnap = 'New LCP-NAP is required';
-      if (!formData.newPort.trim()) newErrors.newPort = 'New Port is required';
-      if (!formData.routerModel.trim()) newErrors.routerModel = 'Router Model is required';
-    }
+    // Only validate repair category fields if visitStatus is 'Done' (when these fields are visible)
+    if (formData.visitStatus === 'Done') {
+      if (['Migrate', 'Relocate', 'Relocate Router', 'Transfer LCP/NAP/PORT'].includes(formData.repairCategory)) {
+        if (!formData.newRouterModemSN.trim()) newErrors.newRouterModemSN = 'New Router Modem SN is required';
+        if (!formData.newLcpnap.trim()) newErrors.newLcpnap = 'New LCP-NAP is required';
+        if (!formData.newPort.trim()) newErrors.newPort = 'New Port is required';
+        if (!formData.routerModel.trim()) newErrors.routerModel = 'Router Model is required';
+      }
 
-    if (formData.repairCategory === 'Replace Router') {
-      if (!formData.newRouterModemSN.trim()) newErrors.newRouterModemSN = 'New Router Modem SN is required';
+      if (formData.repairCategory === 'Replace Router') {
+        if (!formData.newRouterModemSN.trim()) newErrors.newRouterModemSN = 'New Router Modem SN is required';
+      }
     }
 
     setErrors(newErrors);
