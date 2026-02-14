@@ -1577,7 +1577,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                     </div>
                   )}
                 </div>
-                <button
+                {/* <button
                   onClick={handleProcessOverdueNotifications}
                   disabled={isLoading}
                   className="bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors"
@@ -1597,7 +1597,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                   className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors"
                 >
                   {isLoading ? 'Generating...' : 'Generate Sample Data'}
-                </button>
+                </button> */}
                 <button
                   onClick={handleRefresh}
                   disabled={isLoading}

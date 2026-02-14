@@ -841,7 +841,7 @@ const LiveMonitor: React.FC = () => {
   return (
     <div ref={containerRef} className={`min-h-screen ${isDarkMode ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'} ${isFullscreen ? 'overflow-y-auto' : ''}`}>
       {/* Header */}
-      <div className={`sticky top-0 z-50 border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+      <div className={`sticky top-0 z-20 border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
         <div className="container mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2">
