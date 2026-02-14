@@ -33,7 +33,7 @@ const PromoList: React.FC = () => {
         console.error('Failed to fetch color palette:', err);
       }
     };
-    
+
     fetchColorPalette();
   }, []);
 
@@ -61,8 +61,54 @@ const PromoList: React.FC = () => {
     loadPromos();
   }, []);
 
-  const loadPromos = async () => {
-    setIsLoading(true);
+  // Idle detection and auto-refresh logic
+  useEffect(() => {
+    const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
+    let idleTimer: NodeJS.Timeout | null = null;
+
+    const refreshData = async () => {
+      console.log('User idle for 15 minutes, auto-refreshing Promo data...');
+      try {
+        await loadPromos(true); // Silent refresh
+      } catch (err) {
+        console.error('Idle refresh failed:', err);
+      }
+      // Set the timer again to refresh every 15 mins if they remain idle
+      startTimer();
+    };
+
+    const startTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(refreshData, IDLE_TIME_LIMIT);
+    };
+
+    const resetTimer = () => {
+      startTimer();
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    // Use passive listeners for performance
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    startTimer(); // Initialize timer on mount
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, []);
+
+  const loadPromos = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/promos`, {
         headers: {
@@ -70,14 +116,14 @@ const PromoList: React.FC = () => {
           'Content-Type': 'application/json',
         },
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || 'Unknown error'}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         setPromos(data.data || []);
       } else {
@@ -102,7 +148,7 @@ const PromoList: React.FC = () => {
       newSet.add(promo.id);
       return newSet;
     });
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/promos/${promo.id}`, {
         method: 'DELETE',
@@ -111,9 +157,9 @@ const PromoList: React.FC = () => {
           'Content-Type': 'application/json',
         },
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         await loadPromos();
         alert('✅ Promo permanently deleted from database: ' + (data.message || 'Promo deleted successfully'));
@@ -160,8 +206,8 @@ const PromoList: React.FC = () => {
 
   const getFilteredPromos = () => {
     if (!searchQuery) return promos;
-    
-    return promos.filter(promo => 
+
+    return promos.filter(promo =>
       promo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (promo.status && promo.status.toLowerCase().includes(searchQuery.toLowerCase()))
     );
@@ -169,30 +215,26 @@ const PromoList: React.FC = () => {
 
   const renderListItem = (promo: Promo) => {
     return (
-      <div key={promo.id} className={`border-b ${
-        isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-      }`}>
+      <div key={promo.id} className={`border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+        }`}>
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <h3 className={`font-medium text-lg ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{promo.name}</h3>
+              <h3 className={`font-medium text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{promo.name}</h3>
               {promo.status && (
-                <span className={`text-xs px-2 py-1 rounded ${
-                  promo.status === 'Active' 
-                    ? 'bg-green-800 text-green-400' 
-                    : promo.status === 'Inactive'
+                <span className={`text-xs px-2 py-1 rounded ${promo.status === 'Active'
+                  ? 'bg-green-800 text-green-400'
+                  : promo.status === 'Inactive'
                     ? 'bg-red-800 text-red-400'
                     : 'bg-blue-800 text-blue-400'
-                }`}>
+                  }`}>
                   {promo.status}
                 </span>
               )}
             </div>
-            <div className={`flex items-center gap-4 mt-2 text-xs ${
-              isDarkMode ? 'text-gray-500' : 'text-gray-600'
-            }`}>
+            <div className={`flex items-center gap-4 mt-2 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
+              }`}>
               <span>Created: {formatDate(promo.created_at)}</span>
               <span>Updated: {formatDate(promo.updated_at)}</span>
             </div>
@@ -200,11 +242,10 @@ const PromoList: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleEdit(promo)}
-              className={`p-2 rounded transition-colors ${
-                isDarkMode
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
+              className={`p-2 rounded transition-colors ${isDarkMode
+                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
               title="Edit"
             >
               <Edit2 className="h-4 w-4" />
@@ -212,11 +253,10 @@ const PromoList: React.FC = () => {
             <button
               onClick={() => handleDelete(promo)}
               disabled={deletingItems.has(promo.id)}
-              className={`p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
-                isDarkMode
-                  ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
-                  : 'text-gray-600 hover:text-red-600 hover:bg-gray-100'
-              }`}
+              className={`p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${isDarkMode
+                ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
+                : 'text-gray-600 hover:text-red-600 hover:bg-gray-100'
+                }`}
               title={deletingItems.has(promo.id) ? 'Permanently Deleting...' : 'Permanently Delete'}
             >
               {deletingItems.has(promo.id) ? (
@@ -234,17 +274,14 @@ const PromoList: React.FC = () => {
   const filteredPromos = getFilteredPromos();
 
   return (
-    <div className={`min-h-screen relative ${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    }`}>
-      <div className={`border-b ${
-        isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+    <div className={`min-h-screen relative ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
+      <div className={`border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+        }`}>
         <div className="px-6 py-4">
           <div className="flex items-center justify-between mb-4">
-            <h1 className={`text-xl font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Promo List</h1>
+            <h1 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Promo List</h1>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => {
@@ -269,18 +306,16 @@ const PromoList: React.FC = () => {
                 <Plus className="h-4 w-4" />
                 Add
               </button>
-              <button className={`p-2 rounded transition-colors ${
-                isDarkMode
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}>
+              <button className={`p-2 rounded transition-colors ${isDarkMode
+                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}>
                 <Filter className="h-5 w-5" />
               </button>
-              <button className={`p-2 rounded transition-colors ${
-                isDarkMode
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}>
+              <button className={`p-2 rounded transition-colors ${isDarkMode
+                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}>
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
@@ -289,19 +324,17 @@ const PromoList: React.FC = () => {
           </div>
 
           <div className="relative">
-            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${
-              isDarkMode ? 'text-gray-500' : 'text-gray-400'
-            }`} />
+            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+              }`} />
             <input
               type="text"
               placeholder="Search Promo List"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none ${
-                isDarkMode
-                  ? 'bg-gray-800 text-white border-gray-700'
-                  : 'bg-white text-gray-900 border-gray-300'
-              }`}
+              className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none ${isDarkMode
+                ? 'bg-gray-800 text-white border-gray-700'
+                : 'bg-white text-gray-900 border-gray-300'
+                }`}
               onFocus={(e) => {
                 if (colorPalette?.primary) {
                   e.currentTarget.style.borderColor = colorPalette.primary;
@@ -320,18 +353,16 @@ const PromoList: React.FC = () => {
       <div className="flex-1 overflow-auto">
         {isLoading ? (
           <div className="flex justify-center items-center py-20">
-            <Loader2 className={`h-8 w-8 animate-spin ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`} />
+            <Loader2 className={`h-8 w-8 animate-spin ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`} />
           </div>
         ) : filteredPromos.length > 0 ? (
           <div>
             {filteredPromos.map(renderListItem)}
           </div>
         ) : (
-          <div className={`text-center py-20 ${
-            isDarkMode ? 'text-gray-500' : 'text-gray-600'
-          }`}>
+          <div className={`text-center py-20 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
+            }`}>
             No promos found
           </div>
         )}

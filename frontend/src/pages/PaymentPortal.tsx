@@ -1,38 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Globe, Search, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Globe, Search, ChevronDown, ChevronRight, Menu, X, FileText, Filter } from 'lucide-react';
 import PaymentPortalDetails from '../components/PaymentPortalDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { usePaymentPortalStore } from '../store/paymentPortalStore';
+import { PaymentPortalLog as PaymentPortalRecord } from '../services/paymentPortalLogsService';
+import BillingDetails from '../components/CustomerDetails';
+import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
+import { getCities, City } from '../services/cityService';
+import { getRegions, Region } from '../services/regionService';
+import { barangayService, Barangay } from '../services/barangayService';
+import { BillingDetailRecord } from '../types/billing';
+import PaymentPortalFunnelFilter, { FilterValues } from '../filter/PaymentPortalFunnelFilter';
 
-// Interfaces for payment portal data
-interface PaymentPortalRecord {
-  id: string;
-  reference_no: string;
-  account_id: number | string;
-  total_amount: number;
-  date_time: string;
-  checkout_id: string;
-  status: string;
-  transaction_status: string;
-  ewallet_type?: string;
-  payment_channel?: string;
-  type?: string;
-  payment_url?: string;
-  json_payload?: string;
-  callback_payload?: string;
-  created_at?: string;
-  updated_at?: string;
-  // Additional fields from join with accounts table
-  accountNo?: string;
-  fullName?: string;
-  contactNo?: string;
-  accountBalance?: number;
-  provider?: string;
-  city?: string;
-  barangay?: string;
-  plan?: string;
-  address?: string;
-  [key: string]: any;
-}
+// Interfaces for payment portal data (PaymentPortalRecord is imported now)
+// Removed local PaymentPortalRecord interface
 
 interface LocationItem {
   id: string;
@@ -40,25 +21,94 @@ interface LocationItem {
   count: number;
 }
 
+const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
+  return {
+    id: customerData.billingAccount?.accountNo || '',
+    applicationId: customerData.billingAccount?.accountNo || '',
+    customerName: customerData.fullName,
+    address: customerData.address,
+    status: customerData.billingAccount?.billingStatusId === 2 ? 'Active' : 'Inactive',
+    balance: customerData.billingAccount?.accountBalance || 0,
+    onlineStatus: customerData.billingAccount?.billingStatusId === 2 ? 'Online' : 'Offline',
+    cityId: null,
+    regionId: null,
+    timestamp: customerData.updatedAt || '',
+    billingStatus: customerData.billingAccount?.billingStatusId ? `Status ${customerData.billingAccount.billingStatusId}` : '',
+    dateInstalled: customerData.billingAccount?.dateInstalled || '',
+    contactNumber: customerData.contactNumberPrimary,
+    secondContactNumber: customerData.contactNumberSecondary || '',
+    emailAddress: customerData.emailAddress || '',
+    plan: customerData.desiredPlan || '',
+    username: customerData.technicalDetails?.username || '',
+    connectionType: customerData.technicalDetails?.connectionType || '',
+    routerModel: customerData.technicalDetails?.routerModel || '',
+    routerModemSN: customerData.technicalDetails?.routerModemSn || '',
+    lcpnap: customerData.technicalDetails?.lcpnap || '',
+    port: customerData.technicalDetails?.port || '',
+    vlan: customerData.technicalDetails?.vlan || '',
+    billingDay: customerData.billingAccount?.billingDay || 0,
+    totalPaid: 0,
+    provider: '',
+    lcp: customerData.technicalDetails?.lcp || '',
+    nap: customerData.technicalDetails?.nap || '',
+    modifiedBy: '',
+    modifiedDate: customerData.updatedAt || '',
+    barangay: customerData.barangay || '',
+    city: customerData.city || '',
+    region: customerData.region || '',
+
+    usageType: customerData.technicalDetails?.usageTypeId ? `Type ${customerData.technicalDetails.usageTypeId}` : '',
+    referredBy: customerData.referredBy || '',
+    referralContactNo: '',
+    groupName: customerData.groupName || '',
+    mikrotikId: '',
+    sessionIp: customerData.technicalDetails?.ipAddress || '',
+    houseFrontPicture: customerData.houseFrontPictureUrl || '',
+    accountBalance: customerData.billingAccount?.accountBalance || 0,
+    housingStatus: customerData.housingStatus || '',
+    addressCoordinates: customerData.addressCoordinates || '',
+  };
+};
+
 const PaymentPortal: React.FC = () => {
+  const {
+    paymentPortalRecords: records,
+    totalCount,
+    isLoading: loading,
+    error,
+    fetchPaymentPortalRecords,
+    refreshPaymentPortalRecords
+  } = usePaymentPortalStore();
+
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedRecord, setSelectedRecord] = useState<PaymentPortalRecord | null>(null);
-  const [records, setRecords] = useState<PaymentPortalRecord[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-
-  // Format date function
-  const formatDate = (dateStr?: string): string => {
-    if (!dateStr) return 'No date';
-    try {
-      return new Date(dateStr).toLocaleString();
-    } catch (e) {
-      return dateStr;
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
+  const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
+  const [activeFilters, setActiveFilters] = useState<FilterValues>(() => {
+    const saved = localStorage.getItem('paymentPortalFunnelFilters');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to load filters:', err);
+      }
     }
-  };
+    return {};
+  });
+
+  const [cities, setCities] = useState<City[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [barangays, setBarangays] = useState<Barangay[]>([]);
+  const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
 
   // Format currency function
   const formatCurrency = (amount: number) => {
@@ -95,155 +145,319 @@ const PaymentPortal: React.FC = () => {
         console.error('Failed to fetch color palette:', err);
       }
     };
-    
+
     fetchColorPalette();
   }, []);
 
   useEffect(() => {
-    const fetchPaymentPortalRecords = async () => {
+    fetchPaymentPortalRecords();
+  }, [fetchPaymentPortalRecords]);
+
+  // Fetch lookup data
+  useEffect(() => {
+    const fetchLookupData = async () => {
       try {
-        setLoading(true);
-        console.log('Fetching payment portal records...');
-        
-        // TODO: Replace with actual API call
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Sample payment portal data
-        const sampleRecords: PaymentPortalRecord[] = [
-          {
-            id: '1',
-            date_time: '9/18/2025 4:33:57 PM',
-            account_id: '202306310',
-            accountNo: '202306310',
-            total_amount: 999.00,
-            status: 'Completed',
-            reference_no: '439769168',
-            contactNo: '9673080816',
-            accountBalance: 0.00,
-            checkout_id: 'CHK001',
-            transaction_status: 'Success',
-            provider: 'GCash',
-            ewallet_type: 'GCash',
-            payment_channel: 'E-Wallet',
-            fullName: 'Jocelyn H Roncales',
-            city: 'Binangonan',
-            created_at: '2025-09-18T20:33:57Z',
-            updated_at: '2025-09-18T20:33:57Z'
-          },
-          {
-            id: '2',
-            date_time: '9/18/2025 4:33:17 PM',
-            account_id: '202307326',
-            accountNo: '202307326',
-            total_amount: 999.00,
-            status: 'Completed',
-            reference_no: '334905555',
-            contactNo: '9536424625',
-            accountBalance: 0.00,
-            checkout_id: 'CHK002',
-            transaction_status: 'Success',
-            provider: 'PayMaya',
-            ewallet_type: 'PayMaya',
-            payment_channel: 'E-Wallet',
-            fullName: 'Remar A Colinayo',
-            city: 'Binangonan',
-            created_at: '2025-09-18T20:33:17Z',
-            updated_at: '2025-09-18T20:33:17Z'
-          },
-          {
-            id: '3',
-            date_time: '9/18/2025 4:25:27 PM',
-            account_id: '202304334',
-            accountNo: '202304334',
-            total_amount: 1000.00,
-            status: 'Pending',
-            reference_no: '436947078',
-            contactNo: '9536424625',
-            accountBalance: 1000.00,
-            checkout_id: 'CHK003',
-            transaction_status: 'Processing',
-            provider: 'BankTransfer',
-            ewallet_type: 'Bank Transfer',
-            payment_channel: 'Bank Transfer',
-            fullName: 'Sharon Ivy A Lobarbio',
-            city: 'Angono',
-            created_at: '2025-09-18T20:25:27Z',
-            updated_at: '2025-09-18T20:25:27Z'
-          }
-        ];
-        
-        setRecords(sampleRecords);
-        console.log('Payment portal records loaded successfully');
-      } catch (err: any) {
-        console.error('Error fetching payment portal records:', err);
-        setError(`Failed to load payment portal records: ${err.message || 'Unknown error'}`);
-      } finally {
-        setLoading(false);
+        const [citiesData, regionsData, barangaysRes] = await Promise.all([
+          getCities(),
+          getRegions(),
+          barangayService.getAll()
+        ]);
+        setCities(citiesData || []);
+        setRegions(regionsData || []);
+        setBarangays(barangaysRes.success ? barangaysRes.data : []);
+      } catch (err) {
+        console.error('Failed to fetch lookup data:', err);
       }
     };
 
-    fetchPaymentPortalRecords();
+    fetchLookupData();
   }, []);
 
-  // Generate location items with counts based on real data
-  const locationItems: LocationItem[] = [
-    {
-      id: 'all',
-      name: 'All',
-      count: records.length
-    }
-  ];
+  // Idle detection and auto-refresh logic
+  useEffect(() => {
+    const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
+    let idleTimer: NodeJS.Timeout | null = null;
 
-  // Add unique locations from the data
-  const locationSet = new Set<string>();
-  records.forEach(record => {
-    const location = record.city?.toLowerCase();
-    if (location) {
-      locationSet.add(location);
-    }
-  });
-  const uniqueLocations = Array.from(locationSet);
-    
-  uniqueLocations.forEach(location => {
-    if (location) {
-      locationItems.push({
-        id: location,
-        name: location.charAt(0).toUpperCase() + location.slice(1),
-        count: records.filter(record => 
-          record.city?.toLowerCase() === location).length
+    const refreshData = async () => {
+      console.log('User idle for 15 minutes, auto-refreshing payment portal data...');
+      try {
+        await refreshPaymentPortalRecords();
+      } catch (err) {
+        console.error('Idle refresh failed:', err);
+      }
+      // Set the timer again to refresh every 15 mins if they remain idle
+      startTimer();
+    };
+
+    const startTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(refreshData, IDLE_TIME_LIMIT);
+    };
+
+    const resetTimer = () => {
+      startTimer();
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    // Use passive listeners for performance if possible, but standard is fine here
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    startTimer(); // Initialize timer on mount
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
       });
-    }
-  });
+    };
+  }, [refreshPaymentPortalRecords]);
+
+  const toggleLocationExpansion = (e: React.MouseEvent, locationId: string) => {
+    e.stopPropagation();
+    setExpandedLocations(prev => {
+      const next = new Set(prev);
+      if (next.has(locationId)) {
+        next.delete(locationId);
+      } else {
+        next.add(locationId);
+      }
+      return next;
+    });
+  };
+
+
+  // Generate location items with hierarchy
+  const locationItems = useMemo(() => {
+    // Counts for each level
+    const regionCounts: Record<string, number> = {};
+    const cityCounts: Record<string, number> = {};
+    const barangayCounts: Record<string, number> = {};
+
+    // Initialize counts
+    regions.forEach(r => regionCounts[r.name] = 0);
+    cities.forEach(c => cityCounts[`${c.region_id}_${c.name}`] = 0);
+    barangays.forEach(b => barangayCounts[`${b.city_id}_${b.barangay}`] = 0);
+
+    // Count appearances in records
+    records.forEach(record => {
+      const city = record.city;
+      const barangay = record.barangay;
+
+      // Find matched city to get region
+      const matchedCity = cities.find(c => c.name === city);
+      if (matchedCity) {
+        const matchedRegion = regions.find(r => r.id === matchedCity.region_id);
+        if (matchedRegion) {
+          regionCounts[matchedRegion.name] = (regionCounts[matchedRegion.name] || 0) + 1;
+        }
+        cityCounts[`${matchedCity.region_id}_${matchedCity.name}`] = (cityCounts[`${matchedCity.region_id}_${matchedCity.name}`] || 0) + 1;
+      }
+
+      if (barangay) {
+        const matchedBarangay = barangays.find(b =>
+          b.barangay === barangay &&
+          (!city || cities.find(c => c.id === b.city_id)?.name === city)
+        );
+        if (matchedBarangay) {
+          barangayCounts[`${matchedBarangay.city_id}_${matchedBarangay.barangay}`] = (barangayCounts[`${matchedBarangay.city_id}_${matchedBarangay.barangay}`] || 0) + 1;
+        }
+      }
+    });
+
+    return {
+      regions: regions.map(r => ({
+        id: `reg:${r.name}`,
+        name: r.name,
+        count: regionCounts[r.name] || 0,
+        cities: cities.filter(c => c.region_id === r.id).map(c => ({
+          id: `city:${c.name}`,
+          name: c.name,
+          regionName: r.name,
+          count: cityCounts[`${r.id}_${c.name}`] || 0,
+          barangays: barangays.filter(b => b.city_id === c.id).map(b => ({
+            id: `brgy:${b.barangay}`,
+            name: b.barangay,
+            cityName: c.name,
+            regionName: r.name,
+            count: barangayCounts[`${c.id}_${b.barangay}`] || 0
+          }))
+        }))
+      })),
+      total: records.length
+    };
+  }, [regions, cities, barangays, records]);
 
   // Filter records based on location and search query
-  const filteredRecords = records.filter(record => {
-    const recordLocation = record.city?.toLowerCase();
-    const matchesLocation = selectedLocation === 'all' || recordLocation === selectedLocation;
-    
-    const matchesSearch = searchQuery === '' || 
-                         record.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (record.accountNo || record.account_id?.toString()).toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         record.reference_no?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    return matchesLocation && matchesSearch;
-  });
+  const filteredRecords = useMemo(() => {
+    let filtered = records.filter(record => {
+      let matchesLocation = selectedLocation === 'all';
+
+      if (!matchesLocation) {
+        if (selectedLocation.startsWith('reg:')) {
+          const regionName = selectedLocation.substring(4);
+          // Try to match region via city lookup since record doesn't have region field directly
+          const matchedCity = cities.find(c => c.name === record.city);
+          const matchedRegion = regions.find(r => r.id === matchedCity?.region_id);
+          matchesLocation = matchedRegion?.name === regionName;
+        } else if (selectedLocation.startsWith('city:')) {
+          const cityName = selectedLocation.substring(5);
+          matchesLocation = record.city === cityName;
+        } else if (selectedLocation.startsWith('brgy:')) {
+          const barangayName = selectedLocation.substring(5);
+          matchesLocation = record.barangay === barangayName;
+        }
+      }
+
+      const matchesSearch = searchQuery === '' ||
+        record.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (record.accountNo || record.account_id?.toString()).toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.reference_no?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      return matchesLocation && matchesSearch;
+    });
+
+    // Apply funnel filters
+    if (activeFilters && Object.keys(activeFilters).length > 0) {
+      filtered = filtered.filter((record: any) => {
+        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
+          const recordValue = (record as any)[key];
+
+          if (filter.type === 'text') {
+            if (!filter.value) return true;
+            const value = String(recordValue || '').toLowerCase();
+            return value.includes(filter.value.toLowerCase());
+          }
+
+          if (filter.type === 'number') {
+            const numValue = Number(recordValue);
+            if (isNaN(numValue)) return false;
+            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
+            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
+            return true;
+          }
+
+          if (filter.type === 'date') {
+            if (!recordValue) return false;
+            const dateValue = new Date(recordValue).getTime();
+            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
+            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
+            return true;
+          }
+
+          return true;
+        });
+      });
+    }
+
+    return filtered;
+  }, [records, selectedLocation, searchQuery, cities, regions, activeFilters]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLocation, searchQuery]);
+
+  const paginatedRecords = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredRecords.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredRecords, currentPage]);
+
+  // Use totalCount for total pages if no filter/search is active
+  const totalDisplayCount = useMemo(() => {
+    if (searchQuery || selectedLocation !== 'all' || Object.keys(activeFilters).length > 0) {
+      return filteredRecords.length;
+    }
+    return Math.max(totalCount, records.length);
+  }, [filteredRecords.length, totalCount, records.length, searchQuery, selectedLocation, activeFilters]);
+
+  const totalPages = Math.ceil(totalDisplayCount / itemsPerPage);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const PaginationControls = () => {
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+              }`}
+          >
+            Previous
+          </button>
+
+          <div className="flex items-center space-x-1">
+            <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Page {currentPage} of {totalPages}
+            </span>
+          </div>
+
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+              }`}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   const handleRowClick = (record: PaymentPortalRecord) => {
     setSelectedRecord(record);
+    setSelectedCustomer(null); // Clear customer view when switching records
+  };
+
+  const handleViewCustomer = async (accountNo: string) => {
+    setIsLoadingDetails(true);
+    try {
+      const detail = await getCustomerDetail(accountNo);
+      if (detail) {
+        setSelectedCustomer(detail);
+      }
+    } catch (err) {
+      console.error('Error fetching customer details:', err);
+    } finally {
+      setIsLoadingDetails(false);
+    }
   };
 
   // Status text color component
   const StatusText = ({ status }: { status: string }) => {
     let textColor = '';
-    
+
     switch (status.toLowerCase()) {
       case 'completed':
       case 'success':
+      case 'paid':
         textColor = 'text-green-500';
         break;
       case 'pending':
       case 'processing':
+      case 'queued':
         textColor = 'text-yellow-500';
         break;
       case 'failed':
@@ -253,7 +467,7 @@ const PaymentPortal: React.FC = () => {
       default:
         textColor = 'text-gray-400';
     }
-    
+
     return (
       <span className={`${textColor} capitalize`}>
         {status}
@@ -261,138 +475,183 @@ const PaymentPortal: React.FC = () => {
     );
   };
 
-  if (loading) {
-    return (
-      <div className={`flex items-center justify-center h-full ${
-        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-      }`}>
-        <div className="flex flex-col items-center">
-          <div 
-            className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 mb-3"
-            style={{ borderTopColor: colorPalette?.primary || '#ea580c', borderBottomColor: colorPalette?.primary || '#ea580c' }}
-          ></div>
-          <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Loading payment portal records...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className={`flex items-center justify-center h-full ${
-        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-      }`}>
-        <div className={`rounded-md p-6 max-w-lg ${
-          isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-        }`}>
-          <h3 className="text-red-500 text-lg font-medium mb-2">Error</h3>
-          <p className={`mb-4 ${
-            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-          }`}>{error}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="text-white py-2 px-4 rounded transition-colors"
-            style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
-            }}
-            onMouseEnter={(e) => {
-              if (colorPalette?.accent) {
-                e.currentTarget.style.backgroundColor = colorPalette.accent;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (colorPalette?.primary) {
-                e.currentTarget.style.backgroundColor = colorPalette.primary;
-              }
-            }}
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className={`h-full flex overflow-hidden ${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    }`}>
-      {/* Location Sidebar Container */}
-      <div className={`w-64 border-r flex-shrink-0 flex flex-col ${
-        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+    <div className={`h-full flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
-        <div className={`p-4 border-b flex-shrink-0 ${
-          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+      {/* Location Sidebar Container */}
+      <div className={`hidden md:flex w-64 border-r flex-shrink-0 flex flex-col ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
         }`}>
+        <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
           <div className="flex items-center justify-between mb-1">
-            <h2 className={`text-lg font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Payment Portal</h2>
+            <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Payment Portal</h2>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {locationItems.map((location) => (
-            <button
-              key={location.id}
-              onClick={() => {
-                setSelectedLocation(location.id);
-              }}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-              } ${
-                selectedLocation === location.id
-                  ? ''
-                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          {/* All Level */}
+          <button
+            onClick={() => setSelectedLocation('all')}
+            className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${selectedLocation === 'all'
+                ? ''
+                : isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}
-              style={selectedLocation === location.id ? {
-                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
+            style={selectedLocation === 'all' ? {
+              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+              color: colorPalette?.primary || '#fb923c'
+            } : {}}
+          >
+            <div className="flex items-center">
+              <Globe className="h-4 w-4 mr-2" />
+              <span>All Records</span>
+            </div>
+            <span
+              className={`px-2 py-1 rounded-full text-xs ${selectedLocation === 'all'
+                ? 'text-white'
+                : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                }`}
+              style={selectedLocation === 'all' ? {
+                backgroundColor: colorPalette?.primary || '#ea580c'
               } : {}}
             >
-              <div className="flex items-center">
-                <Globe className="h-4 w-4 mr-2" />
-                <span className="capitalize">{location.name}</span>
-              </div>
-              {location.count > 0 && (
-                <span
-                  className={`px-2 py-1 rounded-full text-xs ${
-                    selectedLocation === location.id
+              {locationItems.total}
+            </span>
+          </button>
+
+          {/* Region Level */}
+          {locationItems.regions.map((region: any) => (
+            <div key={region.id}>
+              <button
+                onClick={() => setSelectedLocation(region.id)}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                  } ${selectedLocation === region.id
+                    ? ''
+                    : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}
+                style={selectedLocation === region.id ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#fb923c'
+                } : {}}
+              >
+                <div className="flex items-center flex-1">
+                  <button
+                    onClick={(e) => toggleLocationExpansion(e, region.id)}
+                    className="p-1 mr-1"
+                  >
+                    {expandedLocations.has(region.id) ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </button>
+                  <Globe className="h-4 w-4 mr-2" />
+                  <span>{region.name}</span>
+                </div>
+                {region.count > 0 && (
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs ${selectedLocation === region.id
                       ? 'text-white'
                       : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                  }`}
-                  style={selectedLocation === location.id ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c'
-                  } : {}}
-                >
-                  {location.count}
-                </span>
-              )}
-            </button>
+                      }`}
+                    style={selectedLocation === region.id ? {
+                      backgroundColor: colorPalette?.primary || '#ea580c'
+                    } : {}}
+                  >
+                    {region.count}
+                  </span>
+                )}
+              </button>
+
+              {/* City Level */}
+              {expandedLocations.has(region.id) && region.cities.map((city: any) => (
+                <div key={city.id}>
+                  <button
+                    onClick={() => setSelectedLocation(city.id)}
+                    className={`w-full flex items-center justify-between pl-10 pr-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                      } ${selectedLocation === city.id
+                        ? ''
+                        : isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}
+                    style={selectedLocation === city.id ? {
+                      backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
+                      color: colorPalette?.primary || '#fb923c'
+                    } : {}}
+                  >
+                    <div className="flex items-center flex-1">
+                      <button
+                        onClick={(e) => toggleLocationExpansion(e, city.id)}
+                        className="p-1 mr-1"
+                      >
+                        {expandedLocations.has(city.id) ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                      </button>
+                      <span>{city.name}</span>
+                    </div>
+                    {city.count > 0 && (
+                      <span className="text-xs opacity-60">{city.count}</span>
+                    )}
+                  </button>
+
+                  {/* Barangay Level */}
+                  {expandedLocations.has(city.id) && city.barangays.map((barangay: any) => (
+                    <button
+                      key={barangay.id}
+                      onClick={() => setSelectedLocation(barangay.id)}
+                      className={`w-full flex items-center justify-between pl-16 pr-4 py-1.5 text-xs transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                        } ${selectedLocation === barangay.id
+                          ? ''
+                          : isDarkMode ? 'text-gray-500' : 'text-gray-500'
+                        }`}
+                      style={selectedLocation === barangay.id ? {
+                        color: colorPalette?.primary || '#fb923c',
+                        fontWeight: 'bold'
+                      } : {}}
+                    >
+                      <div className="flex items-center flex-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-current mr-2 opacity-40"></span>
+                        <span>{barangay.name}</span>
+                      </div>
+                      {barangay.count > 0 && (
+                        <span className="text-[10px] opacity-50">{barangay.count}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
           ))}
         </div>
       </div>
 
       {/* Payment Portal Records List - Shrinks when detail view is shown */}
-      <div className={`overflow-hidden flex-1 ${
-        isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
-      }`}>
+      <div className={`overflow-hidden flex-1 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+        }`}>
         <div className="flex flex-col h-full">
           {/* Search Bar */}
-          <div className={`p-4 border-b flex-shrink-0 ${
-            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
+          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
             <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="md:hidden bg-gray-700 hover:bg-gray-600 text-white p-2 rounded text-sm transition-colors flex items-center justify-center"
+                aria-label="Open filter menu"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
               <div className="relative flex-1">
                 <input
                   type="text"
                   placeholder="Search payment portal records..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${
-                    isDarkMode
-                      ? 'bg-gray-800 text-white border border-gray-700'
-                      : 'bg-white text-gray-900 border border-gray-300'
-                  }`}
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
+                    ? 'bg-gray-800 text-white border border-gray-700'
+                    : 'bg-white text-gray-900 border border-gray-300'
+                    }`}
                   style={{
                     '--tw-ring-color': colorPalette?.primary || '#ea580c'
                   } as React.CSSProperties}
@@ -405,168 +664,356 @@ const PaymentPortal: React.FC = () => {
                     e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                   }}
                 />
-                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`} />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
               </div>
-              <button className={`px-4 py-2 rounded flex items-center ${
-                isDarkMode
-                  ? 'bg-gray-800 text-white border border-gray-700'
-                  : 'bg-gray-200 text-gray-900 border border-gray-300'
-              }`}>
-                <span className="mr-2">Filter</span>
-                <ChevronDown className="h-4 w-4" />
+              <button
+                onClick={() => setIsFunnelFilterOpen(true)}
+                className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                  ? 'hover:bg-gray-700 text-white'
+                  : 'hover:bg-gray-200 text-gray-900 border border-gray-300'
+                  }`}
+              >
+                <Filter className="h-5 w-5" />
               </button>
             </div>
           </div>
-          
+
           {/* Table Container */}
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-x-auto overflow-y-auto pb-4">
-              <table className={`min-w-full text-sm ${
-                isDarkMode ? 'divide-y divide-gray-700' : 'divide-y divide-gray-200'
-              }`}>
-                <thead className={`sticky top-0 ${
-                  isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
-                }`}>
-                  <tr>
-                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-x-auto overflow-y-auto">
+              {loading ? (
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <div className="animate-pulse flex flex-col items-center">
+                    <div className={`h-4 w-1/3 rounded mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
+                    <div className={`h-4 w-1/2 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
+                  </div>
+                  <p className="mt-4">Loading payment portal records...</p>
+                </div>
+              ) : error ? (
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
+                  <p>{error}</p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className={`mt-4 px-4 py-2 rounded text-white ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-400 hover:bg-gray-500'}`}>
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <table className={`min-w-full text-sm ${isDarkMode ? 'divide-y divide-gray-700' : 'divide-y divide-gray-200'
+                  }`}>
+                  <thead className={`sticky top-0 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
                     }`}>
-                      Date Time
-                    </th>
-                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      Account No
-                    </th>
-                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      Received Payment
-                    </th>
-                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      Status
-                    </th>
-                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      Reference No
-                    </th>
-                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      Contact No
-                    </th>
-                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      Account Balance
-                    </th>
-                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      Checkout ID
-                    </th>
-                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      Transaction Status
-                    </th>
-                    <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      Provider
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className={`${
-                  isDarkMode ? 'bg-gray-900 divide-y divide-gray-800' : 'bg-white divide-y divide-gray-200'
-                }`}>
-                  {filteredRecords.length > 0 ? (
-                    filteredRecords.map((record) => (
-                      <tr 
-                        key={record.id} 
-                        className={`cursor-pointer ${
-                          isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
-                        } ${selectedRecord?.id === record.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
-                        onClick={() => handleRowClick(record)}
-                      >
-                        <td className={`px-4 py-3 whitespace-nowrap ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    <tr>
+                      <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                          {record.date_time || 'N/A'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-red-400 font-medium">
-                          {record.accountNo || record.account_id}
-                        </td>
-                        <td className={`px-4 py-3 whitespace-nowrap font-medium ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        Date Time
+                      </th>
+                      <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                          {formatCurrency(record.total_amount || 0)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <StatusText status={record.status || 'N/A'} />
-                        </td>
-                        <td className={`px-4 py-3 whitespace-nowrap ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        Status
+                      </th>
+                      <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                          {record.reference_no || 'N/A'}
-                        </td>
-                        <td className={`px-4 py-3 whitespace-nowrap ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        Transaction Status
+                      </th>
+                      <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                          {record.contactNo || 'N/A'}
-                        </td>
-                        <td className={`px-4 py-3 whitespace-nowrap ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        Account No
+                      </th>
+                      <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                          {formatCurrency(record.accountBalance || 0)}
-                        </td>
-                        <td className={`px-4 py-3 whitespace-nowrap ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        Received Payment
+                      </th>
+                      <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                          {record.checkout_id || 'N/A'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <StatusText status={record.transaction_status || 'N/A'} />
-                        </td>
-                        <td className={`px-4 py-3 whitespace-nowrap ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        Reference No
+                      </th>
+                      <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                          {record.provider || 'N/A'}
+                        Contact No
+                      </th>
+                      <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                        Account Balance
+                      </th>
+                      <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                        Checkout ID
+                      </th>
+                      <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                        Provider
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className={`${isDarkMode ? 'bg-gray-900 divide-y divide-gray-800' : 'bg-white divide-y divide-gray-200'
+                    }`}>
+                    {paginatedRecords.length > 0 ? (
+                      paginatedRecords.map((record: PaymentPortalRecord) => (
+                        <tr
+                          key={record.id}
+                          className={`cursor-pointer ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
+                            } ${selectedRecord?.id === record.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
+                          onClick={() => handleRowClick(record)}
+                        >
+                          {/* Date Time */}
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
+                            {record.date_time || 'N/A'}
+                          </td>
+                          {/* Status */}
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <StatusText status={record.status || 'N/A'} />
+                          </td>
+                          {/* Transaction Status */}
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <StatusText status={record.transaction_status || 'N/A'} />
+                          </td>
+                          {/* Account No */}
+                          <td className={`px-4 py-3 whitespace-nowrap text-red-400 font-medium`}>
+                            {record.accountNo || record.account_id || 'N/A'}
+                          </td>
+                          {/* Received Payment */}
+                          <td className={`px-4 py-3 whitespace-nowrap font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
+                            {formatCurrency(record.total_amount || 0)}
+                          </td>
+                          {/* Reference No */}
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
+                            {record.reference_no || 'N/A'}
+                          </td>
+                          {/* Contact No */}
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
+                            {record.contactNo || 'N/A'}
+                          </td>
+                          {/* Account Balance */}
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
+                            {formatCurrency(record.accountBalance || 0)}
+                          </td>
+                          {/* Checkout ID */}
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
+                            {record.checkout_id || 'N/A'}
+                          </td>
+                          {/* Provider */}
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
+                            {record.provider || 'N/A'}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={10} className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
+                          {filteredRecords.length > 0
+                            ? 'No payment portal records found matching your filters'
+                            : (totalCount > records.length)
+                              ? 'Loading more records... please wait.'
+                              : 'No payment portal records found.'}
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={10} className={`px-4 py-12 text-center ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                        {records.length > 0
-                          ? 'No payment portal records found matching your filters'
-                          : 'No payment portal records found.'}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
+            <PaginationControls />
           </div>
         </div>
       </div>
 
+      {/* Mobile Overlay Menu */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
+          <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+            }`}>
+            <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Location</h2>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {/* All Level */}
+              <button
+                onClick={() => {
+                  setSelectedLocation('all');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
+                style={selectedLocation === 'all' ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#fb923c',
+                  fontWeight: 500
+                } : {
+                  color: isDarkMode ? '#d1d5db' : '#374151'
+                }}
+              >
+                <div className="flex items-center">
+                  <Globe className="h-4 w-4 mr-2" />
+                  <span>All Records</span>
+                </div>
+                <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                  {locationItems.total}
+                </span>
+              </button>
+
+              {/* Region Level */}
+              {locationItems.regions.map((region: any) => (
+                <div key={region.id} className="border-b border-gray-800">
+                  <button
+                    onClick={() => {
+                      setSelectedLocation(region.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === region.id ? '' : 'text-gray-300'}`}
+                    style={selectedLocation === region.id ? {
+                      backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                      color: colorPalette?.primary || '#fb923c',
+                      fontWeight: 500
+                    } : {}}
+                  >
+                    <div className="flex items-center flex-1">
+                      <button
+                        onClick={(e) => toggleLocationExpansion(e, region.id)}
+                        className="p-1 mr-1"
+                      >
+                        {expandedLocations.has(region.id) ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </button>
+                      <Globe className="h-4 w-4 mr-2" />
+                      <span>{region.name}</span>
+                    </div>
+                    {region.count > 0 && (
+                      <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                        {region.count}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* City Level */}
+                  {expandedLocations.has(region.id) && region.cities.map((city: any) => (
+                    <div key={city.id}>
+                      <button
+                        onClick={() => {
+                          setSelectedLocation(city.id);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between pl-10 pr-4 py-2 text-sm transition-colors ${selectedLocation === city.id ? '' : 'text-gray-400'}`}
+                        style={selectedLocation === city.id ? {
+                          backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
+                          color: colorPalette?.primary || '#fb923c'
+                        } : {}}
+                      >
+                        <div className="flex items-center flex-1">
+                          <button
+                            onClick={(e) => toggleLocationExpansion(e, city.id)}
+                            className="p-1 mr-1"
+                          >
+                            {expandedLocations.has(city.id) ? (
+                              <ChevronDown className="h-3 w-3" />
+                            ) : (
+                              <ChevronRight className="h-3 w-3" />
+                            )}
+                          </button>
+                          <span>{city.name}</span>
+                        </div>
+                        {city.count > 0 && (
+                          <span className="text-xs opacity-60">{city.count}</span>
+                        )}
+                      </button>
+
+                      {/* Barangay Level */}
+                      {expandedLocations.has(city.id) && city.barangays.map((barangay: any) => (
+                        <button
+                          key={barangay.id}
+                          onClick={() => {
+                            setSelectedLocation(barangay.id);
+                            setMobileMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between pl-16 pr-4 py-1.5 text-xs transition-colors ${selectedLocation === barangay.id ? '' : 'text-gray-500'}`}
+                          style={selectedLocation === barangay.id ? {
+                            color: colorPalette?.primary || '#fb923c',
+                            fontWeight: 'bold'
+                          } : {}}
+                        >
+                          <div className="flex items-center flex-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-current mr-2 opacity-40"></span>
+                            <span>{barangay.name}</span>
+                          </div>
+                          {barangay.count > 0 && (
+                            <span className="text-[10px] opacity-50">{barangay.count}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Payment Portal Detail View - Only visible when a record is selected */}
       {selectedRecord && (
         <div className="flex-shrink-0 overflow-hidden">
-          <PaymentPortalDetails 
+          <PaymentPortalDetails
             record={selectedRecord}
             onClose={() => setSelectedRecord(null)}
+            onViewCustomer={handleViewCustomer}
           />
         </div>
       )}
+
+      {(selectedCustomer || isLoadingDetails) && (
+        <div className="flex-shrink-0 overflow-hidden">
+          {isLoadingDetails ? (
+            <div className={`w-[600px] h-full flex items-center justify-center border-l ${isDarkMode
+              ? 'bg-gray-900 text-white border-white border-opacity-30'
+              : 'bg-white text-gray-900 border-gray-300'
+              }`}>
+              <div className="text-center">
+                <div
+                  className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+                  style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
+                ></div>
+                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
+              </div>
+            </div>
+          ) : selectedCustomer ? (
+            <BillingDetails
+              billingRecord={convertCustomerDataToBillingDetail(selectedCustomer)}
+              onlineStatusRecords={[]}
+              onClose={() => setSelectedCustomer(null)}
+            />
+          ) : null}
+        </div>
+      )}
+      <PaymentPortalFunnelFilter
+        isOpen={isFunnelFilterOpen}
+        onClose={() => setIsFunnelFilterOpen(false)}
+        onApplyFilters={(filters) => {
+          setActiveFilters(filters);
+          localStorage.setItem('paymentPortalFunnelFilters', JSON.stringify(filters));
+          setIsFunnelFilterOpen(false);
+        }}
+        currentFilters={activeFilters}
+      />
     </div>
   );
 };

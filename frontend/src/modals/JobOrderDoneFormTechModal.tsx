@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { X, Calendar, ChevronDown, Camera, MapPin, CheckCircle, AlertCircle, XCircle, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Calendar, ChevronDown, Camera, MapPin, CheckCircle, AlertCircle, XCircle, Loader2, Search, Eraser } from 'lucide-react';
+import SignatureCanvas from 'react-signature-canvas';
 import { UserData } from '../types/api';
 import { updateJobOrder } from '../services/jobOrderService';
 import { userService } from '../services/userService';
@@ -8,7 +9,7 @@ import { routerModelService, RouterModel } from '../services/routerModelService'
 import { getAllPorts, Port } from '../services/portService';
 import { getAllLCPNAPs, LCPNAP } from '../services/lcpnapService';
 import { getAllVLANs, VLAN } from '../services/vlanService';
-import { getAllGroups, Group } from '../services/groupService';
+
 import { getAllUsageTypes, UsageType } from '../services/usageTypeService';
 import { getAllInventoryItems, InventoryItem } from '../services/inventoryItemService';
 import { createJobOrderItems, JobOrderItem, deleteJobOrderItems } from '../services/jobOrderItemService';
@@ -43,11 +44,10 @@ interface JobOrderDoneFormData {
   connectionType: string;
   routerModel: string;
   modemSN: string;
-  groupName: string;
+
   region: string;
   city: string;
   barangay: string;
-  location: string;
   lcpnap: string;
   port: string;
   vlan: string;
@@ -131,18 +131,25 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
   const currentUser = getCurrentUser();
   const currentUserEmail = currentUser?.email || 'unknown@unknown.com';
 
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [formData, setFormData] = useState<JobOrderDoneFormData>({
-    dateInstalled: '',
+    dateInstalled: getTodayDate(),
     usageType: '',
     choosePlan: '',
     connectionType: '',
     routerModel: '',
     modemSN: '',
-    groupName: '',
+
     region: '',
     city: '',
     barangay: '',
-    location: '',
     lcpnap: '',
     port: '',
     vlan: '',
@@ -180,15 +187,13 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
   const [plans, setPlans] = useState<Plan[]>([]);
   const [routerModels, setRouterModels] = useState<RouterModel[]>([]);
   const [lcpnaps, setLcpnaps] = useState<LCPNAP[]>([]);
-  const [ports, setPorts] = useState<Port[]>([]);
+  const [usedPorts, setUsedPorts] = useState<Set<string>>(new Set());
+  const [totalPorts, setTotalPorts] = useState<number>(32);
   const [vlans, setVlans] = useState<VLAN[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
+
   const [usageTypes, setUsageTypes] = useState<UsageType[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [regions, setRegions] = useState<Region[]>([]);
-  const [allCities, setAllCities] = useState<City[]>([]);
-  const [allBarangays, setAllBarangays] = useState<Barangay[]>([]);
-  const [allLocations, setAllLocations] = useState<LocationDetail[]>([]);
+
   const [orderItems, setOrderItems] = useState<OrderItem[]>([{ itemId: '', quantity: '' }]);
   const [imagePreviews, setImagePreviews] = useState<{
     signedContractImage: string | null;
@@ -218,25 +223,42 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
   const [usernamePattern, setUsernamePattern] = useState<UsernamePattern | null>(null);
   const [techInputValue, setTechInputValue] = useState<string>('');
+  const [lcpnapSearch, setLcpnapSearch] = useState('');
+  const [isLcpnapOpen, setIsLcpnapOpen] = useState(false);
+  const [activeItemIndex, setActiveItemIndex] = useState<number | null>(null);
+  const [itemSearchTerm, setItemSearchTerm] = useState('');
+  const sigCanvas = useRef<SignatureCanvas>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      sigCanvas.current?.clear();
+    }
+  }, [isOpen]);
 
   const convertGoogleDriveUrl = (url: string | null | undefined): string | null => {
     if (!url) return null;
-    
+
     const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
     if (fileIdMatch && fileIdMatch[1]) {
       return `https://drive.google.com/uc?export=view&id=${fileIdMatch[1]}`;
     }
-    
+
     const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
     if (idMatch && idMatch[1]) {
       return `https://drive.google.com/uc?export=view&id=${idMatch[1]}`;
     }
-    
+
     return url;
   };
 
   const isGoogleDriveUrl = (url: string | null): boolean => {
-    return url ? url.includes('drive.google.com') : false;
+    if (!url) return false;
+    return url.includes('drive.google.com') || url.includes('docs.google.com');
+  };
+
+  const isCloudUrl = (url: string | null): boolean => {
+    if (!url) return false;
+    return url.startsWith('http') && !url.includes('localhost') && !url.includes('127.0.0.1');
   };
 
   const ImagePreview: React.FC<{
@@ -248,75 +270,77 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     const [imageLoadError, setImageLoadError] = useState(false);
     const isGDrive = isGoogleDriveUrl(imageUrl);
     const isBlobUrl = imageUrl?.startsWith('blob:');
+    const isCloud = isCloudUrl(imageUrl);
 
     return (
       <div>
-        <label className={`block text-sm font-medium mb-2 ${
-          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-        }`}>{label}<span className="text-red-500">*</span></label>
-        <div className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer ${
-          isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
-        }`}>
-          <input 
-            type="file" 
-            accept="image/*" 
+        <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>{label}</label>
+        <div className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+          }`}>
+          <input
+            type="file"
+            accept="image/*"
             onChange={(e) => {
               if (e.target.files && e.target.files[0]) {
                 onUpload(e.target.files[0]);
                 setImageLoadError(false);
               }
-            }} 
-            className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+            }}
+            className="absolute inset-0 opacity-0 cursor-pointer z-10"
           />
-          {imageUrl ? (
+          {imageUrl && !imageLoadError ? (
             <div className="relative w-full h-full">
-              {isBlobUrl || (!isGDrive && !imageLoadError) ? (
-                <img 
-                  src={imageUrl} 
-                  alt={label} 
+              {isBlobUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={label}
                   className="w-full h-full object-contain"
                   onError={() => setImageLoadError(true)}
                 />
+              ) : isCloud ? (
+                <div className={`w-full h-full flex flex-col items-center justify-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
+                  <Camera size={48} className="mb-2 opacity-50" />
+                  <span className={`text-sm mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {isGDrive ? 'Image stored in Google Drive' : 'Image stored in Cloud'}
+                  </span>
+                  <a
+                    href={imageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium hover:underline z-20"
+                    style={{ color: colorPalette?.primary || '#ea580c' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    View in {isGDrive ? 'Drive' : 'Source'}
+                  </a>
+                </div>
               ) : (
-                <div className={`w-full h-full flex flex-col items-center justify-center ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className="w-full h-full flex flex-col items-center justify-center">
                   <Camera size={32} />
-                  <span className="text-sm mt-2 text-center px-4">Image stored in Google Drive</span>
-                  {imageUrl && (
-                    <a 
-                      href={imageUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-xs mt-2 hover:underline z-20"
-                      style={{ color: colorPalette?.primary || '#ea580c' }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      View in Drive
-                    </a>
-                  )}
+                  <span className="text-sm mt-2">Invalid image source</span>
                 </div>
               )}
-              <div className="absolute bottom-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center pointer-events-none">
-                <Camera className="mr-1" size={14} />Uploaded
+              <div className="absolute bottom-3 right-3 bg-[#22c55e] text-white px-3 py-1.5 rounded-md text-sm font-medium flex items-center shadow-lg pointer-events-none z-30">
+                <Camera className="mr-2" size={16} />Uploaded
               </div>
             </div>
           ) : (
-            <div className={`w-full h-full flex flex-col items-center justify-center ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
+            <div className={`w-full h-full flex flex-col items-center justify-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>
               <Camera size={32} />
-              <span className="text-sm mt-2">Click to upload</span>
+              <span className="text-sm mt-2 font-medium">Click to upload</span>
             </div>
           )}
         </div>
         {error && (
           <div className="flex items-center mt-1">
-            <div 
-              className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+            <div
+              className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2 shadow-sm"
               style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
             >!</div>
-            <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+            <p className="text-xs font-medium" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
           </div>
         )}
       </div>
@@ -334,7 +358,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         }
       }
     };
-    
+
     fetchImageSizeSettings();
   }, [isOpen]);
 
@@ -346,7 +370,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
           if (patterns && patterns.length > 0) {
             const pattern = patterns[0];
             setUsernamePattern(pattern);
-            
+
             // Load existing pppoe_username if available
             const existingUsername = jobOrderData?.pppoe_username || jobOrderData?.PPPoE_Username || '';
             if (existingUsername && pattern.sequence.some(item => item.type === 'tech_input')) {
@@ -359,7 +383,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         }
       }
     };
-    
+
     fetchUsernamePattern();
   }, [isOpen, jobOrderData]);
 
@@ -457,13 +481,13 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
           try {
             const response = await apiClient.get(`/job-order-items?job_order_id=${jobOrderId}`);
             const data = response.data as { success: boolean; data: any[] };
-            
+
             if (data.success && Array.isArray(data.data)) {
               const items = data.data;
-              
+
               if (items.length > 0) {
                 const uniqueItems = new Map();
-                
+
                 items.forEach((item: any) => {
                   const key = item.item_name;
                   if (uniqueItems.has(key)) {
@@ -479,10 +503,10 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                     });
                   }
                 });
-                
+
                 const formattedItems = Array.from(uniqueItems.values());
                 formattedItems.push({ itemId: '', quantity: '' });
-                
+
                 setOrderItems(formattedItems);
               } else {
                 setOrderItems([{ itemId: '', quantity: '' }]);
@@ -494,7 +518,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         }
       }
     };
-    
+
     fetchJobOrderItems();
   }, [isOpen, jobOrderData]);
 
@@ -503,7 +527,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       if (isOpen) {
         try {
           const response = await getAllLCPNAPs('', 1, 1000);
-          
+
           if (response.success && Array.isArray(response.data)) {
             setLcpnaps(response.data);
           } else {
@@ -514,31 +538,56 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         }
       }
     };
-    
+
     fetchLcpnaps();
   }, [isOpen]);
 
+  // Fetch used ports for the selected LCPNAP
   useEffect(() => {
-    const fetchPorts = async () => {
-      if (isOpen && formData.lcpnap) {
-        try {
-          const jobOrderId = jobOrderData?.id || jobOrderData?.JobOrder_ID;
-          const response = await getAllPorts(formData.lcpnap, 1, 100, true, jobOrderId);
-          
-          if (response.success && Array.isArray(response.data)) {
-            setPorts(response.data);
-          } else {
-            setPorts([]);
+    const fetchUsedPorts = async () => {
+      if (!isOpen || !formData.lcpnap) {
+        setUsedPorts(new Set());
+        return;
+      }
+
+      try {
+        // Fetch job orders to check for used ports
+        // We use a large limit to capture as many as possible
+        const response = await apiClient.get<{ success: boolean; data: any[] }>('/job-orders', {
+          params: {
+            lcpnap: formData.lcpnap,
+            limit: 2000
           }
-        } catch (error) {
-          setPorts([]);
+        });
+
+        if (response.data && response.data.success && Array.isArray(response.data.data)) {
+          const used = new Set<string>();
+          const currentId = jobOrderData?.id || jobOrderData?.JobOrder_ID;
+
+          response.data.data.forEach((jo: any) => {
+            // Check LCPNAP match (in case backend didn't filter)
+            const joLcpnap = jo.lcpnap || jo.LCPNAP;
+
+            if (joLcpnap === formData.lcpnap) {
+              const joPort = jo.port || jo.PORT;
+              const joId = jo.id || jo.JobOrder_ID;
+
+              // If port is used by ANOTHER job order, mark it as used
+              if (joPort && String(joId) !== String(currentId)) {
+                used.add(joPort.toString());
+              }
+            }
+          });
+
+          setUsedPorts(used);
         }
-      } else if (isOpen && !formData.lcpnap) {
-        setPorts([]);
+      } catch (error) {
+        console.error('Failed to fetch used ports:', error);
       }
     };
-    fetchPorts();
-  }, [isOpen, jobOrderData, formData.lcpnap]);
+
+    fetchUsedPorts();
+  }, [isOpen, formData.lcpnap, jobOrderData]);
 
   useEffect(() => {
     const fetchVlans = async () => {
@@ -558,30 +607,14 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     fetchVlans();
   }, [isOpen]);
 
-  useEffect(() => {
-    const fetchGroups = async () => {
-      if (isOpen) {
-        try {
-          const response = await getAllGroups();
-          if (response.success && Array.isArray(response.data)) {
-            setGroups(response.data);
-          } else {
-            setGroups([]);
-          }
-        } catch (error) {
-          setGroups([]);
-        }
-      }
-    };
-    fetchGroups();
-  }, [isOpen]);
+
 
   useEffect(() => {
     const fetchUsageTypes = async () => {
       if (isOpen) {
         try {
           const response = await getAllUsageTypes();
-          
+
           if (response.success && Array.isArray(response.data)) {
             setUsageTypes(response.data);
           } else {
@@ -592,7 +625,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         }
       }
     };
-    
+
     fetchUsageTypes();
   }, [isOpen]);
 
@@ -601,7 +634,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       if (isOpen) {
         try {
           const response = await getAllInventoryItems();
-          
+
           if (response.success && Array.isArray(response.data)) {
             setInventoryItems(response.data);
           } else {
@@ -612,89 +645,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         }
       }
     };
-    
+
     fetchInventoryItems();
   }, [isOpen]);
 
-  useEffect(() => {
-    const fetchRegions = async () => {
-      if (isOpen) {
-        try {
-          const fetchedRegions = await getRegions();
-          
-          if (Array.isArray(fetchedRegions)) {
-            setRegions(fetchedRegions);
-          } else {
-            setRegions([]);
-          }
-        } catch (error) {
-          setRegions([]);
-        }
-      }
-    };
-    
-    fetchRegions();
-  }, [isOpen]);
 
-  useEffect(() => {
-    const fetchAllCities = async () => {
-      if (isOpen) {
-        try {
-          const fetchedCities = await getCities();
-          
-          if (Array.isArray(fetchedCities)) {
-            setAllCities(fetchedCities);
-          } else {
-            setAllCities([]);
-          }
-        } catch (error) {
-          setAllCities([]);
-        }
-      }
-    };
-    
-    fetchAllCities();
-  }, [isOpen]);
-
-  useEffect(() => {
-    const fetchAllBarangays = async () => {
-      if (isOpen) {
-        try {
-          const response = await barangayService.getAll();
-          
-          if (response.success && Array.isArray(response.data)) {
-            setAllBarangays(response.data);
-          } else {
-            setAllBarangays([]);
-          }
-        } catch (error) {
-          setAllBarangays([]);
-        }
-      }
-    };
-    
-    fetchAllBarangays();
-  }, [isOpen]);
-
-  useEffect(() => {
-    const fetchAllLocations = async () => {
-      if (isOpen) {
-        try {
-          const response = await locationDetailService.getAll();
-          
-          if (response.success && Array.isArray(response.data)) {
-            setAllLocations(response.data);
-          } else {
-            setAllLocations([]);
-          }
-        } catch (error) {
-          setAllLocations([]);
-        }
-      }
-    };
-    
-    fetchAllLocations();
-  }, [isOpen]);
 
   useEffect(() => {
     const fetchTechnicians = async () => {
@@ -720,7 +675,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         }
       }
     };
-    
+
     fetchTechnicians();
   }, [isOpen]);
 
@@ -734,7 +689,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         }
       }
     };
-    
+
     fetchPlans();
   }, [isOpen]);
 
@@ -748,15 +703,15 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         }
       }
     };
-    
+
     fetchRouterModels();
   }, [isOpen]);
 
   useEffect(() => {
     if (jobOrderData && isOpen) {
-      
+
       const loadedOnsiteStatus = jobOrderData.Onsite_Status || jobOrderData.onsite_status || 'In Progress';
-      
+
       const isEmptyValue = (value: any): boolean => {
         if (value === null || value === undefined || value === '') return true;
         if (typeof value === 'string') {
@@ -765,29 +720,29 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         }
         return false;
       };
-      
+
       const getValue = (value: any, fieldName: string): string => {
         const result = isEmptyValue(value) ? '' : value;
         return result;
       };
-      
+
       const formatDateForInput = (dateValue: any): string => {
         if (!dateValue || isEmptyValue(dateValue)) return '';
-        
+
         try {
           const date = new Date(dateValue);
           if (isNaN(date.getTime())) return '';
-          
+
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
           const day = String(date.getDate()).padStart(2, '0');
-          
+
           return `${year}-${month}-${day}`;
         } catch (error) {
           return '';
         }
       };
-      
+
       const fetchApplicationData = async () => {
         try {
           const applicationId = jobOrderData.application_id || jobOrderData.Application_ID;
@@ -795,22 +750,21 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
             const appResponse = await apiClient.get<{ success: boolean; application: any }>(`/applications/${applicationId}`);
             if (appResponse.data.success && appResponse.data.application) {
               const appData = appResponse.data.application;
-              
+
               const newFormData = {
-                dateInstalled: formatDateForInput(jobOrderData.Date_Installed || jobOrderData.date_installed),
+                dateInstalled: formatDateForInput(jobOrderData.Date_Installed || jobOrderData.date_installed) || getTodayDate(),
                 usageType: getValue(jobOrderData.Usage_Type || jobOrderData.usage_type, 'usageType'),
                 choosePlan: getValue(jobOrderData.Desired_Plan || jobOrderData.desired_plan || jobOrderData.Choose_Plan || jobOrderData.choose_plan || jobOrderData.plan, 'choosePlan'),
                 connectionType: getValue(jobOrderData.Connection_Type || jobOrderData.connection_type, 'connectionType'),
                 routerModel: getValue(jobOrderData.Router_Model || jobOrderData.router_model, 'routerModel'),
                 modemSN: getValue(jobOrderData.Modem_SN || jobOrderData.modem_sn, 'modemSN'),
-                groupName: getValue(jobOrderData.group_name || jobOrderData.Group_Name, 'groupName'),
+
                 lcpnap: getValue(jobOrderData.LCPNAP || jobOrderData.lcpnap, 'lcpnap'),
                 port: getValue(jobOrderData.PORT || jobOrderData.port, 'port'),
                 vlan: getValue(jobOrderData.VLAN || jobOrderData.vlan, 'vlan'),
                 region: getValue(appData.region || jobOrderData.Region || jobOrderData.region, 'region'),
                 city: getValue(appData.city || jobOrderData.City || jobOrderData.city, 'city'),
                 barangay: getValue(appData.barangay || jobOrderData.Barangay || jobOrderData.barangay, 'barangay'),
-                location: getValue(appData.location || jobOrderData.Location || jobOrderData.location, 'location'),
                 onsiteStatus: loadedOnsiteStatus,
                 onsiteRemarks: getValue(jobOrderData.Onsite_Remarks || jobOrderData.onsite_remarks, 'onsiteRemarks'),
                 itemName1: getValue(jobOrderData.Item_Name_1 || jobOrderData.item_name_1, 'itemName1'),
@@ -821,11 +775,30 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 ip: getValue(jobOrderData.IP || jobOrderData.ip, 'ip'),
                 addressCoordinates: getValue(jobOrderData.Address_Coordinates || jobOrderData.address_coordinates, 'addressCoordinates')
               };
-              
+
               setFormData(prev => ({
                 ...prev,
                 ...newFormData
               }));
+
+              // Initialize image previews from database values (only if they are actual URLs)
+              const safeConvert = (val: any) => {
+                const url = val || '';
+                if (url && typeof url === 'string' && url.startsWith('http')) {
+                  return convertGoogleDriveUrl(url);
+                }
+                return null;
+              };
+
+              setImagePreviews({
+                signedContractImage: safeConvert(jobOrderData.signed_contract_image_url || jobOrderData.Signed_Contract_Image_URL),
+                setupImage: safeConvert(jobOrderData.setup_image_url || jobOrderData.Setup_Image_URL),
+                boxReadingImage: safeConvert(jobOrderData.box_reading_image_url || jobOrderData.Box_Reading_Image_URL),
+                routerReadingImage: safeConvert(jobOrderData.router_reading_image_url || jobOrderData.Router_Reading_Image_URL),
+                portLabelImage: safeConvert(jobOrderData.port_label_image_url || jobOrderData.Port_Label_Image_URL),
+                clientSignatureImage: safeConvert(jobOrderData.client_signature_url || jobOrderData.Client_Signature_URL),
+                speedTestImage: safeConvert(jobOrderData.speedtest_image_url || jobOrderData.Speedtest_Image_URL)
+              });
             }
           } else {
             loadDefaultFormData();
@@ -834,23 +807,22 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
           loadDefaultFormData();
         }
       };
-      
+
       const loadDefaultFormData = () => {
         const newFormData = {
-          dateInstalled: formatDateForInput(jobOrderData.Date_Installed || jobOrderData.date_installed),
+          dateInstalled: formatDateForInput(jobOrderData.Date_Installed || jobOrderData.date_installed) || getTodayDate(),
           usageType: getValue(jobOrderData.Usage_Type || jobOrderData.usage_type, 'usageType'),
           choosePlan: getValue(jobOrderData.Desired_Plan || jobOrderData.desired_plan || jobOrderData.Choose_Plan || jobOrderData.choose_plan || jobOrderData.plan, 'choosePlan'),
           connectionType: getValue(jobOrderData.Connection_Type || jobOrderData.connection_type, 'connectionType'),
           routerModel: getValue(jobOrderData.Router_Model || jobOrderData.router_model, 'routerModel'),
           modemSN: getValue(jobOrderData.Modem_SN || jobOrderData.modem_sn, 'modemSN'),
-          groupName: getValue(jobOrderData.group_name || jobOrderData.Group_Name, 'groupName'),
+
           lcpnap: getValue(jobOrderData.LCPNAP || jobOrderData.lcpnap, 'lcpnap'),
           port: getValue(jobOrderData.PORT || jobOrderData.port, 'port'),
           vlan: getValue(jobOrderData.VLAN || jobOrderData.vlan, 'vlan'),
           region: getValue(jobOrderData.Region || jobOrderData.region, 'region'),
           city: getValue(jobOrderData.City || jobOrderData.city, 'city'),
           barangay: getValue(jobOrderData.Barangay || jobOrderData.barangay, 'barangay'),
-          location: getValue(jobOrderData.Location || jobOrderData.location, 'location'),
           onsiteStatus: loadedOnsiteStatus,
           onsiteRemarks: getValue(jobOrderData.Onsite_Remarks || jobOrderData.onsite_remarks, 'onsiteRemarks'),
           itemName1: getValue(jobOrderData.Item_Name_1 || jobOrderData.item_name_1, 'itemName1'),
@@ -861,13 +833,32 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
           ip: getValue(jobOrderData.IP || jobOrderData.ip, 'ip'),
           addressCoordinates: getValue(jobOrderData.Address_Coordinates || jobOrderData.address_coordinates, 'addressCoordinates')
         };
-        
+
         setFormData(prev => ({
           ...prev,
           ...newFormData
         }));
+
+        // Initialize image previews from database values (only if they are actual URLs)
+        const safeConvertDefault = (val: any) => {
+          const url = val || '';
+          if (url && typeof url === 'string' && url.startsWith('http')) {
+            return convertGoogleDriveUrl(url);
+          }
+          return null;
+        };
+
+        setImagePreviews({
+          signedContractImage: safeConvertDefault(jobOrderData.signed_contract_image_url || jobOrderData.Signed_Contract_Image_URL),
+          setupImage: safeConvertDefault(jobOrderData.setup_image_url || jobOrderData.Setup_Image_URL),
+          boxReadingImage: safeConvertDefault(jobOrderData.box_reading_image_url || jobOrderData.Box_Reading_Image_URL),
+          routerReadingImage: safeConvertDefault(jobOrderData.router_reading_image_url || jobOrderData.Router_Reading_Image_URL),
+          portLabelImage: safeConvertDefault(jobOrderData.port_label_image_url || jobOrderData.Port_Label_Image_URL),
+          clientSignatureImage: safeConvertDefault(jobOrderData.client_signature_url || jobOrderData.Client_Signature_URL),
+          speedTestImage: safeConvertDefault(jobOrderData.speedtest_image_url || jobOrderData.Speedtest_Image_URL)
+        });
       };
-      
+
       fetchApplicationData();
     }
   }, [jobOrderData, isOpen]);
@@ -876,7 +867,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     if (field === 'addressCoordinates') {
       console.log('[INPUT DEBUG] Address Coordinates changed to:', value);
     }
-    
+
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       if (field === 'lcpnap') {
@@ -885,14 +876,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       if (field === 'region') {
         newData.city = '';
         newData.barangay = '';
-        newData.location = '';
       }
       if (field === 'city') {
         newData.barangay = '';
-        newData.location = '';
       }
       if (field === 'barangay') {
-        newData.location = '';
       }
       return newData;
     });
@@ -905,12 +893,12 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     try {
       let processedFile = file;
       const originalSize = (file.size / 1024 / 1024).toFixed(2);
-      
+
       if (activeImageSize && activeImageSize.image_size_value < 100) {
         try {
           const resizedFile = await resizeImage(file, activeImageSize.image_size_value);
           const resizedSize = (resizedFile.size / 1024 / 1024).toFixed(2);
-          
+
           if (resizedFile.size < file.size) {
             processedFile = resizedFile;
             console.log(`[RESIZE SUCCESS] ${field}: ${originalSize}MB → ${resizedSize}MB (${activeImageSize.image_size_value}%, saved ${((1 - resizedFile.size / file.size) * 100).toFixed(1)}%)`);
@@ -922,34 +910,34 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
           processedFile = file;
         }
       }
-      
+
       setFormData(prev => {
         const updated = { ...prev, [field]: processedFile };
         console.log(`[STATE UPDATE] ${field} stored: ${(processedFile.size / 1024 / 1024).toFixed(2)}MB`);
         return updated;
       });
-      
+
       if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
         URL.revokeObjectURL(imagePreviews[field]!);
       }
-      
+
       const previewUrl = URL.createObjectURL(processedFile);
       setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
-      
+
       if (errors[field]) {
         setErrors(prev => ({ ...prev, [field]: '' }));
       }
     } catch (error) {
       console.error(`[UPLOAD ERROR] ${field}:`, error);
       setFormData(prev => ({ ...prev, [field]: file }));
-      
+
       if (imagePreviews[field] && imagePreviews[field]?.startsWith('blob:')) {
         URL.revokeObjectURL(imagePreviews[field]!);
       }
-      
+
       const previewUrl = URL.createObjectURL(file);
       setImagePreviews(prev => ({ ...prev, [field]: previewUrl }));
-      
+
       if (errors[field]) {
         setErrors(prev => ({ ...prev, [field]: '' }));
       }
@@ -960,7 +948,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     const newOrderItems = [...orderItems];
     newOrderItems[index][field] = value;
     setOrderItems(newOrderItems);
-    
+
     if (field === 'itemId' && value && index === orderItems.length - 1) {
       setOrderItems([...newOrderItems, { itemId: '', quantity: '' }]);
     }
@@ -990,45 +978,42 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
 
     if (!formData.choosePlan.trim()) newErrors.choosePlan = 'Choose Plan is required';
     if (!formData.onsiteStatus.trim()) newErrors.onsiteStatus = 'Onsite Status is required';
-    if (!formData.groupName.trim()) newErrors.groupName = 'Group is required';
+
     if (!formData.region.trim()) newErrors.region = 'Region is required';
     if (!formData.city.trim()) newErrors.city = 'City is required';
     if (!formData.barangay.trim()) newErrors.barangay = 'Barangay is required';
-    if (!formData.location.trim()) newErrors.location = 'Location is required';
-    
+
     if (formData.onsiteStatus === 'Done') {
       if (!formData.dateInstalled.trim()) newErrors.dateInstalled = 'Date Installed is required';
       if (!formData.usageType.trim()) newErrors.usageType = 'Usage Type is required';
       if (!formData.connectionType.trim()) newErrors.connectionType = 'Connection Type is required';
       if (!formData.routerModel.trim()) newErrors.routerModel = 'Router Model is required';
       if (!formData.modemSN.trim()) newErrors.modemSN = 'Modem SN is required';
-      
+
       // Check if tech_input is required for PPPoE username
       if (usernamePattern && usernamePattern.sequence.some(item => item.type === 'tech_input')) {
         if (!techInputValue.trim()) {
           newErrors.techInput = 'PPPoE Username is required';
         }
       }
-      
+
       if (formData.connectionType === 'Antenna') {
         if (!formData.ip.trim()) newErrors.ip = 'IP is required';
-        const hasPortLabelImageInDb = isValidImageUrl(jobOrderData?.port_label_image_url) || isValidImageUrl(jobOrderData?.Port_Label_Image_URL);
-        if (!formData.portLabelImage && !hasPortLabelImageInDb) newErrors.portLabelImage = 'Port Label Image is required';
+
       } else if (formData.connectionType === 'Fiber') {
         if (!formData.lcpnap.trim()) newErrors.lcpnap = 'LCP-NAP is required';
         if (!formData.port.trim()) newErrors.port = 'PORT is required';
         if (!formData.vlan.trim()) newErrors.vlan = 'VLAN is required';
       } else if (formData.connectionType === 'Local') {
-        const hasPortLabelImageInDb = isValidImageUrl(jobOrderData?.port_label_image_url) || isValidImageUrl(jobOrderData?.Port_Label_Image_URL);
-        if (!formData.portLabelImage && !hasPortLabelImageInDb) newErrors.portLabelImage = 'Port Label Image is required';
+
       }
-      
+
       if (!formData.visit_by.trim()) newErrors.visit_by = 'Visit By is required';
       if (!formData.visit_with.trim()) newErrors.visit_with = 'Visit With is required';
       if (!formData.visit_with_other.trim()) newErrors.visit_with_other = 'Visit With(Other) is required';
       if (!formData.onsiteRemarks.trim()) newErrors.onsiteRemarks = 'Onsite Remarks is required';
       if (!formData.addressCoordinates.trim()) newErrors.addressCoordinates = 'Address Coordinates is required';
-      
+
       const validItems = orderItems.filter(item => item.itemId && item.quantity);
       if (validItems.length === 0) {
         newErrors.items = 'At least one item with quantity is required';
@@ -1042,34 +1027,10 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
           }
         }
       }
-      
-      const hasSignedContractImageInDb = isValidImageUrl(jobOrderData?.signed_contract_image_url) || isValidImageUrl(jobOrderData?.Signed_Contract_Image_URL);
-      const hasSetupImageInDb = isValidImageUrl(jobOrderData?.setup_image_url) || isValidImageUrl(jobOrderData?.Setup_Image_URL);
-      const hasBoxReadingImageInDb = isValidImageUrl(jobOrderData?.box_reading_image_url) || isValidImageUrl(jobOrderData?.Box_Reading_Image_URL);
-      const hasRouterReadingImageInDb = isValidImageUrl(jobOrderData?.router_reading_image_url) || isValidImageUrl(jobOrderData?.Router_Reading_Image_URL);
-      
-      const clientSignatureVariations = [
-        'client_signature_image_url',
-        'Client_Signature_Image_URL',
-        'client_sig_image_url',
-        'signature_image_url',
-        'clientSignatureImageUrl',
-        'ClientSignatureImageURL',
-        'client_signature_url',
-        'clientSignatureUrl'
-      ];
-      const hasClientSignatureImageInDb = clientSignatureVariations.some(field => isValidImageUrl(jobOrderData?.[field]));
-      
-      const hasSpeedTestImageInDb = isValidImageUrl(jobOrderData?.speedtest_image_url) || isValidImageUrl(jobOrderData?.Speedtest_Image_URL);
-      
-      if (!formData.signedContractImage && !hasSignedContractImageInDb) newErrors.signedContractImage = 'Signed Contract Image is required';
-      if (!formData.setupImage && !hasSetupImageInDb) newErrors.setupImage = 'Setup Image is required';
-      if (!formData.boxReadingImage && !hasBoxReadingImageInDb) newErrors.boxReadingImage = 'Box Reading Image is required';
-      if (!formData.routerReadingImage && !hasRouterReadingImageInDb) newErrors.routerReadingImage = 'Router Reading Image is required';
-      if (!formData.clientSignatureImage && !hasClientSignatureImageInDb) newErrors.clientSignatureImage = 'Client Signature Image is required';
-      if (!formData.speedTestImage && !hasSpeedTestImageInDb) newErrors.speedTestImage = 'Speed Test Image is required';
+
+
     }
-    
+
     if (formData.onsiteStatus === 'Failed' || formData.onsiteStatus === 'Reschedule') {
       if (!formData.visit_by.trim()) newErrors.visit_by = 'Visit By is required';
       if (!formData.visit_with.trim()) newErrors.visit_with = 'Visit With is required';
@@ -1077,7 +1038,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       if (!formData.onsiteRemarks.trim()) newErrors.onsiteRemarks = 'Onsite Remarks is required';
       if (!formData.statusRemarks.trim()) newErrors.statusRemarks = 'Status Remarks is required';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -1088,7 +1049,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     console.log('[SAVE START] jobOrderData:', jobOrderData);
     console.log('[SAVE START] jobOrderData.id:', jobOrderData?.id);
     console.log('[SAVE START] jobOrderData.JobOrder_ID:', jobOrderData?.JobOrder_ID);
-    
+
     const updatedFormData = {
       ...formData,
       modifiedBy: currentUserEmail,
@@ -1102,10 +1063,10 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         hour12: true
       })
     };
-    
+
     console.log('[SAVE START] updatedFormData:', updatedFormData);
     setFormData(updatedFormData);
-    
+
     if (!validateForm()) {
       console.log('[SAVE VALIDATION] Form validation failed');
       console.log('[SAVE VALIDATION] Errors:', errors);
@@ -1114,7 +1075,52 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       ]);
       return;
     }
-    
+
+    // SmartOLT Validation Logic
+    if (formData.onsiteStatus === 'Done' && formData.connectionType === 'Fiber' && formData.modemSN.trim()) {
+      try {
+        console.log('[SMARTOLT VALIDATION] Validating Modem SN:', formData.modemSN);
+
+        // Show a smaller loading indicator or just set loading state if preferred, 
+        // but user asked for validation BEFORE the main loading modal.
+        // We will momentarily show loading just for this check if needed, 
+        // or relies on the fact that we haven't shown the main modal yet.
+        setLoading(true);
+
+        const smartOltResponse = await apiClient.get('/smart-olt/validate-sn', {
+          params: { sn: formData.modemSN }
+        });
+
+        if (!(smartOltResponse.data as any).success) {
+          console.log('[SMARTOLT VALIDATION] Failed:', smartOltResponse.data);
+          setLoading(false); // Stop loading on failure
+          setErrors(prev => ({
+            ...prev,
+            modemSN: (smartOltResponse.data as any).message || 'Invalid Modem SN'
+          }));
+          showMessageModal('SmartOLT Verification Failed', [
+            { type: 'error', text: (smartOltResponse.data as any).message || 'The provided Modem SN is invalid or not authorized.' }
+          ]);
+          return;
+        }
+
+        console.log('[SMARTOLT VALIDATION] Success');
+        setLoading(false); // Stop loading after success, before main save starts
+      } catch (error: any) {
+        console.error('[SMARTOLT VALIDATION] API Error:', error);
+        setLoading(false); // Stop loading on error
+        const errorMessage = error.response?.data?.message || 'Failed to validate Modem SN with SmartOLT system.';
+        setErrors(prev => ({
+          ...prev,
+          modemSN: errorMessage
+        }));
+        showMessageModal('Validation Error', [
+          { type: 'error', text: errorMessage }
+        ]);
+        return;
+      }
+    }
+
     console.log('[SAVE VALIDATION] Form validation passed');
 
     if (!jobOrderData?.id && !jobOrderData?.JobOrder_ID) {
@@ -1125,13 +1131,14 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       ]);
       return;
     }
-    
+
     console.log('[SAVE ID CHECK] Job order has ID, proceeding...');
 
+    // NOW show the main loading modal for the actual save process
     setLoading(true);
     setShowLoadingModal(true);
     setLoadingPercentage(0);
-    
+
     const progressInterval = setInterval(() => {
       setLoadingPercentage(prev => {
         if (prev >= 99) return 99;
@@ -1140,12 +1147,12 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         return prev + 3;
       });
     }, 200);
-    
+
     const saveMessages: Array<{ type: 'success' | 'warning' | 'error'; text: string }> = [];
-    
+
     try {
       const jobOrderId = jobOrderData.id || jobOrderData.JobOrder_ID;
-      
+
       if (!jobOrderId) {
         console.error('[SAVE ERROR] ========================================');
         console.error('[SAVE ERROR] Missing job order ID');
@@ -1153,24 +1160,24 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         console.error('[SAVE ERROR] jobOrderData_id:', jobOrderData?.id);
         console.error('[SAVE ERROR] jobOrderData_JobOrder_ID:', jobOrderData?.JobOrder_ID);
         console.error('[SAVE ERROR] ========================================');
-        
+
         saveMessages.push({
           type: 'error',
           text: 'Cannot update: Missing job order ID'
         });
-        
+
         setLoading(false);
         setShowLoadingModal(false);
         showMessageModal('Error', saveMessages);
         return;
       }
-      
+
       console.log('[SAVE ID CHECK] ========================================');
       console.log('[SAVE ID CHECK] Job Order ID found:', jobOrderId);
       console.log('[SAVE ID CHECK] typeof jobOrderId:', typeof jobOrderId);
       console.log('[SAVE ID CHECK] This ID will be used to UPDATE existing record');
       console.log('[SAVE ID CHECK] ========================================');
-      
+
       const jobOrderUpdateData: any = {
         date_installed: updatedFormData.dateInstalled,
         usage_type: updatedFormData.usageType,
@@ -1184,7 +1191,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         updated_by_user_email: updatedFormData.modifiedBy,
         desired_plan: updatedFormData.choosePlan
       };
-      
+
       if (updatedFormData.onsiteStatus === 'Done') {
         jobOrderUpdateData.connection_type = updatedFormData.connectionType;
         jobOrderUpdateData.modem_router_sn = updatedFormData.modemSN;
@@ -1192,75 +1199,45 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         jobOrderUpdateData.onsite_remarks = updatedFormData.onsiteRemarks;
         jobOrderUpdateData.address_coordinates = updatedFormData.addressCoordinates || '';
         jobOrderUpdateData.onsite_status = 'Done';
-        jobOrderUpdateData.group_name = updatedFormData.groupName;
-        
+
+
         console.log('[SAVE DEBUG] Address Coordinates:', updatedFormData.addressCoordinates);
-        
+
         const hasTechInput = usernamePattern && usernamePattern.sequence.some(item => item.type === 'tech_input');
-        
+
         if (hasTechInput && techInputValue.trim()) {
           jobOrderUpdateData.pppoe_username = techInputValue.trim();
+          // Password will be auto-generated by backend when username is provided without password
           console.log('[SAVE DEBUG] Tech Input PPPoE Username:', techInputValue.trim());
+          console.log('[SAVE DEBUG] Password will be auto-generated by backend');
         } else {
-          const planNameForRadius = updatedFormData.choosePlan.includes(' - P') 
-            ? updatedFormData.choosePlan.split(' - P')[0].trim()
-            : updatedFormData.choosePlan;
-          
-          try {
-            const radiusResponse = await apiClient.post<{
-              success: boolean;
-              message: string;
-              data?: {
-                username: string;
-                password: string;
-                group: string;
-                credentials_exist?: boolean;
-                radius_response?: any;
-              };
-            }>(`/job-orders/${jobOrderId}/create-radius-account`);
-            
-            if (radiusResponse.data.success && radiusResponse.data.data) {
-              const { username, password, credentials_exist } = radiusResponse.data.data;
-              
-              if (credentials_exist) {
-                saveMessages.push({
-                  type: 'warning',
-                  text: `PPPoE credentials already exist: Username: ${username}, Password: ${password}, Plan: ${planNameForRadius}`
-                });
-              } else {
-                jobOrderUpdateData.pppoe_username = username;
-                jobOrderUpdateData.pppoe_password = password;
-                
-                saveMessages.push({
-                  type: 'success',
-                  text: `RADIUS Account Created: Username: ${username}, Password: ${password}, Plan: ${planNameForRadius}`
-                });
-              }
-            } else {
-              saveMessages.push({
-                type: 'warning',
-                text: `RADIUS account creation failed: ${radiusResponse.data.message}`
-              });
-            }
-          } catch (radiusError: any) {
-            const errorMsg = radiusError.response?.data?.message || radiusError.message || 'Unknown error';
-            saveMessages.push({
-              type: 'warning',
-              text: `RADIUS account creation failed: ${errorMsg}`
-            });
-          }
+          // Logic for RADIUS account creation moved to after updateJobOrder
+          // to ensure LCPNAP/Port data is saved first.
         }
-        
+
         const firstName = (jobOrderData?.First_Name || jobOrderData?.first_name || '').trim();
         const middleInitial = (jobOrderData?.Middle_Initial || jobOrderData?.middle_initial || '').trim();
         const fullLastName = (jobOrderData?.Last_Name || jobOrderData?.last_name || '').trim();
         const folderName = `(joborder)${firstName} ${middleInitial} ${fullLastName}`.trim();
-        
+
         const imageFormData = new FormData();
         imageFormData.append('folder_name', folderName);
-        
+
         console.log('[UPLOAD START] Preparing images for upload...');
-        
+
+        let tempSigFile: File | null = null;
+        if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
+          try {
+            const trimmedCanvas = sigCanvas.current.getTrimmedCanvas();
+            const blob = await new Promise<Blob | null>(resolve => trimmedCanvas.toBlob(resolve, 'image/png'));
+            if (blob) {
+              tempSigFile = new File([blob], 'signature.png', { type: 'image/png' });
+            }
+          } catch (sigError) {
+            console.error('[SAVE ERROR] Failed to extract signature from canvas:', sigError);
+          }
+        }
+
         if (formData.signedContractImage) {
           console.log(`[APPEND] Signed Contract: ${(formData.signedContractImage.size / 1024 / 1024).toFixed(2)}MB`);
           imageFormData.append('signed_contract_image', formData.signedContractImage, formData.signedContractImage.name);
@@ -1284,14 +1261,17 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         if (formData.clientSignatureImage) {
           console.log(`[APPEND] Client Signature: ${(formData.clientSignatureImage.size / 1024 / 1024).toFixed(2)}MB`);
           imageFormData.append('client_signature_image', formData.clientSignatureImage, formData.clientSignatureImage.name);
+        } else if (tempSigFile) {
+          console.log(`[APPEND] Client Signature (from canvas): ${(tempSigFile.size / 1024 / 1024).toFixed(2)}MB`);
+          imageFormData.append('client_signature_image', tempSigFile, 'signature.png');
         }
         if (formData.speedTestImage) {
           console.log(`[APPEND] Speed Test: ${(formData.speedTestImage.size / 1024 / 1024).toFixed(2)}MB`);
           imageFormData.append('speed_test_image', formData.speedTestImage, formData.speedTestImage.name);
         }
-        
+
         console.log('[UPLOAD] FormData prepared, sending to backend...');
-        
+
         try {
           const uploadResponse = await apiClient.post<{
             success: boolean;
@@ -1311,10 +1291,10 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
               'Content-Type': 'multipart/form-data'
             }
           });
-          
+
           if (uploadResponse.data.success && uploadResponse.data.data) {
             const imageUrls = uploadResponse.data.data;
-            
+
             if (imageUrls.signed_contract_image_url) {
               jobOrderUpdateData.signed_contract_image_url = imageUrls.signed_contract_image_url;
             }
@@ -1345,16 +1325,16 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
           });
         }
       }
-      
+
       if (updatedFormData.onsiteStatus === 'Failed' || updatedFormData.onsiteStatus === 'Reschedule') {
         jobOrderUpdateData.onsite_remarks = updatedFormData.onsiteRemarks;
         jobOrderUpdateData.status_remarks = updatedFormData.statusRemarks;
         jobOrderUpdateData.onsite_status = updatedFormData.onsiteStatus;
       }
-      
+
       if (updatedFormData.onsiteStatus === 'In Progress') {
         jobOrderUpdateData.onsite_status = 'In Progress';
-        jobOrderUpdateData.group_name = updatedFormData.groupName;
+
       }
 
       console.log('[API CALL] ========================================');
@@ -1367,9 +1347,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       console.log('[API CALL] Full Update Data:', JSON.stringify(jobOrderUpdateData, null, 2));
       console.log('[API CALL] IMPORTANT: This should UPDATE existing row, NOT create new row');
       console.log('[API CALL] ========================================');
-      
+
       const jobOrderResponse = await updateJobOrder(jobOrderId, jobOrderUpdateData);
-      
+
       console.log('[API RESPONSE] ========================================');
       console.log('[API RESPONSE] updateJobOrder completed');
       console.log('[API RESPONSE] Full response:', JSON.stringify(jobOrderResponse, null, 2));
@@ -1377,21 +1357,96 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       console.log('[API RESPONSE] message:', jobOrderResponse?.message);
       console.log('[API RESPONSE] data:', jobOrderResponse?.data);
       console.log('[API RESPONSE] ========================================');
-      
+
       if (!jobOrderResponse.success) {
         console.error('[SAVE ERROR] updateJobOrder failed:', jobOrderResponse);
         throw new Error(jobOrderResponse.message || 'Job order update failed');
       }
-      
+
       console.log('[SAVE SUCCESS] Job order updated successfully');
-      
+
       saveMessages.push({
         type: 'success',
         text: 'Job order updated successfully'
       });
 
+      // --- MOVED RADIUS CREATION LOGIC START ---
+      // Now that LCPNAP and Port are saved, we can try to create the RADIUS account if needed
+      if (updatedFormData.onsiteStatus === 'Done') {
+        const hasTechInput = usernamePattern && usernamePattern.sequence.some(item => item.type === 'tech_input');
+
+        // Only proceed if NOT using manual tech input (manual input was already saved in updateJobOrder)
+        if (!(hasTechInput && techInputValue.trim())) {
+          console.log('[SAVE RADIUS] Initiating delayed RADIUS creation...');
+          const planNameForRadius = updatedFormData.choosePlan.includes(' - P')
+            ? updatedFormData.choosePlan.split(' - P')[0].trim()
+            : updatedFormData.choosePlan;
+
+          try {
+            const radiusResponse = await apiClient.post<{
+              success: boolean;
+              message: string;
+              data?: {
+                username: string;
+                password: string;
+                group: string;
+                credentials_exist?: boolean;
+                radius_response?: any;
+              };
+            }>(`/job-orders/${jobOrderId}/create-radius-account`);
+
+            if (radiusResponse.data.success && radiusResponse.data.data) {
+              const { username, password, credentials_exist } = radiusResponse.data.data;
+
+              // We need to update the job order AGAIN with the new credentials
+              console.log('[SAVE RADIUS] Credentials generated, updating Job Order again...');
+
+              const credentialsUpdate = {
+                pppoe_username: username,
+                pppoe_password: password
+              };
+
+              try {
+                await updateJobOrder(jobOrderId, credentialsUpdate);
+
+                if (credentials_exist) {
+                  saveMessages.push({
+                    type: 'warning',
+                    text: `PPPoE credentials already exist: Username: ${username}, Password: ${password}, Plan: ${planNameForRadius}`
+                  });
+                } else {
+                  saveMessages.push({
+                    type: 'success',
+                    text: `RADIUS Account Created: Username: ${username}, Password: ${password}, Plan: ${planNameForRadius}`
+                  });
+                }
+              } catch (updateError) {
+                console.error('[SAVE RADIUS] Failed to save credentials to Job Order', updateError);
+                saveMessages.push({
+                  type: 'warning',
+                  text: `RADIUS account created but failed to save to Job Order: ${(updateError as Error).message}`
+                });
+              }
+
+            } else {
+              saveMessages.push({
+                type: 'warning',
+                text: `RADIUS account creation failed: ${radiusResponse.data.message}`
+              });
+            }
+          } catch (radiusError: any) {
+            const errorMsg = radiusError.response?.data?.message || radiusError.message || 'Unknown error';
+            saveMessages.push({
+              type: 'warning',
+              text: `RADIUS account creation failed: ${errorMsg}`
+            });
+          }
+        }
+      }
+      // --- MOVED RADIUS CREATION LOGIC END ---
+
       let applicationId = jobOrderData.application_id || jobOrderData.Application_ID || jobOrderData.account_id;
-      
+
       if (!applicationId) {
         try {
           const jobOrderResponse = await apiClient.get<{ success: boolean; data: any }>(`/job-orders/${jobOrderId}`);
@@ -1401,7 +1456,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         } catch (fetchError: any) {
         }
       }
-      
+
       if (applicationId) {
         try {
           const firstName = jobOrderData?.First_Name || jobOrderData?.first_name || '';
@@ -1414,7 +1469,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
           const landmark = jobOrderData?.Landmark || jobOrderData?.landmark || '';
           const referredBy = jobOrderData?.Referred_By || jobOrderData?.referred_by || '';
           const promo = jobOrderData?.Promo || jobOrderData?.promo || '';
-          
+
           const applicationUpdateData: any = {
             first_name: firstName,
             middle_initial: middleInitial,
@@ -1427,17 +1482,16 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
             region: updatedFormData.region,
             city: updatedFormData.city,
             barangay: updatedFormData.barangay,
-            location: updatedFormData.location,
             desired_plan: updatedFormData.choosePlan,
             referred_by: referredBy,
             promo: promo
           };
-          
+
           const applicationResponse = await updateApplication(applicationId.toString(), applicationUpdateData);
-          
+
           saveMessages.push({
             type: 'success',
-            text: `Application updated: Plan: ${updatedFormData.choosePlan}, Location: ${updatedFormData.region}, ${updatedFormData.city}, ${updatedFormData.barangay}, ${updatedFormData.location}`
+            text: `Application updated: Plan: ${updatedFormData.choosePlan}, Location: ${updatedFormData.region}, ${updatedFormData.city}, ${updatedFormData.barangay}`
           });
         } catch (appError: any) {
           const errorMsg = appError.response?.data?.message || appError.message || 'Unknown error';
@@ -1457,109 +1511,83 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         const validItems = orderItems.filter(item => {
           const quantity = parseInt(item.quantity);
           const isValid = item.itemId && item.itemId.trim() !== '' && !isNaN(quantity) && quantity > 0;
-          
           return isValid;
         });
 
+        console.log('[SAVE ITEMS] Valid items found:', validItems.length, validItems);
+
         if (validItems.length > 0) {
           try {
+            // Ensure we have a numeric ID
+            const numericJobOrderId = parseInt((jobOrderData.JobOrder_ID || jobOrderData.id || 0).toString());
+            console.log('[SAVE ITEMS] Using Job Order ID:', numericJobOrderId);
+
+            if (!numericJobOrderId || isNaN(numericJobOrderId)) {
+              throw new Error('Invalid Job Order ID for items saving');
+            }
+
             // Get existing items from database
-            const existingItemsResponse = await apiClient.get<{ success: boolean; data: any[] }>(`/job-order-items?job_order_id=${jobOrderId}`);
-            
+            const existingItemsResponse = await apiClient.get<{ success: boolean; data: any[] }>(`/job-order-items?job_order_id=${numericJobOrderId}`);
+
             if (existingItemsResponse.data.success && Array.isArray(existingItemsResponse.data.data)) {
               const existingItems = existingItemsResponse.data.data;
-              
-              console.log('[SAVE ITEMS] Existing items from database:', existingItems);
-              
-              // Create a map of existing items by item_name for quick lookup
+              console.log('[SAVE ITEMS] Existing items count:', existingItems.length);
+
               const existingItemsMap = new Map();
               existingItems.forEach((item: any) => {
                 existingItemsMap.set(item.item_name, item);
               });
-              
-              console.log('[SAVE ITEMS] Valid items to process:', validItems);
-              
-              // Track which items were processed for updates
+
+              const itemsToUpdate = [];
+              const itemsToCreate = [];
               const processedItemNames = new Set<string>();
-              
-              // Update or create items
+
               for (const item of validItems) {
-                const existingItem = existingItemsMap.get(item.itemId);
                 processedItemNames.add(item.itemId);
-                
+                const existingItem = existingItemsMap.get(item.itemId);
+
                 if (existingItem) {
-                  // Update existing item
-                  console.log(`[SAVE ITEMS] Updating item: ${item.itemId} (ID: ${existingItem.id})`);
-                  try {
-                    const updateResult = await apiClient.put(`/job-order-items/${existingItem.id}`, {
-                      quantity: parseInt(item.quantity)
-                    });
-                    console.log(`[SAVE ITEMS] Update successful for ${item.itemId}:`, updateResult.data);
-                  } catch (updateErr: any) {
-                    console.error('Failed to update item:', updateErr);
-                    saveMessages.push({
-                      type: 'warning',
-                      text: `Failed to update item ${item.itemId}: ${updateErr.message || 'Unknown error'}`
-                    });
-                  }
+                  itemsToUpdate.push({ id: existingItem.id, item_name: item.itemId, quantity: parseInt(item.quantity) });
                 } else {
-                  // Create new item
-                  console.log(`[SAVE ITEMS] Creating new item: ${item.itemId}`);
-                  try {
-                    const createResult = await apiClient.post('/job-order-items', {
-                      job_order_id: parseInt(jobOrderId.toString()),
-                      item_name: item.itemId,
-                      quantity: parseInt(item.quantity)
-                    });
-                    console.log(`[SAVE ITEMS] Create successful for ${item.itemId}:`, createResult.data);
-                  } catch (createErr: any) {
-                    console.error('Failed to create item:', createErr);
-                    saveMessages.push({
-                      type: 'warning',
-                      text: `Failed to create item ${item.itemId}: ${createErr.message || 'Unknown error'}`
-                    });
-                  }
+                  itemsToCreate.push({ job_order_id: numericJobOrderId, item_name: item.itemId, quantity: parseInt(item.quantity) });
                 }
               }
-              
-              // Delete items that are no longer in the form
-              console.log('[SAVE ITEMS] Checking for items to delete...');
+
+              // Update existing items
+              for (const item of itemsToUpdate) {
+                console.log(`[SAVE ITEMS] Updating: ${item.item_name}`, item);
+                await apiClient.put(`/job-order-items/${item.id}`, { quantity: item.quantity });
+              }
+
+              // Create new items in batch
+              if (itemsToCreate.length > 0) {
+                console.log('[SAVE ITEMS] Batch creating:', itemsToCreate);
+                await apiClient.post('/job-order-items', { items: itemsToCreate });
+              }
+
+              // Delete removed items
               for (const existingItem of existingItems) {
                 if (!processedItemNames.has(existingItem.item_name)) {
-                  console.log(`[SAVE ITEMS] Deleting removed item: ${existingItem.item_name} (ID: ${existingItem.id})`);
-                  try {
-                    await apiClient.delete(`/job-order-items/${existingItem.id}`);
-                    console.log(`[SAVE ITEMS] Delete successful for ${existingItem.item_name}`);
-                  } catch (deleteErr: any) {
-                    console.error('[SAVE ITEMS] Failed to delete item:', deleteErr);
-                  }
+                  console.log(`[SAVE ITEMS] Deleting removed item: ${existingItem.item_name}`);
+                  await apiClient.delete(`/job-order-items/${existingItem.id}`);
                 }
               }
-              console.log('[SAVE ITEMS] All items processed successfully');
             } else {
-              // No existing items, create all new items
-              for (const item of validItems) {
-                try {
-                  await apiClient.post('/job-order-items', {
-                    job_order_id: parseInt(jobOrderId.toString()),
-                    item_name: item.itemId,
-                    quantity: parseInt(item.quantity)
-                  });
-                } catch (createErr: any) {
-                  console.error('Failed to create item:', createErr);
-                  saveMessages.push({
-                    type: 'warning',
-                    text: `Failed to create item ${item.itemId}: ${createErr.message || 'Unknown error'}`
-                  });
-                }
-              }
+              // Fallback: Create all as new if GET failed or returned no success
+              const itemsToCreate = validItems.map(item => ({
+                job_order_id: numericJobOrderId,
+                item_name: item.itemId,
+                quantity: parseInt(item.quantity)
+              }));
+              console.log('[SAVE ITEMS] Fallback batch creation:', itemsToCreate);
+              await apiClient.post('/job-order-items', { items: itemsToCreate });
             }
+            console.log('[SAVE ITEMS] Items processing completed successfully');
           } catch (itemsError: any) {
-            const errorMsg = itemsError.response?.data?.message || itemsError.message || 'Unknown error';
-            console.error('Items operation failed:', errorMsg);
+            console.error('[SAVE ITEMS] ERROR:', itemsError);
             saveMessages.push({
               type: 'warning',
-              text: `Items operation warning: ${errorMsg}`
+              text: `Items saving warning: ${itemsError.message || 'Check connection'}`
             });
           }
         }
@@ -1568,12 +1596,12 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       clearInterval(progressInterval);
       setLoadingPercentage(100);
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       console.log('[SAVE COMPLETE] ========================================');
       console.log('[SAVE COMPLETE] All operations completed successfully');
       console.log('[SAVE COMPLETE] Final save messages:', saveMessages);
       console.log('[SAVE COMPLETE] ========================================');
-      
+
       setErrors({});
       setLoading(false);
       setShowLoadingModal(false);
@@ -1583,14 +1611,14 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     } catch (error: any) {
       clearInterval(progressInterval);
       const errorMessage = error.response?.data?.message || error.message || 'Unknown error occurred';
-      
+
       console.error('[SAVE ERROR] ========================================');
       console.error('[SAVE ERROR] Save operation failed');
       console.error('[SAVE ERROR] Error:', error);
       console.error('[SAVE ERROR] Error message:', errorMessage);
       console.error('[SAVE ERROR] Error response:', error.response);
       console.error('[SAVE ERROR] ========================================');
-      
+
       setLoading(false);
       setShowLoadingModal(false);
       setLoadingPercentage(0);
@@ -1604,654 +1632,279 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
 
   const fullName = `${jobOrderData?.First_Name || jobOrderData?.first_name || ''} ${jobOrderData?.Middle_Initial || jobOrderData?.middle_initial || ''} ${jobOrderData?.Last_Name || jobOrderData?.last_name || ''}`.trim();
 
-  const getFilteredCities = () => {
-    if (!formData.region) return [];
-    const selectedRegion = regions.find(reg => reg.name === formData.region);
-    if (!selectedRegion) return [];
-    return allCities.filter(city => city.region_id === selectedRegion.id);
-  };
-
-  const getFilteredBarangays = () => {
-    if (!formData.city) return [];
-    const selectedCity = allCities.find(city => city.name === formData.city);
-    if (!selectedCity) return [];
-    return allBarangays.filter(brgy => brgy.city_id === selectedCity.id);
-  };
-
-  const getFilteredLocations = () => {
-    if (!formData.barangay) return [];
-    const selectedBarangay = allBarangays.find(brgy => brgy.barangay === formData.barangay);
-    if (!selectedBarangay) return [];
-    return allLocations.filter(loc => loc.barangay_id === selectedBarangay.id);
-  };
-
-  const filteredCities = getFilteredCities();
-  const filteredBarangays = getFilteredBarangays();
-  const filteredLocations = getFilteredLocations();
+  const selectedLcpnap = lcpnaps.find(ln => ln.lcpnap_name === formData.lcpnap);
+  const portTotal = selectedLcpnap?.port_total || 32;
 
   return (
     <>
-    {showLoadingModal && (
-      <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
-        <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${
-          isDarkMode ? 'bg-gray-800' : 'bg-white'
-        }`}>
-          <Loader2 
-            className="w-20 h-20 animate-spin" 
-            style={{ color: colorPalette?.primary || '#ea580c' }}
-          />
-          <div className="text-center">
-            <p className={`text-4xl font-bold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{loadingPercentage}%</p>
+      {showLoadingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
+          <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+            <Loader2
+              className="w-20 h-20 animate-spin"
+              style={{ color: colorPalette?.primary || '#ea580c' }}
+            />
+            <div className="text-center">
+              <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{loadingPercentage}%</p>
+            </div>
           </div>
         </div>
-      </div>
-    )}
-    {showModal && (
-      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
-        <div className={`rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col ${
-          isDarkMode ? 'bg-gray-800' : 'bg-white'
-        }`}>
-          <div className={`px-6 py-4 border-b flex items-center justify-between ${
-            isDarkMode ? 'border-gray-700' : 'border-gray-200'
-          }`}>
-            <h3 className={`text-lg font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{modalContent.title}</h3>
-            <button
-              onClick={() => setShowModal(false)}
-              className={`transition-colors ${
-                isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <X size={20} />
-            </button>
-          </div>
-          <div className="px-6 py-4 overflow-y-auto flex-1">
-            <div className="space-y-3">
-              {modalContent.messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex items-start gap-3 p-3 rounded-lg border ${
-                    message.type === 'success'
+      )}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
+          <div className={`rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+            <div className={`px-6 py-4 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{modalContent.title}</h3>
+              <button
+                onClick={() => setShowModal(false)}
+                className={`transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="px-6 py-4 overflow-y-auto flex-1">
+              <div className="space-y-3">
+                {modalContent.messages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`flex items-start gap-3 p-3 rounded-lg border ${message.type === 'success'
                       ? (isDarkMode ? 'bg-green-900/30 border-green-700' : 'bg-green-100 border-green-300')
                       : message.type === 'warning'
-                      ? (isDarkMode ? 'bg-yellow-900/30 border-yellow-700' : 'bg-yellow-100 border-yellow-300')
-                      : (isDarkMode ? 'bg-red-900/30 border-red-700' : 'bg-red-100 border-red-300')
-                  }`}
-                >
-                  {message.type === 'success' && (
-                    <CheckCircle className="text-green-500 flex-shrink-0 mt-0.5" size={20} />
-                  )}
-                  {message.type === 'warning' && (
-                    <AlertCircle className="text-yellow-500 flex-shrink-0 mt-0.5" size={20} />
-                  )}
-                  {message.type === 'error' && (
-                    <XCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
-                  )}
-                  <p
-                    className={`text-sm ${
-                      message.type === 'success'
+                        ? (isDarkMode ? 'bg-yellow-900/30 border-yellow-700' : 'bg-yellow-100 border-yellow-300')
+                        : (isDarkMode ? 'bg-red-900/30 border-red-700' : 'bg-red-100 border-red-300')
+                      }`}
+                  >
+                    {message.type === 'success' && (
+                      <CheckCircle className="text-green-500 flex-shrink-0 mt-0.5" size={20} />
+                    )}
+                    {message.type === 'warning' && (
+                      <AlertCircle className="text-yellow-500 flex-shrink-0 mt-0.5" size={20} />
+                    )}
+                    {message.type === 'error' && (
+                      <XCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
+                    )}
+                    <p
+                      className={`text-sm ${message.type === 'success'
                         ? (isDarkMode ? 'text-green-200' : 'text-green-800')
                         : message.type === 'warning'
-                        ? (isDarkMode ? 'text-yellow-200' : 'text-yellow-800')
-                        : (isDarkMode ? 'text-red-200' : 'text-red-800')
-                    }`}
-                  >
-                    {message.text}
-                  </p>
-                </div>
-              ))}
+                          ? (isDarkMode ? 'text-yellow-200' : 'text-yellow-800')
+                          : (isDarkMode ? 'text-red-200' : 'text-red-800')
+                        }`}
+                    >
+                      {message.text}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className={`px-6 py-4 border-t flex justify-end ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 text-white rounded transition-colors"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
+              >
+                Close
+              </button>
             </div>
           </div>
-          <div className={`px-6 py-4 border-t flex justify-end ${
-            isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        </div>
+      )}
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
+        <div className={`h-full w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
           }`}>
-            <button
-              onClick={() => setShowModal(false)}
-              className="px-4 py-2 text-white rounded transition-colors"
-              style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
-              }}
-              onMouseEnter={(e) => {
-                if (colorPalette?.accent) {
-                  e.currentTarget.style.backgroundColor = colorPalette.accent;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (colorPalette?.primary) {
-                  e.currentTarget.style.backgroundColor = colorPalette.primary;
-                }
-              }}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-      <div className={`h-full w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col ${
-        isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
-      }`}>
-        <div className={`px-6 py-4 flex items-center justify-between border-b ${
-          isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
-        }`}>
-          <div className="flex items-center space-x-3">
-            <button onClick={onClose} className={`${
-              isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+          <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
             }`}>
-              <X size={24} />
-            </button>
-            <h2 className={`text-xl font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{fullName}</h2>
-          </div>
-          <div className="flex items-center space-x-3">
-            <button 
-              onClick={onClose} 
-              className="px-4 py-2 border rounded text-sm transition-colors"
-              style={{
-                borderColor: colorPalette?.primary || '#ea580c',
-                color: colorPalette?.primary || '#ea580c'
-              }}
-              onMouseEnter={(e) => {
-                if (colorPalette?.primary) {
-                  e.currentTarget.style.backgroundColor = colorPalette.primary;
-                  e.currentTarget.style.color = 'white';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                if (colorPalette?.primary) {
-                  e.currentTarget.style.color = colorPalette.primary;
-                }
-              }}
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={handleSave} 
-              disabled={loading} 
-              className="px-4 py-2 disabled:opacity-50 text-white rounded text-sm transition-colors"
-              style={{
-                backgroundColor: loading ? (isDarkMode ? '#6b7280' : '#9ca3af') : (colorPalette?.primary || '#ea580c')
-              }}
-              onMouseEnter={(e) => {
-                if (!loading && colorPalette?.accent) {
-                  e.currentTarget.style.backgroundColor = colorPalette.accent;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!loading && colorPalette?.primary) {
-                  e.currentTarget.style.backgroundColor = colorPalette.primary;
-                }
-              }}
-            >
-              {loading ? 'Saving...' : 'Save'}
-            </button>
-          </div>
-        </div>
+            <div className="flex items-center space-x-3">
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Choose Plan<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select value={formData.choosePlan} onChange={(e) => handleInputChange('choosePlan', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-              } ${errors.choosePlan ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                <option value="">Select Plan</option>
-                {formData.choosePlan && !plans.some(plan => {
-                  const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
-                  return planWithPrice === formData.choosePlan || plan.name === formData.choosePlan;
-                }) && (
-                  <option value={formData.choosePlan}>{formData.choosePlan}</option>
-                )}
-                {plans.map((plan) => {
-                  const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
-                  return (
-                    <option key={plan.id} value={planWithPrice}>
-                      {planWithPrice}
-                    </option>
-                  );
-                })}
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
+              <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{fullName}</h2>
             </div>
-            {errors.choosePlan && (
-              <div className="flex items-center mt-1">
-                <div 
-                  className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                >!</div>
-                <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.choosePlan}</p>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Onsite Status<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select value={formData.onsiteStatus} onChange={(e) => handleInputChange('onsiteStatus', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-              } ${errors.onsiteStatus ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                <option value="In Progress">In Progress</option>
-                <option value="Done">Done</option>
-                <option value="Failed">Failed</option>
-                <option value="Reschedule">Reschedule</option>
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
-            </div>
-            {errors.onsiteStatus && (
-              <div className="flex items-center mt-1">
-                <div 
-                  className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                >!</div>
-                <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.onsiteStatus}</p>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Affiliate<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select value={formData.groupName} onChange={(e) => handleInputChange('groupName', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-              } ${errors.groupName ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                <option value="">Select Affiliate</option>
-                {formData.groupName && !groups.some(g => g.group_name === formData.groupName) && (
-                  <option value={formData.groupName}>{formData.groupName}</option>
-                )}
-                {groups.map((group) => (
-                  <option key={group.id} value={group.group_name}>
-                    {group.group_name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
-            </div>
-            {errors.groupName && (
-              <div className="flex items-center mt-1">
-                <div 
-                  className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                >!</div>
-                <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.groupName}</p>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Region<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select value={formData.region} onChange={(e) => handleInputChange('region', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-              } ${errors.region ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                <option value="">Select Region</option>
-                {formData.region && !regions.some(reg => reg.name === formData.region) && (
-                  <option value={formData.region}>{formData.region}</option>
-                )}
-                {regions.map((region) => (
-                  <option key={region.id} value={region.name}>
-                    {region.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
-            </div>
-            {errors.region && (
-              <div className="flex items-center mt-1">
-                <div 
-                  className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                >!</div>
-                <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.region}</p>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>City<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select 
-                value={formData.city} 
-                onChange={(e) => handleInputChange('city', e.target.value)} 
-                disabled={!formData.region}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${errors.city ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 border rounded text-sm transition-colors"
+                style={{
+                  borderColor: colorPalette?.primary || '#ea580c',
+                  color: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                    e.currentTarget.style.color = 'white';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.color = colorPalette.primary;
+                  }
+                }}
               >
-                <option value="">{formData.region ? 'Select City' : 'Select Region First'}</option>
-                {formData.city && !filteredCities.some(city => city.name === formData.city) && (
-                  <option value={formData.city}>{formData.city}</option>
-                )}
-                {filteredCities.map((city) => (
-                  <option key={city.id} value={city.name}>
-                    {city.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
-            </div>
-            {errors.city && (
-              <div className="flex items-center mt-1">
-                <div 
-                  className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                >!</div>
-                <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.city}</p>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Barangay<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select 
-                value={formData.barangay} 
-                onChange={(e) => handleInputChange('barangay', e.target.value)} 
-                disabled={!formData.city}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${errors.barangay ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={loading}
+                className="px-4 py-2 disabled:opacity-50 text-white rounded text-sm transition-colors"
+                style={{
+                  backgroundColor: loading ? (isDarkMode ? '#6b7280' : '#9ca3af') : (colorPalette?.primary || '#ea580c')
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading && colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading && colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
               >
-                <option value="">{formData.city ? 'Select Barangay' : 'Select City First'}</option>
-                {formData.barangay && !filteredBarangays.some(brgy => brgy.barangay === formData.barangay) && (
-                  <option value={formData.barangay}>{formData.barangay}</option>
-                )}
-                {filteredBarangays.map((barangay) => (
-                  <option key={barangay.id} value={barangay.barangay}>
-                    {barangay.barangay}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
+                {loading ? 'Submitting...' : 'Submit'}
+              </button>
             </div>
-            {errors.barangay && (
-              <div className="flex items-center mt-1">
-                <div 
-                  className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                >!</div>
-                <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.barangay}</p>
-              </div>
-            )}
           </div>
 
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Location<span className="text-red-500">*</span></label>
-            <div className="relative">
-              <select 
-                value={formData.location} 
-                onChange={(e) => handleInputChange('location', e.target.value)} 
-                disabled={!formData.barangay}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${errors.location ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}
-              >
-                <option value="">{formData.barangay ? 'Select Location' : 'Select Barangay First'}</option>
-                {formData.location && !filteredLocations.some(loc => loc.location_name === formData.location) && (
-                  <option value={formData.location}>{formData.location}</option>
-                )}
-                {filteredLocations.map((location) => (
-                  <option key={location.id} value={location.location_name}>
-                    {location.location_name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`} size={20} />
-            </div>
-            {errors.location && (
-              <div className="flex items-center mt-1">
-                <div 
-                  className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                >!</div>
-                <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.location}</p>
-              </div>
-            )}
-          </div>
-
-          {formData.onsiteStatus === 'Done' && (
-            <>
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Date Installed<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <input type="date" value={formData.dateInstalled} onChange={(e) => handleInputChange('dateInstalled', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.dateInstalled ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} />
-                  <Calendar className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-                </div>
-                {errors.dateInstalled && (
-                  <div className="flex items-center mt-1">
-                    <div 
-                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                    >!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Usage Type<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.usageType} onChange={(e) => handleInputChange('usageType', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.usageType ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                    <option value=""></option>
-                    {formData.usageType && !usageTypes.some(ut => ut.usage_name === formData.usageType) && (
-                      <option value={formData.usageType}>{formData.usageType}</option>
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Choose Plan<span className="text-red-500">*</span></label>
+              <div className="relative">
+                <select value={formData.choosePlan} onChange={(e) => handleInputChange('choosePlan', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  } ${errors.choosePlan ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
+                  <option value="">Select Plan</option>
+                  {formData.choosePlan && !plans.some(plan => {
+                    const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
+                    return planWithPrice === formData.choosePlan || plan.name === formData.choosePlan;
+                  }) && (
+                      <option value={formData.choosePlan}>{formData.choosePlan}</option>
                     )}
-                    {usageTypes.map((usageType) => (
-                      <option key={usageType.id} value={usageType.usage_name}>
-                        {usageType.usage_name}
+                  {plans.map((plan) => {
+                    const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
+                    return (
+                      <option key={plan.id} value={planWithPrice}>
+                        {planWithPrice}
                       </option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    );
+                  })}
+                </select>
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`} size={20} />
-                </div>
-                {errors.usageType && (
-                  <div className="flex items-center mt-1">
-                    <div 
-                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                    >!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                  </div>
-                )}
               </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Connection Type<span className="text-red-500">*</span></label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button 
-                    type="button" 
-                    onClick={() => handleInputChange('connectionType', 'Antenna')} 
-                    className={`py-2 px-4 rounded border transition-colors duration-200 ${
-                      formData.connectionType === 'Antenna' 
-                        ? 'text-white' 
-                        : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
-                    }`}
-                    style={formData.connectionType === 'Antenna' ? {
-                      backgroundColor: colorPalette?.primary || '#ea580c',
-                      borderColor: colorPalette?.accent || '#dc2626'
-                    } : {}}
-                  >Antenna</button>
-                  <button 
-                    type="button" 
-                    onClick={() => handleInputChange('connectionType', 'Fiber')} 
-                    className={`py-2 px-4 rounded border transition-colors duration-200 ${
-                      formData.connectionType === 'Fiber' 
-                        ? 'text-white' 
-                        : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
-                    }`}
-                    style={formData.connectionType === 'Fiber' ? {
-                      backgroundColor: colorPalette?.primary || '#ea580c',
-                      borderColor: colorPalette?.accent || '#dc2626'
-                    } : {}}
-                  >Fiber</button>
-                  <button 
-                    type="button" 
-                    onClick={() => handleInputChange('connectionType', 'Local')} 
-                    className={`py-2 px-4 rounded border transition-colors duration-200 ${
-                      formData.connectionType === 'Local' 
-                        ? 'text-white' 
-                        : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
-                    }`}
-                    style={formData.connectionType === 'Local' ? {
-                      backgroundColor: colorPalette?.primary || '#ea580c',
-                      borderColor: colorPalette?.accent || '#dc2626'
-                    } : {}}
-                  >Local</button>
-                </div>
-                {errors.connectionType && (
-                  <div className="flex items-center mt-1">
-                    <div 
-                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                    >!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Router Model<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.routerModel} onChange={(e) => handleInputChange('routerModel', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.routerModel ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                    <option value=""></option>
-                    {formData.routerModel && !routerModels.some(rm => rm.model === formData.routerModel) && (
-                      <option value={formData.routerModel}>{formData.routerModel}</option>
-                    )}
-                    {routerModels.map((routerModel, index) => (
-                      <option key={index} value={routerModel.model}>{routerModel.model}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-                </div>
-                {errors.routerModel && (
-                  <div className="flex items-center mt-1">
-                    <div 
-                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                    >!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Modem SN<span className="text-red-500">*</span></label>
-                <input type="text" value={formData.modemSN} onChange={(e) => handleInputChange('modemSN', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${errors.modemSN ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} />
-                {errors.modemSN && (
-                  <div className="flex items-center mt-1">
-                    <div 
-                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                    >!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                  </div>
-                )}
-              </div>
-
-              {usernamePattern && usernamePattern.sequence.some(item => item.type === 'tech_input') && (
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>PPPoE Username<span className="text-red-500">*</span></label>
-                  <input 
-                    type="text" 
-                    value={techInputValue} 
-                    onChange={(e) => {
-                      setTechInputValue(e.target.value);
-                      if (errors.techInput) {
-                        setErrors(prev => ({ ...prev, techInput: '' }));
-                      }
-                    }} 
-                    placeholder="Enter PPPoE username"
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                      isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    } ${errors.techInput ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} 
-                  />
-                  {errors.techInput && (
-                    <div className="flex items-center mt-1">
-                      <div 
-                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                      >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.techInput}</p>
-                    </div>
-                  )}
-                  {!techInputValue.trim() && !errors.techInput && (
-                    <p className={`text-xs mt-1 ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>This will be used as the PPPoE username</p>
-                  )}
+              {errors.choosePlan && (
+                <div className="flex items-center mt-1">
+                  <div
+                    className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                  >!</div>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.choosePlan}</p>
                 </div>
               )}
+            </div>
 
-              {formData.connectionType === 'Antenna' && (
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Onsite Status<span className="text-red-500">*</span></label>
+              <div className="relative">
+                <select value={formData.onsiteStatus} onChange={(e) => handleInputChange('onsiteStatus', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  } ${errors.onsiteStatus ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Done">Done</option>
+                  <option value="Failed">Failed</option>
+                  <option value="Reschedule">Reschedule</option>
+                </select>
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
+              </div>
+              {errors.onsiteStatus && (
+                <div className="flex items-center mt-1">
+                  <div
+                    className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                  >!</div>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.onsiteStatus}</p>
+                </div>
+              )}
+            </div>
+
+
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Region</label>
+              <input
+                type="text"
+                value={formData.region}
+                readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none cursor-not-allowed opacity-75 ${isDarkMode
+                  ? 'bg-gray-700 border-gray-600 text-gray-300'
+                  : 'bg-gray-100 border-gray-300 text-gray-600'
+                  }`}
+              />
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>City</label>
+              <input
+                type="text"
+                value={formData.city}
+                readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none cursor-not-allowed opacity-75 ${isDarkMode
+                  ? 'bg-gray-700 border-gray-600 text-gray-300'
+                  : 'bg-gray-100 border-gray-300 text-gray-600'
+                  }`}
+              />
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Barangay</label>
+              <input
+                type="text"
+                value={formData.barangay}
+                readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none cursor-not-allowed opacity-75 ${isDarkMode
+                  ? 'bg-gray-700 border-gray-600 text-gray-300'
+                  : 'bg-gray-100 border-gray-300 text-gray-600'
+                  }`}
+              />
+            </div>
+
+
+            {formData.onsiteStatus === 'Done' && (
+              <>
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>IP<span className="text-red-500">*</span></label>
-                  <input type="text" value={formData.ip} onChange={(e) => handleInputChange('ip', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.ip ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} />
-                  {errors.ip && (
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Date Installed<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input type="date" value={formData.dateInstalled} onChange={(e) => handleInputChange('dateInstalled', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      } ${errors.dateInstalled ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} />
+                    <Calendar className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.dateInstalled && (
                     <div className="flex items-center mt-1">
-                      <div 
+                      <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
                         style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
                       >!</div>
@@ -2259,39 +1912,177 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                     </div>
                   )}
                 </div>
-              )}
 
-              {formData.connectionType === 'Fiber' && (
-                <>
-                  <div>
-                    <label className={`block text-sm font-medium mb-2 ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>LCP-NAP<span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <select 
-                        value={formData.lcpnap} 
-                        onChange={(e) => handleInputChange('lcpnap', e.target.value)} 
-                        className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                          isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                        } ${errors.lcpnap ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}
-                      >
-                        <option value="">Select LCP-NAP</option>
-                        {formData.lcpnap && !lcpnaps.some(ln => ln.lcpnap_name === formData.lcpnap) && (
-                          <option value={formData.lcpnap}>{formData.lcpnap}</option>
-                        )}
-                        {lcpnaps.map((lcpnap) => (
-                          <option key={lcpnap.id} value={lcpnap.lcpnap_name}>
-                            {lcpnap.lcpnap_name}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Usage Type<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.usageType} onChange={(e) => handleInputChange('usageType', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      } ${errors.usageType ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
+                      <option value=""></option>
+                      <option value="None">None</option>
+                      {formData.usageType && !usageTypes.some(ut => ut.usage_name === formData.usageType) && (
+                        <option value={formData.usageType}>{formData.usageType}</option>
+                      )}
+                      {usageTypes.map((usageType) => (
+                        <option key={usageType.id} value={usageType.usage_name}>
+                          {usageType.usage_name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`} size={20} />
+                  </div>
+                  {errors.usageType && (
+                    <div className="flex items-center mt-1">
+                      <div
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                     </div>
-                    {errors.lcpnap && (
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Connection Type<span className="text-red-500">*</span></label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleInputChange('connectionType', 'Antenna')}
+                      className={`py-2 px-4 rounded border transition-colors duration-200 ${formData.connectionType === 'Antenna'
+                        ? 'text-white'
+                        : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
+                        }`}
+                      style={formData.connectionType === 'Antenna' ? {
+                        backgroundColor: colorPalette?.primary || '#ea580c',
+                        borderColor: colorPalette?.accent || '#dc2626'
+                      } : {}}
+                    >Antenna</button>
+                    <button
+                      type="button"
+                      onClick={() => handleInputChange('connectionType', 'Fiber')}
+                      className={`py-2 px-4 rounded border transition-colors duration-200 ${formData.connectionType === 'Fiber'
+                        ? 'text-white'
+                        : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
+                        }`}
+                      style={formData.connectionType === 'Fiber' ? {
+                        backgroundColor: colorPalette?.primary || '#ea580c',
+                        borderColor: colorPalette?.accent || '#dc2626'
+                      } : {}}
+                    >Fiber</button>
+                    <button
+                      type="button"
+                      onClick={() => handleInputChange('connectionType', 'Local')}
+                      className={`py-2 px-4 rounded border transition-colors duration-200 ${formData.connectionType === 'Local'
+                        ? 'text-white'
+                        : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
+                        }`}
+                      style={formData.connectionType === 'Local' ? {
+                        backgroundColor: colorPalette?.primary || '#ea580c',
+                        borderColor: colorPalette?.accent || '#dc2626'
+                      } : {}}
+                    >Local</button>
+                  </div>
+                  {errors.connectionType && (
+                    <div className="flex items-center mt-1">
+                      <div
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Router Model<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.routerModel} onChange={(e) => handleInputChange('routerModel', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      } ${errors.routerModel ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
+                      <option value=""></option>
+                      <option value="None">None</option>
+                      {formData.routerModel && !routerModels.some(rm => rm.model === formData.routerModel) && (
+                        <option value={formData.routerModel}>{formData.routerModel}</option>
+                      )}
+                      {routerModels.map((routerModel, index) => (
+                        <option key={index} value={routerModel.model}>{routerModel.model}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.routerModel && (
+                    <div className="flex items-center mt-1">
+                      <div
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Modem SN<span className="text-red-500">*</span></label>
+                  <input type="text" value={formData.modemSN} onChange={(e) => handleInputChange('modemSN', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    } ${errors.modemSN ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} />
+                  {errors.modemSN && (
+                    <div className="flex items-center mt-1">
+                      <div
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    </div>
+                  )}
+                </div>
+
+                {usernamePattern && usernamePattern.sequence.some(item => item.type === 'tech_input') && (
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>PPPoE Username<span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      value={techInputValue}
+                      onChange={(e) => {
+                        setTechInputValue(e.target.value);
+                        if (errors.techInput) {
+                          setErrors(prev => ({ ...prev, techInput: '' }));
+                        }
+                      }}
+                      placeholder="Enter PPPoE username"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                        } ${errors.techInput ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}
+                    />
+                    {errors.techInput && (
                       <div className="flex items-center mt-1">
-                        <div 
+                        <div
+                          className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                          style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        >!</div>
+                        <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.techInput}</p>
+                      </div>
+                    )}
+                    {!techInputValue.trim() && !errors.techInput && (
+                      <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>This will be used as the PPPoE username</p>
+                    )}
+                  </div>
+                )}
+
+                {formData.connectionType === 'Antenna' && (
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>IP<span className="text-red-500">*</span></label>
+                    <input type="text" value={formData.ip} onChange={(e) => handleInputChange('ip', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      } ${errors.ip ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} />
+                    {errors.ip && (
+                      <div className="flex items-center mt-1">
+                        <div
                           className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
                           style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
                         >!</div>
@@ -2299,495 +2090,732 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       </div>
                     )}
                   </div>
-
-                  <div>
-                    <label className={`block text-sm font-medium mb-2 ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>PORT<span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <select value={formData.port} onChange={(e) => handleInputChange('port', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                        isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                      } ${errors.port ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                        <option value="">Select PORT</option>
-                        <option value="PORT 001">PORT 001</option>
-                        <option value="PORT 002">PORT 002</option>
-                        <option value="PORT 003">PORT 003</option>
-                        <option value="PORT 004">PORT 004</option>
-                        <option value="PORT 005">PORT 005</option>
-                        <option value="PORT 006">PORT 006</option>
-                        <option value="PORT 007">PORT 007</option>
-                        <option value="PORT 008">PORT 008</option>
-                        <option value="PORT 009">PORT 009</option>
-                        <option value="PORT 010">PORT 010</option>
-                        <option value="PORT 011">PORT 011</option>
-                        <option value="PORT 012">PORT 012</option>
-                        <option value="PORT 013">PORT 013</option>
-                        <option value="PORT 014">PORT 014</option>
-                        <option value="PORT 015">PORT 015</option>
-                        <option value="PORT 016">PORT 016</option>
-                        <option value="PORT 017">PORT 017</option>
-                        <option value="PORT 018">PORT 018</option>
-                        <option value="PORT 019">PORT 019</option>
-                        <option value="PORT 020">PORT 020</option>
-                        <option value="PORT 021">PORT 021</option>
-                        <option value="PORT 022">PORT 022</option>
-                        <option value="PORT 023">PORT 023</option>
-                        <option value="PORT 024">PORT 024</option>
-                        <option value="PORT 025">PORT 025</option>
-                        <option value="PORT 026">PORT 026</option>
-                        <option value="PORT 027">PORT 027</option>
-                        <option value="PORT 028">PORT 028</option>
-                        <option value="PORT 029">PORT 029</option>
-                        <option value="PORT 030">PORT 030</option>
-                        <option value="PORT 032">PORT 032</option>
-                        <option value="PORT 032">PORT 032</option>
-                      </select>
-                      <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`} size={20} />
-                    </div>
-                    {errors.port && (
-                      <div className="flex items-center mt-1">
-                        <div 
-                          className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                          style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                        >!</div>
-                        <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className={`block text-sm font-medium mb-2 ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>VLAN<span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <select value={formData.vlan} onChange={(e) => handleInputChange('vlan', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                        isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                      } ${errors.vlan ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                        <option value="">Select VLAN</option>
-                        {formData.vlan && !vlans.some(v => v.value.toString() === formData.vlan) && (
-                          <option value={formData.vlan}>{formData.vlan}</option>
-                        )}
-                        {vlans.map((vlan) => (
-                          <option key={vlan.vlan_id} value={vlan.value}>
-                            {vlan.value}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`} size={20} />
-                    </div>
-                    {errors.vlan && (
-                      <div className="flex items-center mt-1">
-                        <div 
-                          className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                          style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                        >!</div>
-                        <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Visit By<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.visit_by} onChange={(e) => handleInputChange('visit_by', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.visit_by ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                    <option value=""></option>
-                    {formData.visit_by && !technicians.some(t => t.name === formData.visit_by) && (
-                      <option value={formData.visit_by}>{formData.visit_by}</option>
-                    )}
-                    {technicians.map((technician, index) => (
-                      <option key={index} value={technician.name}>{technician.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-                </div>
-                {errors.visit_by && (
-                  <div className="flex items-center mt-1">
-                    <div 
-                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                    >!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                  </div>
                 )}
-              </div>
 
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Visit With<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.visit_with} onChange={(e) => handleInputChange('visit_with', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.visit_with ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                    <option value="">Select Visit With</option>
-                    <option value="None">None</option>
-                    {formData.visit_with && formData.visit_with !== 'None' && formData.visit_with !== '' && !technicians.some(t => t.name === formData.visit_with) && (
-                      <option value={formData.visit_with}>{formData.visit_with}</option>
-                    )}
-                    {technicians.map((technician, index) => (
-                      <option key={index} value={technician.name}>{technician.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-                </div>
-                {errors.visit_with && (
-                  <div className="flex items-center mt-1">
-                    <div 
-                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                    >!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Visit With(Other)<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.visit_with_other} onChange={(e) => handleInputChange('visit_with_other', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.visit_with_other ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                    <option value="">Visit With(Other)</option>
-                    <option value="None">None</option>
-                    {formData.visit_with_other && formData.visit_with_other !== 'None' && formData.visit_with_other !== '' && !technicians.some(t => t.name === formData.visit_with_other) && (
-                      <option value={formData.visit_with_other}>{formData.visit_with_other}</option>
-                    )}
-                    {technicians.map((technician, index) => (
-                      <option key={index} value={technician.name}>{technician.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-                </div>
-                {errors.visit_with_other && (
-                  <div className="flex items-center mt-1">
-                    <div 
-                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                    >!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Onsite Remarks<span className="text-red-500">*</span></label>
-                <textarea value={formData.onsiteRemarks} onChange={(e) => handleInputChange('onsiteRemarks', e.target.value)} rows={3} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${errors.onsiteRemarks ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} />
-                {errors.onsiteRemarks && (
-                  <div className="flex items-center mt-1">
-                    <div 
-                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                    >!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                  </div>
-                )}
-              </div>
-
-              <ImagePreview
-                imageUrl={imagePreviews.boxReadingImage}
-                label="Box Reading Image"
-                onUpload={(file) => handleImageUpload('boxReadingImage', file)}
-                error={errors.boxReadingImage}
-              />
-
-              <ImagePreview
-                imageUrl={imagePreviews.routerReadingImage}
-                label="Router Reading Image"
-                onUpload={(file) => handleImageUpload('routerReadingImage', file)}
-                error={errors.routerReadingImage}
-              />
-
-              {(formData.connectionType === 'Antenna' || formData.connectionType === 'Local') && (
-                <ImagePreview
-                  imageUrl={imagePreviews.portLabelImage}
-                  label="Port Label Image"
-                  onUpload={(file) => handleImageUpload('portLabelImage', file)}
-                  error={errors.portLabelImage}
-                />
-              )}
-
-              <ImagePreview
-                imageUrl={imagePreviews.setupImage}
-                label="Setup Image"
-                onUpload={(file) => handleImageUpload('setupImage', file)}
-                error={errors.setupImage}
-              />
-
-              <ImagePreview
-                imageUrl={imagePreviews.signedContractImage}
-                label="Signed Contract Image"
-                onUpload={(file) => handleImageUpload('signedContractImage', file)}
-                error={errors.signedContractImage}
-              />
-
-              <ImagePreview
-                imageUrl={imagePreviews.clientSignatureImage}
-                label="Client Signature Image"
-                onUpload={(file) => handleImageUpload('clientSignatureImage', file)}
-                error={errors.clientSignatureImage}
-              />
-
-              <ImagePreview
-                imageUrl={imagePreviews.speedTestImage}
-                label="Speed Test Image"
-                onUpload={(file) => handleImageUpload('speedTestImage', file)}
-                error={errors.speedTestImage}
-              />
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Items<span className="text-red-500">*</span></label>
-                {orderItems.map((item, index) => (
-                  <div key={index} className="mb-3">
-                    <div className="flex items-start gap-2">
-                      <div className="flex-1">
-                        <div className="relative">
-                          <select 
-                            value={item.itemId} 
-                            onChange={(e) => handleItemChange(index, 'itemId', e.target.value)} 
-                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                              isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                            }`}
-                          >
-                            <option value="">Select Item {index + 1}</option>
-                            {inventoryItems.map((invItem) => (
-                              <option key={invItem.id} value={invItem.item_name}>
-                                {invItem.item_name}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`} size={20} />
-                        </div>
-                        {errors[`item_${index}`] && (
-                          <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors[`item_${index}`]}</p>
-                        )}
-                      </div>
-                      
-                      {item.itemId && (
-                        <div className="w-32">
-                          <input 
-                            type="number" 
-                            value={item.quantity} 
-                            onChange={(e) => handleItemChange(index, 'quantity', e.target.value)} 
-                            placeholder="Qty"
-                            min="1"
-                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                              isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                            }`}
+                {formData.connectionType === 'Fiber' && (
+                  <>
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        LCP-NAP<span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                          } ${errors.lcpnap ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
+                          <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                          <input
+                            type="text"
+                            placeholder="Type to search LCP-NAP..."
+                            value={isLcpnapOpen ? lcpnapSearch : (formData.lcpnap || lcpnapSearch)}
+                            onChange={(e) => {
+                              setLcpnapSearch(e.target.value);
+                              if (!isLcpnapOpen) setIsLcpnapOpen(true);
+                            }}
+                            onFocus={() => setIsLcpnapOpen(true)}
+                            className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                           />
-                          {errors[`quantity_${index}`] && (
-                            <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors[`quantity_${index}`]}</p>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isLcpnapOpen) {
+                                setIsLcpnapOpen(false);
+                                setLcpnapSearch('');
+                              } else {
+                                handleInputChange('lcpnap', '');
+                                setLcpnapSearch('');
+                              }
+                            }}
+                            className={`ml-2 transition-transform duration-200`}
+                          >
+                            {isLcpnapOpen || formData.lcpnap ? (
+                              <X size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                            ) : (
+                              <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Recommendation Dropdown */}
+                        {isLcpnapOpen && (
+                          <div
+                            className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                              }`}
+                            style={{ minWidth: '100%' }}
+                          >
+                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                              {lcpnaps
+                                .filter(ln => ln.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase()))
+                                .map((lcpnap) => (
+                                  <div
+                                    key={lcpnap.id}
+                                    className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode
+                                      ? 'hover:bg-gray-700 text-gray-200'
+                                      : 'hover:bg-gray-100 text-gray-700'
+                                      } ${formData.lcpnap === lcpnap.lcpnap_name ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                                    onClick={() => {
+                                      handleInputChange('lcpnap', lcpnap.lcpnap_name);
+                                      setLcpnapSearch('');
+                                      setIsLcpnapOpen(false);
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span>{lcpnap.lcpnap_name}</span>
+                                      {formData.lcpnap === lcpnap.lcpnap_name && (
+                                        <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              {lcpnaps.filter(ln => ln.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase())).length === 0 && (
+                                <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                  No recommendations for "{lcpnapSearch}"
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Click outside to close - repurposed */}
+                        {isLcpnapOpen && (
+                          <div
+                            className="fixed inset-0 z-40 bg-transparent"
+                            onClick={() => {
+                              setIsLcpnapOpen(false);
+                              setLcpnapSearch('');
+                            }}
+                          />
+                        )}
+                      </div>
+                      {errors.lcpnap && (
+                        <div className="flex items-center mt-1">
+                          <div
+                            className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                            style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                          >!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                         </div>
                       )}
-                      
-                      {orderItems.length > 1 && item.itemId && (
+                    </div>
+
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>PORT<span className="text-red-500">*</span></label>
+                      <div className="relative">
+                        <select value={formData.port} onChange={(e) => handleInputChange('port', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                          } ${errors.port ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
+                          <option value="">Select PORT</option>
+                          {(() => {
+                            if (!formData.port) return null;
+                            const p = String(formData.port);
+                            const low = p.toLowerCase().trim();
+                            if (low === 'undefined' || low === 'null' || low.includes('undefined')) return null;
+
+                            const isGenerated = Array.from({ length: totalPorts }).some((_, i) => `p${(i + 1).toString().padStart(2, '0')}` === p);
+                            if (isGenerated) return null;
+
+                            return <option value={p}>{p}</option>;
+                          })()}
+                          {Array.from({ length: totalPorts }, (_, i) => {
+                            const portVal = `p${(i + 1).toString().padStart(2, '0')}`;
+
+                            // Hide port if it is used
+                            if (usedPorts.has(portVal)) {
+                              return null;
+                            }
+
+                            return (
+                              <option key={portVal} value={portVal}>
+                                {portVal}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`} size={20} />
+                      </div>
+                      {errors.port && (
+                        <div className="flex items-center mt-1">
+                          <div
+                            className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                            style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                          >!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>VLAN<span className="text-red-500">*</span></label>
+                      <div className="relative">
+                        <select value={formData.vlan} onChange={(e) => handleInputChange('vlan', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                          } ${errors.vlan ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
+                          <option value="">Select VLAN</option>
+                          <option value="None">None</option>
+                          {formData.vlan && !vlans.some(v => v.value.toString() === formData.vlan) && (
+                            <option value={formData.vlan}>{formData.vlan}</option>
+                          )}
+                          {vlans.map((vlan) => (
+                            <option key={vlan.vlan_id} value={vlan.value}>
+                              {vlan.value}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`} size={20} />
+                      </div>
+                      {errors.vlan && (
+                        <div className="flex items-center mt-1">
+                          <div
+                            className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                            style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                          >!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Visit By<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.visit_by} onChange={(e) => handleInputChange('visit_by', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      } ${errors.visit_by ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
+                      <option value=""></option>
+                      <option value="None">None</option>
+                      {formData.visit_by && !technicians.some(t => t.name === formData.visit_by) && (
+                        <option value={formData.visit_by}>{formData.visit_by}</option>
+                      )}
+                      {technicians.filter(t => t.name !== formData.visit_with && t.name !== formData.visit_with_other).map((technician, index) => (
+                        <option key={index} value={technician.name}>{technician.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.visit_by && (
+                    <div className="flex items-center mt-1">
+                      <div
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Visit With<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.visit_with} onChange={(e) => handleInputChange('visit_with', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      } ${errors.visit_with ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
+                      <option value="">Select Visit With</option>
+                      <option value="None">None</option>
+                      {formData.visit_with && formData.visit_with !== 'None' && formData.visit_with !== '' && !technicians.some(t => t.name === formData.visit_with) && (
+                        <option value={formData.visit_with}>{formData.visit_with}</option>
+                      )}
+                      {technicians.filter(t => t.name !== formData.visit_by && t.name !== formData.visit_with_other).map((technician, index) => (
+                        <option key={index} value={technician.name}>{technician.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.visit_with && (
+                    <div className="flex items-center mt-1">
+                      <div
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Visit With(Other)<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.visit_with_other} onChange={(e) => handleInputChange('visit_with_other', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      } ${errors.visit_with_other ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
+                      <option value="">Visit With(Other)</option>
+                      <option value="None">None</option>
+                      {formData.visit_with_other && formData.visit_with_other !== 'None' && formData.visit_with_other !== '' && !technicians.some(t => t.name === formData.visit_with_other) && (
+                        <option value={formData.visit_with_other}>{formData.visit_with_other}</option>
+                      )}
+                      {technicians.filter(t => t.name !== formData.visit_by && t.name !== formData.visit_with).map((technician, index) => (
+                        <option key={index} value={technician.name}>{technician.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.visit_with_other && (
+                    <div className="flex items-center mt-1">
+                      <div
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Onsite Remarks<span className="text-red-500">*</span></label>
+                  <textarea value={formData.onsiteRemarks} onChange={(e) => handleInputChange('onsiteRemarks', e.target.value)} rows={3} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    } ${errors.onsiteRemarks ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} />
+                  {errors.onsiteRemarks && (
+                    <div className="flex items-center mt-1">
+                      <div
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    </div>
+                  )}
+                </div>
+
+                <ImagePreview
+                  imageUrl={imagePreviews.boxReadingImage}
+                  label="Box Reading Image"
+                  onUpload={(file) => handleImageUpload('boxReadingImage', file)}
+                  error={errors.boxReadingImage}
+                />
+
+                <ImagePreview
+                  imageUrl={imagePreviews.routerReadingImage}
+                  label="Router Reading Image"
+                  onUpload={(file) => handleImageUpload('routerReadingImage', file)}
+                  error={errors.routerReadingImage}
+                />
+
+                {(formData.connectionType === 'Antenna' || formData.connectionType === 'Local') && (
+                  <ImagePreview
+                    imageUrl={imagePreviews.portLabelImage}
+                    label="Port Label Image"
+                    onUpload={(file) => handleImageUpload('portLabelImage', file)}
+                    error={errors.portLabelImage}
+                  />
+                )}
+
+                <ImagePreview
+                  imageUrl={imagePreviews.setupImage}
+                  label="Setup Image"
+                  onUpload={(file) => handleImageUpload('setupImage', file)}
+                  error={errors.setupImage}
+                />
+
+                <ImagePreview
+                  imageUrl={imagePreviews.signedContractImage}
+                  label="Signed Contract Image"
+                  onUpload={(file) => handleImageUpload('signedContractImage', file)}
+                  error={errors.signedContractImage}
+                />
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Client Signature</label>
+
+                  <div className={`border rounded overflow-hidden ${isDarkMode ? 'bg-white border-gray-700' : 'bg-white border-gray-300'}`}>
+                    {(imagePreviews.clientSignatureImage || formData.clientSignatureImage) ? (
+                      <div className="relative w-full h-48 bg-white flex items-center justify-center">
+                        <img
+                          src={imagePreviews.clientSignatureImage || (typeof formData.clientSignatureImage === 'string' ? formData.clientSignatureImage : '')}
+                          alt="Client Signature"
+                          className="max-w-full max-h-full object-contain"
+                        />
                         <button
                           type="button"
-                          onClick={() => handleRemoveItem(index)}
-                          className="p-2 text-red-500 hover:text-red-400"
+                          onClick={() => {
+                            setImagePreviews(prev => ({ ...prev, clientSignatureImage: null }));
+                            setFormData(prev => ({ ...prev, clientSignatureImage: null }));
+                          }}
+                          className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-colors"
+                          title="Clear Signature"
                         >
-                          <X size={20} />
+                          <Eraser size={16} />
                         </button>
-                      )}
+                        {imagePreviews.clientSignatureImage && imagePreviews.clientSignatureImage.startsWith('blob:') && (
+                          <div className="absolute bottom-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center pointer-events-none">
+                            <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            New
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="relative w-full h-48 bg-white">
+                        <SignatureCanvas
+                          ref={sigCanvas}
+                          penColor="black"
+                          canvasProps={{
+                            className: 'w-full h-full cursor-crosshair'
+                          }}
+                          backgroundColor="white"
+                        />
+                        <div className="absolute top-2 right-2 flex space-x-2">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleImageUpload('clientSignatureImage', file);
+                            }}
+                            className="hidden"
+                            id="sigUploadInput"
+                          />
+                          <label
+                            htmlFor="sigUploadInput"
+                            className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow transition-colors cursor-pointer"
+                            title="Upload Image"
+                          >
+                            <Camera size={16} />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => sigCanvas.current?.clear()}
+                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded-full shadow transition-colors"
+                            title="Clear Canvas"
+                          >
+                            <Eraser size={16} />
+                          </button>
+                        </div>
+                        <div className="absolute bottom-2 left-2 pointer-events-none opacity-50 text-xs text-gray-500">
+                          Sign above or upload image
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {errors.clientSignatureImage && (
+                    <div className="flex items-center mt-1">
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                     </div>
-                  </div>
-                ))}
-                {errors.items && (
-                  <div className="flex items-center mt-1">
-                    <div 
-                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                    >!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.items}</p>
-                  </div>
-                )}
-              </div>
-
-              <LocationPicker
-                value={formData.addressCoordinates}
-                onChange={(coordinates) => handleInputChange('addressCoordinates', coordinates)}
-                isDarkMode={isDarkMode}
-                label="Address Coordinates"
-                required={true}
-                error={errors.addressCoordinates}
-              />
-            </>
-          )}
-
-          {(formData.onsiteStatus === 'Failed' || formData.onsiteStatus === 'Reschedule') && (
-          <>
-          <div>
-          <label className={`block text-sm font-medium mb-2 ${
-          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-          }`}>Visit By<span className="text-red-500">*</span></label>
-          <div className="relative">
-          <select value={formData.visit_by} onChange={(e) => handleInputChange('visit_by', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-          isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-          } ${errors.visit_by ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-          <option value=""></option>
-          {formData.visit_by && !technicians.some(t => t.name === formData.visit_by) && (
-          <option value={formData.visit_by}>{formData.visit_by}</option>
-          )}
-          {technicians.map((technician, index) => (
-          <option key={index} value={technician.name}>{technician.name}</option>
-          ))}
-          </select>
-          <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
+                  )}
                 </div>
-                {errors.visit_by && (
-                  <div className="flex items-center mt-1">
-                    <div 
-                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                    >!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                  </div>
-                )}
-              </div>
 
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Visit With<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.visit_with} onChange={(e) => handleInputChange('visit_with', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.visit_with ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                    <option value="">Visit With</option>
-                    <option value="None">None</option>
-                    {formData.visit_with && formData.visit_with !== 'None' && formData.visit_with !== '' && !technicians.some(t => t.name === formData.visit_with) && (
-                      <option value={formData.visit_with}>{formData.visit_with}</option>
-                    )}
-                    {technicians.map((technician, index) => (
-                      <option key={index} value={technician.name}>{technician.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
+                <ImagePreview
+                  imageUrl={imagePreviews.speedTestImage}
+                  label="Speed Test Image"
+                  onUpload={(file) => handleImageUpload('speedTestImage', file)}
+                  error={errors.speedTestImage}
+                />
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Items<span className="text-red-500">*</span></label>
+                  {orderItems.map((item, index) => (
+                    <div key={index} className="mb-3">
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1">
+                          <div className="relative">
+                            <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                              } ${errors[`item_${index}`] ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
+                              <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                              <input
+                                type="text"
+                                placeholder={`Search Item ${index + 1}...`}
+                                value={activeItemIndex === index ? itemSearchTerm : (item.itemId || '')}
+                                onChange={(e) => {
+                                  setItemSearchTerm(e.target.value);
+                                  if (activeItemIndex !== index) setActiveItemIndex(index);
+                                }}
+                                onFocus={() => {
+                                  setActiveItemIndex(index);
+                                  setItemSearchTerm(item.itemId || '');
+                                }}
+                                className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (activeItemIndex === index) {
+                                    setActiveItemIndex(null);
+                                    setItemSearchTerm('');
+                                  } else {
+                                    handleItemChange(index, 'itemId', '');
+                                    setItemSearchTerm('');
+                                  }
+                                }}
+                                className={`ml-2 transition-transform duration-200`}
+                              >
+                                {activeItemIndex === index || item.itemId ? (
+                                  <X size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                                ) : (
+                                  <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                                )}
+                              </button>
+                            </div>
+
+                            {/* Recommendation Dropdown */}
+                            {activeItemIndex === index && (
+                              <div
+                                className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                                  }`}
+                                style={{ minWidth: '100%' }}
+                              >
+                                <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                  {/* Show None option if it matches search term */}
+                                  {('none'.includes(itemSearchTerm.toLowerCase()) || itemSearchTerm === '') && (
+                                    <div
+                                      className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode
+                                        ? 'hover:bg-gray-700 text-gray-200'
+                                        : 'hover:bg-gray-100 text-gray-700'
+                                        } ${item.itemId === 'None' ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                                      onClick={() => {
+                                        handleItemChange(index, 'itemId', 'None');
+                                        setItemSearchTerm('None');
+                                        setActiveItemIndex(null);
+                                      }}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <span>None</span>
+                                        {item.itemId === 'None' && (
+                                          <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {inventoryItems
+                                    .filter(invItem => invItem.item_name.toLowerCase().includes(itemSearchTerm.toLowerCase()))
+                                    .map((invItem) => (
+                                      <div
+                                        key={invItem.id}
+                                        className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode
+                                          ? 'hover:bg-gray-700 text-gray-200'
+                                          : 'hover:bg-gray-100 text-gray-700'
+                                          } ${item.itemId === invItem.item_name ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                                        onClick={() => {
+                                          handleItemChange(index, 'itemId', invItem.item_name);
+                                          setItemSearchTerm(invItem.item_name);
+                                          setActiveItemIndex(null);
+                                        }}
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <span>{invItem.item_name}</span>
+                                          {item.itemId === invItem.item_name && (
+                                            <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  {inventoryItems.filter(invItem => invItem.item_name.toLowerCase().includes(itemSearchTerm.toLowerCase())).length === 0 && (
+                                    <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                      No items found for "{itemSearchTerm}"
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Click outside to close */}
+                            {activeItemIndex === index && (
+                              <div
+                                className="fixed inset-0 z-40 bg-transparent"
+                                onClick={() => {
+                                  setActiveItemIndex(null);
+                                  setItemSearchTerm('');
+                                }}
+                              />
+                            )}
+                          </div>
+                          {errors[`item_${index}`] && (
+                            <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors[`item_${index}`]}</p>
+                          )}
+                        </div>
+
+                        {item.itemId && (
+                          <div className="w-32">
+                            <input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                              placeholder="Qty"
+                              min="1"
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                                }`}
+                            />
+                            {errors[`quantity_${index}`] && (
+                              <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors[`quantity_${index}`]}</p>
+                            )}
+                          </div>
+                        )}
+
+                        {orderItems.length > 1 && item.itemId && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(index)}
+                            className="p-2 text-red-500 hover:text-red-400"
+                          >
+                            <X size={20} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {errors.items && (
+                    <div className="flex items-center mt-1">
+                      <div
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.items}</p>
+                    </div>
+                  )}
                 </div>
-                {errors.visit_with && (
-                  <div className="flex items-center mt-1">
-                    <div 
-                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                    >!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                  </div>
-                )}
-              </div>
 
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Visit With(Other)<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.visit_with_other} onChange={(e) => handleInputChange('visit_with_other', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.visit_with_other ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                    <option value="">Visit With(Other)</option>
-                    <option value="None">None</option>
-                    {formData.visit_with_other && formData.visit_with_other !== 'None' && formData.visit_with_other !== '' && !technicians.some(t => t.name === formData.visit_with_other) && (
-                      <option value={formData.visit_with_other}>{formData.visit_with_other}</option>
-                    )}
-                    {technicians.map((technician, index) => (
-                      <option key={index} value={technician.name}>{technician.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
+                <LocationPicker
+                  value={formData.addressCoordinates}
+                  onChange={(coordinates) => handleInputChange('addressCoordinates', coordinates)}
+                  isDarkMode={isDarkMode}
+                  label="Address Coordinates"
+                  required={true}
+                  error={errors.addressCoordinates}
+                />
+              </>
+            )}
+
+            {(formData.onsiteStatus === 'Failed' || formData.onsiteStatus === 'Reschedule') && (
+              <>
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Visit By<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.visit_by} onChange={(e) => handleInputChange('visit_by', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      } ${errors.visit_by ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
+                      <option value=""></option>
+                      <option value="None">None</option>
+                      {formData.visit_by && !technicians.some(t => t.name === formData.visit_by) && (
+                        <option value={formData.visit_by}>{formData.visit_by}</option>
+                      )}
+                      {technicians.map((technician, index) => (
+                        <option key={index} value={technician.name}>{technician.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.visit_by && (
+                    <div className="flex items-center mt-1">
+                      <div
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    </div>
+                  )}
                 </div>
-                {errors.visit_with_other && (
-                  <div className="flex items-center mt-1">
-                    <div 
-                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                    >!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                  </div>
-                )}
-              </div>
 
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Onsite Remarks<span className="text-red-500">*</span></label>
-                <textarea value={formData.onsiteRemarks} onChange={(e) => handleInputChange('onsiteRemarks', e.target.value)} rows={3} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                } ${errors.onsiteRemarks ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} />
-                {errors.onsiteRemarks && (
-                  <div className="flex items-center mt-1">
-                    <div 
-                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                    >!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Visit With<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.visit_with} onChange={(e) => handleInputChange('visit_with', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      } ${errors.visit_with ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
+                      <option value="">Visit With</option>
+                      <option value="None">None</option>
+                      {formData.visit_with && formData.visit_with !== 'None' && formData.visit_with !== '' && !technicians.some(t => t.name === formData.visit_with) && (
+                        <option value={formData.visit_with}>{formData.visit_with}</option>
+                      )}
+                      {technicians.filter(t => t.name !== formData.visit_by).map((technician, index) => (
+                        <option key={index} value={technician.name}>{technician.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
                   </div>
-                )}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Status Remarks<span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select value={formData.statusRemarks} onChange={(e) => handleInputChange('statusRemarks', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.statusRemarks ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
-                    <option value=""></option>
-                    <option value="Customer Request">Customer Request</option>
-                    <option value="Bad Weather">Bad Weather</option>
-                    <option value="Technician Unavailable">Technician Unavailable</option>
-                    <option value="Equipment Issue">Equipment Issue</option>
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
+                  {errors.visit_with && (
+                    <div className="flex items-center mt-1">
+                      <div
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    </div>
+                  )}
                 </div>
-                {errors.statusRemarks && (
-                  <div className="flex items-center mt-1">
-                    <div 
-                      className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                    >!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Visit With(Other)<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.visit_with_other} onChange={(e) => handleInputChange('visit_with_other', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      } ${errors.visit_with_other ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
+                      <option value="">Visit With(Other)</option>
+                      <option value="None">None</option>
+                      {formData.visit_with_other && formData.visit_with_other !== 'None' && formData.visit_with_other !== '' && !technicians.some(t => t.name === formData.visit_with_other) && (
+                        <option value={formData.visit_with_other}>{formData.visit_with_other}</option>
+                      )}
+                      {technicians.filter(t => t.name !== formData.visit_by).map((technician, index) => (
+                        <option key={index} value={technician.name}>{technician.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
                   </div>
-                )}
-              </div>
-            </>
-          )}
+                  {errors.visit_with_other && (
+                    <div className="flex items-center mt-1">
+                      <div
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Onsite Remarks<span className="text-red-500">*</span></label>
+                  <textarea value={formData.onsiteRemarks} onChange={(e) => handleInputChange('onsiteRemarks', e.target.value)} rows={3} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    } ${errors.onsiteRemarks ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`} />
+                  {errors.onsiteRemarks && (
+                    <div className="flex items-center mt-1">
+                      <div
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Status Remarks<span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select value={formData.statusRemarks} onChange={(e) => handleInputChange('statusRemarks', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      } ${errors.statusRemarks ? 'border-red-500' : (isDarkMode ? 'border-gray-700' : 'border-gray-300')}`}>
+                      <option value=""></option>
+                      <option value="None">None</option>
+                      <option value="Customer Request">Customer Request</option>
+                      <option value="Bad Weather">Bad Weather</option>
+                      <option value="Technician Unavailable">Technician Unavailable</option>
+                      <option value="Equipment Issue">Equipment Issue</option>
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </div>
+                  {errors.statusRemarks && (
+                    <div className="flex items-center mt-1">
+                      <div
+                        className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                      >!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
     </>
   );
 };

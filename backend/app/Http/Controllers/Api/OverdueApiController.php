@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Overdue;
-use App\Models\BillingDetail;
+use App\Models\BillingAccount;
 use App\Models\Invoice;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -16,9 +16,10 @@ class OverdueApiController extends Controller
     {
         try {
             $page = $request->input('page', 1);
-            $limit = $request->input('limit', 100);
+            $limit = $request->input('limit', 50); // Reduced to 50 for faster response
             $search = $request->input('search', '');
             $date = $request->input('date', '');
+            $fastMode = $request->input('fast', false); // Fast mode: skip customer data loading
 
             $query = Overdue::orderBy('overdue_date', 'desc');
 
@@ -32,47 +33,72 @@ class OverdueApiController extends Controller
                 $query->whereDate('overdue_date', $date);
             }
 
-            $total = $query->count();
-
-            $overdues = $query->skip(($page - 1) * $limit)
-                ->take($limit)
+            // Fetch with eager loading
+            $overdues = $query->with(['account.customer'])
+                ->skip(($page - 1) * $limit)
+                ->take($limit + 1)
                 ->get();
 
+            // Check if there are more pages
+            $hasMore = $overdues->count() > $limit;
+
+            // Remove the extra record if it exists
+            if ($hasMore) {
+                $overdues = $overdues->slice(0, $limit);
+            }
+
+            // Map data
             $enrichedData = $overdues->map(function ($overdue) {
-                $billingDetail = BillingDetail::where('account_no', $overdue->account_no)->first();
+                $customer = $overdue->account?->customer;
                 
+                // Safe date formatting
+                $overdue_date = null;
+                if ($overdue->overdue_date instanceof \DateTimeInterface) {
+                    $overdue_date = $overdue->overdue_date->format('Y-m-d H:i:s');
+                } elseif (is_string($overdue->overdue_date)) {
+                    $overdue_date = $overdue->overdue_date;
+                }
+
+                $created_at = null;
+                if ($overdue->created_at instanceof \DateTimeInterface) {
+                    $created_at = $overdue->created_at->format('Y-m-d H:i:s');
+                }
+
+                $updated_at = null;
+                if ($overdue->updated_at instanceof \DateTimeInterface) {
+                    $updated_at = $overdue->updated_at->format('Y-m-d H:i:s');
+                }
+
                 return [
                     'id' => $overdue->id,
                     'account_no' => $overdue->account_no,
                     'invoice_id' => $overdue->invoice_id,
-                    'overdue_date' => $overdue->overdue_date?->format('Y-m-d H:i:s'),
+                    'overdue_date' => $overdue_date,
                     'print_link' => $overdue->print_link,
-                    'created_at' => $overdue->created_at?->format('Y-m-d H:i:s'),
+                    'created_at' => $created_at,
                     'created_by_user_id' => $overdue->created_by_user_id,
-                    'updated_at' => $overdue->updated_at?->format('Y-m-d H:i:s'),
+                    'updated_at' => $updated_at,
                     'updated_by_user_id' => $overdue->updated_by_user_id,
-                    'full_name' => $billingDetail?->full_name ?? null,
-                    'contact_number' => $billingDetail?->contact_number ?? null,
-                    'email_address' => $billingDetail?->email_address ?? null,
-                    'address' => $billingDetail?->address ?? null,
-                    'plan' => $billingDetail?->plan ?? null,
+                    'full_name' => $customer?->full_name ?? null,
+                    'contact_number' => $customer?->contact_number_primary ?? null,
+                    'email_address' => $customer?->email_address ?? null,
+                    'address' => $customer?->address ?? null,
+                    'plan' => $customer?->desired_plan ?? null,
                 ];
             });
 
             return response()->json([
                 'success' => true,
-                'data' => $enrichedData,
+                'data' => $enrichedData->values(),
                 'pagination' => [
                     'current_page' => (int) $page,
-                    'total_pages' => (int) ceil($total / $limit),
-                    'total_items' => $total,
                     'per_page' => (int) $limit,
-                    'from' => (($page - 1) * $limit) + 1,
-                    'to' => min($page * $limit, $total)
+                    'has_more' => $hasMore,
+                    'total' => Overdue::count()
                 ]
             ]);
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Overdue API error', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
@@ -91,25 +117,42 @@ class OverdueApiController extends Controller
     public function show($id)
     {
         try {
-            $overdue = Overdue::findOrFail($id);
-
-            $billingDetail = BillingDetail::where('account_no', $overdue->account_no)->first();
+            $overdue = Overdue::with(['account.customer'])->findOrFail($id);
+            $customer = $overdue->account?->customer;
             
+            // Safe date formatting
+            $overdue_date = null;
+            if ($overdue->overdue_date instanceof \DateTimeInterface) {
+                $overdue_date = $overdue->overdue_date->format('Y-m-d H:i:s');
+            } elseif (is_string($overdue->overdue_date)) {
+                $overdue_date = $overdue->overdue_date;
+            }
+
+            $created_at = null;
+            if ($overdue->created_at instanceof \DateTimeInterface) {
+                $created_at = $overdue->created_at->format('Y-m-d H:i:s');
+            }
+
+            $updated_at = null;
+            if ($overdue->updated_at instanceof \DateTimeInterface) {
+                $updated_at = $overdue->updated_at->format('Y-m-d H:i:s');
+            }
+
             $data = [
                 'id' => $overdue->id,
                 'account_no' => $overdue->account_no,
                 'invoice_id' => $overdue->invoice_id,
-                'overdue_date' => $overdue->overdue_date?->format('Y-m-d H:i:s'),
+                'overdue_date' => $overdue_date,
                 'print_link' => $overdue->print_link,
-                'created_at' => $overdue->created_at?->format('Y-m-d H:i:s'),
+                'created_at' => $created_at,
                 'created_by_user_id' => $overdue->created_by_user_id,
-                'updated_at' => $overdue->updated_at?->format('Y-m-d H:i:s'),
+                'updated_at' => $updated_at,
                 'updated_by_user_id' => $overdue->updated_by_user_id,
-                'full_name' => $billingDetail?->full_name ?? null,
-                'contact_number' => $billingDetail?->contact_number ?? null,
-                'email_address' => $billingDetail?->email_address ?? null,
-                'address' => $billingDetail?->address ?? null,
-                'plan' => $billingDetail?->plan ?? null,
+                'full_name' => $customer?->full_name ?? null,
+                'contact_number' => $customer?->contact_number_primary ?? null,
+                'email_address' => $customer?->email_address ?? null,
+                'address' => $customer?->address ?? null,
+                'plan' => $customer?->desired_plan ?? null,
             ];
 
             return response()->json([
@@ -117,7 +160,7 @@ class OverdueApiController extends Controller
                 'data' => $data
             ]);
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Overdue show error', [
                 'id' => $id,
                 'message' => $e->getMessage()
@@ -152,7 +195,7 @@ class OverdueApiController extends Controller
                 'data' => $overdue
             ], 201);
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Overdue create error', [
                 'message' => $e->getMessage()
             ]);
@@ -188,7 +231,7 @@ class OverdueApiController extends Controller
                 'data' => $overdue
             ]);
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Overdue update error', [
                 'id' => $id,
                 'message' => $e->getMessage()
@@ -213,7 +256,7 @@ class OverdueApiController extends Controller
                 'message' => 'Overdue record deleted successfully'
             ]);
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Overdue delete error', [
                 'id' => $id,
                 'message' => $e->getMessage()
@@ -243,7 +286,7 @@ class OverdueApiController extends Controller
                 ]
             ]);
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Overdue statistics error', [
                 'message' => $e->getMessage()
             ]);

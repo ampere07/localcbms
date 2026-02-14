@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LayoutDashboard, Users, FileText, LogOut, ChevronRight, User, Building2, Shield, FileCheck, Wrench, Map, MapPinned , MapPin, Package, CreditCard, List, Router, DollarSign, Receipt, FileBarChart, Clock, Calendar, UserCheck, AlertTriangle, Tag, MessageSquare, Settings, Network, Activity, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, LogOut, ChevronRight, User, Building2, Shield, FileCheck, Wrench, Map, MapPinned, MapPin, Package, CreditCard, List, Router, DollarSign, Receipt, FileBarChart, Clock, Calendar, UserCheck, AlertTriangle, Tag, MessageSquare, Settings, Network, Activity, AlertCircle } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface SidebarProps {
@@ -8,6 +8,7 @@ interface SidebarProps {
   onLogout: () => void;
   isCollapsed?: boolean;
   userRole: string;
+  roleId?: number | string | null;
   userEmail?: string;
 }
 
@@ -19,7 +20,7 @@ interface MenuItem {
   allowedRoles?: string[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLogout, isCollapsed, userRole, userEmail }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLogout, isCollapsed, userRole, roleId, userEmail }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
@@ -81,7 +82,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   useEffect(() => {
     const fetchColorPalette = async () => {
       if (!mountedRef.current) return;
-      
+
       try {
         const activePalette = await settingsColorPaletteService.getActive();
         if (mountedRef.current) {
@@ -91,7 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         console.error('Failed to fetch color palette:', err);
       }
     };
-    
+
     fetchColorPalette();
   }, []);
 
@@ -107,8 +108,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         { id: 'customer', label: 'Customer', icon: User, allowedRoles: ['administrator'] },
         { id: 'transaction-list', label: 'Transaction List', icon: Receipt, allowedRoles: ['administrator'] },
         { id: 'payment-portal', label: 'Payment Portal', icon: DollarSign, allowedRoles: ['administrator'] },
-        { id: 'soa', label: 'SOA', icon: FileText, allowedRoles: ['administrator', 'customer'] },
-        { id: 'invoice', label: 'Invoice', icon: Receipt, allowedRoles: ['administrator', 'customer'] },
+        { id: 'soa', label: 'SOA', icon: FileText, allowedRoles: ['administrator'] },
+        { id: 'invoice', label: 'Invoice', icon: Receipt, allowedRoles: ['administrator'] },
         { id: 'overdue', label: 'Overdue', icon: Clock, allowedRoles: ['administrator'] },
         { id: 'dc-notice', label: 'DC Notice', icon: AlertTriangle, allowedRoles: ['administrator'] },
         { id: 'mass-rebate', label: 'Rebates', icon: DollarSign, allowedRoles: ['administrator'] },
@@ -124,7 +125,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       allowedRoles: ['administrator', 'technician'],
       children: [
         { id: 'application-management', label: 'Application', icon: FileCheck, allowedRoles: ['administrator'] },
-        { id: 'application-visit', label: 'Application Visit', icon: MapPin, allowedRoles: ['administrator', 'technician'] },
+        // { id: 'application-visit', label: 'Application Visit', icon: MapPin, allowedRoles: ['administrator', 'technician'] },
         { id: 'promo-list', label: 'Promo', icon: Tag, allowedRoles: ['administrator'] },
         { id: 'plan-list', label: 'Plan', icon: List, allowedRoles: ['administrator'] },
         { id: 'location-list', label: 'Location', icon: MapPin, allowedRoles: ['administrator'] },
@@ -156,9 +157,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       id: 'support',
       label: 'Support',
       icon: Wrench,
-      allowedRoles: ['administrator', 'technician', 'customer'],
+      allowedRoles: ['administrator', 'technician'],
       children: [
-        { id: 'support', label: 'Support Ticket', icon: FileText, allowedRoles: ['customer'] },
         { id: 'service-order', label: 'Service Order', icon: Wrench, allowedRoles: ['administrator', 'technician'] }
       ]
     },
@@ -181,6 +181,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         { id: 'lcp-nap-location', label: 'LCP/NAP Location', icon: MapPinned, allowedRoles: ['administrator', 'technician'] },
         { id: 'radius-config', label: 'Radius Config', icon: MapPin, allowedRoles: ['administrator'] },
         { id: 'sms-config', label: 'SMS Config', icon: MessageSquare, allowedRoles: ['administrator'] },
+        { id: 'sms-template', label: 'SMS Template', icon: MessageSquare, allowedRoles: ['administrator'] },
         { id: 'email-templates', label: 'Email Templates', icon: FileText, allowedRoles: ['administrator'] },
         { id: 'pppoe-setup', label: 'PPPoE Setup', icon: Router, allowedRoles: ['administrator'] },
         { id: 'concern-config', label: 'Concern Config', icon: AlertCircle, allowedRoles: ['administrator'] }
@@ -206,33 +207,55 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         { id: 'expenses-log', label: 'Expenses Log', icon: FileBarChart, allowedRoles: ['administrator'] },
         { id: 'disconnected-logs', label: 'Disconnected Logs', icon: AlertTriangle, allowedRoles: ['administrator'] },
         { id: 'reconnection-logs', label: 'Reconnection Logs', icon: FileBarChart, allowedRoles: ['administrator'] },
-        { id: 'logs', label: 'System Logs', icon: FileText, allowedRoles: ['administrator'] },
-        { id: 'soa-generation', label: 'SOA Generation', icon: FileBarChart, allowedRoles: ['administrator'] },
-        { id: 'invoice-generation', label: 'Invoice Generation', icon: Receipt, allowedRoles: ['administrator'] }
+        { id: 'logs', label: 'System Logs', icon: FileText, allowedRoles: ['administrator'] }
       ]
     },
     { id: 'settings', label: 'Settings', icon: Settings, allowedRoles: ['administrator', 'technician'] },
   ];
 
+
+  // Auto-expand the parent of the active section
+  useEffect(() => {
+    if (activeSection) {
+      menuItems.forEach(item => {
+        if (item.children && item.children.some(child => child.id === activeSection)) {
+          setExpandedItems(prev => prev.includes(item.id) ? prev : [...prev, item.id]);
+        }
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection]);
+
+  if (userRole?.toLowerCase() === 'customer') return null;
+
   const filterMenuByRole = (items: MenuItem[]): MenuItem[] => {
+    // If the user is a customer, always return an empty menu (hide sidebar content)
+    const normalizedUserRole = userRole ? userRole.toLowerCase().trim() : '';
+    const isTechnician = normalizedUserRole === 'technician' || String(roleId) === '2';
+
+    if (normalizedUserRole === 'customer' || String(roleId) === '3') {
+      return [];
+    }
+
     return items.filter(item => {
       if (!item.allowedRoles || item.allowedRoles.length === 0) {
         return true;
       }
-      
-      const normalizedUserRole = userRole ? userRole.toLowerCase().trim() : '';
-      
-      const hasAccess = item.allowedRoles.some(role => 
-        role.toLowerCase().trim() === normalizedUserRole
-      );
-      
+
+      const hasAccess = item.allowedRoles.some(role => {
+        const normalizedRole = role.toLowerCase().trim();
+        if (normalizedRole === 'technician') return isTechnician;
+        if (normalizedRole === 'administrator') return normalizedUserRole === 'administrator' || String(roleId) === '1';
+        return normalizedRole === normalizedUserRole;
+      });
+
       if (hasAccess && item.children) {
-        item.children = filterMenuByRole(item.children);
+        item.children = filterMenuByRole(item.children); // Recursive call
         if (item.children.length === 0) {
           return false;
         }
       }
-      
+
       return hasAccess;
     });
   };
@@ -240,8 +263,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   const filteredMenuItems = filterMenuByRole(menuItems);
 
   const toggleExpanded = (itemId: string) => {
-    setExpandedItems(prev => 
-      prev.includes(itemId) 
+    setExpandedItems(prev =>
+      prev.includes(itemId)
         ? prev.filter(id => id !== itemId)
         : [...prev, itemId]
     );
@@ -265,15 +288,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
               onSectionChange(item.id);
             }
           }}
-          className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-            level > 0 ? 'pl-8' : 'pl-4'
-          } ${
-            isCurrentItemActive
+          className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${level > 0 ? 'pl-8' : 'pl-4'
+            } ${isCurrentItemActive
               ? ''
               : isDarkMode
-              ? 'text-gray-300 hover:text-white hover:bg-gray-700'
-              : 'text-gray-700 hover:text-black hover:bg-gray-100'
-          }`}
+                ? 'text-gray-300 hover:text-white hover:bg-gray-700'
+                : 'text-gray-700 hover:text-black hover:bg-gray-100'
+            }`}
           style={isCurrentItemActive ? {
             backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : isDarkMode ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.1)',
             color: colorPalette?.primary || (isDarkMode ? '#fb923c' : '#ea580c'),
@@ -283,22 +304,19 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
           } : {}}
         >
           <div className="flex items-center">
-            <IconComponent className={`h-5 w-5 ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            } ${!isCollapsed ? 'mr-3' : ''}`} />
+            <IconComponent className={`h-5 w-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              } ${!isCollapsed ? 'mr-3' : ''}`} />
             {!isCollapsed && <span>{item.label}</span>}
           </div>
           {hasChildren && !isCollapsed && (
             <ChevronRight
-              className={`h-4 w-4 ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              } transition-transform ${
-                isExpanded ? 'transform rotate-90' : ''
-              } ${isCollapsed ? 'hidden' : ''}`}
+              className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                } transition-transform ${isExpanded ? 'transform rotate-90' : ''
+                } ${isCollapsed ? 'hidden' : ''}`}
             />
           )}
         </button>
-        
+
         {hasChildren && isExpanded && !isCollapsed && (
           <div>
             {item.children!.map(child => renderMenuItem(child, level + 1))}
@@ -309,59 +327,49 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   };
 
   return (
-    <div className={`${
-      isCollapsed ? 'w-16' : 'w-64'
-    } h-full ${
-      isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
-    } border-r flex flex-col transition-all duration-300 ease-in-out overflow-hidden`}>
+    <div className={`${isCollapsed ? 'w-0 border-none' : 'w-64 border-r'
+      } h-full ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
+      } flex flex-col transition-all duration-300 ease-in-out overflow-hidden`}>
       <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden scrollbar-none">
         {filteredMenuItems.map(item => renderMenuItem(item))}
       </nav>
-      
-      <div className={`px-3 py-3 ${
-        isDarkMode ? 'border-gray-600' : 'border-gray-300'
-      } border-t flex-shrink-0`}>
+
+      <div className={`px-3 py-3 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'
+        } border-t flex-shrink-0`}>
         {!isCollapsed && (
           <div className="mb-3">
-            <div className={`text-xs mb-2 text-center ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
+            <div className={`text-xs mb-2 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>
               {currentDateTime}
             </div>
             <div className="flex items-center mb-2">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-200 border-gray-300'
-              } border-2`}>
-                <User className={`h-5 w-5 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`} />
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-200 border-gray-300'
+                } border-2`}>
+                <User className={`h-5 w-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} />
               </div>
               <div className="ml-3 flex-1 min-w-0">
-                <div className={`text-sm font-medium truncate ${
-                  isDarkMode ? 'text-gray-200' : 'text-gray-800'
-                }`}>
+                <div className={`text-sm font-medium truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'
+                  }`}>
                   {userEmail || 'user@example.com'}
                 </div>
-                <div className={`text-xs truncate ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   {userRole}
                 </div>
               </div>
             </div>
-            <div className={`h-px ${
-              isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-            } mb-2`} />
+            <div className={`h-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+              } mb-2`} />
           </div>
         )}
-        
+
         <button
           onClick={onLogout}
-          className={`w-full px-3 py-2 ${
-            isDarkMode 
-              ? 'text-gray-300 hover:text-white hover:bg-gray-700' 
-              : 'text-gray-700 hover:text-black hover:bg-gray-100'
-          } rounded transition-colors text-sm flex items-center justify-center`}
+          className={`w-full px-3 py-2 ${isDarkMode
+            ? 'text-gray-300 hover:text-white hover:bg-gray-700'
+            : 'text-gray-700 hover:text-black hover:bg-gray-100'
+            } rounded transition-colors text-sm flex items-center justify-center`}
         >
           <LogOut className={`h-4 w-4 ${!isCollapsed ? 'mr-2' : ''}`} />
           {!isCollapsed && <span>Logout</span>}

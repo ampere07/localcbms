@@ -1,39 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { FileText, Search, ListFilter, ChevronDown, ArrowUp, ArrowDown, Menu, X, Filter, RefreshCw } from 'lucide-react';
+import { FileText, Search, ListFilter, ChevronDown, ArrowUp, ArrowDown, Menu, X, Filter, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import ApplicationDetails from '../components/ApplicationDetails';
 import AddApplicationModal from '../modals/AddApplicationModal';
 import ApplicationFunnelFilter from '../filter/ApplicationFunnelFilter';
-import { getApplications } from '../services/applicationService';
+import { useApplicationStore } from '../store/applicationStore';
+import { Application } from '../types/application';
 import { getCities, City } from '../services/cityService';
 import { getRegions, Region } from '../services/regionService';
-import { Application as ApiApplication } from '../types/application';
+import { barangayService, Barangay } from '../services/barangayService';
 import { locationEvents, LOCATION_EVENTS } from '../services/locationEvents';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
-interface Application {
-  id: string;
-  customerName: string;
-  timestamp: string;
-  address: string;
-  location: string;
-  city?: string;
-  region?: string;
-  barangay?: string;
-  status?: string;
-  email_address?: string;
-  first_name?: string;
-  middle_initial?: string;
-  last_name?: string;
-  mobile_number?: string;
-  secondary_mobile_number?: string;
-  installation_address?: string;
-  landmark?: string;
-  desired_plan?: string;
-  promo?: string;
-  referred_by?: string;
-  create_date?: string;
-  create_time?: string;
-}
 
 interface LocationItem {
   id: string;
@@ -45,6 +22,7 @@ type DisplayMode = 'card' | 'table';
 
 const allColumns = [
   { key: 'timestamp', label: 'Timestamp', width: 'min-w-40' },
+  { key: 'status', label: 'Status', width: 'min-w-28' },
   { key: 'customerName', label: 'Customer Name', width: 'min-w-48' },
   { key: 'firstName', label: 'First Name', width: 'min-w-32' },
   { key: 'middleInitial', label: 'Middle Initial', width: 'min-w-28' },
@@ -57,11 +35,10 @@ const allColumns = [
   { key: 'region', label: 'Region', width: 'min-w-28' },
   { key: 'city', label: 'City', width: 'min-w-28' },
   { key: 'barangay', label: 'Barangay', width: 'min-w-32' },
-  { key: 'location', label: 'Location', width: 'min-w-40' },
+
   { key: 'desiredPlan', label: 'Desired Plan', width: 'min-w-36' },
   { key: 'promo', label: 'Promo', width: 'min-w-28' },
   { key: 'referredBy', label: 'Referred By', width: 'min-w-32' },
-  { key: 'status', label: 'Status', width: 'min-w-28' },
   { key: 'createDate', label: 'Create Date', width: 'min-w-32' },
   { key: 'createTime', label: 'Create Time', width: 'min-w-28' }
 ];
@@ -71,12 +48,13 @@ const ApplicationManagement: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
-  const [applications, setApplications] = useState<Application[]>([]);
+  const { applications, isLoading, error, fetchApplications, refreshApplications, silentRefresh, hasMore } = useApplicationStore();
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [cities, setCities] = useState<City[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [barangays, setBarangays] = useState<Barangay[]>([]);
+  const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
   const [locationDataLoaded, setLocationDataLoaded] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
@@ -112,6 +90,7 @@ const ApplicationManagement: React.FC = () => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const itemsPerPage = 50;
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -142,9 +121,9 @@ const ApplicationManagement: React.FC = () => {
         setFilterDropdownOpen(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
@@ -153,28 +132,26 @@ const ApplicationManagement: React.FC = () => {
   useEffect(() => {
     const fetchLocationData = async () => {
       try {
-        const [citiesData, regionsData] = await Promise.all([
+        const [citiesData, regionsData, barangaysRes] = await Promise.all([
           getCities(),
-          getRegions()
+          getRegions(),
+          barangayService.getAll()
         ]);
         setCities(citiesData || []);
         setRegions(regionsData || []);
+        setBarangays(barangaysRes.success ? barangaysRes.data : []);
         setLocationDataLoaded(true);
       } catch (err) {
         console.error('Failed to fetch location data:', err);
         setCities([]);
         setRegions([]);
+        setBarangays([]);
         setLocationDataLoaded(true);
       }
     };
-    
+
     fetchLocationData();
   }, []);
-
-  useEffect(() => {
-    if (!locationDataLoaded) return;
-    fetchApplications();
-  }, [locationDataLoaded]);
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -185,132 +162,121 @@ const ApplicationManagement: React.FC = () => {
         console.error('Failed to fetch color palette:', err);
       }
     };
-    
+
     fetchColorPalette();
   }, []);
 
-  const fetchApplications = async () => {
-    try {
-      setIsLoading(true);
-      const apiApplications = await getApplications();
-      
-      if (apiApplications && apiApplications.length > 0) {
-        const transformedApplications: Application[] = apiApplications.map(app => {
-          const regionName = app.region || '';
-          const cityName = app.city || '';
-          const barangayName = app.barangay || '';
-          const addressLine = app.installation_address || app.address_line || app.address || '';
-          const fullAddress = [regionName, cityName, barangayName, addressLine].filter(Boolean).join(', ');
-          
-          return {
-            id: app.id || '',
-            customerName: app.customer_name || `${app.first_name || ''} ${app.middle_initial || ''} ${app.last_name || ''}`.trim(),
-            timestamp: app.timestamp || (app.create_date && app.create_time ? `${app.create_date} ${app.create_time}` : ''),
-            address: addressLine,
-            location: app.location || fullAddress,
-            status: app.status || 'pending',
-            city: cityName,
-            region: regionName,
-            barangay: barangayName,
-            email_address: app.email_address,
-            first_name: app.first_name,
-            middle_initial: app.middle_initial,
-            last_name: app.last_name,
-            mobile_number: app.mobile_number,
-            secondary_mobile_number: app.secondary_mobile_number,
-            installation_address: app.installation_address,
-            landmark: app.landmark,
-            desired_plan: app.desired_plan,
-            promo: app.promo,
-            referred_by: app.referred_by,
-            create_date: app.create_date,
-            create_time: app.create_time
-          };
-        });
-        
-        setApplications(transformedApplications);
-      } else {
-        setApplications([]);
+  // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
+  useEffect(() => {
+    silentRefresh();
+  }, [silentRefresh]);
+
+  // Idle detection and auto-refresh logic
+  useEffect(() => {
+    const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
+    let idleTimer: NodeJS.Timeout | null = null;
+
+    const refreshData = async () => {
+      console.log('User idle for 15 minutes, auto-refreshing Application data...');
+      try {
+        await silentRefresh();
+      } catch (err) {
+        console.error('Idle refresh failed:', err);
       }
-      
-      setError(null);
-    } catch (err) {
-      console.error('Failed to fetch applications:', err);
-      setError('Failed to load applications. Please try again.');
-      setApplications([]);
-    } finally {
-      setIsLoading(false);
-    }
+      // Set the timer again to refresh every 15 mins if they remain idle
+      startTimer();
+    };
+
+    const startTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(refreshData, IDLE_TIME_LIMIT);
+    };
+
+    const resetTimer = () => {
+      startTimer();
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    // Use passive listeners for performance
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    startTimer(); // Initialize timer on mount
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [silentRefresh]);
+
+
+  const handleRefresh = async () => {
+    await refreshApplications();
   };
 
   const handleApplicationUpdate = () => {
-    fetchApplications();
+    refreshApplications();
   };
-  
-  useEffect(() => {
-    const handleLocationUpdate = async () => {
-      try {
-        const citiesData = await getCities();
-        setCities(citiesData || []);
-      } catch (err) {
-        console.error('Failed to refresh cities after location update:', err);
-      }
-    };
 
-    locationEvents.on(LOCATION_EVENTS.LOCATIONS_UPDATED, handleLocationUpdate);
-
-    return () => {
-      locationEvents.off(LOCATION_EVENTS.LOCATIONS_UPDATED, handleLocationUpdate);
-    };
-  }, []);
-  
-  const locationItems: LocationItem[] = useMemo(() => {
-    const items: LocationItem[] = [
-      {
-        id: 'all',
-        name: 'All',
-        count: applications.length
-      }
+  const statusItems = useMemo(() => {
+    const statuses = [
+      { name: 'Scheduled', value: 'scheduled' },
+      { name: 'No Slot', value: 'no slot' },
+      { name: 'No Facility', value: 'no facility' },
+      { name: 'Duplicate', value: 'duplicate' },
+      { name: 'Cancelled', value: 'cancelled' },
+      { name: 'Pending', value: 'pending' }
     ];
-    
-    const cityGroups: Record<string, number> = {};
+
+    const counts: Record<string, number> = {};
+    statuses.forEach(s => counts[s.value] = 0);
+
     applications.forEach(app => {
-      const cityKey = app.city || 'Unknown';
-      cityGroups[cityKey] = (cityGroups[cityKey] || 0) + 1;
-    });
-    
-    Object.entries(cityGroups).forEach(([cityName, count]) => {
-      items.push({
-        id: cityName.toLowerCase(),
-        name: cityName,
-        count: count
-      });
-    });
-    
-    cities.forEach(city => {
-      if (!cityGroups[city.name]) {
-        items.push({
-          id: String(city.id),
-          name: city.name,
-          count: 0
-        });
+      const status = (app.status || '').toLowerCase();
+      // Handle 'schedule' vs 'scheduled' mapping if necessary
+      const normalizedStatus = status === 'schedule' ? 'scheduled' : status;
+      if (counts[normalizedStatus] !== undefined) {
+        counts[normalizedStatus]++;
       }
     });
-    
-    return items;
-  }, [cities, applications]);
+
+    return {
+      items: statuses.map(s => ({
+        id: `status:${s.value}`,
+        name: s.name,
+        count: counts[s.value] || 0
+      })),
+      total: applications.length
+    };
+  }, [applications]);
 
   const filteredApplications = useMemo(() => {
     let filtered = applications.filter(application => {
-      const matchesLocation = selectedLocation === 'all' || 
-                             (application.city && application.city.toLowerCase() === selectedLocation) ||  
-                             selectedLocation === (application.city || '').toLowerCase();
-      
-      const matchesSearch = searchQuery === '' || 
-                           application.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           application.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           (application.timestamp && application.timestamp.includes(searchQuery));
-      
+      let matchesLocation = selectedLocation === 'all';
+
+      if (!matchesLocation) {
+        if (selectedLocation.startsWith('status:')) {
+          const statusValue = selectedLocation.substring(7);
+          const appStatus = (application.status || '').toLowerCase();
+          // Map 'schedule' to 'scheduled' for filtering consistency
+          const normalizedAppStatus = appStatus === 'schedule' ? 'scheduled' : appStatus;
+          matchesLocation = normalizedAppStatus === statusValue;
+        }
+      }
+
+      const matchesSearch = searchQuery === '' ||
+        (application.customer_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (application.installation_address || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (application.timestamp && application.timestamp.includes(searchQuery));
+
       return matchesLocation && matchesSearch;
     });
 
@@ -331,8 +297,8 @@ const ApplicationManagement: React.FC = () => {
             bValue = b.create_date && b.create_time ? `${b.create_date} ${b.create_time}` : b.timestamp || '';
             break;
           case 'customerName':
-            aValue = a.customerName || '';
-            bValue = b.customerName || '';
+            aValue = a.customer_name || '';
+            bValue = b.customer_name || '';
             break;
           case 'firstName':
             aValue = a.first_name || '';
@@ -378,10 +344,7 @@ const ApplicationManagement: React.FC = () => {
             aValue = a.barangay || '';
             bValue = b.barangay || '';
             break;
-          case 'location':
-            aValue = a.location || '';
-            bValue = b.location || '';
-            break;
+
           case 'desiredPlan':
             aValue = a.desired_plan || '';
             bValue = b.desired_plan || '';
@@ -422,7 +385,27 @@ const ApplicationManagement: React.FC = () => {
     }
 
     return filtered;
+    return filtered;
   }, [applications, selectedLocation, searchQuery, sortColumn, sortDirection]);
+
+  // Derived paginated records
+  const paginatedApplications = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredApplications.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredApplications, currentPage]);
+
+  const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLocation, searchQuery, sortColumn, sortDirection]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
 
   const handleRowClick = (application: Application) => {
     setSelectedApplication(application);
@@ -490,7 +473,7 @@ const ApplicationManagement: React.FC = () => {
 
   const handleDrop = (e: React.DragEvent, targetColumnKey: string) => {
     e.preventDefault();
-    
+
     if (!draggedColumn || draggedColumn === targetColumnKey) {
       setDraggedColumn(null);
       setDragOverColumn(null);
@@ -519,7 +502,7 @@ const ApplicationManagement: React.FC = () => {
     e.stopPropagation();
     setResizingColumn(columnKey);
     startXRef.current = e.clientX;
-    
+
     const th = (e.target as HTMLElement).closest('th');
     if (th) {
       startWidthRef.current = th.offsetWidth;
@@ -531,10 +514,10 @@ const ApplicationManagement: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!resizingColumn) return;
-      
+
       const diff = e.clientX - startXRef.current;
       const newWidth = Math.max(100, startWidthRef.current + diff);
-      
+
       setColumnWidths(prev => ({
         ...prev,
         [resizingColumn]: newWidth
@@ -559,10 +542,10 @@ const ApplicationManagement: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizingSidebar) return;
-      
+
       const diff = e.clientX - sidebarStartXRef.current;
       const newWidth = Math.max(200, Math.min(500, sidebarStartWidthRef.current + diff));
-      
+
       setSidebarWidth(newWidth);
     };
 
@@ -589,11 +572,13 @@ const ApplicationManagement: React.FC = () => {
   const renderCellValue = (application: Application, columnKey: string) => {
     switch (columnKey) {
       case 'timestamp':
-        return application.create_date && application.create_time 
-          ? `${application.create_date} ${application.create_time}` 
+        return application.create_date && application.create_time
+          ? `${application.create_date} ${application.create_time}`
           : application.timestamp || '-';
+      case 'status':
+        return application.status || '-';
       case 'customerName':
-        return application.customerName;
+        return application.customer_name;
       case 'firstName':
         return application.first_name || '-';
       case 'middleInitial':
@@ -616,16 +601,13 @@ const ApplicationManagement: React.FC = () => {
         return application.city || '-';
       case 'barangay':
         return application.barangay || '-';
-      case 'location':
-        return application.location || '-';
+
       case 'desiredPlan':
         return application.desired_plan || '-';
       case 'promo':
         return application.promo || '-';
       case 'referredBy':
         return application.referred_by || '-';
-      case 'status':
-        return application.status || '-';
       case 'createDate':
         return application.create_date || '-';
       case 'createTime':
@@ -639,17 +621,16 @@ const ApplicationManagement: React.FC = () => {
     if (columnKey === 'status') {
       const status = application.status || '-';
       return (
-        <span className={`text-xs px-2 py-1 font-bold uppercase ${
-          status.toLowerCase() === 'schedule' ? 'text-green-400' :
+        <span className={`text-xs px-2 py-1 font-bold uppercase ${status.toLowerCase() === 'schedule' ? 'text-green-400' :
           status.toLowerCase() === 'no facility' ? 'text-red-400' :
-          status.toLowerCase() === 'cancelled' ? 'text-red-500' :
-          status.toLowerCase() === 'no slot' ? 'text-purple-400' :
-          status.toLowerCase() === 'duplicate' ? 'text-pink-400' :
-          status.toLowerCase() === 'in progress' ? 'text-blue-400' :
-          status.toLowerCase() === 'completed' ? 'text-green-400' :
-          status.toLowerCase() === 'pending' ? 'text-orange-400' :
-          'text-gray-400'
-        }`}>
+            status.toLowerCase() === 'cancelled' ? 'text-red-500' :
+              status.toLowerCase() === 'no slot' ? 'text-purple-400' :
+                status.toLowerCase() === 'duplicate' ? 'text-pink-400' :
+                  status.toLowerCase() === 'in progress' ? 'text-blue-400' :
+                    status.toLowerCase() === 'completed' ? 'text-green-400' :
+                      status.toLowerCase() === 'pending' ? 'text-orange-400' :
+                        'text-gray-400'
+          }`}>
           {status}
         </span>
       );
@@ -663,59 +644,93 @@ const ApplicationManagement: React.FC = () => {
   };
 
   return (
-    <div className={`h-full flex flex-col md:flex-row overflow-hidden ${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    }`}>
+    <div className={`h-full flex flex-col md:flex-row overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      }`}>
       {/* Desktop Sidebar - Hidden on mobile */}
-      <div className={`hidden md:flex border-r flex-shrink-0 flex-col relative z-40 ${
-        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-      }`} style={{ width: `${sidebarWidth}px` }}>
-        <div className={`p-4 border-b flex-shrink-0 ${
-          isDarkMode ? 'border-gray-700' : 'border-gray-200'
-        }`}>
+      <div className={`hidden md:flex border-r flex-shrink-0 flex-col relative z-40 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`} style={{ width: `${sidebarWidth}px` }}>
+        <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
           <div className="flex items-center justify-between mb-1">
-            <h2 className={`text-lg font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Applications</h2>
+            <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Applications</h2>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {locationItems.map((location) => (
-            <button
-              key={location.id}
-              onClick={() => setSelectedLocation(location.id)}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-              } ${
-                selectedLocation === location.id
-                  ? ''
-                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          {/* All Level */}
+          <button
+            onClick={() => setSelectedLocation('all')}
+            className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${selectedLocation === 'all'
+                ? ''
+                : isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}
-              style={selectedLocation === location.id ? {
-                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
+            style={selectedLocation === 'all' ? {
+              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+              color: colorPalette?.primary || '#fb923c'
+            } : {}}
+          >
+            <div className="flex items-center">
+              <FileText className="h-4 w-4 mr-2" />
+              <span>All Applications</span>
+            </div>
+            <span
+              className={`px-2 py-1 rounded-full text-xs ${selectedLocation === 'all'
+                ? 'text-white'
+                : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                }`}
+              style={selectedLocation === 'all' ? {
+                backgroundColor: colorPalette?.primary || '#ea580c'
               } : {}}
             >
-              <div className="flex items-center">
-                <FileText className="h-4 w-4 mr-2" />
-                <span className="capitalize">{location.name}</span>
-              </div>
-              {location.count > 0 && (
-                <span className="px-2 py-1 rounded-full text-xs"
-                  style={selectedLocation === location.id ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c',
-                    color: 'white'
-                  } : {
-                    backgroundColor: isDarkMode ? '#374151' : '#d1d5db',
-                    color: isDarkMode ? '#d1d5db' : '#4b5563'
-                  }}>
-                  {location.count}
-                </span>
-              )}
-            </button>
-          ))}
+              {statusItems.total}
+            </span>
+          </button>
+
+          {/* Status Items */}
+          {statusItems.items.map((status) => {
+            const isSelected = selectedLocation === status.id;
+            const getStatusColor = (val: string) => {
+              switch (val) {
+                case 'scheduled': return 'text-green-500';
+                case 'no slot': return 'text-purple-500';
+                case 'no facility': return 'text-red-500';
+                case 'duplicate': return 'text-pink-500';
+                case 'cancelled': return 'text-red-600';
+                case 'pending': return 'text-orange-500';
+                default: return 'text-gray-500';
+              }
+            };
+
+            return (
+              <button
+                key={status.id}
+                onClick={() => setSelectedLocation(status.id)}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                  }`}
+                style={isSelected ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#fb923c'
+                } : {}}
+              >
+                <div className="flex items-center flex-1">
+                  <div className={`h-2.5 w-2.5 rounded-full mr-3 ${getStatusColor(status.id.split(':')[1]).replace('text-', 'bg-')}`} />
+                  <span className={`font-medium ${isSelected ? '' : isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{status.name}</span>
+                </div>
+                {status.count > 0 && (
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isSelected ? '' : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'}`}
+                    style={isSelected ? {
+                      backgroundColor: colorPalette?.primary || '#ea580c',
+                      color: 'white'
+                    } : {}}>
+                    {status.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
-        
+
         <div
           className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
           onMouseDown={handleMouseDownSidebarResize}
@@ -739,66 +754,94 @@ const ApplicationManagement: React.FC = () => {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
-          <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${
-            isDarkMode ? 'bg-gray-900' : 'bg-white'
-          }`}>
-            <div className={`p-4 border-b flex items-center justify-between ${
-              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
             }`}>
-              <h2 className={`text-lg font-semibold ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Filters</h2>
+            <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Filters</h2>
               <button onClick={() => setMobileMenuOpen(false)} className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}>
                 <X className="h-6 w-6" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto">
-              {locationItems.map((location) => (
-                <button
-                  key={location.id}
-                  onClick={() => handleLocationSelect(location.id)}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
-                    selectedLocation === location.id
-                      ? ''
-                      : 'text-gray-300'
-                  }`}
-                  style={selectedLocation === location.id ? {
-                    backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                    color: colorPalette?.primary || '#fb923c'
-                  } : {}}
-                >
-                  <div className="flex items-center">
-                    <FileText className="h-4 w-4 mr-2" />
-                    <span className="capitalize">{location.name}</span>
-                  </div>
-                  {location.count > 0 && (
-                    <span className="px-2 py-1 rounded-full text-xs"
-                      style={selectedLocation === location.id ? {
-                        backgroundColor: colorPalette?.primary || '#ea580c',
-                        color: 'white'
-                      } : {
-                        backgroundColor: '#374151',
-                        color: '#d1d5db'
-                      }}>
-                      {location.count}
-                    </span>
-                  )}
-                </button>
-              ))}
+              {/* All Level */}
+              <button
+                onClick={() => {
+                  setSelectedLocation('all');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === 'all' ? '' : 'text-gray-300'}`}
+                style={selectedLocation === 'all' ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#fb923c'
+                } : {}}
+              >
+                <div className="flex items-center">
+                  <FileText className="h-4 w-4 mr-2" />
+                  <span>All Applications</span>
+                </div>
+                <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                  {statusItems.total}
+                </span>
+              </button>
+
+              {/* Status Items */}
+              {statusItems.items.map((status) => {
+                const isSelected = selectedLocation === status.id;
+                const getStatusColor = (val: string) => {
+                  switch (val) {
+                    case 'scheduled': return 'text-green-500';
+                    case 'no slot': return 'text-purple-500';
+                    case 'no facility': return 'text-red-500';
+                    case 'duplicate': return 'text-pink-500';
+                    case 'cancelled': return 'text-red-600';
+                    case 'pending': return 'text-orange-500';
+                    default: return 'text-gray-500';
+                  }
+                };
+
+                return (
+                  <button
+                    key={status.id}
+                    onClick={() => {
+                      setSelectedLocation(status.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isSelected ? '' : 'text-gray-300'}`}
+                    style={isSelected ? {
+                      backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                      color: colorPalette?.primary || '#fb923c'
+                    } : {}}
+                  >
+                    <div className="flex items-center">
+                      <div className={`h-2.5 w-2.5 rounded-full mr-3 ${getStatusColor(status.id.split(':')[1]).replace('text-', 'bg-')}`} />
+                      <span>{status.name}</span>
+                    </div>
+                    {status.count > 0 && (
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isSelected ? '' : 'bg-gray-700 text-gray-500'}`}
+                        style={isSelected ? {
+                          backgroundColor: colorPalette?.primary || '#ea580c',
+                          color: 'white'
+                        } : {}}>
+                        {status.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
       )}
 
       {/* Main Content */}
-      <div className={`overflow-hidden flex-1 flex flex-col pb-16 md:pb-0 ${
-        isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
-      }`}>
+      <div className={`overflow-hidden flex-1 flex flex-col pb-16 md:pb-0 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+        }`}>
         <div className="flex flex-col h-full">
           {/* Search Bar */}
-          <div className={`p-4 border-b flex-shrink-0 ${
-            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
+          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => setMobileMenuOpen(true)}
@@ -813,11 +856,10 @@ const ApplicationManagement: React.FC = () => {
                   placeholder="Search applications..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${
-                    isDarkMode
-                      ? 'bg-gray-800 text-white border border-gray-700'
-                      : 'bg-white text-gray-900 border border-gray-300'
-                  }`}
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${isDarkMode
+                    ? 'bg-gray-800 text-white border border-gray-700'
+                    : 'bg-white text-gray-900 border border-gray-300'
+                    }`}
                   onFocus={(e) => {
                     if (colorPalette?.primary) {
                       e.currentTarget.style.borderColor = colorPalette.primary;
@@ -829,43 +871,37 @@ const ApplicationManagement: React.FC = () => {
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 />
-                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`} />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
               </div>
               <div className="hidden md:flex space-x-2">
                 <button
                   onClick={() => setIsFunnelFilterOpen(true)}
-                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
-                    isDarkMode 
-                      ? 'hover:bg-gray-800 text-white' 
-                      : 'hover:bg-gray-100 text-gray-900'
-                  }`}
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                    ? 'hover:bg-gray-800 text-white'
+                    : 'hover:bg-gray-100 text-gray-900'
+                    }`}
                 >
                   <Filter className="h-5 w-5" />
                 </button>
                 {displayMode === 'table' && (
                   <div className="relative" ref={filterDropdownRef}>
                     <button
-                      className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
-                        isDarkMode 
-                          ? 'hover:bg-gray-800 text-white' 
-                          : 'hover:bg-gray-100 text-gray-900'
-                      }`}
+                      className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                        ? 'hover:bg-gray-800 text-white'
+                        : 'hover:bg-gray-100 text-gray-900'
+                        }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
                       <ListFilter className="h-5 w-5" />
                     </button>
                     {filterDropdownOpen && (
-                      <div className={`absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-96 flex flex-col ${
-                        isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-                      } border`}>
-                        <div className={`p-3 border-b flex items-center justify-between ${
-                          isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                        }`}>
-                          <span className={`text-sm font-medium ${
-                            isDarkMode ? 'text-white' : 'text-gray-900'
-                          }`}>Column Visibility</span>
+                      <div className={`absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-96 flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                        } border`}>
+                        <div className={`p-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                          }`}>
+                          <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>Column Visibility</span>
                           <div className="flex space-x-2">
                             <button
                               onClick={handleSelectAllColumns}
@@ -912,9 +948,8 @@ const ApplicationManagement: React.FC = () => {
                           {allColumns.map((column) => (
                             <label
                               key={column.key}
-                              className={`flex items-center px-4 py-2 cursor-pointer text-sm ${
-                                isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'
-                              }`}
+                              className={`flex items-center px-4 py-2 cursor-pointer text-sm ${isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'
+                                }`}
                             >
                               <input
                                 type="checkbox"
@@ -932,27 +967,24 @@ const ApplicationManagement: React.FC = () => {
                 )}
                 <div className="relative" ref={dropdownRef}>
                   <button
-                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
-                      isDarkMode 
-                        ? 'hover:bg-gray-800 text-white' 
-                        : 'hover:bg-gray-100 text-gray-900'
-                    }`}
+                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                      ? 'hover:bg-gray-800 text-white'
+                      : 'hover:bg-gray-100 text-gray-900'
+                      }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
                     <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
                     <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
                   {dropdownOpen && (
-                    <div className={`absolute top-full right-0 mt-1 w-36 rounded shadow-lg border z-50 ${
-                        isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                    <div className={`absolute top-full right-0 mt-1 w-36 rounded shadow-lg border z-50 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
                       }`}>
                       <button
                         onClick={() => {
                           setDisplayMode('card');
                           setDropdownOpen(false);
                         }}
-                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                            isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                           }`}
                         style={displayMode === 'card' ? {
                           color: colorPalette?.primary || '#f97316'
@@ -967,8 +999,7 @@ const ApplicationManagement: React.FC = () => {
                           setDisplayMode('table');
                           setDropdownOpen(false);
                         }}
-                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                            isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                           }`}
                         style={displayMode === 'table' ? {
                           color: colorPalette?.primary || '#f97316'
@@ -982,7 +1013,9 @@ const ApplicationManagement: React.FC = () => {
                   )}
                 </div>
                 <button
-                  onClick={() => fetchApplications()}
+                  onClick={() => {
+                    handleRefresh();
+                  }}
                   disabled={isLoading}
                   className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
                   style={{
@@ -1004,65 +1037,57 @@ const ApplicationManagement: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Applications List Container */}
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto">
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className={`flex-1 ${displayMode === 'table' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
               {isLoading ? (
-                <div className={`px-4 py-12 text-center ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   <div className="animate-pulse flex flex-col items-center">
-                    <div className={`h-4 w-1/3 rounded mb-4 ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                    }`}></div>
-                    <div className={`h-4 w-1/2 rounded ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                    }`}></div>
+                    <div className={`h-4 w-1/3 rounded mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
                   </div>
                   <p className="mt-4">Loading applications...</p>
                 </div>
               ) : error ? (
-                <div className={`px-4 py-12 text-center ${
-                  isDarkMode ? 'text-red-400' : 'text-red-600'
-                }`}>
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>
                   <p>{error}</p>
-                  <button 
+                  <button
                     onClick={() => window.location.reload()}
-                    className={`mt-4 px-4 py-2 rounded text-white ${
-                      isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-400 hover:bg-gray-500'
-                    }`}>
+                    className={`mt-4 px-4 py-2 rounded text-white ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-400 hover:bg-gray-500'
+                      }`}>
                     Retry
                   </button>
                 </div>
               ) : displayMode === 'card' ? (
-                filteredApplications.length > 0 ? (
+                paginatedApplications.length > 0 ? (
                   <div className="space-y-0">
-                    {filteredApplications.map((application) => (
+                    {paginatedApplications.map((application) => (
                       <div
                         key={application.id}
                         onClick={() => handleRowClick(application)}
-                        className={`px-4 py-3 cursor-pointer transition-colors border-b ${
-                          isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
-                        } ${selectedApplication?.id === application.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
+                        className={`px-4 py-3 cursor-pointer transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
+                          } ${selectedApplication?.id === application.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className={`font-medium text-sm mb-1 uppercase ${
-                              isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>
-                              {application.customerName}
+                            <div className={`font-medium text-sm mb-1 uppercase ${isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
+                              {application.customer_name}
                             </div>
-                            <div className={`text-xs ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`}>
-                              {application.create_date && application.create_time 
-                                ? `${application.create_date} ${application.create_time}` 
+                            <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`}>
+                              {application.create_date && application.create_time
+                                ? `${application.create_date} ${application.create_time}`
                                 : application.timestamp || 'Not specified'}
                               {' | '}
                               {[
                                 application.installation_address || application.address,
-                                application.location,
+
                                 application.barangay,
                                 application.city,
                                 application.region
@@ -1071,17 +1096,16 @@ const ApplicationManagement: React.FC = () => {
                           </div>
                           <div className="flex flex-col items-end space-y-1 ml-4 flex-shrink-0">
                             {application.status && (
-                              <div className={`text-xs px-2 py-1 font-bold uppercase ${
-                                application.status.toLowerCase() === 'schedule' ? 'text-green-400' :
+                              <div className={`text-xs px-2 py-1 font-bold uppercase ${application.status.toLowerCase() === 'schedule' ? 'text-green-400' :
                                 application.status.toLowerCase() === 'no facility' ? 'text-red-400' :
-                                application.status.toLowerCase() === 'cancelled' ? 'text-red-500' :
-                                application.status.toLowerCase() === 'no slot' ? 'text-purple-400' :
-                                application.status.toLowerCase() === 'duplicate' ? 'text-pink-400' :
-                                application.status.toLowerCase() === 'in progress' ? 'text-blue-400' :
-                                application.status.toLowerCase() === 'completed' ? 'text-green-400' :
-                                application.status.toLowerCase() === 'pending' ? 'text-orange-400' :
-                                'text-gray-400'
-                              }`}>
+                                  application.status.toLowerCase() === 'cancelled' ? 'text-red-500' :
+                                    application.status.toLowerCase() === 'no slot' ? 'text-purple-400' :
+                                      application.status.toLowerCase() === 'duplicate' ? 'text-pink-400' :
+                                        application.status.toLowerCase() === 'in progress' ? 'text-blue-400' :
+                                          application.status.toLowerCase() === 'completed' ? 'text-green-400' :
+                                            application.status.toLowerCase() === 'pending' ? 'text-orange-400' :
+                                              'text-gray-400'
+                                }`}>
                                 {application.status}
                               </div>
                             )}
@@ -1091,154 +1115,207 @@ const ApplicationManagement: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className={`text-center py-12 ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
+                  <div className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                     No applications found matching your filters
                   </div>
                 )
               ) : (
-                <div className="overflow-x-auto overflow-y-hidden">
-                  <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
-                    <thead>
-                      <tr className={`border-b sticky top-0 z-20 ${
-                        isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
-                      }`}>
-                        {filteredColumns.map((column, index) => (
-                          <th
-                            key={column.key}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, column.key)}
-                            onDragOver={(e) => handleDragOver(e, column.key)}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleDrop(e, column.key)}
-                            onDragEnd={handleDragEnd}
-                            className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${
-                              isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
-                            } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''} ${
-                              draggedColumn === column.key ? 'opacity-50' : ''
-                            } ${
-                              dragOverColumn === column.key ? 'bg-orange-500 bg-opacity-20' : ''
-                            }`}
-                            style={{ width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined }}
-                            onMouseEnter={() => setHoveredColumn(column.key)}
-                            onMouseLeave={() => setHoveredColumn(null)}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span>{column.label}</span>
-                              {(hoveredColumn === column.key || sortColumn === column.key) && (
-                                <button
-                                  onClick={() => handleSort(column.key)}
-                                  className="ml-2 transition-colors"
-                                >
-                                  {sortColumn === column.key && sortDirection === 'desc' ? (
-                                    <ArrowDown className="h-4 w-4" style={{ color: colorPalette?.primary || '#fb923c' }} />
-                                  ) : (
-                                    <ArrowUp className="h-4 w-4 text-gray-400" style={{
-                                      color: sortColumn === column.key ? (colorPalette?.primary || '#fb923c') : undefined
-                                    }} />
-                                  )}
-                                </button>
-                              )}
-                            </div>
-                            {index < filteredColumns.length - 1 && (
-                              <div
-                                className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 group-hover:bg-gray-600"
-                                onMouseDown={(e) => handleMouseDownResize(e, column.key)}
-                              />
-                            )}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredApplications.length > 0 ? (
-                        filteredApplications.map((application) => (
-                          <tr 
-                            key={application.id} 
-                            className={`border-b cursor-pointer transition-colors ${
-                              isDarkMode ? 'border-gray-800 hover:bg-gray-900' : 'border-gray-200 hover:bg-gray-50'
-                            } ${selectedApplication?.id === application.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
-                            onClick={() => handleRowClick(application)}
-                          >
-                            {filteredColumns.map((column, index) => (
-                              <td 
-                                key={column.key}
-                                className={`py-4 px-3 ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''} ${
-                                  isDarkMode ? 'text-white' : 'text-gray-900'
-                                }`}
-                                style={{ 
-                                  width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
-                                  maxWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
-                                }}
-                              >
-                                <div className="truncate" title={String(renderCellValue(application, column.key))}>
-                                  {renderCellDisplay(application, column.key)}
-                                </div>
-                              </td>
-                            ))}
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${
-                            isDarkMode ? 'text-gray-400 border-gray-800' : 'text-gray-600 border-gray-200'
+                <div className="h-full relative flex flex-col">
+                  <div className="flex-1 overflow-auto">
+                    <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
+                      <thead>
+                        <tr className={`border-b sticky top-0 z-20 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
                           }`}>
-                            No applications found matching your filters
-                          </td>
+                          {filteredColumns.map((column, index) => (
+                            <th
+                              key={column.key}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, column.key)}
+                              onDragOver={(e) => handleDragOver(e, column.key)}
+                              onDragLeave={handleDragLeave}
+                              onDrop={(e) => handleDrop(e, column.key)}
+                              onDragEnd={handleDragEnd}
+                              className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
+                                } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''} ${draggedColumn === column.key ? 'opacity-50' : ''
+                                } ${dragOverColumn === column.key ? 'bg-orange-500 bg-opacity-20' : ''
+                                }`}
+                              style={{ width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined }}
+                              onMouseEnter={() => setHoveredColumn(column.key)}
+                              onMouseLeave={() => setHoveredColumn(null)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span>{column.label}</span>
+                                {(hoveredColumn === column.key || sortColumn === column.key) && (
+                                  <button
+                                    onClick={() => handleSort(column.key)}
+                                    className="ml-2 transition-colors"
+                                  >
+                                    {sortColumn === column.key && sortDirection === 'desc' ? (
+                                      <ArrowDown className="h-4 w-4" style={{ color: colorPalette?.primary || '#fb923c' }} />
+                                    ) : (
+                                      <ArrowUp className="h-4 w-4 text-gray-400" style={{
+                                        color: sortColumn === column.key ? (colorPalette?.primary || '#fb923c') : undefined
+                                      }} />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                              {index < filteredColumns.length - 1 && (
+                                <div
+                                  className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 group-hover:bg-gray-600"
+                                  onMouseDown={(e) => handleMouseDownResize(e, column.key)}
+                                />
+                              )}
+                            </th>
+                          ))}
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {paginatedApplications.length > 0 ? (
+                          paginatedApplications.map((application) => (
+                            <tr
+                              key={application.id}
+                              className={`border-b cursor-pointer transition-colors ${isDarkMode ? 'border-gray-800 hover:bg-gray-900' : 'border-gray-200 hover:bg-gray-50'
+                                } ${selectedApplication?.id === application.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
+                              onClick={() => handleRowClick(application)}
+                            >
+                              {filteredColumns.map((column, index) => (
+                                <td
+                                  key={column.key}
+                                  className={`py-4 px-3 ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                    }`}
+                                  style={{
+                                    width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
+                                    maxWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
+                                  }}
+                                >
+                                  <div className="truncate" title={String(renderCellValue(application, column.key))}>
+                                    {renderCellDisplay(application, column.key)}
+                                  </div>
+                                </td>
+                              ))}
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${isDarkMode ? 'text-gray-400 border-gray-800' : 'text-gray-600 border-gray-200'
+                              }`}>
+                              No applications found matching your filters
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
+
+            {/* Pagination Controls */}
+            {!isLoading && filteredApplications.length > 0 && totalPages > 1 && (
+              <div className={`border-t p-4 flex items-center justify-between ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredApplications.length)}</span> of <span className="font-medium">{filteredApplications.length}</span> results
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+                      ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                      : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                      }`}
+                  >
+                    Previous
+                  </button>
+
+                  <div className="flex items-center space-x-1">
+                    <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      Page {currentPage} of {totalPages}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+                      ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                      : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                      }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Mobile Bottom Bar */}
-      <div className={`md:hidden fixed bottom-0 left-0 right-0 border-t z-40 ${
-        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-      }`}>
+      <div className={`md:hidden fixed bottom-0 left-0 right-0 border-t z-40 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
         <div className="flex overflow-x-auto hide-scrollbar">
-          {locationItems.map((location) => (
-            <button
-              key={location.id}
-              onClick={() => setSelectedLocation(location.id)}
-              className={`flex-shrink-0 flex flex-col items-center justify-center px-4 py-2 text-xs transition-colors ${
-                selectedLocation === location.id
-                  ? ''
-                  : 'text-gray-300'
-              }`}
-              style={selectedLocation === location.id ? {
-                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
-              } : {}}
-            >
-              <FileText className="h-5 w-5 mb-1" />
-              <span className="capitalize whitespace-nowrap">{location.name}</span>
-              {location.count > 0 && (
-                <span className="mt-1 px-2 py-0.5 rounded-full text-xs"
-                  style={selectedLocation === location.id ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c',
-                    color: 'white'
-                  } : {
-                    backgroundColor: '#374151',
-                    color: '#d1d5db'
-                  }}>
-                  {location.count}
-                </span>
-              )}
-            </button>
-          ))}
+          <button
+            onClick={() => setSelectedLocation('all')}
+            className={`flex-shrink-0 flex flex-col items-center justify-center px-4 py-2 text-xs transition-colors ${selectedLocation === 'all' ? '' : 'text-gray-300'}`}
+            style={selectedLocation === 'all' ? {
+              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+              color: colorPalette?.primary || '#fb923c'
+            } : {}}
+          >
+            <FileText className="h-5 w-5 mb-1" />
+            <span className="whitespace-nowrap">All</span>
+          </button>
+
+          {statusItems.items.map((status) => {
+            const getStatusColor = (val: string) => {
+              switch (val) {
+                case 'scheduled': return 'text-green-500';
+                case 'no slot': return 'text-purple-500';
+                case 'no facility': return 'text-red-500';
+                case 'duplicate': return 'text-pink-500';
+                case 'cancelled': return 'text-red-600';
+                case 'pending': return 'text-orange-500';
+                default: return 'text-gray-500';
+              }
+            };
+            const statusValue = status.id.split(':')[1];
+            return (
+              <button
+                key={status.id}
+                onClick={() => setSelectedLocation(status.id)}
+                className={`flex-shrink-0 flex flex-col items-center justify-center px-4 py-2 text-xs transition-colors ${selectedLocation === status.id ? '' : 'text-gray-300'}`}
+                style={selectedLocation === status.id ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#fb923c'
+                } : {}}
+              >
+                <div className={`h-2.5 w-2.5 rounded-full mb-1 ${getStatusColor(statusValue).replace('text-', 'bg-')}`} />
+                <span className="whitespace-nowrap">{status.name}</span>
+                {status.count > 0 && (
+                  <span className="mt-1 px-2 py-0.5 rounded-full text-[10px]"
+                    style={selectedLocation === status.id ? {
+                      backgroundColor: colorPalette?.primary || '#ea580c',
+                      color: 'white'
+                    } : {
+                      backgroundColor: '#374151',
+                      color: '#d1d5db'
+                    }}>
+                    {status.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {selectedApplication && (
         <div className="flex-shrink-0 overflow-hidden">
-          <ApplicationDetails 
-            application={selectedApplication} 
+          <ApplicationDetails
+            application={selectedApplication}
             onClose={() => setSelectedApplication(null)}
             onApplicationUpdate={handleApplicationUpdate}
           />
@@ -1260,7 +1337,7 @@ const ApplicationManagement: React.FC = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={() => {
-          fetchApplications();
+          silentRefresh();
           setIsAddModalOpen(false);
         }}
       />

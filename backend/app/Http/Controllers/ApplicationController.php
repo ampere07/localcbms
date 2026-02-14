@@ -9,14 +9,78 @@ use Illuminate\Support\Facades\Http;
 
 class ApplicationController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         try {
-            Log::info('ApplicationController: Starting to fetch applications');
-            
-            $applications = Application::all();
+            $page = $request->input('page', 1);
+            $limit = $request->input('limit', 50); // Default 50 for faster response
+            $search = $request->input('search', '');
+            $fastMode = $request->input('fast', false); // Fast mode: skip heavy processing
+
+            Log::info('ApplicationController: Starting to fetch applications', [
+                'page' => $page,
+                'limit' => $limit,
+                'search' => $search,
+                'fast_mode' => $fastMode
+            ]);
+
+            $query = Application::orderBy('id', 'desc');
+
+            // Apply search filter
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('first_name', 'LIKE', "%{$search}%")
+                      ->orWhere('last_name', 'LIKE', "%{$search}%")
+                      ->orWhere('email_address', 'LIKE', "%{$search}%")
+                      ->orWhere('mobile_number', 'LIKE', "%{$search}%")
+                      ->orWhere('installation_address', 'LIKE', "%{$search}%")
+                      ->orWhere('city', 'LIKE', "%{$search}%");
+                });
+            }
+
+            // Fetch one extra record to check if there are more pages (more efficient than COUNT)
+            $applications = $query->skip(($page - 1) * $limit)
+                ->take($limit + 1) // Fetch one extra
+                ->get();
+
+            // Check if there are more pages
+            $hasMore = $applications->count() > $limit;
+
+            // Remove the extra record if it exists
+            if ($hasMore) {
+                $applications = $applications->slice(0, $limit);
+            }
+
             Log::info('ApplicationController: Fetched ' . $applications->count() . ' applications');
-            
+
+            // Fast mode: Return minimal data immediately
+            if ($fastMode) {
+                $formattedApplications = $applications->map(function ($app) {
+                    return [
+                        'id' => (string)$app->id,
+                        'customer_name' => $this->getFullName($app),
+                        'timestamp' => $app->timestamp ? $app->timestamp->format('Y-m-d H:i:s') : null,
+                        'status' => $app->status ?? 'pending',
+                        'first_name' => $app->first_name,
+                        'last_name' => $app->last_name,
+                        'city' => $app->city,
+                        'create_date' => $app->timestamp ? $app->timestamp->format('Y-m-d') : null,
+                        'create_time' => $app->timestamp ? $app->timestamp->format('H:i:s') : null
+                    ];
+                });
+
+                return response()->json([
+                    'success' => true,
+                    'applications' => $formattedApplications->values(),
+                    'pagination' => [
+                        'current_page' => (int) $page,
+                        'per_page' => (int) $limit,
+                        'has_more' => $hasMore
+                    ]
+                ]);
+            }
+
+            // Normal mode: Return full data
             $formattedApplications = $applications->map(function ($app) {
                 return [
                     'id' => (string)$app->id,
@@ -54,7 +118,7 @@ class ApplicationController extends Controller
                     'created_at' => $app->created_at ? $app->created_at->format('Y-m-d H:i:s') : null,
                     'updated_at' => $app->updated_at ? $app->updated_at->format('Y-m-d H:i:s') : null,
                     'created_by_user_id' => $app->created_by_user_id,
-                    'updated_by_user_id' => $app->updated_by_user_id,
+                    'updated_by' => $app->updated_by,
                     
                     'create_date' => $app->timestamp ? $app->timestamp->format('Y-m-d') : null,
                     'create_time' => $app->timestamp ? $app->timestamp->format('H:i:s') : null
@@ -62,8 +126,13 @@ class ApplicationController extends Controller
             });
             
             return response()->json([
-                'applications' => $formattedApplications,
-                'success' => true
+                'success' => true,
+                'applications' => $formattedApplications->values(),
+                'pagination' => [
+                    'current_page' => (int) $page,
+                    'per_page' => (int) $limit,
+                    'has_more' => $hasMore
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('ApplicationController error: ' . $e->getMessage());
@@ -104,11 +173,14 @@ class ApplicationController extends Controller
         try {
             $data = [
                 'id' => $application->id,
+                'type' => 'application',
                 'customer_name' => $this->getFullName($application),
                 'plan_name' => $application->desired_plan ?? 'Unknown',
                 'status' => $application->status ?? 'pending',
-                'created_at' => $application->created_at,
-                'formatted_date' => $application->created_at->diffForHumans(),
+                'title' => '🔔 New Application',
+                'message' => 'A new customer application has been received',
+                'timestamp' => now()->timestamp,
+                'formatted_date' => now()->format('Y-m-d h:i:s A') // e.g. 2026-02-11 05:53:42 PM
             ];
 
             Http::timeout(2)->post('http://127.0.0.1:3001/broadcast/new-application', $data);
@@ -257,7 +329,7 @@ class ApplicationController extends Controller
                 'created_at' => $application->created_at ? $application->created_at->format('Y-m-d H:i:s') : null,
                 'updated_at' => $application->updated_at ? $application->updated_at->format('Y-m-d H:i:s') : null,
                 'created_by_user_id' => $application->created_by_user_id,
-                'updated_by_user_id' => $application->updated_by_user_id,
+                'updated_by' => $application->updated_by,
                 
                 'create_date' => $application->timestamp ? $application->timestamp->format('Y-m-d') : null,
                 'create_time' => $application->timestamp ? $application->timestamp->format('H:i:s') : null
@@ -301,7 +373,7 @@ class ApplicationController extends Controller
             ]);
 
             $application = Application::findOrFail($id);
-            $validatedData['updated_by_user_id'] = auth()->id();
+            $validatedData['updated_by'] = auth()->user()->email ?? 'system';
             $application->update($validatedData);
 
             return response()->json([

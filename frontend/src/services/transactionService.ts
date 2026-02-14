@@ -5,6 +5,7 @@ interface ApiResponse<T = any> {
   message?: string;
   error?: string;
   count?: number;
+  total?: number;
 }
 
 interface ApproveTransactionResponse {
@@ -76,13 +77,16 @@ export const transactionService = {
     }
   },
 
-  getAllTransactions: async (): Promise<any> => {
+  getAllTransactions: async (limit?: number, offset?: number): Promise<any> => {
     try {
-      const response = await apiClient.get<ApiResponse>('/transactions');
+      const response = await apiClient.get<ApiResponse>('/transactions', {
+        params: { limit, offset }
+      });
       return {
         success: true,
         data: response.data.data || [],
-        count: response.data.count || 0
+        count: response.data.count || 0,
+        total: response.data.total || 0
       };
     } catch (error: any) {
       console.error('Error fetching transactions:', error);
@@ -120,13 +124,13 @@ export const transactionService = {
       console.log('Batch approving transactions:', transactionIds);
       console.log('Transaction IDs type:', typeof transactionIds);
       console.log('First ID:', transactionIds[0], 'Type:', typeof transactionIds[0]);
-      
+
       const response = await apiClient.post<ApiResponse>('/transactions/batch-approve', {
         transaction_ids: transactionIds
       });
-      
+
       console.log('Batch approve response:', response.data);
-      
+
       return {
         success: true,
         message: response.data.message || 'Batch approval completed',

@@ -45,16 +45,31 @@ export interface InvoiceResponse {
 }
 
 export const invoiceService = {
-  async getAllInvoices(): Promise<InvoiceRecord[]> {
+  async getAllInvoices(fastMode: boolean = false, page: number = 1, perPage: number = 100): Promise<any> {
     try {
-      const response = await apiClient.get<InvoiceResponse>('/billing-generation/invoices');
-      if (response.data.success) {
-        return response.data.data;
-      }
-      throw new Error(response.data.message || 'Failed to fetch invoices');
+      // Using the dedicated invoice records endpoint that directly queries invoices table
+      const response = await apiClient.get<InvoiceResponse>('/invoice-records', {
+        params: {
+          fast: fastMode ? '1' : '0',
+          page,
+          per_page: perPage
+        }
+      });
+
+      return {
+        success: response.data.success,
+        data: response.data.data || [],
+        total: (response.data as any).total || (response.data.data ? response.data.data.length : 0),
+        message: response.data.message
+      };
     } catch (error) {
       console.error('Error fetching invoice records:', error);
-      throw error;
+      return {
+        success: false,
+        data: [],
+        total: 0,
+        message: error instanceof Error ? error.message : 'Failed to fetch invoices'
+      };
     }
   },
 
@@ -69,6 +84,21 @@ export const invoiceService = {
       throw new Error(response.data.message || 'Failed to fetch invoices');
     } catch (error) {
       console.error('Error fetching invoice records by account:', error);
+      throw error;
+    }
+  },
+
+  async getInvoicesByAccountNo(accountNo: string): Promise<InvoiceRecord[]> {
+    try {
+      const response = await apiClient.get<InvoiceResponse>('/billing-generation/invoices', {
+        params: { account_no: accountNo }
+      });
+      if (response.data.success) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Failed to fetch invoices');
+    } catch (error) {
+      console.error('Error fetching invoice records by account no:', error);
       throw error;
     }
   },

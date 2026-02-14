@@ -12,10 +12,12 @@ class PaymentWorkerService
     private $lockTimeout = 300; // 5 minutes max execution time
     private $hasLock = false;
     private $radiusReconnectionService;
+    private $manualRadiusService;
 
     public function __construct()
     {
         $this->radiusReconnectionService = new RadiusReconnectionService();
+        $this->manualRadiusService = new ManualRadiusOperationsService();
     }
 
     /**
@@ -133,6 +135,7 @@ class PaymentWorkerService
                     'billing_accounts.account_balance',
                     DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name"),
                     'customers.contact_number_primary',
+                    'customers.email_address',
                     'customers.desired_plan'
                 )
                 ->first();
@@ -158,25 +161,29 @@ class PaymentWorkerService
                         'updated_at' => now()
                     ]);
 
-                // Insert transaction log
+                // Parse callback payload for payment details
                 $json = json_decode($rawPayload, true);
                 $checkoutID = $json['id'] ?? $payment->payment_id ?? 'N/A';
-                $paymentChannel = $json['payment_channel'] ?? $json['bank_code'] ?? 'Xendit';
+                $paymentChannel = $json['payment_channel'] ?? $json['bank_code'] ?? null;
+                $ewalletType = $json['ewallet_type'] ?? null;
+                $status = $json['status'] ?? 'PAID';
+                $type = $json['type'] ?? null;
 
-                DB::table('transactions')->insert([
-                    'account_no' => $accountNo,
-                    'transaction_type' => 'Recurring Fee',
-                    'received_payment' => $amount,
-                    'payment_method' => "Online - Xendit ($paymentChannel)",
+                // Insert into payment_portal_logs
+                DB::table('payment_portal_logs')->insert([
                     'reference_no' => $ref,
-                    'or_no' => $ref,
-                    'remarks' => "Payment via Xendit Portal - Invoice: $checkoutID - {$result['distribution_summary']}",
-                    'status' => 'Approved',
-                    'payment_date' => now(),
-                    'date_processed' => now(),
-                    'created_by_user' => 'Payment Worker',
-                    'updated_by_user' => 'Payment Worker',
-                    'created_at' => now(),
+                    'account_id' => $account->account_id,
+                    'total_amount' => $amount,
+                    'date_time' => now(),
+                    'checkout_id' => $checkoutID,
+                    'status' => $status,
+                    'transaction_status' => 'COMPLETED',
+                    'ewallet_type' => $ewalletType,
+                    'payment_channel' => $paymentChannel,
+                    'type' => $type,
+                    'payment_url' => $payment->payment_url ?? null,
+                    'json_payload' => $payment->json_payload ?? null,
+                    'callback_payload' => $rawPayload,
                     'updated_at' => now()
                 ]);
 
@@ -198,6 +205,90 @@ class PaymentWorkerService
                 }
 
                 DB::commit();
+
+                // Send Paid SMS
+                try {
+                    $paidInvoices = $result['invoices_paid'] ?? [];
+                    
+                    if (!empty($paidInvoices) && !empty($account->contact_number_primary)) {
+                        $paidTemplate = DB::table('sms_templates')
+                            ->where('template_type', 'Paid')
+                            ->where('is_active', 1)
+                            ->first();
+
+                        if ($paidTemplate) {
+                            $smsService = new \App\Services\ItexmoSmsService();
+
+                            foreach ($paidInvoices as $paidInvoice) {
+                                $message = $paidTemplate->message_content;
+                                
+                                $message = str_replace('{{customer_name}}', $account->full_name, $message);
+                                $message = str_replace('{{account_no}}', $account->account_no, $message);
+                                $message = str_replace('{{invoice_id}}', $paidInvoice['invoice_id'], $message);
+                                $message = str_replace('{{amount_paid}}', $paidInvoice['amount_paid'], $message);
+                                $message = str_replace('{{date}}', date('Y-m-d'), $message);
+
+                                $smsResult = $smsService->send([
+                                    'contact_no' => $account->contact_number_primary,
+                                    'message' => $message
+                                ]);
+
+                                if ($smsResult['success']) {
+                                    $this->workerLog("Paid Invoice SMS sent for Invoice #{$paidInvoice['invoice_id']}");
+                                } else {
+                                    $this->workerLog("Paid Invoice SMS Failed: " . ($smsResult['error'] ?? 'Unknown error'));
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception $e) {
+                    $this->workerLog("Paid Invoice SMS Exception: " . $e->getMessage());
+                }
+
+                // Send Paid Email
+                try {
+                    $paidInvoices = $result['invoices_paid'] ?? [];
+                    
+                    if (!empty($paidInvoices) && !empty($account->email_address)) {
+                         $paidEmailTemplate = DB::table('email_templates')
+                             ->where('Template_Code', 'PAID')
+                             ->where('Is_Active', 1)
+                             ->first();
+                         
+                         if ($paidEmailTemplate) {
+                             $emailService = app(\App\Services\EmailQueueService::class);
+                             
+                             foreach ($paidInvoices as $paidInvoice) {
+                                  $emailBody = $paidEmailTemplate->email_body;
+                                  
+                                  // Replace variables
+                                  $emailBody = str_replace('{{customer_name}}', $account->full_name, $emailBody);
+                                  $emailBody = str_replace('{{account_no}}', $account->account_no, $emailBody);
+                                  $emailBody = str_replace('{{invoice_id}}', $paidInvoice['invoice_id'], $emailBody);
+                                  $emailBody = str_replace('{{amount_paid}}', $paidInvoice['amount_paid'], $emailBody);
+                                  $emailBody = str_replace('{{date}}', date('Y-m-d'), $emailBody);
+
+                                  if (!empty($emailBody)) {
+                                       $emailService->queueEmail([
+                                           'account_no' => $account->account_no,
+                                           'recipient_email' => $account->email_address,
+                                           'subject' => $paidEmailTemplate->Subject_Line ?? 'Payment Received', 
+                                           'body_html' => nl2br($emailBody), 
+                                           'attachment_path' => null
+                                       ]);
+                                       
+                                       $this->workerLog("Paid Invoice Email queued for Invoice #{$paidInvoice['invoice_id']} to {$account->email_address}");
+                                  } else {
+                                      $this->workerLog("Paid Invoice Email Body is empty");
+                                  }
+                             }
+                         } else {
+                             $this->workerLog("Paid Email (WELCOME) template not found or inactive");
+                         }
+                    }
+                } catch (Exception $e) {
+                    $this->workerLog("Paid Invoice Email Exception: " . $e->getMessage());
+                }
                 
             } else {
                 // Billing update failed
@@ -228,6 +319,7 @@ class PaymentWorkerService
             $accountNo = $account->account_no;
             $remainingAmount = $paymentAmount;
             $distributionLog = [];
+            $paidInvoices = [];
 
             // Get unpaid invoices ordered by invoice_date (oldest first)
             $unpaidInvoices = DB::table('invoices')
@@ -252,7 +344,8 @@ class PaymentWorkerService
                     'success' => true,
                     'distribution_summary' => "Applied as credit (No unpaid invoices)",
                     'distributed_amount' => $paymentAmount,
-                    'remaining_amount' => 0
+                    'remaining_amount' => 0,
+                    'invoices_paid' => []
                 ];
             }
 
@@ -277,6 +370,10 @@ class PaymentWorkerService
                 $newStatus = 'Unpaid';
                 if ($newInvoiceBalance <= 0.01) { // Fully paid (accounting for floating point)
                     $newStatus = 'Paid';
+                    $paidInvoices[] = [
+                        'invoice_id' => $invoiceId,
+                        'amount_paid' => $amountToApply
+                    ];
                 } elseif ($newReceivedPayment > 0) { // Partially paid
                     $newStatus = 'Partial';
                 }
@@ -318,7 +415,8 @@ class PaymentWorkerService
                 'success' => true,
                 'distribution_summary' => $distributionSummary,
                 'distributed_amount' => $paymentAmount - $remainingAmount,
-                'remaining_amount' => $remainingAmount
+                'remaining_amount' => $remainingAmount,
+                'invoices_paid' => $paidInvoices
             ];
 
         } catch (Exception $e) {
@@ -336,20 +434,173 @@ class PaymentWorkerService
 
     /**
      * Attempt to reconnect user account
+     * Enhanced version: Checks session_status from online_status table
+     */
+    /**
+     * Attempt to reconnect user account
+     * Matches logic in TransactionController::approve
      */
     private function attemptReconnect($account)
     {
         try {
-            $this->workerLog("Reconnect triggered for account: {$account->account_no}");
+            // Reload billing account to get latest balance and status
+            $billingAccount = DB::table('billing_accounts')->where('id', $account->account_id)->first();
+            $accountNo = $billingAccount->account_no;
             
-            $result = $this->radiusReconnectionService->attemptReconnect($account->account_no);
+            $this->workerLog("[RECONNECT CHECK] Starting for account: {$accountNo}");
             
-            $this->workerLog("Reconnect result for {$account->account_no}: {$result}");
+            // Step 1: Check if balance qualifies (0 or negative)
+            $balance = floatval($billingAccount->account_balance ?? 0);
+            if ($balance > 0) {
+                $this->workerLog("[RECONNECT SKIP] Balance is positive: ₱{$balance}");
+                return 'balance_positive';
+            }
+
+            // Step 2: Check if billing status is NOT 1 (Active)
+            if ($billingAccount->billing_status_id == 1) {
+                $this->workerLog("[RECONNECT SKIP] Account is already Active (Status ID: 1)");
+                return 'status_already_active';
+            }
+
+            // Step 3: Get account details with PPPoE username and plan
+            $accountDetails = DB::table('billing_accounts')
+                ->leftJoin('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                ->leftJoin('technical_details', 'billing_accounts.id', '=', 'technical_details.account_id')
+                ->where('billing_accounts.id', $billingAccount->id)
+                ->where('billing_accounts.id', $billingAccount->id)
+                ->select('technical_details.username as pppoe_username', 'customers.desired_plan', 'customers.email_address')
+                ->first();
+
+            $username = $accountDetails->pppoe_username ?? null;
+            $plan = $accountDetails->desired_plan ?? null;
+            $emailAddress = $accountDetails->email_address ?? null;
+
+            if (empty($username)) {
+                $this->workerLog("[RECONNECT SKIP] No PPPoE username found in technical_details for account: {$accountNo}");
+                return 'no_username';
+            }
+
+            if (empty($plan)) {
+                $this->workerLog("[RECONNECT SKIP] No plan found for account: {$accountNo}");
+                return 'no_plan';
+            }
+
+            $this->workerLog("[RECONNECT PROCEED] Conditions met - Status not Active, Balance: ₱{$balance}");
+
+            // Step 4: Update billing_status_id to 1 (Active) BEFORE calling reconnectUser
+            DB::table('billing_accounts')
+                ->where('id', $billingAccount->id)
+                ->update([
+                    'billing_status_id' => 1,
+                    'updated_at' => now(),
+                    'updated_by' => 'Payment Worker'
+                ]);
             
-            return $result;
+            $this->workerLog("[RECONNECT DB] Updated billing_status_id to 1 for Account: {$accountNo}");
+
+            // Step 5: Prepare parameters for ManualRadiusOperationsService
+            $params = [
+                'accountNumber' => $accountNo,
+                'username' => $username,
+                'plan' => $plan,
+                'updatedBy' => 'Payment Worker Auto-Reconnect'
+            ];
+
+            // Step 6: Call ManualRadiusOperationsService reconnectUser
+            // This will Update Radius Group & Kill Session
+            $this->workerLog("[RECONNECT EXECUTE] Calling ManualRadiusOperationsService for {$username}");
+            $result = $this->manualRadiusService->reconnectUser($params);
+            
+            if ($result['status'] === 'success') {
+                $this->workerLog("[RECONNECT SUCCESS] Reconnection and Session Kill completed successfully");
+
+                // Send SMS Notification
+                try {
+                    // Fetch SMS template
+                    $smsTemplate = DB::table('sms_templates')
+                        ->where('template_type', 'Reconnect')
+                        ->where('is_active', 1)
+                        ->first();
+
+                    if ($smsTemplate) {
+                        // Get Customer Name and Contact Number
+                        $customerInfo = DB::table('billing_accounts')
+                            ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                            ->where('billing_accounts.account_no', $accountNo)
+                            ->select(
+                                'customers.contact_number_primary',
+                                DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name")
+                            )
+                            ->first();
+
+                        if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
+                            // Replace variables
+                            $message = $smsTemplate->message_content;
+                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
+
+                            // Send SMS
+                            $smsService = new \App\Services\ItexmoSmsService();
+                            $smsResult = $smsService->send([
+                                'contact_no' => $customerInfo->contact_number_primary,
+                                'message' => $message
+                            ]);
+
+                            if ($smsResult['success']) {
+                                $this->workerLog("[RECONNECT SMS] SMS sent to " . $customerInfo->contact_number_primary);
+                            } else {
+                                $this->workerLog("[RECONNECT SMS FAILED] " . ($smsResult['error'] ?? 'Unknown error'));
+                            }
+                        } else {
+                            $this->workerLog("[RECONNECT SMS SKIP] No contact number found for account " . $accountNo);
+                        }
+                    } else {
+                        $this->workerLog("[RECONNECT SMS SKIP] No active Reconnect SMS template found");
+                    }
+                } catch (Exception $e) {
+                    $this->workerLog("[RECONNECT SMS EXCEPTION] " . $e->getMessage());
+                }
+
+                // Send Email Notification
+                try {
+                    $emailTemplate = DB::table('email_templates')->where('Template_Code', 'RECONNECT')->first();
+
+                    if ($emailTemplate && !empty($emailAddress)) {
+                        // Use email_body as the content (body) as requested
+                        $body = $emailTemplate->email_body;
+
+                        if (!empty($body)) {
+                            // Resolve EmailQueueService from container since it serves dependencies
+                            $emailService = app(\App\Services\EmailQueueService::class);
+
+                            $emailService->queueEmail([
+                                'account_no' => $accountNo,
+                                'recipient_email' => $emailAddress,
+                                'subject' => $emailTemplate->Subject_Line ?? 'Reconnection Notice',
+                                'body_html' => nl2br($body),
+                                'attachment_path' => null
+                            ]);
+
+                            $this->workerLog("[RECONNECT EMAIL] Email queued for {$emailAddress}");
+                        } else {
+                            $this->workerLog("[RECONNECT EMAIL SKIP] email_body is empty");
+                        }
+                    } else {
+                        if (!$emailTemplate) $this->workerLog("[RECONNECT EMAIL SKIP] RECONNECT template not found");
+                        if (empty($emailAddress)) $this->workerLog("[RECONNECT EMAIL SKIP] No email address for customer");
+                    }
+                } catch (Exception $e) {
+                    $this->workerLog("[RECONNECT EMAIL EXCEPTION] " . $e->getMessage());
+                }
+
+                return 'success';
+            } else {
+                $this->workerLog("[RECONNECT FAILED] " . $result['message']);
+                return 'failed';
+            }
             
         } catch (Exception $e) {
-            $this->workerLog("Reconnect failed for {$account->account_no}: {$e->getMessage()}");
+            $this->workerLog("[RECONNECT EXCEPTION] Failed for {$account->account_no}: {$e->getMessage()}");
+            $this->workerLog("[RECONNECT EXCEPTION] Trace: {$e->getTraceAsString()}");
             return 'exception';
         }
     }

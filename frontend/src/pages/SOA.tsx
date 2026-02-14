@@ -1,54 +1,78 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Search, X } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Search, ArrowUp, ArrowDown, ListFilter, X } from 'lucide-react';
 import SOADetails from '../components/SOADetails';
-import { soaService, SOARecord } from '../services/soaService';
+import '../services/soaService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { paymentService, PendingPayment } from '../services/paymentService';
+import { useSOAStore, SOARecordUI } from '../store/soaStore';
+import BillingDetails from '../components/CustomerDetails';
+import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
+import { BillingDetailRecord } from '../types/billing';
+import SOAFunnelFilter, { FilterValues } from '../filter/SOAFunnelFilter';
+import { Filter } from 'lucide-react';
 
-interface SOARecordUI {
-  id: string;
-  accountNo: string;
-  statementDate: string;
-  balanceFromPreviousBill: number;
-  paymentReceivedPrevious: number;
-  remainingBalancePrevious: number;
-  monthlyServiceFee: number;
-  serviceCharge: number;
-  rebate: number;
-  discounts: number;
-  staggered: number;
-  vat: number;
-  dueDate: string;
-  amountDue: number;
-  totalAmountDue: number;
-  printLink?: string;
-  createdAt?: string;
-  createdBy?: string;
-  updatedAt?: string;
-  updatedBy?: string;
-  fullName: string;
-  contactNumber: string;
-  emailAddress: string;
-  address: string;
-  plan: string;
-  dateInstalled: string;
-  barangay?: string;
-  city?: string;
-  region?: string;
-  provider?: string;
-  statementNo?: string;
-  paymentReceived?: number;
-  remainingBalance?: number;
-  deliveryStatus?: string;
-  deliveryDate?: string;
-  deliveredBy?: string;
-  deliveryRemarks?: string;
-  deliveryProof?: string;
-  modifiedBy?: string;
-  modifiedDate?: string;
-}
+// Removed local SOARecordUI interface
+
+// Removed local SOARecordUI interface
+
+const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
+  return {
+    id: customerData.billingAccount?.accountNo || '',
+    applicationId: customerData.billingAccount?.accountNo || '',
+    customerName: customerData.fullName,
+    address: customerData.address,
+    status: customerData.billingAccount?.billingStatusId === 2 ? 'Active' : 'Inactive',
+    balance: customerData.billingAccount?.accountBalance || 0,
+    onlineStatus: customerData.billingAccount?.billingStatusId === 2 ? 'Online' : 'Offline',
+    cityId: null,
+    regionId: null,
+    timestamp: customerData.updatedAt || '',
+    billingStatus: customerData.billingAccount?.billingStatusId ? `Status ${customerData.billingAccount.billingStatusId}` : '',
+    dateInstalled: customerData.billingAccount?.dateInstalled || '',
+    contactNumber: customerData.contactNumberPrimary,
+    secondContactNumber: customerData.contactNumberSecondary || '',
+    emailAddress: customerData.emailAddress || '',
+    plan: customerData.desiredPlan || '',
+    username: customerData.technicalDetails?.username || '',
+    connectionType: customerData.technicalDetails?.connectionType || '',
+    routerModel: customerData.technicalDetails?.routerModel || '',
+    routerModemSN: customerData.technicalDetails?.routerModemSn || '',
+    lcpnap: customerData.technicalDetails?.lcpnap || '',
+    port: customerData.technicalDetails?.port || '',
+    vlan: customerData.technicalDetails?.vlan || '',
+    billingDay: customerData.billingAccount?.billingDay || 0,
+    totalPaid: 0,
+    provider: '',
+    lcp: customerData.technicalDetails?.lcp || '',
+    nap: customerData.technicalDetails?.nap || '',
+    modifiedBy: '',
+    modifiedDate: customerData.updatedAt || '',
+    barangay: customerData.barangay || '',
+    city: customerData.city || '',
+    region: customerData.region || '',
+
+    usageType: customerData.technicalDetails?.usageTypeId ? `Type ${customerData.technicalDetails.usageTypeId}` : '',
+    referredBy: customerData.referredBy || '',
+    referralContactNo: '',
+    groupName: customerData.groupName || '',
+    mikrotikId: '',
+    sessionIp: customerData.technicalDetails?.ipAddress || '',
+    houseFrontPicture: customerData.houseFrontPictureUrl || '',
+    accountBalance: customerData.billingAccount?.accountBalance || 0,
+    housingStatus: customerData.housingStatus || '',
+    addressCoordinates: customerData.addressCoordinates || '',
+  };
+};
 
 const SOA: React.FC = () => {
+  const { soaRecords, totalCount, isLoading, error, fetchSOARecords, refreshSOARecords } = useSOAStore();
+
+  // Fetch data on mount if empty
+  useEffect(() => {
+    if (soaRecords.length === 0) {
+      fetchSOARecords();
+    }
+  }, [fetchSOARecords, soaRecords.length]);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -57,22 +81,50 @@ const SOA: React.FC = () => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
   const [selectedRecord, setSelectedRecord] = useState<SOARecordUI | null>(null);
-  const [soaRecords, setSOARecords] = useState<SOARecordUI[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  // Removed local soaRecords, isLoading, error state
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [userRole, setUserRole] = useState<string>('');
   const [accountNo, setAccountNo] = useState<string>('');
   const [accountBalance, setAccountBalance] = useState<number>(0);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
   const [isPaymentProcessing, setIsPaymentProcessing] = useState<boolean>(false);
   const [showPaymentVerifyModal, setShowPaymentVerifyModal] = useState<boolean>(false);
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [fullName, setFullName] = useState<string>('');
   const [showPaymentLinkModal, setShowPaymentLinkModal] = useState<boolean>(false);
-  const [paymentLinkData, setPaymentLinkData] = useState<{referenceNo: string; amount: number; paymentUrl: string} | null>(null);
+  const [paymentLinkData, setPaymentLinkData] = useState<{ referenceNo: string; amount: number; paymentUrl: string } | null>(null);
   const [showPendingPaymentModal, setShowPendingPaymentModal] = useState<boolean>(false);
   const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+
+  const [sortColumn, setSortColumn] = useState<string | null>('id');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const startXRef = useRef<number>(0);
+  const startWidthRef = useRef<number>(0);
+  const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
+  const [activeFilters, setActiveFilters] = useState<FilterValues>(() => {
+    const saved = localStorage.getItem('soaFunnelFilters');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to load filters:', err);
+      }
+    }
+    return {};
+  });
 
   const allColumns = [
     { key: 'id', label: 'ID', width: 'min-w-20' },
@@ -114,7 +166,26 @@ const SOA: React.FC = () => {
 
   const displayColumns = userRole === 'customer' ? customerColumns : allColumns;
 
-  const dateItems: Array<{ date: string; id: string }> = [{ date: 'All', id: '' }];
+  // Derive date items from context data instead of fetching separately or static
+  const dateItems: Array<{ date: string; id: string }> = useMemo(() => {
+    const dates = new Map<string, string>();
+    soaRecords.forEach((record: SOARecordUI) => {
+      if (record.statementDate && record.statementDate !== 'N/A') {
+        // Map formatted date to raw date for sorting
+        dates.set(record.statementDate, record.statementDateRaw || record.statementDate);
+      }
+    });
+
+    const sortedDates = Array.from(dates.entries())
+      .sort((a, b) => {
+        const timeA = new Date(a[1]).getTime();
+        const timeB = new Date(b[1]).getTime();
+        return timeB - timeA;
+      })
+      .map(([formatted]) => formatted);
+
+    return [{ date: 'All', id: '' }, ...sortedDates.map(d => ({ date: d, id: d }))];
+  }, [soaRecords]);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -153,6 +224,7 @@ const SOA: React.FC = () => {
     }
   }, []);
 
+  // Fetch color palette
   useEffect(() => {
     const fetchColorPalette = async () => {
       try {
@@ -162,87 +234,240 @@ const SOA: React.FC = () => {
         console.error('Failed to fetch color palette:', err);
       }
     };
-    
     fetchColorPalette();
   }, []);
 
+  // Idle detection and auto-refresh logic
   useEffect(() => {
-    fetchSOAData();
-  }, []);
+    const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
+    let idleTimer: NodeJS.Timeout | null = null;
 
-  const fetchSOAData = async () => {
-    try {
-      setIsLoading(true);
-      const data = await soaService.getAllStatements();
-      
-      const transformedData: SOARecordUI[] = data.map(record => ({
-        id: record.id.toString(),
-        accountNo: record.account_no || record.account?.account_no || '',
-        statementDate: new Date(record.statement_date).toLocaleDateString(),
-        balanceFromPreviousBill: Number(record.balance_from_previous_bill) || 0,
-        paymentReceivedPrevious: Number(record.payment_received_previous) || 0,
-        remainingBalancePrevious: Number(record.remaining_balance_previous) || 0,
-        monthlyServiceFee: Number(record.monthly_service_fee) || 0,
-        serviceCharge: Number(record.service_charge) || 0,
-        rebate: Number(record.rebate) || 0,
-        discounts: Number(record.discounts) || 0,
-        staggered: Number(record.staggered) || 0,
-        vat: Number(record.vat) || 0,
-        dueDate: new Date(record.due_date).toLocaleDateString(),
-        amountDue: Number(record.amount_due) || 0,
-        totalAmountDue: Number(record.total_amount_due) || 0,
-        printLink: record.print_link,
-        createdAt: record.created_at ? new Date(record.created_at).toLocaleString() : '',
-        createdBy: record.created_by,
-        updatedAt: record.updated_at ? new Date(record.updated_at).toLocaleString() : '',
-        updatedBy: record.updated_by,
-        fullName: record.account?.customer?.full_name || 'Unknown',
-        contactNumber: record.account?.customer?.contact_number_primary || 'N/A',
-        emailAddress: record.account?.customer?.email_address || 'N/A',
-        address: record.account?.customer?.address || 'N/A',
-        plan: record.account?.customer?.desired_plan || 'No Plan',
-        dateInstalled: record.account?.date_installed ? new Date(record.account.date_installed).toLocaleDateString() : 'N/A',
-        barangay: record.account?.customer?.barangay || '',
-        city: record.account?.customer?.city || '',
-        region: record.account?.customer?.region || '',
-        provider: 'SWITCH',
-        statementNo: '2509180' + record.id.toString(),
-        paymentReceived: Number(record.payment_received_previous) || 0,
-        remainingBalance: Number(record.remaining_balance_previous) || 0,
-        deliveryStatus: undefined,
-        deliveryDate: undefined,
-        deliveredBy: undefined,
-        deliveryRemarks: undefined,
-        deliveryProof: undefined,
-        modifiedBy: record.updated_by,
-        modifiedDate: record.updated_at ? new Date(record.updated_at).toLocaleDateString() : undefined,
-      }));
+    const refreshData = async () => {
+      console.log('User idle for 15 minutes, auto-refreshing SOA data...');
+      try {
+        await refreshSOARecords();
+      } catch (err) {
+        console.error('Idle refresh failed:', err);
+      }
+      // Set the timer again to refresh every 15 mins if they remain idle
+      startTimer();
+    };
 
-      setSOARecords(transformedData);
-      setError(null);
-    } catch (err) {
-      console.error('Failed to fetch SOA records:', err);
-      setError('Failed to load SOA records. Please try again.');
-      setSOARecords([]);
-    } finally {
-      setIsLoading(false);
+    const startTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(refreshData, IDLE_TIME_LIMIT);
+    };
+
+    const resetTimer = () => {
+      startTimer();
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    // Use passive listeners for performance
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    startTimer(); // Initialize timer on mount
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [refreshSOARecords]);
+
+  // Initialize column order and visibility
+  useEffect(() => {
+    if (displayColumns.length > 0) {
+      if (columnOrder.length === 0) {
+        setColumnOrder(displayColumns.map(col => col.key));
+      }
+      if (visibleColumns.length === 0) {
+        setVisibleColumns(displayColumns.map(col => col.key));
+      }
+    }
+  }, [displayColumns, columnOrder.length, visibleColumns.length]);
+
+  // Removed automatic silent refresh on mount to favor session storage
+  // and context-managed initial fetch.
+
+
+
+  const filteredRecords = useMemo(() => {
+    let filtered = soaRecords.filter((record: SOARecordUI) => {
+      const matchesDate = selectedDate === 'All' || record.statementDate === selectedDate;
+      const matchesSearch = searchQuery === '' ||
+        record.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.accountNo.includes(searchQuery) ||
+        record.id.includes(searchQuery);
+
+      return matchesDate && matchesSearch;
+    });
+
+    // Apply funnel filters
+    if (activeFilters && Object.keys(activeFilters).length > 0) {
+      filtered = filtered.filter(record => {
+        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
+          const recordValue = (record as any)[key];
+
+          if (filter.type === 'text') {
+            if (!filter.value) return true;
+            const value = String(recordValue || '').toLowerCase();
+            return value.includes(filter.value.toLowerCase());
+          }
+
+          if (filter.type === 'number') {
+            const numValue = Number(recordValue);
+            if (isNaN(numValue)) return false;
+            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
+            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
+            return true;
+          }
+
+          if (filter.type === 'date') {
+            if (!recordValue) return false;
+            const dateValue = new Date(recordValue).getTime();
+            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
+            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
+            return true;
+          }
+
+          return true;
+        });
+      });
+    }
+
+    // Sorting logic
+    if (sortColumn) {
+      filtered = [...filtered].sort((a, b) => {
+        let aValue: any = (a as any)[sortColumn] || '';
+        let bValue: any = (b as any)[sortColumn] || '';
+
+        // Handle numeric values
+        const numericColumns = [
+          'balanceFromPreviousBill', 'paymentReceivedPrevious', 'remainingBalancePrevious',
+          'monthlyServiceFee', 'serviceCharge', 'rebate', 'discounts', 'staggered',
+          'vat', 'amountDue', 'totalAmountDue'
+        ];
+
+        if (numericColumns.includes(sortColumn)) {
+          aValue = Number(aValue) || 0;
+          bValue = Number(bValue) || 0;
+        } else if (sortColumn === 'statementDate' || sortColumn === 'dueDate' || sortColumn === 'createdAt' || sortColumn === 'updatedAt') {
+          // Use raw date for sorting if available
+          if (sortColumn === 'statementDate') {
+            aValue = a.statementDateRaw || a.statementDate || '';
+            bValue = b.statementDateRaw || b.statementDate || '';
+          }
+          aValue = new Date(aValue).getTime() || 0;
+          bValue = new Date(bValue).getTime() || 0;
+        } else {
+          aValue = String(aValue).toLowerCase();
+          bValue = String(bValue).toLowerCase();
+        }
+
+        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [soaRecords, selectedDate, searchQuery, sortColumn, sortDirection, activeFilters]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedDate, searchQuery]);
+
+  const paginatedRecords = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredRecords.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredRecords, currentPage]);
+
+  // Use totalCount for total pages if no filter/search is active
+  const totalDisplayCount = useMemo(() => {
+    if (searchQuery || selectedDate !== 'All' || Object.keys(activeFilters).length > 0) {
+      return filteredRecords.length;
+    }
+    return Math.max(totalCount, soaRecords.length);
+  }, [filteredRecords.length, totalCount, soaRecords.length, searchQuery, selectedDate, activeFilters]);
+
+  const totalPages = Math.ceil(totalDisplayCount / itemsPerPage);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
     }
   };
 
-  const filteredRecords = soaRecords.filter(record => {
-    const matchesDate = selectedDate === 'All' || record.statementDate === selectedDate;
-    const matchesSearch = searchQuery === '' || 
-                         record.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         record.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         record.accountNo.includes(searchQuery) ||
-                         record.id.includes(searchQuery);
-    
-    return matchesDate && matchesSearch;
-  });
+  const PaginationControls = () => {
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+              }`}
+          >
+            Previous
+          </button>
+
+          <div className="flex items-center space-x-1">
+            <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Page {currentPage} of {totalPages}
+            </span>
+          </div>
+
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+              }`}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   const handleRowClick = (record: SOARecordUI) => {
     if (userRole !== 'customer') {
       setSelectedRecord(record);
+      setSelectedCustomer(null); // Clear customer view when switching records
+    }
+  };
+
+  const handleViewCustomer = async (accountNo: string) => {
+    setIsLoadingDetails(true);
+    try {
+      const detail = await getCustomerDetail(accountNo);
+      if (detail) {
+        setSelectedCustomer(detail);
+      }
+    } catch (err) {
+      console.error('Error fetching customer details:', err);
+    } finally {
+      setIsLoadingDetails(false);
     }
   };
 
@@ -251,7 +476,7 @@ const SOA: React.FC = () => {
   };
 
   const handleRefresh = async () => {
-    await fetchSOAData();
+    await refreshSOARecords();
   };
 
   const handlePayNow = async () => {
@@ -262,9 +487,9 @@ const SOA: React.FC = () => {
       // Fetch current account balance from database
       const currentBalance = await paymentService.getAccountBalance(accountNo);
       setAccountBalance(currentBalance);
-      
+
       const pending = await paymentService.checkPendingPayment(accountNo);
-      
+
       if (pending && pending.payment_url) {
         setPendingPayment(pending);
         setShowPendingPaymentModal(true);
@@ -329,10 +554,7 @@ const SOA: React.FC = () => {
     }
   };
 
-  const handleCancelPaymentLink = () => {
-    setShowPaymentLinkModal(false);
-    setPaymentLinkData(null);
-  };
+
 
   const handleResumePendingPayment = () => {
     if (pendingPayment && pendingPayment.payment_url) {
@@ -352,10 +574,10 @@ const SOA: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizingSidebar) return;
-      
+
       const diff = e.clientX - sidebarStartXRef.current;
       const newWidth = Math.max(200, Math.min(500, sidebarStartWidthRef.current + diff));
-      
+
       setSidebarWidth(newWidth);
     };
 
@@ -372,12 +594,157 @@ const SOA: React.FC = () => {
     };
   }, [isResizingSidebar]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Sidebar handles its own state
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setFilterDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [filterDropdownRef]);
+
   const handleMouseDownSidebarResize = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizingSidebar(true);
     sidebarStartXRef.current = e.clientX;
     sidebarStartWidthRef.current = sidebarWidth;
   };
+
+  const handleToggleColumn = (columnKey: string) => {
+    setVisibleColumns(prev => {
+      const newColumns = prev.includes(columnKey)
+        ? prev.filter(key => key !== columnKey)
+        : [...prev, columnKey];
+      return newColumns;
+    });
+  };
+
+  const handleSelectAllColumns = () => {
+    const allKeys = displayColumns.map(col => col.key);
+    setVisibleColumns(allKeys);
+  };
+
+  const handleDeselectAllColumns = () => {
+    setVisibleColumns([]);
+  };
+
+  const handleSort = (columnKey: string) => {
+    if (sortColumn === columnKey) {
+      if (sortDirection === 'desc') {
+        setSortColumn(null);
+        setSortDirection('asc');
+      } else {
+        setSortDirection('desc');
+      }
+    } else {
+      setSortColumn(columnKey);
+      setSortDirection('asc');
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, columnKey: string) => {
+    setDraggedColumn(columnKey);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, columnKey: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedColumn && draggedColumn !== columnKey) {
+      setDragOverColumn(columnKey);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverColumn(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetColumnKey: string) => {
+    e.preventDefault();
+
+    if (!draggedColumn || draggedColumn === targetColumnKey) {
+      setDraggedColumn(null);
+      setDragOverColumn(null);
+      return;
+    }
+
+    const newOrder = [...columnOrder];
+    const draggedIndex = newOrder.indexOf(draggedColumn);
+    const targetIndex = newOrder.indexOf(targetColumnKey);
+
+    newOrder.splice(draggedIndex, 1);
+    newOrder.splice(targetIndex, 0, draggedColumn);
+
+    setColumnOrder(newOrder);
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  const handleMouseDownResize = (e: React.MouseEvent, columnKey: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingColumn(columnKey);
+    startXRef.current = e.clientX;
+
+    const th = (e.target as HTMLElement).closest('th');
+    if (th) {
+      startWidthRef.current = th.offsetWidth;
+    }
+  };
+
+  useEffect(() => {
+    if (!resizingColumn) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizingColumn) return;
+
+      const diff = e.clientX - startXRef.current;
+      const newWidth = Math.max(100, startWidthRef.current + diff);
+
+      setColumnWidths(prev => ({
+        ...prev,
+        [resizingColumn]: newWidth
+      }));
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizingColumn]);
+
+  const filteredColumns = displayColumns
+    .filter(col => visibleColumns.includes(col.key))
+    .sort((a, b) => {
+      const indexA = columnOrder.indexOf(a.key);
+      const indexB = columnOrder.indexOf(b.key);
+      return indexA - indexB;
+    });
 
   const handleDownloadPDF = (printLink: string | undefined) => {
     if (printLink) {
@@ -420,29 +787,29 @@ const SOA: React.FC = () => {
           </button>
         );
       case 'balanceFromPreviousBill':
-        return `₱ ${record.balanceFromPreviousBill.toFixed(2)}`;
+        return `₱ ${(record.balanceFromPreviousBill ?? 0).toFixed(2)}`;
       case 'paymentReceivedPrevious':
-        return `₱ ${record.paymentReceivedPrevious.toFixed(2)}`;
+        return `₱ ${(record.paymentReceivedPrevious ?? 0).toFixed(2)}`;
       case 'remainingBalancePrevious':
-        return `₱ ${record.remainingBalancePrevious.toFixed(2)}`;
+        return `₱ ${(record.remainingBalancePrevious ?? 0).toFixed(2)}`;
       case 'monthlyServiceFee':
-        return `₱ ${record.monthlyServiceFee.toFixed(2)}`;
+        return `₱ ${(record.monthlyServiceFee ?? 0).toFixed(2)}`;
       case 'serviceCharge':
-        return `₱ ${record.serviceCharge.toFixed(2)}`;
+        return `₱ ${(record.serviceCharge ?? 0).toFixed(2)}`;
       case 'rebate':
-        return `₱ ${record.rebate.toFixed(2)}`;
+        return `₱ ${(record.rebate ?? 0).toFixed(2)}`;
       case 'discounts':
-        return `₱ ${record.discounts.toFixed(2)}`;
+        return `₱ ${(record.discounts ?? 0).toFixed(2)}`;
       case 'staggered':
-        return `₱ ${record.staggered.toFixed(2)}`;
+        return `₱ ${(record.staggered ?? 0).toFixed(2)}`;
       case 'vat':
-        return `₱ ${record.vat.toFixed(2)}`;
+        return `₱ ${(record.vat ?? 0).toFixed(2)}`;
       case 'dueDate':
-        return record.dueDate;
+        return record.dueDate || '-';
       case 'amountDue':
-        return `₱ ${record.amountDue.toFixed(2)}`;
+        return `₱ ${(record.amountDue ?? 0).toFixed(2)}`;
       case 'totalAmountDue':
-        return `₱ ${record.totalAmountDue.toFixed(2)}`;
+        return `₱ ${(record.totalAmountDue ?? 0).toFixed(2)}`;
       case 'printLink':
         return record.printLink || 'NULL';
       case 'createdAt':
@@ -477,77 +844,69 @@ const SOA: React.FC = () => {
   };
 
   return (
-    <div className={`h-full flex overflow-hidden ${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    }`}>
+    <div className={`h-full flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      }`}>
       {userRole !== 'customer' && (
-        <div className={`border-r flex-shrink-0 flex flex-col relative ${
-          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-        }`} style={{ width: `${sidebarWidth}px` }}>
-        <div className={`p-4 border-b flex-shrink-0 ${
-          isDarkMode ? 'border-gray-700' : 'border-gray-200'
-        }`}>
-          <div className="flex items-center justify-between mb-1">
-            <h2 className={`text-lg font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>SOA</h2>
+        <div className={`hidden md:flex border-r flex-shrink-0 flex flex-col relative ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`} style={{ width: `${sidebarWidth}px` }}>
+          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+            }`}>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>SOA</h2>
+            </div>
           </div>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          {dateItems.map((item, index) => (
-            <button
-              key={index}
-              onClick={() => setSelectedDate(item.date)}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-              } ${
-                selectedDate === item.date
-                  ? ''
-                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}
-              style={selectedDate === item.date ? {
-                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
-              } : {}}
-            >
-              <span className="text-sm font-medium flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>
-                {item.date}
-              </span>
-            </button>
-          ))}
-        </div>
+          <div className="flex-1 overflow-y-auto">
+            {dateItems.map((item, index) => (
+              <button
+                key={index}
+                onClick={() => setSelectedDate(item.date)}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                  } ${selectedDate === item.date
+                    ? ''
+                    : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}
+                style={selectedDate === item.date ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#fb923c'
+                } : {}}
+              >
+                <span className="text-sm font-medium flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                  </svg>
+                  {item.date}
+                </span>
+              </button>
+            ))}
+          </div>
 
-        <div
-          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
-          style={{
-            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#ea580c') : 'transparent'
-          }}
-          onMouseEnter={(e) => {
-            if (!isResizingSidebar && colorPalette?.primary) {
-              e.currentTarget.style.backgroundColor = colorPalette.primary;
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isResizingSidebar) {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }
-          }}
-          onMouseDown={handleMouseDownSidebarResize}
-        />
+          <div
+            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
+            style={{
+              backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#ea580c') : 'transparent'
+            }}
+            onMouseEnter={(e) => {
+              if (!isResizingSidebar && colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isResizingSidebar) {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }
+            }}
+            onMouseDown={handleMouseDownSidebarResize}
+          />
         </div>
       )}
 
-      <div className={`flex-1 overflow-hidden ${
-        isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
-      }`}>
+      <div className={`flex-1 overflow-hidden ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+        }`}>
         <div className="flex flex-col h-full">
-          <div className={`p-4 border-b flex-shrink-0 ${
-            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
+          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
             <div className="flex items-center space-x-3">
               <div className="relative flex-1">
                 <input
@@ -555,11 +914,10 @@ const SOA: React.FC = () => {
                   placeholder="Search SOA records..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${
-                    isDarkMode
-                      ? 'bg-gray-800 text-white border border-gray-700'
-                      : 'bg-white text-gray-900 border border-gray-300'
-                  }`}
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
+                    ? 'bg-gray-800 text-white border border-gray-700'
+                    : 'bg-white text-gray-900 border border-gray-300'
+                    }`}
                   style={{
                     '--tw-ring-color': colorPalette?.primary || '#ea580c'
                   } as React.CSSProperties}
@@ -572,10 +930,83 @@ const SOA: React.FC = () => {
                     e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                   }}
                 />
-                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`} />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
               </div>
+              <button
+                onClick={() => setIsFunnelFilterOpen(true)}
+                className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                  ? 'hover:bg-gray-700 text-white'
+                  : 'hover:bg-gray-200 text-gray-900'
+                  }`}
+              >
+                <Filter className="h-5 w-5" />
+              </button>
+              {userRole !== 'customer' && (
+                <div className="relative" ref={filterDropdownRef}>
+                  <button
+                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                      ? 'hover:bg-gray-700 text-white'
+                      : 'hover:bg-gray-200 text-gray-900'
+                      }`}
+                    onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+                  >
+                    <ListFilter className="h-5 w-5" />
+                  </button>
+                  {filterDropdownOpen && (
+                    <div className={`absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-[70vh] flex flex-col ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+                      }`}>
+                      <div className={`p-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                        }`}>
+                        <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>Column Visibility</span>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={handleSelectAllColumns}
+                            className="text-xs"
+                            style={{ color: colorPalette?.primary || '#f97316' }}
+                          >
+                            Select All
+                          </button>
+                          <span className={isDarkMode ? 'text-gray-600' : 'text-gray-400'}>|</span>
+                          <button
+                            onClick={handleDeselectAllColumns}
+                            className="text-xs"
+                            style={{ color: colorPalette?.primary || '#f97316' }}
+                          >
+                            Deselect All
+                          </button>
+                        </div>
+                      </div>
+                      <div className="overflow-y-auto flex-1">
+                        {displayColumns.map((column) => (
+                          <label
+                            key={column.key}
+                            className={`flex items-center px-4 py-2 cursor-pointer text-sm ${isDarkMode
+                              ? 'hover:bg-gray-700 text-white'
+                              : 'hover:bg-gray-100 text-gray-900'
+                              }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={visibleColumns.includes(column.key)}
+                              onChange={() => handleToggleColumn(column.key)}
+                              className={`mr-3 h-4 w-4 rounded ${isDarkMode
+                                ? 'border-gray-600 bg-gray-700 focus:ring-offset-gray-800'
+                                : 'border-gray-300 bg-white focus:ring-offset-white'
+                                }`}
+                              style={{
+                                accentColor: colorPalette?.primary || '#ea580c'
+                              }}
+                            />
+                            <span>{column.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               {userRole === 'customer' && (
                 <button
                   onClick={handlePayNow}
@@ -620,148 +1051,193 @@ const SOA: React.FC = () => {
               </button>
             </div>
           </div>
-          
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto">
+
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-hidden">
               {isLoading ? (
-                <div className={`px-4 py-12 text-center ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   <div className="animate-pulse flex flex-col items-center">
-                    <div className={`h-4 w-1/3 rounded mb-4 ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                    }`}></div>
-                    <div className={`h-4 w-1/2 rounded ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                    }`}></div>
+                    <div className={`h-4 w-1/3 rounded mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
                   </div>
                   <p className="mt-4">Loading SOA records...</p>
                 </div>
               ) : error ? (
-                <div className={`px-4 py-12 text-center ${
-                  isDarkMode ? 'text-red-400' : 'text-red-600'
-                }`}>
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>
                   <p>{error}</p>
-                  <button 
+                  <button
                     onClick={handleRefresh}
-                    className={`mt-4 px-4 py-2 rounded ${
-                      isDarkMode
-                        ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                    }`}>
+                    className={`mt-4 px-4 py-2 rounded ${isDarkMode
+                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      }`}>
                     Retry
                   </button>
                 </div>
               ) : (
-                <div className="overflow-x-auto overflow-y-hidden">
-                  <table className="w-max min-w-full text-sm border-separate border-spacing-0">
-                    <thead>
-                      <tr className={`border-b sticky top-0 z-10 ${
-                        isDarkMode
-                          ? 'border-gray-700 bg-gray-800'
-                          : 'border-gray-200 bg-gray-100'
-                      }`}>
-                        {displayColumns.map((column, index) => (
-                          <th
-                            key={column.key}
-                            className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap ${
-                              isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
-                            } ${
-                              index < displayColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''
-                            }`}
-                          >
-                            {column.label}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredRecords.length > 0 ? (
-                        filteredRecords.map((record) => (
-                          <tr 
-                            key={record.id} 
-                            className={`border-b cursor-pointer transition-colors ${
-                              isDarkMode
-                              ? 'border-gray-800 hover:bg-gray-900'
-                              : 'border-gray-200 hover:bg-gray-50'
-                              } ${
-                              selectedRecord?.id === record.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''
-                              } ${
-                                userRole === 'customer' ? '' : 'cursor-pointer'
-                            }`}
-                            onClick={() => handleRowClick(record)}
-                          >
-                            {displayColumns.map((column, index) => (
-                              <td
+                <>
+                  <div className="h-full relative flex flex-col">
+                    <div className="flex-1 overflow-auto">
+                      <table className="w-max min-w-full text-sm border-separate border-spacing-0">
+                        <thead>
+                          <tr className={`border-b sticky top-0 z-10 ${isDarkMode
+                            ? 'border-gray-700 bg-gray-800'
+                            : 'border-gray-200 bg-gray-100'
+                            }`}>
+                            {filteredColumns.map((column, index) => (
+                              <th
                                 key={column.key}
-                                className={`py-4 px-3 whitespace-nowrap ${
-                                  isDarkMode ? 'text-white' : 'text-gray-900'
-                                } ${
-                                  index < displayColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''
-                                }`}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, column.key)}
+                                onDragOver={(e) => handleDragOver(e, column.key)}
+                                onDragLeave={handleDragLeave}
+                                onDrop={(e) => handleDrop(e, column.key)}
+                                onDragEnd={handleDragEnd}
+                                onClick={() => handleSort(column.key)}
+                                className={`group relative text-left py-3 px-3 font-normal whitespace-nowrap cursor-pointer select-none transition-colors ${isDarkMode ? 'text-gray-400 bg-gray-800 hover:bg-gray-700' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                                  } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''
+                                  } ${dragOverColumn === column.key ? (isDarkMode ? 'border-l-2 border-orange-500' : 'border-l-2 border-orange-600') : ''
+                                  } ${draggedColumn === column.key ? 'opacity-50' : ''}`}
+                                style={{
+                                  width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
+                                  minWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : (column.width === 'min-w-max' ? 'max-content' : undefined)
+                                }}
                               >
-                                {renderCellValue(record, column.key)}
-                              </td>
+                                <div className="flex items-center space-x-1">
+                                  <span>{column.label}</span>
+                                  {sortColumn === column.key && (
+                                    sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                                  )}
+                                </div>
+                                {/* Resize Handle */}
+                                <div
+                                  className={`absolute right-0 top-0 bottom-0 w-1 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity z-10 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'}`}
+                                  onMouseDown={(e) => handleMouseDownResize(e, column.key)}
+                                />
+                              </th>
                             ))}
                           </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={displayColumns.length} className={`px-4 py-12 text-center ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
-                            No SOA records found matching your filters
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                        </thead>
+                        <tbody>
+                          {paginatedRecords.length > 0 ? (
+                            paginatedRecords.map((record: SOARecordUI) => (
+                              <tr
+                                key={record.id}
+                                className={`border-b cursor-pointer transition-colors ${isDarkMode
+                                  ? 'border-gray-800 hover:bg-gray-900'
+                                  : 'border-gray-200 hover:bg-gray-50'
+                                  } ${selectedRecord?.id === record.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''
+                                  } ${userRole === 'customer' ? '' : 'cursor-pointer'
+                                  }`}
+                                onClick={() => handleRowClick(record)}
+                              >
+                                {filteredColumns.map((column, index) => (
+                                  <td
+                                    key={column.key}
+                                    className={`py-4 px-3 whitespace-nowrap ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                      } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''
+                                      }`}
+                                    style={{
+                                      width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
+                                      minWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : (column.width === 'min-w-max' ? 'max-content' : undefined)
+                                    }}
+                                  >
+                                    {renderCellValue(record, column.key)}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={displayColumns.length} className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                }`}>
+                                {filteredRecords.length > 0
+                                  ? 'No SOA records found matching your filters'
+                                  : (totalCount > soaRecords.length)
+                                    ? 'Loading more records... please wait.'
+                                    : 'No SOA records found.'}
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
+            <PaginationControls />
           </div>
         </div>
       </div>
 
       {selectedRecord && userRole !== 'customer' && (
         <div className="flex-shrink-0 overflow-hidden">
-          <SOADetails soaRecord={selectedRecord} />
+          <SOADetails
+            soaRecord={selectedRecord}
+            onViewCustomer={handleViewCustomer}
+            onClose={handleCloseDetails}
+          />
+        </div>
+      )}
+
+      {(selectedCustomer || isLoadingDetails) && (
+        <div className="flex-shrink-0 overflow-hidden">
+          {isLoadingDetails ? (
+            <div className={`w-[600px] h-full flex items-center justify-center border-l ${isDarkMode
+              ? 'bg-gray-900 text-white border-white border-opacity-30'
+              : 'bg-white text-gray-900 border-gray-300'
+              }`}>
+              <div className="text-center">
+                <div
+                  className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+                  style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
+                ></div>
+                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
+              </div>
+            </div>
+          ) : selectedCustomer ? (
+            <BillingDetails
+              billingRecord={convertCustomerDataToBillingDetail(selectedCustomer)}
+              onlineStatusRecords={[]}
+              onClose={() => setSelectedCustomer(null)}
+            />
+          ) : null}
         </div>
       )}
 
       {showPaymentVerifyModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div 
-            className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${
-              isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
-            }`}
+          <div
+            className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
+              }`}
           >
-            <div className={`p-6 border-b ${
-              isDarkMode ? 'border-gray-700' : 'border-gray-200'
-            }`}>
+            <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
               <h3 className="text-xl font-bold text-center">Confirm Payment</h3>
             </div>
 
             <div className="p-6">
-              <div className={`p-4 rounded mb-4 ${
-                isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
-              }`}>
+              <div className={`p-4 rounded mb-4 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                }`}>
                 <div className="flex justify-between mb-2">
                   <span>Account:</span>
                   <span className="font-bold">{fullName}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Current Balance:</span>
-                  <span className={`font-bold ${
-                    accountBalance > 0 ? 'text-red-500' : 'text-green-500'
-                  }`}>₱{accountBalance.toFixed(2)}</span>
+                  <span className={`font-bold ${accountBalance > 0 ? 'text-red-500' : 'text-green-500'
+                    }`}>₱{accountBalance.toFixed(2)}</span>
                 </div>
               </div>
 
               {errorMessage && (
-                <div className={`p-3 rounded mb-4 ${
-                  isDarkMode ? 'bg-red-900/20 border border-red-800' : 'bg-red-50 border border-red-200'
-                }`}>
+                <div className={`p-3 rounded mb-4 ${isDarkMode ? 'bg-red-900/20 border border-red-800' : 'bg-red-50 border border-red-200'
+                  }`}>
                   <p className="text-red-500 text-sm text-center">{errorMessage}</p>
                 </div>
               )}
@@ -789,18 +1265,16 @@ const SOA: React.FC = () => {
                     }
                   }}
                   placeholder="100"
-                  className={`w-full px-4 py-3 rounded text-lg font-bold ${
-                    isDarkMode 
-                      ? 'bg-gray-800 border-gray-700 text-white' 
-                      : 'bg-white border-gray-300 text-gray-900'
-                  } border focus:outline-none focus:ring-2`}
+                  className={`w-full px-4 py-3 rounded text-lg font-bold ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    } border focus:outline-none focus:ring-2`}
                   style={{
                     '--tw-ring-color': colorPalette?.primary || '#ea580c'
                   } as React.CSSProperties}
                 />
-                <div className={`text-sm text-right mt-1 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`text-sm text-right mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   {accountBalance > 0 ? (
                     <span>Outstanding balance: ₱{accountBalance.toFixed(2)}</span>
                   ) : (
@@ -813,11 +1287,10 @@ const SOA: React.FC = () => {
                 <button
                   onClick={handleCloseVerifyModal}
                   disabled={isPaymentProcessing}
-                  className={`flex-1 px-4 py-3 rounded font-bold transition-colors ${
-                    isDarkMode
-                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`flex-1 px-4 py-3 rounded font-bold transition-colors ${isDarkMode
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   Cancel
                 </button>
@@ -826,8 +1299,8 @@ const SOA: React.FC = () => {
                   disabled={isPaymentProcessing || paymentAmount < 1}
                   className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
-                    backgroundColor: (isPaymentProcessing || paymentAmount < 1) 
-                      ? '#6b7280' 
+                    backgroundColor: (isPaymentProcessing || paymentAmount < 1)
+                      ? '#6b7280'
                       : (colorPalette?.primary || '#ea580c')
                   }}
                   onMouseEnter={(e) => {
@@ -861,7 +1334,7 @@ const SOA: React.FC = () => {
 
       {showPendingPaymentModal && pendingPayment && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div 
+          <div
             className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
           >
             <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
@@ -885,11 +1358,10 @@ const SOA: React.FC = () => {
               <div className="flex gap-3">
                 <button
                   onClick={handleCancelPendingPayment}
-                  className={`flex-1 px-4 py-3 rounded font-bold transition-colors ${
-                    isDarkMode
-                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                  }`}
+                  className={`flex-1 px-4 py-3 rounded font-bold transition-colors ${isDarkMode
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                    }`}
                 >
                   Cancel
                 </button>
@@ -918,7 +1390,7 @@ const SOA: React.FC = () => {
 
       {showPaymentLinkModal && paymentLinkData && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div 
+          <div
             className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
           >
             <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
@@ -960,6 +1432,16 @@ const SOA: React.FC = () => {
           </div>
         </div>
       )}
+      <SOAFunnelFilter
+        isOpen={isFunnelFilterOpen}
+        onClose={() => setIsFunnelFilterOpen(false)}
+        onApplyFilters={(filters) => {
+          setActiveFilters(filters);
+          localStorage.setItem('soaFunnelFilters', JSON.stringify(filters));
+          setIsFunnelFilterOpen(false);
+        }}
+        currentFilters={activeFilters}
+      />
     </div>
   );
 };

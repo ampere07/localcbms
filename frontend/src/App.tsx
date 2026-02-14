@@ -10,6 +10,7 @@ import SplashScreen from './components/SplashScreen';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showPaymentResult, setShowPaymentResult] = useState(false);
@@ -21,12 +22,12 @@ function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get('payment');
     const refNo = urlParams.get('ref');
-    
+
     if (paymentStatus && refNo) {
       setPaymentSuccess(paymentStatus === 'success');
       setPaymentRef(refNo);
       setShowPaymentResult(true);
-      
+
       // Clean up URL without reloading
       window.history.replaceState({}, document.title, window.location.pathname);
     }
@@ -41,23 +42,24 @@ function App() {
       const authData = localStorage.getItem('authData');
       if (authData) {
         try {
-          const userData = JSON.parse(authData);
+          const parsedUser = JSON.parse(authData);
+          setUserData(parsedUser);
           setIsLoggedIn(true);
-          
+
           // Load user's dark mode preference from database
           // User ID is at root level, not under user property
-          const userId = userData.id;
-          
+          const userId = parsedUser.id;
+
           if (userId) {
             try {
               const response = await userSettingsService.getDarkMode(userId);
-              
+
               if (response.success && response.data) {
                 const darkmodeValue = response.data.darkmode;
                 const isDark = darkmodeValue === 'active';
-                
+
                 localStorage.setItem('theme', isDark ? 'dark' : 'light');
-                
+
                 if (isDark) {
                   document.documentElement.classList.add('dark');
                 } else {
@@ -85,40 +87,41 @@ function App() {
   }, []);
 
   const handleLogin = async (user: UserData) => {
+    setUserData(user);
     // Show loading screen while applying theme
     setIsLoggingIn(true);
-    
+
     // Store user data in localStorage
     localStorage.setItem('authData', JSON.stringify(user));
-    
+
     // Load user's dark mode preference immediately after login
     const userId = user.id;
-    
+
     if (userId) {
       try {
         const response = await userSettingsService.getDarkMode(userId);
-        
+
         if (response.success && response.data) {
           const darkmodeValue = response.data.darkmode;
           const isDark = darkmodeValue === 'active';
-          
+
           // Disable all CSS transitions temporarily
           document.body.classList.add('disable-transitions');
-          
+
           // Save to localStorage first
           localStorage.setItem('theme', isDark ? 'dark' : 'light');
-          
+
           // Force remove both classes first to ensure clean state
           document.documentElement.classList.remove('dark');
-          
+
           // Wait a tick for the DOM to update
           await new Promise(resolve => setTimeout(resolve, 50));
-          
+
           // Then apply the correct class
           if (isDark) {
             document.documentElement.classList.add('dark');
           }
-          
+
           // Re-enable transitions after theme is applied
           await new Promise(resolve => setTimeout(resolve, 100));
           document.body.classList.remove('disable-transitions');
@@ -130,10 +133,10 @@ function App() {
         document.documentElement.classList.remove('dark');
       }
     }
-    
+
     // Longer delay to ensure theme is fully applied and DOM is updated before showing dashboard
     await new Promise(resolve => setTimeout(resolve, 600));
-    
+
     setIsLoggingIn(false);
     setIsLoggedIn(true);
   };
@@ -141,6 +144,7 @@ function App() {
   const handleLogout = () => {
     // Remove user data from localStorage
     localStorage.removeItem('authData');
+    setUserData(null);
     setIsLoggedIn(false);
   };
 
@@ -158,7 +162,11 @@ function App() {
           onClose={() => setShowPaymentResult(false)}
           success={paymentSuccess}
           referenceNo={paymentRef}
-          isDarkMode={document.documentElement.classList.contains('dark')}
+          isDarkMode={
+            userData && (userData.role === 'customer' || String(userData.role_id) === '3')
+              ? false
+              : document.documentElement.classList.contains('dark')
+          }
         />
       </>
     );

@@ -29,6 +29,52 @@ const RouterModelList: React.FC = () => {
     loadRouters();
   }, []);
 
+  // Idle detection and auto-refresh logic
+  useEffect(() => {
+    const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
+    let idleTimer: NodeJS.Timeout | null = null;
+
+    const refreshData = async () => {
+      console.log('User idle for 15 minutes, auto-refreshing Router Model data...');
+      try {
+        await loadRouters(true); // Silent refresh
+      } catch (err) {
+        console.error('Idle refresh failed:', err);
+      }
+      // Set the timer again to refresh every 15 mins if they remain idle
+      startTimer();
+    };
+
+    const startTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(refreshData, IDLE_TIME_LIMIT);
+    };
+
+    const resetTimer = () => {
+      startTimer();
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    // Use passive listeners for performance
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    startTimer(); // Initialize timer on mount
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, []);
+
   useEffect(() => {
     const fetchColorPalette = async () => {
       try {
@@ -41,29 +87,29 @@ const RouterModelList: React.FC = () => {
     fetchColorPalette();
   }, []);
 
-  const loadRouters = async () => {
-    setIsLoading(true);
+  const loadRouters = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       console.log('Loading routers from API:', `${API_BASE_URL}/router-models`);
-      
+
       const response = await fetch(`${API_BASE_URL}/router-models`, {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
       });
-      
+
       console.log('API Response status:', response.status);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('API Error:', errorData);
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || 'Unknown error'}`);
       }
-      
+
       const data = await response.json();
       console.log('API Response data:', data);
-      
+
       if (data.success) {
         console.log('Setting routers data:', data.data);
         setRouters(data.data || []);
@@ -89,7 +135,7 @@ const RouterModelList: React.FC = () => {
       newSet.add(router.SN);
       return newSet;
     });
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/router-models/${router.SN}`, {
         method: 'DELETE',
@@ -98,9 +144,9 @@ const RouterModelList: React.FC = () => {
           'Content-Type': 'application/json',
         },
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         await loadRouters();
         alert('✅ Router model permanently deleted from database: ' + (data.message || 'Router model deleted successfully'));
@@ -152,8 +198,8 @@ const RouterModelList: React.FC = () => {
 
   const getFilteredRouters = () => {
     if (!searchQuery) return routers;
-    
-    return routers.filter(router => 
+
+    return routers.filter(router =>
       (router.brand && router.brand.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (router.Model && router.Model.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (router.SN && router.SN.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -163,7 +209,7 @@ const RouterModelList: React.FC = () => {
 
   const renderListItem = (router: RouterModel) => {
     const isActive = router.is_active !== undefined ? router.is_active : true;
-    
+
     return (
       <div key={router.SN} className="bg-gray-900 border-b border-gray-800">
         <div className="px-6 py-4 flex items-center justify-between">

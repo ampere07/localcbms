@@ -1,4 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { DCNoticeProvider } from '../contexts/DCNoticeContext';
+import { StaggeredPaymentProvider } from '../contexts/StaggeredPaymentContext';
+// import { DiscountProvider } from '../contexts/DiscountContext';
+// import { ApplicationProvider } from '../contexts/ApplicationContext';
+// import { ApplicationVisitProvider } from '../contexts/ApplicationVisitContext';
+// import { JobOrderProvider } from '../contexts/JobOrderContext';
+// import { ServiceOrderProvider } from '../contexts/ServiceOrderContext';
 import DCNotice from './DCNotice';
 import Discounts from './Discounts';
 import Overdue from './Overdue';
@@ -21,7 +28,7 @@ import TransactionList from './TransactionList';
 import PaymentPortal from './PaymentPortal';
 import JobOrder from './JobOrder';
 import ServiceOrder from './ServiceOrder';
-import ApplicationVisit from './ApplicationVisit';
+// import ApplicationVisit from './ApplicationVisit';
 import LocationList from './LocationList';
 import PlanList from './PlanList';
 import PromoList from './PromoList';
@@ -43,234 +50,328 @@ import LcpNapLocation from './LcpNapLocation';
 import BillingConfig from './BillingConfig';
 import RadiusConfig from './RadiusConfig';
 import SmsConfig from './SmsConfig';
+import SMSTemplate from './SMSTemplate';
 import EmailTemplates from './EmailTemplates';
 import PPPoESetup from './PPPoESetup';
 import Support from './Support';
 import LiveMonitor from './LiveMonitor';
 import ConcernConfig from './ConcernConfig';
+import DashboardCustomer from './DashboardCustomer';
+import Bills from './Bills';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface DashboardProps {
-  onLogout: () => void;
+    onLogout: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
-  const [activeSection, setActiveSection] = useState('dashboard');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [userData, setUserData] = useState<any>(null);
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+    const [userData, setUserData] = useState<any>(() => {
+        try {
+            const authData = localStorage.getItem('authData');
+            return authData ? JSON.parse(authData) : null;
+        } catch (error) {
+            console.error('Error parsing user data:', error);
+            return null;
+        }
+    });
 
-  // Track dark mode changes
-  useEffect(() => {
-    const checkDarkMode = () => {
-      const theme = localStorage.getItem('theme');
-      setIsDarkMode(theme === 'dark' || theme === null);
+    const [activeSection, setActiveSection] = useState(() => {
+        try {
+            const authData = localStorage.getItem('authData');
+            if (authData) {
+                const user = JSON.parse(authData);
+                if (user.role === 'customer' || String(user.role_id) === '3') {
+                    return 'customer-dashboard';
+                }
+                if (user.role?.toLowerCase() === 'technician' || String(user.role_id) === '2') {
+                    return 'job-order';
+                }
+                if (user.role?.toLowerCase() === 'administrator' || String(user.role_id) === '1') {
+                    return 'live-monitor';
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+        return 'dashboard';
+    });
+
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+    const [billsInitialTab, setBillsInitialTab] = useState<'soa' | 'invoices' | 'payments'>('soa');
+    const [customerInitialSearch, setCustomerInitialSearch] = useState('');
+    const [customerAutoOpenAccountNo, setCustomerAutoOpenAccountNo] = useState('');
+    const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+        try {
+            const authData = localStorage.getItem('authData');
+            if (authData) {
+                const user = JSON.parse(authData);
+                if (user.role === 'customer' || String(user.role_id) === '3') {
+                    return false;
+                }
+            }
+            const theme = localStorage.getItem('theme');
+            return theme === 'dark' || theme === null;
+        } catch (e) {
+            return true;
+        }
+    });
+    // Track dark mode changes
+    useEffect(() => {
+        const checkDarkMode = () => {
+            const theme = localStorage.getItem('theme');
+            setIsDarkMode(theme === 'dark' || theme === null);
+        };
+
+        checkDarkMode();
+
+        const observer = new MutationObserver(() => {
+            checkDarkMode();
+        });
+
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+
+        return () => observer.disconnect();
+    }, []);
+
+    useEffect(() => {
+        const fetchColorPalette = async () => {
+            try {
+                const activePalette = await settingsColorPaletteService.getActive();
+                setColorPalette(activePalette);
+            } catch (err) {
+                console.error('Failed to fetch color palette:', err);
+            }
+        };
+
+        fetchColorPalette();
+    }, []);
+
+    // Add effect to log the active section when it changes
+    useEffect(() => {
+        console.log('Active section changed to:', activeSection);
+    }, [activeSection]);
+
+    const renderContent = () => {
+        switch (activeSection) {
+            // Customer Routes
+            case 'customer-dashboard':
+                return <DashboardCustomer onNavigate={(section, tab) => handleSectionChange(section, tab)} />;
+            case 'customer-bills':
+                return <Bills initialTab={billsInitialTab} />;
+            case 'customer-support':
+                return <Support forceLightMode={true} />;
+
+            case 'live-monitor':
+                return <LiveMonitor />;
+            case 'support':
+                return <Support />;
+            case 'soa':
+                return <SOA />;
+            case 'invoice':
+                return <Invoice />;
+            case 'overdue':
+                return <Overdue />;
+            case 'dc-notice':
+                return <DCNotice />;
+            case 'discounts':
+                return <Discounts />;
+            case 'billing-config':
+                return <BillingConfig />;
+            case 'radius-config':
+                return <RadiusConfig />;
+            case 'sms-config':
+                return <SmsConfig />;
+            case 'sms-template':
+                return <SMSTemplate />;
+            case 'email-templates':
+                return <EmailTemplates />;
+            case 'pppoe-setup':
+                return <PPPoESetup />;
+            case 'concern-config':
+                return <ConcernConfig />;
+
+
+            case 'staggered-payment':
+                return <StaggeredPayment />;
+            case 'mass-rebate':
+                return <MassRebate />;
+            case 'sms-blast':
+                return <SMSBlast />;
+            case 'sms-blast-logs':
+                return <SMSBlastLogs />;
+            case 'disconnected-logs':
+                return <DisconnectionLogs />;
+            case 'reconnection-logs':
+                return <ReconnectionLogs />;
+            case 'user-management':
+                return <UserManagement />;
+            case 'organization-management':
+                return <OrganizationManagement />;
+            case 'group-management':
+                return <GroupManagement />;
+            case 'application-management':
+                return <ApplicationManagement />;
+            case 'customer':
+                return <Customer initialSearchQuery={customerInitialSearch} autoOpenAccountNo={customerAutoOpenAccountNo} />;
+            case 'transaction-list':
+                return (
+                    <TransactionList onNavigate={(section, search) => handleSectionChange(section, search)} />
+                );
+            case 'payment-portal':
+                return <PaymentPortal />;
+            case 'job-order':
+                return <JobOrder />;
+            case 'service-order':
+                return <ServiceOrder />;
+            // case 'application-visit':
+            //     return <ApplicationVisit />;
+            case 'location-list':
+                return <LocationList />;
+            case 'plan-list':
+                return <PlanList />;
+            case 'promo-list':
+                return <PromoList />;
+            case 'router-models':
+                return <RouterModelList />;
+            case 'lcp':
+                return <LcpList />;
+            case 'nap':
+                return <NapList />;
+            case 'lcp-nap-location':
+                return <LcpNapLocation />;
+            case 'usage-type':
+                return <UsageTypeList />;
+            case 'ports':
+                return <Ports />;
+            case 'status-remarks-list':
+                return <StatusRemarksList />;
+            case 'inventory':
+                return <Inventory />;
+            case 'inventory-category-list':
+                return <InventoryCategoryList />;
+            case 'expenses-log':
+                return <ExpensesLog />;
+            case 'logs':
+                return <Logs />;
+            case 'soa-generation':
+                return <SOAGeneration />;
+            case 'settings':
+                return <Settings />;
+            case 'dashboard':
+            default:
+                if (userData && String(userData.role_id) === '3') {
+                    return <DashboardCustomer onNavigate={(section, tab) => handleSectionChange(section, tab)} />;
+                }
+                return <DashboardContent />;
+        }
     };
 
-    checkDarkMode();
+    const handleSearch = (query: string) => {
+        setSearchQuery(query);
+    };
 
-    const observer = new MutationObserver(() => {
-      checkDarkMode();
-    });
+    const toggleSidebar = () => {
+        const isMobile = window.innerWidth < 768;
+        if (isMobile) {
+            setIsMobileMenuOpen(!isMobileMenuOpen);
+        } else {
+            setSidebarCollapsed(!sidebarCollapsed);
+        }
+    };
 
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class']
-    });
+    const closeMobileMenu = () => {
+        setIsMobileMenuOpen(false);
+    };
 
-    return () => observer.disconnect();
-  }, []);
+    const handleSectionChange = (section: string, extra?: string) => {
+        setActiveSection(section);
+        if (section === 'customer-bills') {
+            setBillsInitialTab((extra as any) || 'soa');
+        } else if (section === 'customer') {
+            setCustomerInitialSearch(extra || '');
+            setCustomerAutoOpenAccountNo(extra || '');
+        }
 
-  // Load user data from localStorage
-  useEffect(() => {
-    const authData = localStorage.getItem('authData');
-    if (authData) {
-      try {
-        const user = JSON.parse(authData);
-        setUserData(user);
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-      }
-    }
-  }, []);
+        if (window.innerWidth < 768) {
+            closeMobileMenu();
+        }
+    };
 
-  // Add effect to log the active section when it changes
-  useEffect(() => {
-    console.log('Active section changed to:', activeSection);
-  }, [activeSection]);
+    // Helper to determine if we should show sidebar
+    const showSidebar = userData && String(userData.role_id) !== '3';
 
-  const renderContent = () => {
-    switch (activeSection) {
+    return (
+        <DCNoticeProvider>
+            <StaggeredPaymentProvider>
+                {/* <DiscountProvider> */}
+                {/* <ApplicationProvider> */}
+                {/* <ApplicationVisitProvider> */}
+                {/* <JobOrderProvider> */}
+                {/* <ServiceOrderProvider> */}
+                <div className={`h-screen flex flex-col overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+                    }`}>
+                    {/* Fixed Header */}
+                    <div className="flex-shrink-0">
+                        <Header
+                            onSearch={handleSearch}
+                            onToggleSidebar={toggleSidebar}
+                            onNavigate={handleSectionChange}
+                            onLogout={onLogout}
+                            activeSection={activeSection}
+                        />
+                    </div>
 
-      case 'live-monitor':
-        return <LiveMonitor />;
-      case 'support':
-        return <Support />;
-      case 'soa':
-        return <SOA />;
-      case 'invoice':
-        return <Invoice />;
-      case 'overdue':
-        return <Overdue />;
-      case 'dc-notice':
-        return <DCNotice />;
-      case 'discounts':
-        return <Discounts />;
-      case 'billing-config':
-        return <BillingConfig />;
-      case 'radius-config':
-        return <RadiusConfig />;
-      case 'sms-config':
-        return <SmsConfig />;
-      case 'email-templates':
-        return <EmailTemplates />;
-      case 'pppoe-setup':
-        return <PPPoESetup />;
-      case 'concern-config':
-        return <ConcernConfig />;
+                    {/* Main Content Area with Fixed Sidebar and Scrollable Content */}
+                    <div className="flex-1 flex overflow-hidden">
+                        {/* Mobile Overlay */}
+                        {isMobileMenuOpen && (
+                            <div
+                                className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+                                onClick={closeMobileMenu}
+                            />
+                        )}
 
+                        {/* Fixed Sidebar */}
+                        {showSidebar && (
+                            <div className={`flex-shrink-0 fixed md:relative z-50 transition-all duration-300 top-0 md:top-auto left-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+                                } md:translate-x-0 h-screen md:h-auto`}>
+                                <div className="h-full md:h-full">
+                                    <Sidebar
+                                        activeSection={activeSection}
+                                        onSectionChange={handleSectionChange}
+                                        onLogout={onLogout}
+                                        isCollapsed={sidebarCollapsed}
+                                        userRole={userData?.role || ''}
+                                        roleId={userData?.role_id}
+                                        userEmail={userData?.email || ''}
+                                    />
+                                </div>
+                            </div>
+                        )}
 
-      case 'staggered-payment':
-        return <StaggeredPayment />;
-      case 'mass-rebate':
-        return <MassRebate />;
-      case 'sms-blast':
-        return <SMSBlast />;
-      case 'sms-blast-logs':
-        return <SMSBlastLogs />;
-      case 'disconnected-logs':
-        return <DisconnectionLogs />;
-      case 'reconnection-logs':
-        return <ReconnectionLogs />;
-      case 'user-management':
-        return <UserManagement />;
-      case 'organization-management':
-        return <OrganizationManagement />;
-      case 'group-management':
-        return <GroupManagement />;
-      case 'application-management':
-        return <ApplicationManagement />;
-      case 'customer':
-        return <Customer />;
-      case 'transaction-list':
-        return <TransactionList />;
-      case 'payment-portal':
-        return <PaymentPortal />;
-      case 'job-order':
-        return <JobOrder />;
-      case 'service-order':
-        return <ServiceOrder />;
-      case 'application-visit':
-        return <ApplicationVisit />;
-      case 'location-list':
-        return <LocationList />;
-      case 'plan-list':
-        return <PlanList />;
-      case 'promo-list':
-        return <PromoList />;
-      case 'router-models':
-        return <RouterModelList />;
-      case 'lcp':
-        return <LcpList />;
-      case 'nap':
-        return <NapList />;
-      case 'lcp-nap-location':
-        return <LcpNapLocation />;
-      case 'usage-type':
-        return <UsageTypeList />;
-      case 'ports':
-        return <Ports />;
-      case 'status-remarks-list':
-        return <StatusRemarksList />;
-      case 'inventory':
-        return <Inventory />;
-      case 'inventory-category-list':
-        return <InventoryCategoryList />;
-      case 'expenses-log':
-        return <ExpensesLog />;
-      case 'logs':
-        return <Logs />;
-      case 'soa-generation':
-        return <SOAGeneration />;
-      case 'settings':
-        return <Settings />;
-      case 'dashboard':
-      default:
-        return <DashboardContent />;
-    }
-  };
-
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-  };
-
-  const toggleSidebar = () => {
-    const isMobile = window.innerWidth < 768;
-    if (isMobile) {
-      setIsMobileMenuOpen(!isMobileMenuOpen);
-    } else {
-      setSidebarCollapsed(!sidebarCollapsed);
-    }
-  };
-
-  const closeMobileMenu = () => {
-    setIsMobileMenuOpen(false);
-  };
-
-  const handleSectionChange = (section: string) => {
-    setActiveSection(section);
-    if (window.innerWidth < 768) {
-      closeMobileMenu();
-    }
-  };
-
-  return (
-    <div className={`h-screen flex flex-col overflow-hidden ${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    }`}>
-      {/* Fixed Header */}
-      <div className="flex-shrink-0">
-        <Header onSearch={handleSearch} onToggleSidebar={toggleSidebar} />
-      </div>
-      
-      {/* Main Content Area with Fixed Sidebar and Scrollable Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Mobile Overlay */}
-        {isMobileMenuOpen && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-            onClick={closeMobileMenu}
-          />
-        )}
-        
-        {/* Fixed Sidebar */}
-        <div className={`flex-shrink-0 fixed md:relative z-50 transition-all duration-300 top-0 md:top-auto left-0 ${
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0 h-screen md:h-auto`}>
-          <div className="h-full md:h-full">
-          <Sidebar 
-            activeSection={activeSection}
-            onSectionChange={handleSectionChange}
-            onLogout={onLogout}
-            isCollapsed={sidebarCollapsed}
-            userRole={userData?.role || ''}
-            userEmail={userData?.email || ''}
-          />
-          </div>
-        </div>
-        
-        {/* Scrollable Content Area Only */}
-        <div className={`flex-1 overflow-hidden ${
-          isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-        }`}>
-          <div className="h-full overflow-y-auto">
-            {renderContent()}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+                        {/* Scrollable Content Area Only */}
+                        <div className={`flex-1 overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+                            }`}>
+                            <div className="h-full overflow-y-auto">
+                                {renderContent()}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {/* </ServiceOrderProvider> */}
+                {/* </JobOrderProvider> */}
+                {/* </ApplicationProvider> */}
+                {/* </ApplicationVisitProvider> */}
+                {/* </DiscountProvider> */}
+            </StaggeredPaymentProvider>
+        </DCNoticeProvider >
+    );
 };
 
 export default Dashboard;

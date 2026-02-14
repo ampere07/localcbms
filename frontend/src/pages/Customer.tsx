@@ -1,27 +1,34 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { CreditCard, Search, Circle, X, ListFilter, ArrowUp, ArrowDown, RefreshCw, Filter } from 'lucide-react';
+import { CreditCard, Search, Circle, X, ListFilter, ArrowUp, ArrowDown, RefreshCw, Filter, ChevronRight, ChevronDown } from 'lucide-react';
 import BillingDetails from '../components/CustomerDetails';
 import { getBillingRecords, BillingRecord } from '../services/billingService';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
 import { getCities, City } from '../services/cityService';
 import { getRegions, Region } from '../services/regionService';
+import { barangayService, Barangay } from '../services/barangayService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import CustomerFunnelFilter from '../filter/CustomerFunnelFilter';
+import { useBillingStore } from '../store/billingStore';
+import { billingStatusService, BillingStatus } from '../services/billingStatusService';
 
 const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
   return {
     id: customerData.billingAccount?.accountNo || '',
     applicationId: customerData.billingAccount?.accountNo || '',
     customerName: customerData.fullName,
+    firstName: customerData.firstName,
+    middleInitial: customerData.middleInitial,
+    lastName: customerData.lastName,
     address: customerData.address,
-    status: customerData.billingAccount?.billingStatusId === 2 ? 'Active' : 'Inactive',
+    status: customerData.billingAccount?.billingStatusName || (customerData.billingAccount?.billingStatusId === 1 ? 'Active' : 'Inactive'),
     balance: customerData.billingAccount?.accountBalance || 0,
-    onlineStatus: customerData.billingAccount?.billingStatusId === 2 ? 'Online' : 'Offline',
+    onlineStatus: customerData.onlineSessionStatus || (customerData.billingAccount?.billingStatusName === 'Active' ? 'Online' : 'Offline'),
     cityId: null,
     regionId: null,
     timestamp: customerData.updatedAt || '',
-    billingStatus: customerData.billingAccount?.billingStatusId ? `Status ${customerData.billingAccount.billingStatusId}` : '',
+    billingStatus: customerData.billingAccount?.billingStatusName || (customerData.billingAccount?.billingStatusId ? `Status ${customerData.billingAccount.billingStatusId}` : ''),
+    billing_status_id: customerData.billingAccount?.billingStatusId,
     dateInstalled: customerData.billingAccount?.dateInstalled || '',
     contactNumber: customerData.contactNumberPrimary,
     secondContactNumber: customerData.contactNumberSecondary || '',
@@ -35,8 +42,8 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     port: customerData.technicalDetails?.port || '',
     vlan: customerData.technicalDetails?.vlan || '',
     billingDay: customerData.billingAccount?.billingDay || 0,
-    totalPaid: 0,
-    provider: '',
+    totalPaid: (customerData as any).total_paid || 0,
+    provider: customerData.groupName || '',
     lcp: customerData.technicalDetails?.lcp || '',
     nap: customerData.technicalDetails?.nap || '',
     modifiedBy: '',
@@ -44,8 +51,8 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     barangay: customerData.barangay || '',
     city: customerData.city || '',
     region: customerData.region || '',
-    
-    usageType: customerData.technicalDetails?.usageTypeId ? `Type ${customerData.technicalDetails.usageTypeId}` : '',
+
+    usageType: customerData.technicalDetails?.usageType || '',
     referredBy: customerData.referredBy || '',
     referralContactNo: '',
     groupName: customerData.groupName || '',
@@ -54,8 +61,13 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     houseFrontPicture: customerData.houseFrontPictureUrl || '',
     accountBalance: customerData.billingAccount?.accountBalance || 0,
     housingStatus: customerData.housingStatus || '',
-    location: customerData.location || '',
     addressCoordinates: customerData.addressCoordinates || '',
+    lcpnapport: `${customerData.technicalDetails?.lcpnap || ''} ${customerData.technicalDetails?.port || ''}`.trim(),
+    balanceUpdateDate: customerData.billingAccount?.balanceUpdateDate || '',
+    billingAccountCreatedBy: (customerData.billingAccount as any)?.createdBy || '',
+    billingAccountCreatedAt: (customerData.billingAccount as any)?.createdAt || '',
+    billingAccountUpdatedBy: (customerData.billingAccount as any)?.updatedBy || '',
+    billingAccountUpdatedAt: (customerData.billingAccount as any)?.updatedAt || '',
   };
 };
 
@@ -101,51 +113,45 @@ const allColumns = [
   { key: 'referredBy', label: 'Referred By', width: 'min-w-36' },
   { key: 'secondContactNumber', label: 'Second Contact Number', width: 'min-w-40' },
   { key: 'referrersAccountNumber', label: 'Referrer\'s Account Number', width: 'min-w-44' },
-  { key: 'relatedInvoices', label: 'Related Invoices', width: 'min-w-36' },
-  { key: 'relatedStatementOfAccount', label: 'Related Statement of Account', width: 'min-w-52' },
-  { key: 'relatedDiscounts', label: 'Related Discounts', width: 'min-w-36' },
-  { key: 'relatedStaggeredInstallation', label: 'Related Staggered Installation', width: 'min-w-52' },
-  { key: 'relatedStaggeredPayments', label: 'Related Staggered Payments', width: 'min-w-52' },
-  { key: 'relatedOverdues', label: 'Related Overdues', width: 'min-w-36' },
-  { key: 'relatedDCNotices', label: 'Related DC Notices', width: 'min-w-40' },
-  { key: 'relatedServiceOrders', label: 'Related Service Orders', width: 'min-w-44' },
-  { key: 'relatedDisconnectedLogs', label: 'Related Disconnected Logs', width: 'min-w-48' },
-  { key: 'relatedReconnectionLogs', label: 'Related Reconnection Logs', width: 'min-w-48' },
-  { key: 'relatedChangeDueLogs', label: 'Related Change Due Logs', width: 'min-w-48' },
-  { key: 'relatedTransactions', label: 'Related Transactions', width: 'min-w-40' },
-  { key: 'relatedDetailsUpdateLogs', label: 'Related Details Update Logs', width: 'min-w-48' },
-  { key: 'computedAddress', label: '_ComputedAddress', width: 'min-w-40' },
-  { key: 'computedStatus', label: '_ComputedStatus', width: 'min-w-36' },
-  { key: 'relatedAdvancedPayments', label: 'Related Advanced Payments', width: 'min-w-48' },
-  { key: 'relatedPaymentPortalLogs', label: 'Related Payment Portal Logs', width: 'min-w-48' },
-  { key: 'relatedInventoryLogs', label: 'Related Inventory Logs', width: 'min-w-44' },
-  { key: 'computedAccountNo', label: '_ComputedAccountNo', width: 'min-w-44' },
-  { key: 'relatedOnlineStatus', label: 'Related Online Status', width: 'min-w-44' },
   { key: 'group', label: 'Group', width: 'min-w-28' },
   { key: 'mikrotikId', label: 'Mikrotik ID', width: 'min-w-32' },
   { key: 'sessionIP', label: 'Session IP', width: 'min-w-32' },
-  { key: 'relatedBorrowedLogs', label: 'Related Borrowed Logs', width: 'min-w-44' },
-  { key: 'relatedPlanChangeLogs', label: 'Related Plan Change Logs', width: 'min-w-48' },
-  { key: 'relatedServiceChargeLogs', label: 'Related Service Charge Logs', width: 'min-w-48' },
-  { key: 'relatedAdjustedAccountLogs', label: 'Related Adjusted Account Logs', width: 'min-w-52' },
   { key: 'referralContactNo', label: 'Referral Contact No.', width: 'min-w-40' },
-  { key: 'logs', label: 'Logs', width: 'min-w-24' },
-  { key: 'relatedSecurityDeposits', label: 'Related Security Deposits', width: 'min-w-48' },
-  { key: 'relatedApprovedTransactions', label: 'Related Approved Transaction', width: 'min-w-52' },
-  { key: 'relatedAttachments', label: 'Related Attachments', width: 'min-w-40' }
+  { key: 'logs', label: 'Logs', width: 'min-w-24' }
 ];
 
-const Customer: React.FC = () => {
+interface CustomerProps {
+  initialSearchQuery?: string;
+  autoOpenAccountNo?: string;
+}
+
+const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccountNo }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>(initialSearchQuery || '');
+  const { billingRecords, totalCount, isLoading: isTableLoading, error: contextError, fetchBillingRecords, refreshBillingRecords } = useBillingStore();
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
-  const [billingRecords, setBillingRecords] = useState<BillingRecord[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const [selectedBillingStatus, setSelectedBillingStatus] = useState<string>('');
+  const [selectedAccountBalance, setSelectedAccountBalance] = useState<number | null>(null);
+  const [selectedTotalPaid, setSelectedTotalPaid] = useState<number | null>(null);
+
+  const [barangays, setBarangays] = useState<Barangay[]>([]);
+  const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
+
+  const isLoading = isTableLoading || isActionLoading;
+  const error = localError || contextError;
+  const setError = setLocalError; // Alias for compatibility with existing code
+
+
+
+
+
   const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
@@ -160,8 +166,8 @@ const Customer: React.FC = () => {
     }
     return allColumns.map(col => col.key);
   });
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortColumn, setSortColumn] = useState<string | null>('accountNo');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
@@ -222,9 +228,9 @@ const Customer: React.FC = () => {
         setFilterDropdownOpen(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
@@ -233,43 +239,128 @@ const Customer: React.FC = () => {
   useEffect(() => {
     const fetchLocationData = async () => {
       try {
-        const [citiesData, regionsData, activePalette] = await Promise.all([
+        const [citiesData, regionsData, barangaysRes, statusesRes, activePalette] = await Promise.all([
           getCities(),
           getRegions(),
+          barangayService.getAll(),
+          billingStatusService.getAll(),
           settingsColorPaletteService.getActive()
-        ]);
+        ]) as [any, any, any, any, any];
         setCities(citiesData || []);
         setRegions(regionsData || []);
+        setBarangays(barangaysRes.success ? barangaysRes.data : []);
         setColorPalette(activePalette);
       } catch (err) {
         console.error('Failed to fetch location data:', err);
         setCities([]);
         setRegions([]);
+        setBarangays([]);
       }
     };
-    
+
     fetchLocationData();
   }, []);
 
-  // Fetch billing data
+  // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
-    const fetchBillingData = async () => {
-      try {
-        setIsLoading(true);
-        const data = await getBillingRecords();
-        setBillingRecords(data);
-        setError(null);
-      } catch (err) {
-        console.error('Failed to fetch billing records:', err);
-        setError('Failed to load billing records. Please try again.');
-        setBillingRecords([]);
-      } finally {
-        setIsLoading(false);
+    fetchBillingRecords();
+  }, [fetchBillingRecords]);
+
+  // Sync initialSearchQuery
+  useEffect(() => {
+    if (initialSearchQuery !== undefined) {
+      setSearchQuery(initialSearchQuery);
+    }
+  }, [initialSearchQuery]);
+
+  // Auto-open account if prop provided
+  useEffect(() => {
+    const autoOpen = async () => {
+      if (autoOpenAccountNo) {
+        setIsLoadingDetails(true);
+        try {
+          const detail = await getCustomerDetail(autoOpenAccountNo);
+          if (detail) {
+            setSelectedCustomer(detail);
+          }
+        } catch (err) {
+          console.error('Error auto-opening customer details:', err);
+        } finally {
+          setIsLoadingDetails(false);
+        }
       }
     };
-    
-    fetchBillingData();
-  }, []);
+    autoOpen();
+  }, [autoOpenAccountNo]);
+
+
+  // Reset selected location if regions change and selected location is no longer valid
+  useEffect(() => {
+    if (selectedLocation === 'all') return;
+
+    const [type, name] = selectedLocation.split(':');
+    let isValid = false;
+
+    if (type === 'status') {
+      isValid = true; // Status categories are always valid
+    } else if (type === 'reg') {
+      isValid = regions.some(r => r.name === name);
+    } else if (type === 'city') {
+      isValid = cities.some(c => c.name === name);
+    } else if (type === 'brgy') {
+      isValid = barangays.some(b => b.barangay === name);
+    }
+
+    if (!isValid) {
+      setSelectedLocation('all');
+    }
+  }, [regions, cities, barangays, selectedLocation]);
+
+  // Idle detection and auto-refresh logic
+  useEffect(() => {
+    const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
+    let idleTimer: NodeJS.Timeout | null = null;
+
+    const refreshData = async () => {
+      console.log('User idle for 15 minutes, auto-refreshing customer data...');
+      try {
+        await refreshBillingRecords();
+      } catch (err) {
+        console.error('Idle refresh failed:', err);
+      }
+      // Set the timer again to refresh every 15 mins if they remain idle
+      startTimer();
+    };
+
+    const startTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(refreshData, IDLE_TIME_LIMIT);
+    };
+
+    const resetTimer = () => {
+      startTimer();
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    // Use passive listeners for performance if possible, but standard is fine here
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    startTimer(); // Initialize timer on mount
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [refreshBillingRecords]);
 
   // Memoize city name lookup for performance
   const getCityName = useMemo(() => {
@@ -279,29 +370,60 @@ const Customer: React.FC = () => {
       return cityMap.get(cityId) || `City ${cityId}`;
     };
   }, [cities]);
+  // Memoize status tree (Status > Billing Status > Barangay)
+  const statusTree = useMemo(() => {
+    const tree: Record<string, { count: number, bStatuses: Record<string, { count: number, barangays: Record<string, number> }> }> = {
+      'Blocked': { count: 0, bStatuses: {} },
+      'inactive': { count: 0, bStatuses: {} },
+      'not found': { count: 0, bStatuses: {} },
+      'offline': { count: 0, bStatuses: {} },
+      'online': { count: 0, bStatuses: {} }
+    };
 
-  // Memoize location items for performance
-  const locationItems: LocationItem[] = useMemo(() => {
-    const items: LocationItem[] = [
-      {
-        id: 'all',
-        name: 'All',
-        count: billingRecords.length
+    billingRecords.forEach(record => {
+      const accessStatus = record.status || 'inactive';
+      let bucket = 'offline';
+
+      const lowerStatus = accessStatus.toLowerCase();
+      const lowerOnlineStatus = (record.onlineStatus || '').toLowerCase();
+
+      if (lowerStatus === 'blocked' || lowerStatus === 'block' || lowerOnlineStatus === 'blocked' || lowerOnlineStatus === 'block') bucket = 'Blocked';
+      else if (lowerStatus === 'not found' || lowerOnlineStatus === 'not found') bucket = 'not found';
+      else if (lowerStatus === 'inactive') bucket = 'inactive';
+      else if (lowerOnlineStatus === 'online') bucket = 'online';
+
+      if (tree[bucket]) {
+        tree[bucket].count++;
+        const bStatus = record.billingStatus || 'Regular';
+        const brgy = record.barangay || 'No Barangay';
+
+        if (!tree[bucket].bStatuses[bStatus]) {
+          tree[bucket].bStatuses[bStatus] = { count: 0, barangays: {} };
+        }
+        tree[bucket].bStatuses[bStatus].count++;
+        tree[bucket].bStatuses[bStatus].barangays[brgy] = (tree[bucket].bStatuses[bStatus].barangays[brgy] || 0) + 1;
       }
-    ];
-    
-    // Add cities with counts
-    cities.forEach((city) => {
-      const cityCount = billingRecords.filter(record => record.cityId === city.id).length;
-      items.push({
-        id: String(city.id),
-        name: city.name,
-        count: cityCount
-      });
     });
 
-    return items;
-  }, [cities, billingRecords]);
+    return {
+      items: Object.keys(tree).map(name => ({
+        id: `status:${name}`,
+        name: name,
+        count: tree[name].count,
+        bStatuses: Object.entries(tree[name].bStatuses).sort().map(([bName, bData]) => ({
+          id: `status:${name}:billing:${bName}`,
+          name: bName,
+          count: bData.count,
+          barangays: Object.entries(bData.barangays).sort().map(([brgyName, brgyCount]) => ({
+            id: `status:${name}:billing:${bName}:brgy:${brgyName}`,
+            name: brgyName,
+            count: brgyCount
+          }))
+        }))
+      })),
+      total: totalCount || billingRecords.length
+    };
+  }, [billingRecords, totalCount]);
 
   // Helper function to apply funnel filters
   const applyFunnelFilters = (records: BillingRecord[], filters: any): BillingRecord[] => {
@@ -310,13 +432,13 @@ const Customer: React.FC = () => {
     return records.filter(record => {
       return Object.entries(filters).every(([key, filter]: [string, any]) => {
         const recordValue = (record as any)[key];
-        
+
         if (filter.type === 'text') {
           if (!filter.value) return true;
           const value = String(recordValue || '').toLowerCase();
           return value.includes(filter.value.toLowerCase());
         }
-        
+
         if (filter.type === 'number') {
           const numValue = Number(recordValue);
           if (isNaN(numValue)) return false;
@@ -324,7 +446,7 @@ const Customer: React.FC = () => {
           if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
           return true;
         }
-        
+
         if (filter.type === 'date') {
           if (!recordValue) return false;
           const dateValue = new Date(recordValue).getTime();
@@ -332,7 +454,7 @@ const Customer: React.FC = () => {
           if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
           return true;
         }
-        
+
         return true;
       });
     });
@@ -341,20 +463,58 @@ const Customer: React.FC = () => {
   // Memoize filtered and sorted records for performance
   const filteredBillingRecords = useMemo(() => {
     let filtered = billingRecords.filter(record => {
-      const matchesLocation = selectedLocation === 'all' || 
-                             record.cityId === Number(selectedLocation);
-      
-      const matchesSearch = searchQuery === '' || 
-                           record.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           record.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           record.applicationId.includes(searchQuery);
-      
+      // 1. Location hierarchy filter (Now using the 5-category status buckets)
+      let matchesLocation = selectedLocation === 'all';
+      if (!matchesLocation) {
+        if (selectedLocation.startsWith('status:')) {
+          const parts = selectedLocation.split(':');
+          const statusName = parts[1];
+          const accessStatus = record.status || 'inactive';
+          let recordBucket = 'offline';
+          const lowerStatus = accessStatus.toLowerCase();
+          const lowerOnlineStatus = (record.onlineStatus || '').toLowerCase();
+
+          if (lowerStatus === 'blocked' || lowerStatus === 'block' || lowerOnlineStatus === 'blocked' || lowerOnlineStatus === 'block') recordBucket = 'Blocked';
+          else if (lowerStatus === 'not found' || lowerOnlineStatus === 'not found') recordBucket = 'not found';
+          else if (lowerStatus === 'inactive') recordBucket = 'inactive';
+          else if (lowerOnlineStatus === 'online') recordBucket = 'online';
+
+          if (recordBucket !== statusName) return false;
+
+          // Check sub-billing status
+          if (parts.length > 2 && parts[2] === 'billing') {
+            const bStatus = parts[3];
+            if (record.billingStatus !== bStatus) return false;
+
+            // Check sub-barangay
+            if (parts.length > 4 && parts[4] === 'brgy') {
+              const brgyName = parts[5];
+              if (record.barangay !== brgyName) return false;
+            }
+          }
+          matchesLocation = true;
+        } else if (selectedLocation.startsWith('reg:')) {
+          matchesLocation = record.region === selectedLocation.substring(4);
+        } else if (selectedLocation.startsWith('city:')) {
+          matchesLocation = record.city === selectedLocation.substring(5);
+        } else if (selectedLocation.startsWith('brgy:')) {
+          matchesLocation = record.barangay === selectedLocation.substring(5);
+        }
+      }
+
+      // 2. Global search query
+      const matchesSearch = searchQuery === '' ||
+        record.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.applicationId.includes(searchQuery);
+
       return matchesLocation && matchesSearch;
     });
 
     // Apply funnel filters
     filtered = applyFunnelFilters(filtered, activeFilters);
 
+    // Sorting logic
     if (sortColumn) {
       filtered = [...filtered].sort((a, b) => {
         let aValue: any = '';
@@ -488,9 +648,86 @@ const Customer: React.FC = () => {
     return filtered;
   }, [billingRecords, selectedLocation, searchQuery, sortColumn, sortDirection, activeFilters]);
 
+  const totalDisplayCount = useMemo(() => {
+    if (selectedLocation === 'all' && searchQuery === '' && Object.keys(activeFilters).length === 0) {
+      return totalCount;
+    }
+    return filteredBillingRecords.length;
+  }, [filteredBillingRecords.length, totalCount, selectedLocation, searchQuery, activeFilters]);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection]);
+
+  // Derived paginated records
+  const paginatedRecords = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredBillingRecords.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredBillingRecords, currentPage]);
+
+  const totalPages = Math.ceil(totalDisplayCount / itemsPerPage);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  // Pagination Controls Component
+  const PaginationControls = () => {
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+              }`}
+          >
+            Previous
+          </button>
+
+          <div className="flex items-center space-x-1">
+            {/* Simple page indicator for now, can be expanded to page numbers */}
+            <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Page {currentPage} of {totalPages}
+            </span>
+          </div>
+
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+              }`}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+
   const handleRecordClick = async (record: BillingRecord) => {
     try {
       setIsLoadingDetails(true);
+      setSelectedBillingStatus(record.billingStatus || '');
+      setSelectedAccountBalance(record.balance);
+      setSelectedTotalPaid(record.totalPaid ?? null);
       console.log('Fetching customer detail for account:', record.applicationId);
       const customerData = await getCustomerDetail(record.applicationId);
       console.log('Fetched customer data:', customerData);
@@ -505,26 +742,28 @@ const Customer: React.FC = () => {
 
   const handleCloseDetails = () => {
     setSelectedCustomer(null);
+    setSelectedBillingStatus('');
+    setSelectedAccountBalance(null);
+    setSelectedTotalPaid(null);
   };
-  
+
   const renderCellValue = (record: BillingRecord, columnKey: string) => {
     switch (columnKey) {
       // Basic fields
       case 'status':
+        const isOnline = ['Online', 'online', 'Active', 'active', 'Connected', 'connected'].includes(record.onlineStatus);
         return (
           <div className="flex items-center space-x-2">
-            <Circle 
-              className={`h-3 w-3 ${
-                record.onlineStatus === 'Online' 
-                  ? 'text-green-400 fill-green-400' 
-                  : 'text-gray-400 fill-gray-400'
-              }`} 
+            <Circle
+              className={`h-3 w-3 ${isOnline
+                ? 'text-green-400 fill-green-400'
+                : 'text-gray-400 fill-gray-400'
+                }`}
             />
-            <span className={`text-xs ${
-              record.onlineStatus === 'Online' 
-                ? 'text-green-400' 
-                : 'text-gray-400'
-            }`}>
+            <span className={`text-xs ${isOnline
+              ? 'text-green-400'
+              : 'text-gray-400'
+              }`}>
               {record.onlineStatus}
             </span>
           </div>
@@ -581,7 +820,7 @@ const Customer: React.FC = () => {
         return record.city || '-';
       case 'region':
         return record.region || '-';
-      
+
       // Fields from BillingDetailRecord
       case 'lcpnapport':
         return (record as any).lcpnapport || '-';
@@ -601,7 +840,7 @@ const Customer: React.FC = () => {
         return (record as any).sessionIP || '-';
       case 'referralContactNo':
         return (record as any).referralContactNo || '-';
-      
+
       // Related records - placeholders
       case 'relatedInvoices':
       case 'relatedStatementOfAccount':
@@ -629,18 +868,18 @@ const Customer: React.FC = () => {
       case 'relatedAttachments':
       case 'logs':
         return '-';
-      
+
       // Computed fields
       case 'computedAddress':
-        return (record as any).computedAddress || 
-               (record.address ? (record.address.length > 25 ? `${record.address.substring(0, 25)}...` : record.address) : '-');
+        return (record as any).computedAddress ||
+          (record.address ? (record.address.length > 25 ? `${record.address.substring(0, 25)}...` : record.address) : '-');
       case 'computedStatus':
-        return (record as any).computedStatus || 
-               `${record.status || 'Inactive'} | P ${record.balance.toFixed(0)}`;
+        return (record as any).computedStatus ||
+          `${record.status || 'Inactive'} | P ${record.balance.toFixed(2)}`;
       case 'computedAccountNo':
-        return (record as any).computedAccountNo || 
-               `${record.applicationId} | ${record.customerName}${record.address ? (' | ' + record.address.substring(0, 10) + '...') : ''}`;
-        
+        return (record as any).computedAccountNo ||
+          `${record.applicationId} | ${record.customerName}${record.address ? (' | ' + record.address.substring(0, 10) + '...') : ''}`;
+
       default:
         return '-';
     }
@@ -648,15 +887,90 @@ const Customer: React.FC = () => {
 
   const handleRefresh = async () => {
     try {
-      setIsLoading(true);
-      const data = await getBillingRecords();
-      setBillingRecords(data);
-      setError(null);
+      // Use the context refresh function
+      await refreshBillingRecords();
     } catch (err) {
       console.error('Failed to refresh billing records:', err);
-      setError('Failed to refresh billing records. Please try again.');
+    }
+  };
+
+  const handleProcessOverdueNotifications = async () => {
+    if (!window.confirm('Process overdue notifications?\n\nThis will:\n- Update overdue table\n- Send email with PDF attachments\n- Send SMS notifications\n\nContinue?')) {
+      return;
+    }
+
+    setIsActionLoading(true);
+
+    const API_BASE_URL = window.location.hostname === 'localhost'
+      ? 'https://backend.atssfiber.ph/api'
+      : 'https://backend.atssfiber.ph/api';
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/cron-test/process-overdue-notifications`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include'
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        alert('Overdue notification processing failed: ' + result.message);
+        setError(result.message);
+      } else {
+        alert('✅ Overdue notifications processed successfully!\n\nCheck logs for details.');
+        // Refresh data
+        refreshBillingRecords();
+      }
+    } catch (err) {
+      console.error('Processing failed:', err);
+      alert('Processing failed: ' + (err as Error).message);
+      setError('Processing failed. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleProcessDisconnectionNotices = async () => {
+    if (!window.confirm('Process disconnection notices?\n\nThis will:\n- Update disconnection notice table\n- Send email with PDF attachments\n- Send SMS notifications\n\nContinue?')) {
+      return;
+    }
+
+    setIsActionLoading(true);
+
+    const API_BASE_URL = window.location.hostname === 'localhost'
+      ? 'https://backend.atssfiber.ph/api'
+      : 'https://backend.atssfiber.ph/api';
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/cron-test/process-disconnection-notices`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include'
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        alert('Disconnection notice processing failed: ' + result.message);
+        setError(result.message);
+      } else {
+        alert('✅ Disconnection notices processed successfully!\n\nCheck logs for details.');
+        // Refresh data
+        refreshBillingRecords();
+      }
+    } catch (err) {
+      console.error('Processing failed:', err);
+      alert('Processing failed: ' + (err as Error).message);
+      setError('Processing failed. Please try again.');
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -664,15 +978,19 @@ const Customer: React.FC = () => {
     if (!window.confirm('Generate sample SOA and invoices for ALL accounts in database (regardless of billing day, status, or any restrictions)?\n\nThis will process EVERY account that has a date_installed value.\n\n✨ NEW: Includes PDF generation + Email queue + SMS notifications!\n\nContinue?')) {
       return;
     }
-    
-    setIsLoading(true);
-    
-    const API_BASE_URL = window.location.hostname === 'localhost' 
+
+    setIsActionLoading(true);
+
+    const API_BASE_URL = window.location.hostname === 'localhost'
       ? 'https://backend.atssfiber.ph/api'
       : 'https://backend.atssfiber.ph/api';
 
-    const generationDate = new Date().toISOString().split('T')[0];
-    
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const generationDate = `${year}-${month}-${day}`;
+
     try {
       const response = await fetch(`${API_BASE_URL}/billing-generation/force-generate-all`, {
         method: 'POST',
@@ -686,14 +1004,14 @@ const Customer: React.FC = () => {
           send_notifications: true
         })
       });
-      
+
       const result = await response.json();
-      
+
       if (!result.success) {
         const errorDetails = result.data?.invoices?.errors || [];
         const soaErrors = result.data?.statements?.errors || [];
         const allErrors = [...errorDetails, ...soaErrors];
-        
+
         if (allErrors.length > 0) {
           console.error('Generation errors:', allErrors);
           const firstError = allErrors[0];
@@ -702,24 +1020,24 @@ const Customer: React.FC = () => {
           alert(result.message || 'Generation failed');
         }
         setError(result.message);
-        setIsLoading(false);
+        setIsActionLoading(false);
         return;
       }
-      
-      const data = await getBillingRecords();
-      setBillingRecords(data);
+
+      // Refresh data
+      refreshBillingRecords();
       setError(null);
-      
+
       const invoiceCount = result.data?.invoices?.success || 0;
       const soaCount = result.data?.statements?.success || 0;
       const accountCount = result.data?.total_accounts || 0;
       const invoiceErrors = result.data?.invoices?.failed || 0;
       const soaErrors = result.data?.statements?.failed || 0;
-      
+
       // Count notifications
       const invoiceNotifications = result.data?.invoices?.notifications?.length || 0;
       const soaNotifications = result.data?.statements?.notifications?.length || 0;
-      
+
       if (invoiceErrors > 0 || soaErrors > 0) {
         const errors = [
           ...(result.data?.invoices?.errors || []),
@@ -735,7 +1053,7 @@ const Customer: React.FC = () => {
       setError('Generation failed. Please try again.');
       alert('Generation failed: ' + (err as Error).message);
     } finally {
-      setIsLoading(false);
+      setIsActionLoading(false);
     }
   };
 
@@ -793,7 +1111,7 @@ const Customer: React.FC = () => {
 
   const handleDrop = (e: React.DragEvent, targetColumnKey: string) => {
     e.preventDefault();
-    
+
     if (!draggedColumn || draggedColumn === targetColumnKey) {
       setDraggedColumn(null);
       setDragOverColumn(null);
@@ -822,7 +1140,7 @@ const Customer: React.FC = () => {
     e.stopPropagation();
     setResizingColumn(columnKey);
     startXRef.current = e.clientX;
-    
+
     const th = (e.target as HTMLElement).closest('th');
     if (th) {
       startWidthRef.current = th.offsetWidth;
@@ -834,10 +1152,10 @@ const Customer: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!resizingColumn) return;
-      
+
       const diff = e.clientX - startXRef.current;
       const newWidth = Math.max(100, startWidthRef.current + diff);
-      
+
       setColumnWidths(prev => ({
         ...prev,
         [resizingColumn]: newWidth
@@ -862,10 +1180,10 @@ const Customer: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizingSidebar) return;
-      
+
       const diff = e.clientX - sidebarStartXRef.current;
       const newWidth = Math.max(200, Math.min(500, sidebarStartWidthRef.current + diff));
-      
+
       setSidebarWidth(newWidth);
     };
 
@@ -898,60 +1216,185 @@ const Customer: React.FC = () => {
     });
 
   return (
-    <div className={`h-full flex overflow-hidden ${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    }`}>
-      <div className={`border-r flex-shrink-0 flex flex-col relative ${
-        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-      }`} style={{ width: `${sidebarWidth}px` }}>
-        <div className={`p-4 border-b flex-shrink-0 ${
-          isDarkMode ? 'border-gray-700' : 'border-gray-200'
-        }`}>
+    <div className={`h-full flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      }`}>
+      <div className={`hidden md:flex border-r flex-shrink-0 flex flex-col relative ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        }`} style={{ width: `${sidebarWidth}px` }}>
+        <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
           <div className="flex items-center justify-between mb-1">
-            <h2 className={`text-lg font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Customer Details</h2>
+            <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Customers</h2>
+          </div>
+          <div className="mt-1">
+            {/* Redundant dropdowns removed as requested */}
           </div>
         </div>
+
         <div className="flex-1 overflow-y-auto">
-          {locationItems.map((location) => (
-            <button
-              key={location.id}
-              onClick={() => setSelectedLocation(location.id)}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-              } ${
-                selectedLocation === location.id
-                  ? ''
-                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+
+          {/* All Level */}
+          <button
+            onClick={() => setSelectedLocation('all')}
+            className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${selectedLocation === 'all'
+                ? ''
+                : isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}
-              style={selectedLocation === location.id ? {
-                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
+            style={selectedLocation === 'all' ? {
+              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+              color: colorPalette?.primary || '#fb923c'
+            } : {}}
+          >
+            <div className="flex items-center">
+              <CreditCard className="h-4 w-4 mr-2" />
+              <span>All Customers</span>
+            </div>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${selectedLocation === 'all'
+                ? 'text-white'
+                : isDarkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-500'
+                }`}
+              style={selectedLocation === 'all' ? {
+                backgroundColor: colorPalette?.primary || '#ea580c'
               } : {}}
             >
-              <div className="flex items-center">
-                <CreditCard className="h-4 w-4 mr-2" />
-                <span className="capitalize">{location.name}</span>
-              </div>
-              {location.count > 0 && (
-                <span
-                  className={`px-2 py-1 rounded-full text-xs ${
-                    selectedLocation === location.id
-                      ? 'text-white'
-                      : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                  }`}
-                  style={selectedLocation === location.id ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c'
+              {statusTree.total}
+            </span>
+          </button>
+
+          {/* Status Level (Flat with expansion) */}
+          {statusTree.items.map((status) => {
+            const getStatusStyle = (name: string) => {
+              const lower = name.toLowerCase();
+              if (lower === 'online') return { color: 'text-green-500', hex: '#22c55e', fillColor: 'bg-green-500', hollow: false };
+              if (lower === 'offline') return { color: 'text-yellow-400', hex: '#facc15', hollow: true };
+              if (lower === 'not found') return { color: 'text-red-600', hex: '#dc2626', fillColor: 'bg-red-600', hollow: false };
+              if (lower === 'blocked') return { color: 'text-orange-500', hex: '#f97316', hollow: true };
+              if (lower === 'inactive') return { color: 'text-gray-400', hex: '#9ca3af', fillColor: 'bg-gray-400', hollow: false };
+              return { color: 'text-blue-500', hex: '#3b82f6', fillColor: 'bg-blue-500', hollow: false };
+            };
+            const style = getStatusStyle(status.name);
+            const isSelected = selectedLocation === status.id;
+            const isExpanded = expandedLocations.has(status.id);
+
+            return (
+              <div key={status.id}>
+                <button
+                  onClick={() => setSelectedLocation(status.id)}
+                  className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                    }`}
+                  style={isSelected ? {
+                    backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                    color: colorPalette?.primary || '#fb923c'
                   } : {}}
                 >
-                  {location.count}
-                </span>
-              )}
-            </button>
-          ))}
+                  <div className="flex items-center flex-1">
+                    {style.hollow ? (
+                      <Circle className={`h-4 w-4 mr-2.5 ${style.color}`} strokeWidth={3} />
+                    ) : (
+                      <div className={`h-3.5 w-3.5 rounded-full mr-2.5 ${style.fillColor}`} />
+                    )}
+                    <span className="font-bold uppercase tracking-tight text-xs" style={isSelected ? {} : { color: style.hex }}>{status.name}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>
+                      {status.count}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedLocations(prev => {
+                          const next = new Set(prev);
+                          if (next.has(status.id)) next.delete(status.id);
+                          else next.add(status.id);
+                          return next;
+                        });
+                      }}
+                      className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
+                    >
+                      {isExpanded ? (
+                        <ChevronDown className="h-3 w-3 text-gray-500" />
+                      ) : (
+                        <ChevronRight className="h-3 w-3 text-gray-500" />
+                      )}
+                    </button>
+                  </div>
+                </button>
+
+                {/* Nested Billing Statuses */}
+                {isExpanded && status.bStatuses.map((billing) => {
+                  const isBillingSelected = selectedLocation === billing.id;
+                  const isBillingExpanded = expandedLocations.has(billing.id);
+
+                  return (
+                    <div key={billing.id}>
+                      <button
+                        onClick={() => setSelectedLocation(billing.id)}
+                        className={`w-full flex items-center justify-between pl-10 pr-4 py-1.5 text-xs transition-colors ${isDarkMode ? 'text-gray-400 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        style={isBillingSelected ? {
+                          backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                          color: colorPalette?.primary || '#fb923c'
+                        } : {}}
+                      >
+                        <div className="flex items-center flex-1">
+                          <span>{billing.name}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'}`}>
+                            {billing.count}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedLocations(prev => {
+                                const next = new Set(prev);
+                                if (next.has(billing.id)) next.delete(billing.id);
+                                else next.add(billing.id);
+                                return next;
+                              });
+                            }}
+                            className={`p-0.5 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
+                          >
+                            {isBillingExpanded ? (
+                              <ChevronDown className="h-3 w-3 text-gray-500" />
+                            ) : (
+                              <ChevronRight className="h-3 w-3 text-gray-500" />
+                            )}
+                          </button>
+                        </div>
+                      </button>
+
+                      {/* Nested Barangays */}
+                      {isBillingExpanded && billing.barangays.map((brgy) => {
+                        const isBrgySelected = selectedLocation === brgy.id;
+                        return (
+                          <button
+                            key={brgy.id}
+                            onClick={() => setSelectedLocation(brgy.id)}
+                            className={`w-full flex items-center justify-between pl-16 pr-4 py-1 text-[10px] transition-colors ${isDarkMode ? 'text-gray-500 hover:bg-gray-800' : 'text-gray-600 hover:bg-gray-100'
+                              }`}
+                            style={isBrgySelected ? {
+                              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                              color: colorPalette?.primary || '#fb923c'
+                            } : {}}
+                          >
+                            <span>{brgy.name}</span>
+                            <span className={`px-1 py-0.5 rounded text-[9px] font-bold ${isDarkMode ? 'bg-gray-800 text-gray-600' : 'bg-gray-50 text-gray-300'}`}>
+                              {brgy.count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
-        
+
         {/* Resize Handle */}
         <div
           className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
@@ -967,13 +1410,11 @@ const Customer: React.FC = () => {
         />
       </div>
 
-      <div className={`flex-1 overflow-hidden ${
-        isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
-      }`}>
+      <div className={`flex-1 overflow-hidden ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+        }`}>
         <div className="flex flex-col h-full">
-          <div className={`p-4 border-b flex-shrink-0 ${
-            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
+          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
             <div className="flex items-center space-x-3">
               <div className="relative flex-1">
                 <input
@@ -981,11 +1422,10 @@ const Customer: React.FC = () => {
                   placeholder="Search customer records..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${
-                    isDarkMode 
-                      ? 'bg-gray-800 text-white border border-gray-700' 
-                      : 'bg-white text-gray-900 border border-gray-300'
-                  }`}
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
+                    ? 'bg-gray-800 text-white border border-gray-700'
+                    : 'bg-white text-gray-900 border border-gray-300'
+                    }`}
                   style={{
                     '--tw-ring-color': colorPalette?.primary || '#ea580c'
                   } as React.CSSProperties}
@@ -998,43 +1438,37 @@ const Customer: React.FC = () => {
                     e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                   }}
                 />
-                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`} />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
               </div>
               <div className="flex space-x-2">
                 <button
                   onClick={() => setIsFunnelFilterOpen(true)}
-                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
-                    isDarkMode 
-                      ? 'hover:bg-gray-700 text-white' 
-                      : 'hover:bg-gray-200 text-gray-900'
-                  }`}
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                    ? 'hover:bg-gray-700 text-white'
+                    : 'hover:bg-gray-200 text-gray-900'
+                    }`}
                 >
                   <Filter className="h-5 w-5" />
                 </button>
                 {displayMode === 'table' && (
                   <div className="relative" ref={filterDropdownRef}>
                     <button
-                      className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
-                        isDarkMode 
-                          ? 'hover:bg-gray-700 text-white' 
-                          : 'hover:bg-gray-200 text-gray-900'
-                      }`}
+                      className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                        ? 'hover:bg-gray-700 text-white'
+                        : 'hover:bg-gray-200 text-gray-900'
+                        }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
                       <ListFilter className="h-5 w-5" />
                     </button>
                     {filterDropdownOpen && (
-                      <div className={`absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-96 flex flex-col ${
-                        isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-                      }`}>
-                        <div className={`p-3 border-b flex items-center justify-between ${
-                          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                      <div className={`absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-96 flex flex-col ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
                         }`}>
-                          <span className={`text-sm font-medium ${
-                            isDarkMode ? 'text-white' : 'text-gray-900'
-                          }`}>Column Visibility</span>
+                        <div className={`p-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                          }`}>
+                          <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>Column Visibility</span>
                           <div className="flex space-x-2">
                             <button
                               onClick={handleSelectAllColumns}
@@ -1077,21 +1511,19 @@ const Customer: React.FC = () => {
                           {allColumns.map((column) => (
                             <label
                               key={column.key}
-                              className={`flex items-center px-4 py-2 cursor-pointer text-sm ${
-                                isDarkMode 
-                                  ? 'hover:bg-gray-700 text-white' 
-                                  : 'hover:bg-gray-100 text-gray-900'
-                              }`}
+                              className={`flex items-center px-4 py-2 cursor-pointer text-sm ${isDarkMode
+                                ? 'hover:bg-gray-700 text-white'
+                                : 'hover:bg-gray-100 text-gray-900'
+                                }`}
                             >
                               <input
                                 type="checkbox"
                                 checked={visibleColumns.includes(column.key)}
                                 onChange={() => handleToggleColumn(column.key)}
-                                className={`mr-3 h-4 w-4 rounded ${
-                                  isDarkMode 
-                                    ? 'border-gray-600 bg-gray-700 focus:ring-offset-gray-800' 
-                                    : 'border-gray-300 bg-white focus:ring-offset-white'
-                                }`}
+                                className={`mr-3 h-4 w-4 rounded ${isDarkMode
+                                  ? 'border-gray-600 bg-gray-700 focus:ring-offset-gray-800'
+                                  : 'border-gray-300 bg-white focus:ring-offset-white'
+                                  }`}
                                 style={{
                                   accentColor: colorPalette?.primary || '#ea580c'
                                 }}
@@ -1106,11 +1538,10 @@ const Customer: React.FC = () => {
                 )}
                 <div className="relative z-50" ref={dropdownRef}>
                   <button
-                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
-                      isDarkMode 
-                        ? 'hover:bg-gray-700 text-white' 
-                        : 'hover:bg-gray-200 text-gray-900'
-                    }`}
+                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                      ? 'hover:bg-gray-700 text-white'
+                      : 'hover:bg-gray-200 text-gray-900'
+                      }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
                     <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
@@ -1119,17 +1550,15 @@ const Customer: React.FC = () => {
                     </svg>
                   </button>
                   {dropdownOpen && (
-                    <div className={`fixed right-auto mt-1 w-36 rounded shadow-lg ${
-                      isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-                    }`}>
+                    <div className={`fixed right-auto mt-1 w-36 rounded shadow-lg ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+                      }`}>
                       <button
                         onClick={() => {
                           setDisplayMode('card');
                           setDropdownOpen(false);
                         }}
-                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                          isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                        } ${displayMode === 'card' ? '' : isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                          } ${displayMode === 'card' ? '' : isDarkMode ? 'text-white' : 'text-gray-900'}`}
                         style={displayMode === 'card' ? { color: colorPalette?.primary || '#f97316' } : {}}
                       >
                         Card View
@@ -1139,9 +1568,8 @@ const Customer: React.FC = () => {
                           setDisplayMode('table');
                           setDropdownOpen(false);
                         }}
-                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                          isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                        } ${displayMode === 'table' ? '' : isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                          } ${displayMode === 'table' ? '' : isDarkMode ? 'text-white' : 'text-gray-900'}`}
                         style={displayMode === 'table' ? { color: colorPalette?.primary || '#f97316' } : {}}
                       >
                         Table View
@@ -1149,6 +1577,20 @@ const Customer: React.FC = () => {
                     </div>
                   )}
                 </div>
+                <button
+                  onClick={handleProcessOverdueNotifications}
+                  disabled={isLoading}
+                  className="bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors"
+                >
+                  {isLoading ? 'Processing...' : 'Process Overdue'}
+                </button>
+                <button
+                  onClick={handleProcessDisconnectionNotices}
+                  disabled={isLoading}
+                  className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors"
+                >
+                  {isLoading ? 'Processing...' : 'Process DC Notice'}
+                </button>
                 <button
                   onClick={handleGenerateSampleData}
                   disabled={isLoading}
@@ -1179,228 +1621,245 @@ const Customer: React.FC = () => {
               </div>
             </div>
           </div>
-          
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto">
+
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-y-auto">
               {isLoading ? (
-                <div className={`px-4 py-12 text-center ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   <div className="animate-pulse flex flex-col items-center">
-                    <div className={`h-4 w-1/3 rounded mb-4 ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                    }`}></div>
-                    <div className={`h-4 w-1/2 rounded ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                    }`}></div>
+                    <div className={`h-4 w-1/3 rounded mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
                   </div>
                   <p className="mt-4">Loading customer records...</p>
                 </div>
               ) : error ? (
-                <div className={`px-4 py-12 text-center ${
-                  isDarkMode ? 'text-red-400' : 'text-red-600'
-                }`}>
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
                   <p>{error}</p>
-                  <button 
-                    onClick={handleRefresh}
-                    className={`mt-4 px-4 py-2 rounded ${
-                      isDarkMode 
-                        ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                    }`}>
+                  <button
+                    onClick={refreshBillingRecords}
+                    className={`mt-4 px-4 py-2 rounded ${isDarkMode
+                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      }`}>
                     Retry
                   </button>
                 </div>
-              ) : displayMode === 'card' ? (
-                filteredBillingRecords.length > 0 ? (
-                  <div className="space-y-0">
-                    {filteredBillingRecords.map((record) => (
-                      <div
-                        key={record.id}
-                        onClick={() => handleRecordClick(record)}
-                        className={`px-4 py-3 cursor-pointer transition-colors border-b ${
-                          isDarkMode 
-                            ? 'hover:bg-gray-800 border-gray-800' 
-                            : 'hover:bg-gray-100 border-gray-200'
-                        } ${selectedCustomer?.billingAccount?.accountNo === record.applicationId ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="text-red-400 font-medium text-sm mb-1">
-                              {record.applicationId} | {record.customerName} | {record.address}
-                            </div>
-                            <div className={`text-sm ${
-                              isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>
-                              {record.status} | ₱ {record.balance.toFixed(2)}
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
-                            <Circle 
-                              className={`h-3 w-3 ${record.onlineStatus === 'Online' ? 'text-green-400 fill-green-400' : 'text-gray-400 fill-gray-400'}`} 
-                            />
-                            <span className={`text-sm ${record.onlineStatus === 'Online' ? 'text-green-400' : 'text-gray-400'}`}>
-                              {record.onlineStatus}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className={`text-center py-12 ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                    No customer records found matching your filters
-                  </div>
-                )
               ) : (
-                <div className="overflow-x-auto overflow-y-hidden">
-                  <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
-                    <thead>
-                      <tr className={`border-b sticky top-0 z-10 ${
-                        isDarkMode 
-                          ? 'border-gray-700 bg-gray-800' 
-                          : 'border-gray-200 bg-gray-100'
-                      }`}>
-                        {filteredColumns.map((column, index) => (
-                          <th
-                            key={column.key}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, column.key)}
-                            onDragOver={(e) => handleDragOver(e, column.key)}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleDrop(e, column.key)}
-                            onDragEnd={handleDragEnd}
-                            className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${
-                              isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
-                            } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''} ${
-                              draggedColumn === column.key ? 'opacity-50' : ''
-                            } ${
-                              dragOverColumn === column.key ? '' : ''
-                            }`}
-                            style={dragOverColumn === column.key ? {
-                              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                              width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
-                            } : {
-                              width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
-                            }}
-                            onMouseEnter={() => setHoveredColumn(column.key)}
-                            onMouseLeave={() => setHoveredColumn(null)}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span>{column.label}</span>
-                              {(hoveredColumn === column.key || sortColumn === column.key) && (
-                                <button
-                                  onClick={() => handleSort(column.key)}
-                                  className="ml-2 transition-colors"
-                                >
-                                  {sortColumn === column.key && sortDirection === 'desc' ? (
-                                    <ArrowDown className="h-4 w-4" style={{ color: colorPalette?.accent || '#fb923c' }} />
-                                  ) : (
-                                    <ArrowUp className="h-4 w-4 text-gray-400" style={{ color: hoveredColumn === column.key ? (colorPalette?.accent || '#fb923c') : undefined }} />
-                                  )}
-                                </button>
-                              )}
-                            </div>
-                            {index < filteredColumns.length - 1 && (
-                              <div
-                                className={`absolute right-0 top-0 bottom-0 w-1 cursor-col-resize ${
-                                  isDarkMode ? 'group-hover:bg-gray-600' : 'group-hover:bg-gray-300'
-                                }`}
-                                style={{
-                                  '--hover-bg': colorPalette?.primary || '#ea580c'
-                                } as React.CSSProperties}
-                                onMouseEnter={(e) => {
-                                  if (colorPalette?.primary) {
-                                    e.currentTarget.style.backgroundColor = colorPalette.primary;
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = '';
-                                }}
-                                onMouseDown={(e) => handleMouseDownResize(e, column.key)}
-                              />
-                            )}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredBillingRecords.length > 0 ? (
-                        filteredBillingRecords.map((record) => (
-                          <tr 
-                            key={record.id} 
-                            className={`border-b cursor-pointer transition-colors ${
-                              isDarkMode 
-                                ? 'border-gray-800 hover:bg-gray-900' 
-                                : 'border-gray-200 hover:bg-gray-50'
-                            } ${selectedCustomer?.billingAccount?.accountNo === record.applicationId ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
-                            onClick={() => handleRecordClick(record)}
-                          >
-                            {filteredColumns.map((column, index) => (
-                              <td 
-                                key={column.key}
-                                className={`py-4 px-3 ${
-                                  isDarkMode ? 'text-white' : 'text-gray-900'
-                                } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''}`}
-                                style={{ 
-                                  width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
-                                  maxWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
-                                }}
-                              >
-                                <div className="truncate">
-                                  {renderCellValue(record, column.key)}
+                <>
+                  {displayMode === 'card' ? (
+                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {paginatedRecords.length > 0 ? (
+                        <div>
+                          {paginatedRecords.map((record) => (
+                            <div
+                              key={record.id}
+                              onClick={() => handleRecordClick(record)}
+                              className={`px-4 py-3 cursor-pointer transition-colors border-b ${isDarkMode
+                                ? 'hover:bg-gray-800 border-gray-800'
+                                : 'hover:bg-gray-100 border-gray-200'
+                                } ${selectedCustomer?.billingAccount?.accountNo === record.applicationId ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-red-400 font-medium text-sm mb-1">
+                                    {record.applicationId} | {record.customerName} | {record.address}
+                                  </div>
+                                  <div className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                    }`}>
+                                    {record.status} | ₱ {record.balance.toFixed(2)}
+                                  </div>
                                 </div>
-                              </td>
-                            ))}
-                          </tr>
-                        ))
+                                <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
+                                  <Circle
+                                    className={`h-3 w-3 ${['Online', 'online', 'Active', 'active', 'Connected', 'connected'].includes(record.onlineStatus) ? 'text-green-400 fill-green-400' : 'text-gray-400 fill-gray-400'}`}
+                                  />
+                                  <span className={`text-sm ${['Online', 'online', 'Active', 'active', 'Connected', 'connected'].includes(record.onlineStatus) ? 'text-green-400' : 'text-gray-400'}`}>
+                                    {record.onlineStatus}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       ) : (
-                        <tr>
-                          <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${
-                            isDarkMode 
-                              ? 'text-gray-400 border-gray-800' 
-                              : 'text-gray-600 border-gray-200'
+                        <div className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                           }`}>
-                            No customer records found matching your filters
-                          </td>
-                        </tr>
+                          {filteredBillingRecords.length > 0
+                            ? 'No customer records found matching your filters'
+                            : (totalCount > billingRecords.length)
+                              ? 'Loading more records... please wait.'
+                              : 'No customer records found'}
+                        </div>
                       )}
-                    </tbody>
-                  </table>
-                </div>
+                    </div>
+                  ) : (
+                    <div className="h-full relative flex flex-col">
+                      <div className="flex-1 overflow-auto">
+                        <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
+                          <thead>
+                            <tr className={`border-b sticky top-0 z-10 ${isDarkMode
+                              ? 'border-gray-700 bg-gray-800'
+                              : 'border-gray-200 bg-gray-100'
+                              }`}>
+                              {filteredColumns.map((column, index) => (
+                                <th
+                                  key={column.key}
+                                  draggable
+                                  onDragStart={(e) => handleDragStart(e, column.key)}
+                                  onDragOver={(e) => handleDragOver(e, column.key)}
+                                  onDragLeave={handleDragLeave}
+                                  onDrop={(e) => handleDrop(e, column.key)}
+                                  onDragEnd={handleDragEnd}
+                                  className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
+                                    } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''} ${draggedColumn === column.key ? 'opacity-50' : ''
+                                    } ${dragOverColumn === column.key ? '' : ''
+                                    }`}
+                                  style={dragOverColumn === column.key ? {
+                                    backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                                    width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
+                                  } : {
+                                    width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
+                                  }}
+                                  onMouseEnter={() => setHoveredColumn(column.key)}
+                                  onMouseLeave={() => setHoveredColumn(null)}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span>{column.label}</span>
+                                    {(hoveredColumn === column.key || sortColumn === column.key) && (
+                                      <button
+                                        onClick={() => handleSort(column.key)}
+                                        className="ml-2 transition-colors"
+                                      >
+                                        {sortColumn === column.key && sortDirection === 'desc' ? (
+                                          <ArrowDown className="h-4 w-4" style={{ color: colorPalette?.accent || '#fb923c' }} />
+                                        ) : (
+                                          <ArrowUp className="h-4 w-4 text-gray-400" style={{ color: hoveredColumn === column.key ? (colorPalette?.accent || '#fb923c') : undefined }} />
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
+                                  {index < filteredColumns.length - 1 && (
+                                    <div
+                                      className={`absolute right-0 top-0 bottom-0 w-1 cursor-col-resize ${isDarkMode ? 'group-hover:bg-gray-600' : 'group-hover:bg-gray-300'
+                                        }`}
+                                      style={{
+                                        '--hover-bg': colorPalette?.primary || '#ea580c'
+                                      } as React.CSSProperties}
+                                      onMouseEnter={(e) => {
+                                        if (colorPalette?.primary) {
+                                          e.currentTarget.style.backgroundColor = colorPalette.primary;
+                                        }
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = '';
+                                      }}
+                                      onMouseDown={(e) => handleMouseDownResize(e, column.key)}
+                                    />
+                                  )}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedRecords.length > 0 ? (
+                              paginatedRecords.map((record) => (
+                                <tr
+                                  key={record.id}
+                                  className={`border-b cursor-pointer transition-colors ${isDarkMode
+                                    ? 'border-gray-800 hover:bg-gray-900'
+                                    : 'border-gray-200 hover:bg-gray-50'
+                                    } ${selectedCustomer?.billingAccount?.accountNo === record.applicationId ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
+                                  onClick={() => handleRecordClick(record)}
+                                >
+                                  {filteredColumns.map((column, index) => (
+                                    <td
+                                      key={column.key}
+                                      className={`py-4 px-3 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                        } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''}`}
+                                      style={{
+                                        width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
+                                        maxWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
+                                      }}
+                                    >
+                                      <div className="truncate">
+                                        {renderCellValue(record, column.key)}
+                                      </div>
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${isDarkMode
+                                  ? 'text-gray-400 border-gray-800'
+                                  : 'text-gray-600 border-gray-200'
+                                  }`}>
+                                  {filteredBillingRecords.length > 0
+                                    ? 'No customer records found matching your filters'
+                                    : (totalCount > billingRecords.length)
+                                      ? 'Loading more records... please wait.'
+                                      : 'No customer records found'}
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
+            {!isLoading && !error && filteredBillingRecords.length > 0 && <PaginationControls />}
           </div>
         </div>
       </div>
 
-      {(selectedCustomer || isLoadingDetails) && (
-        <div className="flex-shrink-0 overflow-hidden">
-          {isLoadingDetails ? (
-            <div className={`w-[600px] h-full flex items-center justify-center border-l ${
-              isDarkMode 
-                ? 'bg-gray-900 text-white border-white border-opacity-30' 
+      {
+        (selectedCustomer || isLoadingDetails) && (
+          <div className="flex-shrink-0 overflow-hidden">
+            {isLoadingDetails ? (
+              <div className={`w-[600px] h-full flex items-center justify-center border-l ${isDarkMode
+                ? 'bg-gray-900 text-white border-white border-opacity-30'
                 : 'bg-white text-gray-900 border-gray-300'
-            }`}>
-              <div className="text-center">
-                <div 
-                  className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-                  style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
-                ></div>
-                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
+                }`}>
+                <div className="text-center">
+                  <div
+                    className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+                    style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
+                  ></div>
+                  <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
+                </div>
               </div>
-            </div>
-          ) : selectedCustomer ? (
-            <BillingDetails
-              billingRecord={convertCustomerDataToBillingDetail(selectedCustomer)}
-              onlineStatusRecords={[]}
-              onClose={handleCloseDetails}
-            />
-          ) : null}
-        </div>
-      )}
+            ) : selectedCustomer ? (
+              <BillingDetails
+                billingRecord={{
+                  ...convertCustomerDataToBillingDetail(selectedCustomer),
+                  billingStatus: selectedBillingStatus || convertCustomerDataToBillingDetail(selectedCustomer).billingStatus || 'Active',
+                  accountBalance: selectedAccountBalance ?? convertCustomerDataToBillingDetail(selectedCustomer).accountBalance ?? 0,
+                  totalPaid: selectedTotalPaid ?? convertCustomerDataToBillingDetail(selectedCustomer).totalPaid ?? 0
+                }}
+                onlineStatusRecords={[]}
+                onClose={handleCloseDetails}
+                onRefresh={async () => {
+                  try {
+                    await refreshBillingRecords();
+                    if (selectedCustomer?.billingAccount?.accountNo) {
+                      const updatedCustomer = await getCustomerDetail(selectedCustomer.billingAccount.accountNo);
+                      setSelectedCustomer(updatedCustomer);
+                    }
+                  } catch (error) {
+                    console.error('Failed to refresh customer data:', error);
+                  }
+                }}
+              />
+            ) : null}
+          </div>
+        )
+      }
 
       <CustomerFunnelFilter
         isOpen={isFunnelFilterOpen}
@@ -1413,7 +1872,7 @@ const Customer: React.FC = () => {
         }}
         currentFilters={activeFilters}
       />
-    </div>
+    </div >
   );
 };
 

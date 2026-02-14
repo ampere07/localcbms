@@ -1,44 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FileText, Search, ChevronDown, RefreshCw, ListFilter, ArrowUp, ArrowDown, Menu, X, ArrowLeft, Filter } from 'lucide-react';
+import { FileText, Search, ChevronDown, RefreshCw, ListFilter, ArrowUp, ArrowDown, Menu, X, ArrowLeft, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import ApplicationVisitDetails from '../components/ApplicationVisitDetails';
 import ApplicationVisitFunnelFilter, { FilterValues } from '../filter/ApplicationVisitFunnelFilter';
-import { getAllApplicationVisits } from '../services/applicationVisitService';
+import { useApplicationVisitContext, type ApplicationVisit } from '../contexts/ApplicationVisitContext';
 import { getApplication } from '../services/applicationService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { applyFilters } from '../utils/filterUtils';
 
-interface ApplicationVisit {
-  id: string;
-  application_id: string;
-  timestamp: string;
-  assigned_email?: string;
-  visit_by?: string;
-  visit_with?: string;
-  visit_with_other?: string;
-  visit_status: string;
-  visit_remarks?: string;
-  status_remarks?: string;
-  application_status?: string;
-  full_name: string;
-  full_address: string;
-  referred_by?: string;
-  updated_by_user_email: string;
-  created_at: string;
-  updated_at: string;
-  first_name?: string;
-  middle_initial?: string;
-  last_name?: string;
-  region?: string;
-  city?: string;
-  barangay?: string;
-  location?: string;
-  choose_plan?: string;
-  promo?: string;
-  house_front_picture_url?: string;
-  image1_url?: string;
-  image2_url?: string;
-  image3_url?: string;
-}
 
 interface LocationItem {
   id: string;
@@ -70,7 +38,7 @@ const allColumns = [
   { key: 'region', label: 'Region', width: 'min-w-28' },
   { key: 'city', label: 'City', width: 'min-w-28' },
   { key: 'barangay', label: 'Barangay', width: 'min-w-32' },
-  { key: 'location', label: 'Location', width: 'min-w-32' },
+
   { key: 'choosePlan', label: 'Choose Plan', width: 'min-w-36' },
   { key: 'promo', label: 'Promo', width: 'min-w-28' },
   { key: 'houseFrontPicture', label: 'House Front Picture', width: 'min-w-48' },
@@ -81,15 +49,14 @@ const allColumns = [
   { key: 'createdAt', label: 'Created At', width: 'min-w-40' }
 ];
 
-const ApplicationVisit: React.FC = () => {
+const ApplicationVisitPage: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedVisit, setSelectedVisit] = useState<ApplicationVisit | null>(null);
-  const [applicationVisits, setApplicationVisits] = useState<ApplicationVisit[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const { applicationVisits, isLoading, error, refreshApplicationVisits, silentRefresh } = useApplicationVisitContext();
   const [userRole, setUserRole] = useState<string>('');
+  const [roleId, setRoleId] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [displayMode, setDisplayMode] = useState<DisplayMode>('table');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -127,6 +94,8 @@ const ApplicationVisit: React.FC = () => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 50;
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -137,9 +106,15 @@ const ApplicationVisit: React.FC = () => {
         console.error('Failed to fetch color palette:', err);
       }
     };
-    
+
+    fetchColorPalette();
     fetchColorPalette();
   }, []);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection]);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -171,9 +146,9 @@ const ApplicationVisit: React.FC = () => {
         setFilterDropdownOpen(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
@@ -187,120 +162,81 @@ const ApplicationVisit: React.FC = () => {
       return dateStr;
     }
   };
-  
+
   useEffect(() => {
     const authData = localStorage.getItem('authData');
     if (authData) {
       try {
         const userData = JSON.parse(authData);
         setUserRole(userData.role || '');
+        setRoleId(userData.role_id || null);
       } catch (err) {
         // Error parsing auth data
       }
     }
   }, []);
 
-  const fetchApplicationVisits = useCallback(async (isInitialLoad: boolean = false) => {
-    try {
-      if (isInitialLoad) {
-        setLoading(true);
-      }
-      
-      const authData = localStorage.getItem('authData');
-      let assignedEmail: string | undefined;
-      
-      if (authData) {
-        try {
-          const userData = JSON.parse(authData);
-          if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
-            assignedEmail = userData.email;
-          }
-        } catch (err) {
-          // Error parsing auth data
-        }
-      }
-      
-      const response = await getAllApplicationVisits(assignedEmail);
-      
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to fetch application visits');
-      }
-      
-      if (response.success && Array.isArray(response.data)) {
-        
-        const visits: ApplicationVisit[] = response.data.map((visit: any) => ({
-          id: visit.id || '',
-          application_id: visit.application_id || '',
-          timestamp: visit.timestamp || visit.created_at || '',
-          assigned_email: visit.assigned_email || '',
-          visit_by: visit.visit_by || '',
-          visit_with: visit.visit_with || '',
-          visit_with_other: visit.visit_with_other || '',
-          visit_status: visit.visit_status || 'Scheduled',
-          visit_remarks: visit.visit_remarks || '',
-          status_remarks: visit.status_remarks || '',
-          application_status: visit.application_status || 'Pending',
-          full_name: visit.full_name || '',
-          full_address: visit.full_address || '',
-          referred_by: visit.referred_by || '',
-          updated_by_user_email: visit.updated_by_user_email || 'System',
-          created_at: visit.created_at || '',
-          updated_at: visit.updated_at || '',
-          first_name: visit.first_name || '',
-          middle_initial: visit.middle_initial || '',
-          last_name: visit.last_name || '',
-          region: visit.region || '',
-          city: visit.city || '',
-          barangay: visit.barangay || '',
-          location: visit.location || '',
-          choose_plan: visit.choose_plan || '',
-          promo: visit.promo || '',
-          house_front_picture_url: visit.house_front_picture_url || '',
-          image1_url: visit.image1_url || '',
-          image2_url: visit.image2_url || '',
-          image3_url: visit.image3_url || '',
-        }));
-        
-        setApplicationVisits(visits);
-        setError(null);
-      } else {
-        setApplicationVisits([]);
-        if (response.message) {
-          setError(response.message);
-        }
-      }
-    } catch (err: any) {
-      if (isInitialLoad) {
-        setError(err.message || 'Failed to load application visits. Please try again.');
-        setApplicationVisits([]);
-      }
-    } finally {
-      if (isInitialLoad) {
-        setLoading(false);
-      }
-    }
-  }, []);
-
+  // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
-    fetchApplicationVisits(true);
-  }, [fetchApplicationVisits]);
+    silentRefresh();
+  }, [silentRefresh]);
 
+  // Idle detection and auto-refresh logic
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      fetchApplicationVisits(false);
-    }, 5 * 60 * 1000);
+    const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
+    let idleTimer: NodeJS.Timeout | null = null;
 
-    return () => clearInterval(intervalId);
-  }, [fetchApplicationVisits]);
+    const refreshData = async () => {
+      console.log('User idle for 15 minutes, auto-refreshing Application Visit data...');
+      try {
+        await silentRefresh();
+      } catch (err) {
+        console.error('Idle refresh failed:', err);
+      }
+      // Set the timer again to refresh every 15 mins if they remain idle
+      startTimer();
+    };
+
+    const startTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(refreshData, IDLE_TIME_LIMIT);
+    };
+
+    const resetTimer = () => {
+      startTimer();
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    // Use passive listeners for performance
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    startTimer(); // Initialize timer on mount
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [silentRefresh]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchApplicationVisits(false);
-    setTimeout(() => setIsRefreshing(false), 500);
+    await refreshApplicationVisits();
+    setIsRefreshing(false);
   };
 
+
+
   const handleVisitUpdate = async () => {
-    await fetchApplicationVisits(false);
+    await silentRefresh();
   };
 
   const locationItems: LocationItem[] = [
@@ -320,7 +256,7 @@ const ApplicationVisit: React.FC = () => {
     }
   });
   const uniqueLocations = Array.from(locationSet);
-    
+
   uniqueLocations.forEach(location => {
     if (location) {
       locationItems.push({
@@ -340,12 +276,12 @@ const ApplicationVisit: React.FC = () => {
     const addressParts = visit.full_address.split(',');
     const city = addressParts.length > 3 ? addressParts[3].trim().toLowerCase() : '';
     const matchesLocation = selectedLocation === 'all' || city === selectedLocation;
-    
-    const matchesSearch = searchQuery === '' || 
-                         visit.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         visit.full_address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (visit.assigned_email || '').toLowerCase().includes(searchQuery.toLowerCase());
-    
+
+    const matchesSearch = searchQuery === '' ||
+      visit.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      visit.full_address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (visit.assigned_email || '').toLowerCase().includes(searchQuery.toLowerCase());
+
     return matchesLocation && matchesSearch;
   });
 
@@ -445,10 +381,7 @@ const ApplicationVisit: React.FC = () => {
         aValue = a.barangay || '';
         bValue = b.barangay || '';
         break;
-      case 'location':
-        aValue = a.location || '';
-        bValue = b.location || '';
-        break;
+
       case 'choosePlan':
         aValue = a.choose_plan || '';
         bValue = b.choose_plan || '';
@@ -477,19 +410,34 @@ const ApplicationVisit: React.FC = () => {
     if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
     if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
     return 0;
+    return 0;
   });
+
+  // Derived paginated records
+  const paginatedVisits = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return sortedVisits.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedVisits, currentPage]);
+
+  const totalPages = Math.ceil(sortedVisits.length / itemsPerPage);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
 
   const handleRowClick = async (visit: ApplicationVisit) => {
     try {
       if (!visit.application_status) {
         try {
           const applicationData = await getApplication(visit.application_id);
-          
+
           const updatedVisit = {
             ...visit,
             application_status: applicationData.status || 'Pending'
           };
-          
+
           setSelectedVisit(updatedVisit);
         } catch (err: any) {
           setSelectedVisit(visit);
@@ -498,13 +446,13 @@ const ApplicationVisit: React.FC = () => {
         setSelectedVisit(visit);
       }
     } catch (err: any) {
-      setError(`Failed to select visit: ${err.message || 'Unknown error'}`);
+      console.error('Failed to select visit:', err);
     }
   };
 
   const StatusText = ({ status, type }: { status: string; type: 'visit' | 'application' }) => {
     let textColor = '';
-    
+
     if (type === 'visit') {
       switch (status.toLowerCase()) {
         case 'completed':
@@ -555,7 +503,7 @@ const ApplicationVisit: React.FC = () => {
           textColor = 'text-gray-400';
       }
     }
-    
+
     return (
       <span className={`${textColor} font-bold uppercase`}>
         {status}
@@ -625,7 +573,7 @@ const ApplicationVisit: React.FC = () => {
 
   const handleDrop = (e: React.DragEvent, targetColumnKey: string) => {
     e.preventDefault();
-    
+
     if (!draggedColumn || draggedColumn === targetColumnKey) {
       setDraggedColumn(null);
       setDragOverColumn(null);
@@ -654,7 +602,7 @@ const ApplicationVisit: React.FC = () => {
     e.stopPropagation();
     setResizingColumn(columnKey);
     startXRef.current = e.clientX;
-    
+
     const th = (e.target as HTMLElement).closest('th');
     if (th) {
       startWidthRef.current = th.offsetWidth;
@@ -666,10 +614,10 @@ const ApplicationVisit: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!resizingColumn) return;
-      
+
       const diff = e.clientX - startXRef.current;
       const newWidth = Math.max(100, startWidthRef.current + diff);
-      
+
       setColumnWidths(prev => ({
         ...prev,
         [resizingColumn]: newWidth
@@ -694,10 +642,10 @@ const ApplicationVisit: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizingSidebar) return;
-      
+
       const diff = e.clientX - sidebarStartXRef.current;
       const newWidth = Math.max(200, Math.min(500, sidebarStartWidthRef.current + diff));
-      
+
       setSidebarWidth(newWidth);
     };
 
@@ -763,8 +711,7 @@ const ApplicationVisit: React.FC = () => {
         return visit.city || '-';
       case 'barangay':
         return visit.barangay || '-';
-      case 'location':
-        return visit.location || '-';
+
       case 'choosePlan':
         return visit.choose_plan || '-';
       case 'promo':
@@ -808,182 +755,96 @@ const ApplicationVisit: React.FC = () => {
     setMobileView('details');
   };
 
-  if (loading) {
-    return (
-      <div className={`flex items-center justify-center h-full ${
-        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+  return (
+    <div className={`h-full flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
-        <div className="flex flex-col items-center">
-          <div 
-            className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 mb-3"
-            style={{ borderTopColor: colorPalette?.primary || '#ea580c', borderBottomColor: colorPalette?.primary || '#ea580c' }}
-          ></div>
-          <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Loading application visits...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className={`flex items-center justify-center h-full ${
-        isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-      }`}>
-        <div className={`rounded-md p-6 max-w-lg ${
-          isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-        }`}>
-          <h3 className="text-red-500 text-lg font-medium mb-2">Error</h3>
-          <p className={`mb-4 ${
-            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-          }`}>{error}</p>
-          <div className="flex flex-col space-y-4">
-            <button
-            onClick={() => window.location.reload()}
-            className="text-white py-2 px-4 rounded transition-colors"
-            style={{
-            backgroundColor: colorPalette?.primary || '#ea580c'
-            }}
-            onMouseEnter={(e) => {
-            if (colorPalette?.accent) {
-            e.currentTarget.style.backgroundColor = colorPalette.accent;
-            }
-            }}
-            onMouseLeave={(e) => {
-            if (colorPalette?.primary) {
-            e.currentTarget.style.backgroundColor = colorPalette.primary;
-            }
-            }}
-            >
-            Retry
-            </button>
-            
-            <div className={`mt-4 p-4 rounded overflow-auto max-h-48 ${
-              isDarkMode ? 'bg-gray-900' : 'bg-gray-100'
+      {/* Desktop Sidebar - Hidden on mobile */}
+      {(userRole.toLowerCase() !== 'technician' && roleId !== 2) && (
+        <div className={`hidden md:flex border-r flex-shrink-0 flex-col relative z-40 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`} style={{ width: `${sidebarWidth}px` }}>
+          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
             }`}>
-              <pre className={`text-xs whitespace-pre-wrap ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                {error.includes("SQLSTATE") ? (
-                  <>
-                    <span className="text-red-400">Database Error:</span>
-                    <br />
-                    {error.includes("Table") ? "Table name mismatch - check the database schema" : error}
-                    <br /><br />
-                    <span className="text-yellow-400">Suggestion:</span>
-                    <br />
-                    Verify that the table &apos;application_visits&apos; exists in your database.
-                  </>
-                ) : error}
-              </pre>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Application Visits</h2>
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`h-full flex flex-col md:flex-row overflow-hidden ${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    }`}>
-      {/* Desktop Sidebar - Hidden on mobile */}
-      {userRole.toLowerCase() !== 'technician' && (
-      <div className={`hidden md:flex border-r flex-shrink-0 flex-col relative z-40 ${
-        isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-      }`} style={{ width: `${sidebarWidth}px` }}>
-        <div className={`p-4 border-b flex-shrink-0 ${
-          isDarkMode ? 'border-gray-700' : 'border-gray-200'
-        }`}>
-          <div className="flex items-center justify-between mb-1">
-            <h2 className={`text-lg font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Application Visits</h2>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          {locationItems.map((location) => (
-            <button
-              key={location.id}
-              onClick={() => {
-                setSelectedLocation(location.id);
-              }}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-              } ${
-                selectedLocation === location.id
-                  ? ''
-                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}
-              style={selectedLocation === location.id ? {
-                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
-              } : {}}
-            >
-              <div className="flex items-center">
-                <FileText className="h-4 w-4 mr-2" />
-                <span className="capitalize">{location.name}</span>
-              </div>
-              {location.count > 0 && (
-                <span
-                  className={`px-2 py-1 rounded-full text-xs ${
-                    selectedLocation === location.id
+          <div className="flex-1 overflow-y-auto">
+            {locationItems.map((location) => (
+              <button
+                key={location.id}
+                onClick={() => {
+                  setSelectedLocation(location.id);
+                }}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                  } ${selectedLocation === location.id
+                    ? ''
+                    : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}
+                style={selectedLocation === location.id ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#fb923c'
+                } : {}}
+              >
+                <div className="flex items-center">
+                  <FileText className="h-4 w-4 mr-2" />
+                  <span className="capitalize">{location.name}</span>
+                </div>
+                {location.count > 0 && (
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs ${selectedLocation === location.id
                       ? 'text-white'
                       : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                  }`}
-                  style={selectedLocation === location.id ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c'
-                  } : {}}
-                >
-                  {location.count}
-                </span>
-              )}
-            </button>
-          ))}
+                      }`}
+                    style={selectedLocation === location.id ? {
+                      backgroundColor: colorPalette?.primary || '#ea580c'
+                    } : {}}
+                  >
+                    {location.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Resize Handle */}
+          <div
+            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
+            onMouseDown={handleMouseDownSidebarResize}
+            style={{
+              backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#ea580c') : 'transparent'
+            }}
+            onMouseEnter={(e) => {
+              if (!isResizingSidebar && colorPalette?.primary) {
+                e.currentTarget.style.backgroundColor = colorPalette.primary;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isResizingSidebar) {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }
+            }}
+          />
         </div>
-        
-        {/* Resize Handle */}
-        <div
-          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
-          onMouseDown={handleMouseDownSidebarResize}
-          style={{
-            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#ea580c') : 'transparent'
-          }}
-          onMouseEnter={(e) => {
-            if (!isResizingSidebar && colorPalette?.primary) {
-              e.currentTarget.style.backgroundColor = colorPalette.primary;
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isResizingSidebar) {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }
-          }}
-        />
-      </div>
       )}
 
       {/* Mobile Location View */}
       {mobileView === 'locations' && (
-        <div className={`md:hidden flex-1 flex flex-col overflow-hidden ${
-          isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-        }`}>
-          <div className={`p-4 border-b ${
-            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+        <div className={`md:hidden flex-1 flex flex-col overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
           }`}>
-            <h2 className={`text-lg font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Application Visits</h2>
+          <div className={`p-4 border-b ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+            <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Application Visits</h2>
           </div>
           <div className="flex-1 overflow-y-auto">
             {locationItems.map((location) => (
               <button
                 key={location.id}
                 onClick={() => handleLocationSelect(location.id)}
-                className={`w-full flex items-center justify-between px-4 py-4 text-sm transition-colors border-b ${
-                  isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
-                } ${
-                  selectedLocation === location.id ? '' : isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}
+                className={`w-full flex items-center justify-between px-4 py-4 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
+                  } ${selectedLocation === location.id ? '' : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}
                 style={selectedLocation === location.id ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
                   color: colorPalette?.primary || '#fb923c'
@@ -1017,15 +878,12 @@ const ApplicationVisit: React.FC = () => {
       {mobileMenuOpen && userRole.toLowerCase() !== 'technician' && mobileView === 'visits' && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
-          <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${
-            isDarkMode ? 'bg-gray-900' : 'bg-white'
-          }`}>
-            <div className={`p-4 border-b flex items-center justify-between ${
-              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
             }`}>
-              <h2 className={`text-lg font-semibold ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Filters</h2>
+            <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Filters</h2>
               <button onClick={() => setMobileMenuOpen(false)} className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}>
                 <X className="h-6 w-6" />
               </button>
@@ -1035,11 +893,10 @@ const ApplicationVisit: React.FC = () => {
                 <button
                   key={location.id}
                   onClick={() => handleLocationSelect(location.id)}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${
-                    selectedLocation === location.id
-                      ? ''
-                      : 'text-gray-300'
-                  }`}
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-gray-800 ${selectedLocation === location.id
+                    ? ''
+                    : 'text-gray-300'
+                    }`}
                   style={selectedLocation === location.id ? {
                     backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
                     color: colorPalette?.primary || '#fb923c'
@@ -1051,11 +908,10 @@ const ApplicationVisit: React.FC = () => {
                   </div>
                   {location.count > 0 && (
                     <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        selectedLocation === location.id
-                          ? 'text-white'
-                          : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                      }`}
+                      className={`px-2 py-1 rounded-full text-xs ${selectedLocation === location.id
+                        ? 'text-white'
+                        : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                        }`}
                       style={selectedLocation === location.id ? {
                         backgroundColor: colorPalette?.primary || '#ea580c'
                       } : {}}
@@ -1071,22 +927,19 @@ const ApplicationVisit: React.FC = () => {
       )}
 
       {/* Main Content */}
-      <div className={`overflow-hidden flex-1 flex flex-col md:pb-0 relative z-30 ${
-        isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
-      } ${mobileView === 'locations' || mobileView === 'details' ? 'hidden md:flex' : ''}`}>
+      <div className={`overflow-hidden flex-1 flex flex-col md:pb-0 relative z-30 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+        } ${mobileView === 'locations' || mobileView === 'details' ? 'hidden md:flex' : ''}`}>
         <div className="flex flex-col h-full">
-          <div className={`p-4 border-b flex-shrink-0 relative z-50 ${
-            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
+          <div className={`p-4 border-b flex-shrink-0 relative z-50 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
             <div className="flex items-center space-x-3">
               {userRole.toLowerCase() !== 'technician' && mobileView === 'visits' && (
                 <button
                   onClick={() => setMobileMenuOpen(true)}
-                  className={`md:hidden p-2 rounded text-sm transition-colors flex items-center justify-center ${
-                    isDarkMode
-                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                  }`}
+                  className={`md:hidden p-2 rounded text-sm transition-colors flex items-center justify-center ${isDarkMode
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                    }`}
                   aria-label="Open filter menu"
                 >
                   <Menu className="h-5 w-5" />
@@ -1098,11 +951,10 @@ const ApplicationVisit: React.FC = () => {
                   placeholder="Search application visits..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${
-                    isDarkMode
-                      ? 'bg-gray-800 text-white border border-gray-700'
-                      : 'bg-white text-gray-900 border border-gray-300'
-                  }`}
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${isDarkMode
+                    ? 'bg-gray-800 text-white border border-gray-700'
+                    : 'bg-white text-gray-900 border border-gray-300'
+                    }`}
                   onFocus={(e) => {
                     if (colorPalette?.primary) {
                       e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1114,29 +966,26 @@ const ApplicationVisit: React.FC = () => {
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 />
-                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`} />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
               </div>
               <div className="flex space-x-2">
                 <button
                   onClick={() => setIsFunnelFilterOpen(true)}
-                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
-                    isDarkMode
-                      ? 'hover:bg-gray-700 text-white'
-                      : 'hover:bg-gray-200 text-gray-900'
-                  }`}
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                    ? 'hover:bg-gray-700 text-white'
+                    : 'hover:bg-gray-200 text-gray-900'
+                    }`}
                 >
                   <Filter className="h-5 w-5" />
                 </button>
                 {displayMode === 'table' && (
                   <div className="relative" ref={filterDropdownRef}>
                     <button
-                      className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
-                        isDarkMode
-                          ? 'hover:bg-gray-800 text-white'
-                          : 'hover:bg-gray-100 text-gray-900'
-                      }`}
+                      className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                        ? 'hover:bg-gray-800 text-white'
+                        : 'hover:bg-gray-100 text-gray-900'
+                        }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
                       <ListFilter className="h-5 w-5" />
@@ -1146,27 +995,22 @@ const ApplicationVisit: React.FC = () => {
                         {/* Mobile Overlay */}
                         <div className="md:hidden fixed inset-0 z-50">
                           <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setFilterDropdownOpen(false)} />
-                          <div className={`absolute inset-x-4 top-20 bottom-4 rounded shadow-lg flex flex-col ${
-                            isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-                          }`}>
-                            <div className={`p-3 border-b flex items-center justify-between ${
-                              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                          <div className={`absolute inset-x-4 top-20 bottom-4 rounded shadow-lg flex flex-col ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
                             }`}>
-                              <span className={`text-sm font-medium ${
-                                isDarkMode ? 'text-white' : 'text-gray-900'
-                              }`}>Column Visibility</span>
+                            <div className={`p-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                              }`}>
+                              <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                }`}>Column Visibility</span>
                               <button onClick={() => setFilterDropdownOpen(false)} className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}>
                                 <X className="h-5 w-5" />
                               </button>
                             </div>
-                            <div className={`p-3 border-b flex items-center justify-between ${
-                              isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                            }`}>
+                            <div className={`p-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                              }`}>
                               <button
                                 onClick={handleSelectAllColumns}
-                                className={`text-sm px-3 py-1 rounded transition-colors ${
-                                  isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
-                                }`}
+                                className={`text-sm px-3 py-1 rounded transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
+                                  }`}
                                 style={{
                                   color: colorPalette?.primary || '#fb923c'
                                 }}
@@ -1175,9 +1019,8 @@ const ApplicationVisit: React.FC = () => {
                               </button>
                               <button
                                 onClick={handleDeselectAllColumns}
-                                className={`text-sm px-3 py-1 rounded transition-colors ${
-                                  isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
-                                }`}
+                                className={`text-sm px-3 py-1 rounded transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
+                                  }`}
                                 style={{
                                   color: colorPalette?.primary || '#fb923c'
                                 }}
@@ -1189,9 +1032,8 @@ const ApplicationVisit: React.FC = () => {
                               {allColumns.map((column) => (
                                 <label
                                   key={column.key}
-                                  className={`flex items-center px-4 py-3 cursor-pointer text-sm border-b ${
-                                    isDarkMode ? 'hover:bg-gray-700 text-white border-gray-700' : 'hover:bg-gray-100 text-gray-900 border-gray-200'
-                                  }`}
+                                  className={`flex items-center px-4 py-3 cursor-pointer text-sm border-b ${isDarkMode ? 'hover:bg-gray-700 text-white border-gray-700' : 'hover:bg-gray-100 text-gray-900 border-gray-200'
+                                    }`}
                                 >
                                   <input
                                     type="checkbox"
@@ -1207,15 +1049,12 @@ const ApplicationVisit: React.FC = () => {
                         </div>
 
                         {/* Desktop Dropdown */}
-                        <div className={`hidden md:flex absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-96 flex-col ${
-                          isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-                        }`}>
-                          <div className={`p-3 border-b flex items-center justify-between ${
-                            isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                        <div className={`hidden md:flex absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-96 flex-col ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
                           }`}>
-                            <span className={`text-sm font-medium ${
-                              isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>Column Visibility</span>
+                          <div className={`p-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                            }`}>
+                            <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>Column Visibility</span>
                             <div className="flex space-x-2">
                               <button
                                 onClick={handleSelectAllColumns}
@@ -1262,9 +1101,8 @@ const ApplicationVisit: React.FC = () => {
                             {allColumns.map((column) => (
                               <label
                                 key={column.key}
-                                className={`flex items-center px-4 py-2 cursor-pointer text-sm ${
-                                  isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'
-                                }`}
+                                className={`flex items-center px-4 py-2 cursor-pointer text-sm ${isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'
+                                  }`}
                               >
                                 <input
                                   type="checkbox"
@@ -1283,28 +1121,25 @@ const ApplicationVisit: React.FC = () => {
                 )}
                 <div className="relative z-[100]" ref={dropdownRef}>
                   <button
-                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${
-                      isDarkMode
-                        ? 'hover:bg-gray-800 text-white'
-                        : 'hover:bg-gray-100 text-gray-900'
-                    }`}
+                    className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
+                      ? 'hover:bg-gray-800 text-white'
+                      : 'hover:bg-gray-100 text-gray-900'
+                      }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
                     <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
                     <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
                   {dropdownOpen && (
-                    <div className={`absolute top-full right-0 mt-1 w-36 rounded shadow-lg border z-50 ${
-                      isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-                    }`}>
+                    <div className={`absolute top-full right-0 mt-1 w-36 rounded shadow-lg border z-50 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                      }`}>
                       <button
                         onClick={() => {
                           setDisplayMode('card');
                           setDropdownOpen(false);
                         }}
-                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                          isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                        }`}
+                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                          }`}
                         style={displayMode === 'card' ? {
                           color: colorPalette?.primary || '#f97316'
                         } : {
@@ -1318,9 +1153,8 @@ const ApplicationVisit: React.FC = () => {
                           setDisplayMode('table');
                           setDropdownOpen(false);
                         }}
-                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
-                          isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                        }`}
+                        className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                          }`}
                         style={displayMode === 'table' ? {
                           color: colorPalette?.primary || '#f97316'
                         } : {
@@ -1355,30 +1189,56 @@ const ApplicationVisit: React.FC = () => {
               </div>
             </div>
           </div>
-          
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto">
-              {displayMode === 'card' ? (
-                filteredVisits.length > 0 ? (
+
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-y-auto">
+              {isLoading ? (
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
+                  <div className="animate-pulse flex flex-col items-center">
+                    <div className={`h-4 w-1/3 rounded mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
+                  </div>
+                  <p className="mt-4">Loading application visits...</p>
+                </div>
+              ) : error ? (
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                  }`}>
+                  <p>{error}</p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className={`mt-4 px-4 py-2 rounded text-white ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-400 hover:bg-gray-500'
+                      }`}>
+                    Retry
+                  </button>
+                  <div className={`mt-4 p-4 rounded overflow-auto max-h-48 text-left ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                    }`}>
+                    <pre className={`text-xs whitespace-pre-wrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                      {error}
+                    </pre>
+                  </div>
+                </div>
+              ) : displayMode === 'card' ? (
+                paginatedVisits.length > 0 ? (
                   <div className="space-y-0">
-                    {sortedVisits.map((visit) => (
+                    {paginatedVisits.map((visit) => (
                       <div
                         key={visit.id}
                         onClick={() => window.innerWidth < 768 ? handleMobileRowClick(visit) : handleRowClick(visit)}
-                        className={`px-4 py-3 cursor-pointer transition-colors border-b ${
-                          isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
-                        } ${selectedVisit?.id === visit.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
+                        className={`px-4 py-3 cursor-pointer transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
+                          } ${selectedVisit?.id === visit.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className={`font-medium text-sm mb-1 ${
-                              isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>
+                            <div className={`font-medium text-sm mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
                               {visit.full_name}
                             </div>
-                            <div className={`text-xs ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`}>
+                            <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`}>
                               {formatDate(visit.timestamp)} | {visit.full_address}
                             </div>
                           </div>
@@ -1390,9 +1250,8 @@ const ApplicationVisit: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className={`text-center py-12 ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
+                  <div className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
                     {applicationVisits.length > 0
                       ? 'No application visits found matching your filters'
                       : 'No application visits found. Create your first visit by scheduling from the Applications page.'}
@@ -1402,9 +1261,8 @@ const ApplicationVisit: React.FC = () => {
                 <div className="overflow-x-auto overflow-y-hidden">
                   <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
                     <thead>
-                      <tr className={`border-b sticky top-0 z-10 ${
-                        isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
-                      }`}>
+                      <tr className={`border-b sticky top-0 z-10 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
+                        }`}>
                         {filteredColumns.map((column, index) => (
                           <th
                             key={column.key}
@@ -1414,11 +1272,9 @@ const ApplicationVisit: React.FC = () => {
                             onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, column.key)}
                             onDragEnd={handleDragEnd}
-                            className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${
-                              isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
-                            } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''} ${
-                              draggedColumn === column.key ? 'opacity-50' : ''
-                            }`}
+                            className={`text-left py-3 px-3 font-normal ${column.width} whitespace-nowrap relative group cursor-move ${isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-600 bg-gray-100'
+                              } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''} ${draggedColumn === column.key ? 'opacity-50' : ''
+                              }`}
                             style={{
                               width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
                               ...(dragOverColumn === column.key ? {
@@ -1467,22 +1323,20 @@ const ApplicationVisit: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredVisits.length > 0 ? (
-                        sortedVisits.map((visit) => (
-                          <tr 
-                            key={visit.id} 
-                            className={`border-b cursor-pointer transition-colors ${
-                              isDarkMode ? 'border-gray-800 hover:bg-gray-900' : 'border-gray-200 hover:bg-gray-50'
-                            } ${selectedVisit?.id === visit.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
+                      {paginatedVisits.length > 0 ? (
+                        paginatedVisits.map((visit) => (
+                          <tr
+                            key={visit.id}
+                            className={`border-b cursor-pointer transition-colors ${isDarkMode ? 'border-gray-800 hover:bg-gray-900' : 'border-gray-200 hover:bg-gray-50'
+                              } ${selectedVisit?.id === visit.id ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
                             onClick={() => window.innerWidth < 768 ? handleMobileRowClick(visit) : handleRowClick(visit)}
                           >
                             {filteredColumns.map((column, index) => (
-                              <td 
+                              <td
                                 key={column.key}
-                                className={`py-4 px-3 ${
-                                  isDarkMode ? 'text-white' : 'text-gray-900'
-                                } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''}`}
-                                style={{ 
+                                className={`py-4 px-3 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                  } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-800' : 'border-r border-gray-200') : ''}`}
+                                style={{
                                   width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
                                   maxWidth: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined
                                 }}
@@ -1496,9 +1350,8 @@ const ApplicationVisit: React.FC = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${
-                            isDarkMode ? 'text-gray-400 border-gray-800' : 'text-gray-600 border-gray-200'
-                          }`}>
+                          <td colSpan={filteredColumns.length} className={`px-4 py-12 text-center border-b ${isDarkMode ? 'text-gray-400 border-gray-800' : 'text-gray-600 border-gray-200'
+                            }`}>
                             {applicationVisits.length > 0
                               ? 'No application visits found matching your filters'
                               : 'No application visits found. Create your first visit by scheduling from the Applications page.'}
@@ -1510,15 +1363,52 @@ const ApplicationVisit: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* Pagination Controls */}
+            {!isLoading && sortedVisits.length > 0 && totalPages > 1 && (
+              <div className={`border-t p-4 flex items-center justify-between ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, sortedVisits.length)}</span> of <span className="font-medium">{sortedVisits.length}</span> results
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+                      ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                      : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                      }`}
+                  >
+                    Previous
+                  </button>
+
+                  <div className="flex items-center space-x-1">
+                    <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      Page {currentPage} of {totalPages}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+                      ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                      : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                      }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {selectedVisit && mobileView === 'details' && (
-        <div className={`md:hidden flex-1 flex flex-col overflow-hidden ${
-          isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-        }`}>
-          <ApplicationVisitDetails 
+        <div className={`md:hidden flex-1 flex flex-col overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+          }`}>
+          <ApplicationVisitDetails
             applicationVisit={selectedVisit}
             onClose={handleMobileBack}
             onUpdate={handleVisitUpdate}
@@ -1529,7 +1419,7 @@ const ApplicationVisit: React.FC = () => {
 
       {selectedVisit && mobileView !== 'details' && (
         <div className="hidden md:block flex-shrink-0 overflow-hidden">
-          <ApplicationVisitDetails 
+          <ApplicationVisitDetails
             applicationVisit={selectedVisit}
             onClose={() => setSelectedVisit(null)}
             onUpdate={handleVisitUpdate}
@@ -1561,4 +1451,4 @@ const ApplicationVisit: React.FC = () => {
   );
 };
 
-export default ApplicationVisit;
+export default ApplicationVisitPage;

@@ -5,7 +5,6 @@ import DiscountFormModal from '../modals/DiscountFormModal';
 import * as discountService from '../services/discountService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
  
-
 interface DiscountRecord {
   id: string;
   fullName: string;

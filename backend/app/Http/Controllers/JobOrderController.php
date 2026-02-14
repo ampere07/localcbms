@@ -11,7 +11,7 @@ use App\Models\ModemRouterSN;
 use App\Models\ContractTemplate;
 use App\Models\Port;
 use App\Models\VLAN;
-use App\Models\LCPNAP;
+use App\Models\LCPNAPLocation;
 use App\Models\Plan;
 use App\Models\User;
 use App\Models\Role;
@@ -33,9 +33,19 @@ class JobOrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            \Log::info('Accessing job_orders table');
-            
-            $query = JobOrder::with('application');
+            $page = $request->input('page', 1);
+            $limit = $request->input('limit', 50); // Default 50 for faster response
+            $search = $request->input('search', '');
+            $fastMode = $request->input('fast', false); // Fast mode: skip heavy processing
+
+            \Log::info('JobOrderController: Starting to fetch job orders', [
+                'page' => $page,
+                'limit' => $limit,
+                'search' => $search,
+                'fast_mode' => $fastMode
+            ]);
+
+            $query = JobOrder::with('application')->orderBy('id', 'desc');
             
             if ($request->has('assigned_email')) {
                 $assignedEmail = $request->query('assigned_email');
@@ -50,17 +60,67 @@ class JobOrderController extends Controller
                     'cutoff_date' => $sevenDaysAgo->toDateTimeString()
                 ]);
             }
-            
-            $jobOrders = $query->get();
 
-            \Log::info('Found ' . $jobOrders->count() . ' job orders in database');
-            
-            if ($jobOrders->isEmpty()) {
-                \Log::info('No job orders found in database');
-            } else {
-                \Log::info('First job order example:', $jobOrders->first()->toArray());
+            // Apply search filter
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('assigned_email', 'LIKE', "%{$search}%")
+                      ->orWhere('onsite_status', 'LIKE', "%{$search}%")
+                      ->orWhere('username', 'LIKE', "%{$search}%")
+                      ->orWhereHas('application', function ($appQuery) use ($search) {
+                          $appQuery->where('first_name', 'LIKE', "%{$search}%")
+                                   ->orWhere('last_name', 'LIKE', "%{$search}%")
+                                   ->orWhere('city', 'LIKE', "%{$search}%");
+                      });
+                });
             }
 
+            // Fetch one extra record to check if there are more pages
+            $jobOrders = $query->skip(($page - 1) * $limit)
+                ->take($limit + 1)
+                ->get();
+
+            // Check if there are more pages
+            $hasMore = $jobOrders->count() > $limit;
+
+            // Remove the extra record if it exists
+            if ($hasMore) {
+                $jobOrders = $jobOrders->slice(0, $limit);
+            }
+
+            \Log::info('JobOrderController: Fetched ' . $jobOrders->count() . ' job orders');
+
+            // Fast mode: Return minimal data immediately
+            if ($fastMode) {
+                $formattedJobOrders = $jobOrders->map(function ($jobOrder) {
+                    $application = $jobOrder->application;
+                    
+                    return [
+                        'id' => $jobOrder->id,
+                        'JobOrder_ID' => $jobOrder->id,
+                        'application_id' => $jobOrder->application_id,
+                        'Timestamp' => $jobOrder->timestamp ? $jobOrder->timestamp->format('Y-m-d H:i:s') : null,
+                        'Onsite_Status' => $jobOrder->onsite_status,
+                        'Assigned_Email' => $jobOrder->assigned_email,
+                        'Username' => $jobOrder->username,
+                        'First_Name' => $application ? $application->first_name : null,
+                        'Last_Name' => $application ? $application->last_name : null,
+                        'updated_at' => $jobOrder->updated_at ? $jobOrder->updated_at->format('Y-m-d H:i:s') : null,
+                    ];
+                });
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $formattedJobOrders->values(),
+                    'pagination' => [
+                        'current_page' => (int) $page,
+                        'per_page' => (int) $limit,
+                        'has_more' => $hasMore
+                    ]
+                ]);
+            }
+
+            // Normal mode: Return full data
             $formattedJobOrders = $jobOrders->map(function ($jobOrder) {
                 $application = $jobOrder->application;
                 
@@ -72,7 +132,7 @@ class JobOrderController extends Controller
                     'Installation_Fee' => $jobOrder->installation_fee,
                     'Billing_Day' => $jobOrder->billing_day,
                     'Onsite_Status' => $jobOrder->onsite_status,
-                    'billing_status_id' => $jobOrder->billing_status_id,
+                    'billing_status' => $jobOrder->billing_status,
                     'Status_Remarks' => $jobOrder->status_remarks,
                     'Assigned_Email' => $jobOrder->assigned_email,
                     'Contract_Template' => $jobOrder->contract_link,
@@ -131,15 +191,18 @@ class JobOrderController extends Controller
                     'Secondary_Mobile_Number' => $application ? $application->secondary_mobile_number : null,
                     'Desired_Plan' => $application ? $application->desired_plan : null,
                     'Referred_By' => $application ? $application->referred_by : null,
-                    'Billing_Status' => $jobOrder->billing_status_id,
+                    'Billing_Status' => $jobOrder->billing_status,
                 ];
             });
 
             return response()->json([
                 'success' => true,
-                'data' => $formattedJobOrders,
-                'table' => 'job_orders',
-                'count' => $jobOrders->count()
+                'data' => $formattedJobOrders->values(),
+                'pagination' => [
+                    'current_page' => (int) $page,
+                    'per_page' => (int) $limit,
+                    'has_more' => $hasMore
+                ]
             ]);
         } catch (\Exception $e) {
             \Log::error('Error fetching job orders: ' . $e->getMessage());
@@ -149,8 +212,6 @@ class JobOrderController extends Controller
                 'success' => false,
                 'message' => 'Failed to fetch job orders',
                 'error' => $e->getMessage(),
-                'file' => $e->getFile() . ':' . $e->getLine(),
-                'trace' => $e->getTraceAsString()
             ], 500);
         }
     }
@@ -166,7 +227,7 @@ class JobOrderController extends Controller
                 'timestamp' => 'nullable|date',
                 'installation_fee' => 'nullable|numeric|min:0',
                 'billing_day' => 'nullable|integer|min:0|max:31',
-                'billing_status_id' => 'nullable|integer|exists:billing_status,id',
+                'billing_status' => 'nullable|string|max:255',
                 'onsite_status' => 'nullable|string|max:255',
                 'assigned_email' => 'nullable|email|max:255',
                 'onsite_remarks' => 'nullable|string',
@@ -193,10 +254,15 @@ class JobOrderController extends Controller
             }
 
             $data = $request->all();
+
+            // Sync pppoe_username to username if present
+            if (isset($data['pppoe_username']) && !empty($data['pppoe_username'])) {
+                $data['username'] = $data['pppoe_username'];
+            }
             
             // Set default values if not provided
-            if (!isset($data['billing_status_id'])) {
-                $data['billing_status_id'] = 1; // Default to pending/initial status
+            if (!isset($data['billing_status'])) {
+                $data['billing_status'] = 'Pending';
             }
             
             if (!isset($data['onsite_status'])) {
@@ -262,21 +328,128 @@ class JobOrderController extends Controller
                 'request_data' => $request->all()
             ]);
 
-            $jobOrder = JobOrder::findOrFail($id);
+            $jobOrder = JobOrder::with('lcpnapLocation')->findOrFail($id);
             
             $generateCredentials = $request->input('generate_credentials', false);
             
-            if ($generateCredentials && empty($jobOrder->pppoe_username)) {
+            // Auto-generate credentials if pppoe_username is provided but pppoe_password is empty
+            $hasUsername = $request->has('pppoe_username') && !empty($request->input('pppoe_username'));
+            $hasPassword = $request->has('pppoe_password') && !empty($request->input('pppoe_password'));
+            
+            if ($hasUsername && !$hasPassword) {
+                // Case 1: Username provided, password missing - generate password
                 $application = $jobOrder->application;
                 
                 if ($application) {
                     $pppoeService = new PppoeUsernameService();
+                    
+                    $lcpnapValue = $request->input('lcpnap', $jobOrder->lcpnap);
+                    $portValue = $request->input('port', $jobOrder->port);
+                    $lcpnapData = null;
+                    
+                    if ($lcpnapValue) {
+                        $lcpnapData = LCPNAPLocation::where('lcpnap_name', trim($lcpnapValue))
+                                                 ->orWhere('id', trim($lcpnapValue))
+                                                 ->first();
+                    }
                     
                     $customerData = [
                         'first_name' => $application->first_name ?? '',
                         'middle_initial' => $application->middle_initial ?? '',
                         'last_name' => $application->last_name ?? '',
                         'mobile_number' => $application->mobile_number ?? '',
+                        'lcp' => trim($lcpnapData->lcp ?? ''),
+                        'nap' => trim($lcpnapData->nap ?? ''),
+                        'port' => trim($portValue ?? ''),
+                        'tech_input_username' => $request->input('pppoe_username'),
+                        'custom_password' => $request->input('custom_password'),
+                    ];
+                    
+                    $password = $pppoeService->generatePassword($customerData);
+                    
+                    $request->merge([
+                        'pppoe_password' => $password,
+                    ]);
+                    
+                    \Log::info('Auto-generated PPPoE password for provided username', [
+                        'job_order_id' => $id,
+                        'username' => $request->input('pppoe_username'),
+                        'password_length' => strlen($password),
+                        'password_merged' => $request->has('pppoe_password'),
+                        'password_in_request' => $request->input('pppoe_password') ? 'YES' : 'NO',
+                        'lcp_value' => $jobOrder->lcpnapLocation->lcp ?? 'NOT SET',
+                        'nap_value' => $jobOrder->lcpnapLocation->nap ?? 'NOT SET'
+                    ]);
+                }
+            } elseif (!$hasUsername && $hasPassword) {
+                // Case 2: Password provided (from RADIUS), username missing - generate username
+                $application = $jobOrder->application;
+                
+                if ($application) {
+                    $pppoeService = new PppoeUsernameService();
+                    
+                    $lcpnapValue = $request->input('lcpnap', $jobOrder->lcpnap);
+                    $portValue = $request->input('port', $jobOrder->port);
+                    $lcpnapData = null;
+                    
+                    if ($lcpnapValue) {
+                        $lcpnapData = LCPNAPLocation::where('lcpnap_name', trim($lcpnapValue))
+                                                 ->orWhere('id', trim($lcpnapValue))
+                                                 ->first();
+                    }
+                    
+                    $customerData = [
+                        'first_name' => $application->first_name ?? '',
+                        'middle_initial' => $application->middle_initial ?? '',
+                        'last_name' => $application->last_name ?? '',
+                        'mobile_number' => $application->mobile_number ?? '',
+                        'lcp' => trim($lcpnapData->lcp ?? ''),
+                        'nap' => trim($lcpnapData->nap ?? ''),
+                        'port' => trim($portValue ?? ''),
+                        'tech_input_username' => $request->input('tech_input_username'),
+                        'custom_password' => $request->input('custom_password'),
+                    ];
+                    
+                    $username = $pppoeService->generateUniqueUsername($customerData, $id);
+                    
+                    $request->merge([
+                        'pppoe_username' => $username,
+                    ]);
+                    
+                    \Log::info('Auto-generated PPPoE username for provided password', [
+                        'job_order_id' => $id,
+                        'username' => $username,
+                        'username_length' => strlen($username),
+                        'password_from_radius' => true,
+                        'lcp_value' => $jobOrder->lcpnapLocation->lcp ?? 'NOT SET',
+                        'nap_value' => $jobOrder->lcpnapLocation->nap ?? 'NOT SET'
+                    ]);
+                }
+            } elseif ($generateCredentials && empty($jobOrder->pppoe_username)) {
+                // Case 3: No credentials provided - generate both
+                $application = $jobOrder->application;
+                
+                if ($application) {
+                    $pppoeService = new PppoeUsernameService();
+                    
+                    $lcpnapValue = $request->input('lcpnap', $jobOrder->lcpnap);
+                    $portValue = $request->input('port', $jobOrder->port);
+                    $lcpnapData = null;
+                    
+                    if ($lcpnapValue) {
+                        $lcpnapData = LCPNAPLocation::where('lcpnap_name', trim($lcpnapValue))
+                                                 ->orWhere('id', trim($lcpnapValue))
+                                                 ->first();
+                    }
+                    
+                    $customerData = [
+                        'first_name' => $application->first_name ?? '',
+                        'middle_initial' => $application->middle_initial ?? '',
+                        'last_name' => $application->last_name ?? '',
+                        'mobile_number' => $application->mobile_number ?? '',
+                        'lcp' => trim($lcpnapData->lcp ?? ''),
+                        'nap' => trim($lcpnapData->nap ?? ''),
+                        'port' => trim($portValue ?? ''),
                         'tech_input_username' => $request->input('tech_input_username'),
                         'custom_password' => $request->input('custom_password'),
                     ];
@@ -294,6 +467,8 @@ class JobOrderController extends Controller
                         'username' => $username,
                         'username_length' => strlen($username),
                         'password_length' => strlen($password),
+                        'lcp_value' => $jobOrder->lcpnapLocation->lcp ?? 'NOT SET',
+                        'nap_value' => $jobOrder->lcpnapLocation->nap ?? 'NOT SET'
                     ]);
                 }
             }
@@ -325,6 +500,7 @@ class JobOrderController extends Controller
                 'installation_landmark' => 'nullable|string|max:255',
                 'pppoe_username' => 'nullable|string|max:255',
                 'pppoe_password' => 'nullable|string|max:255',
+                'custom_password' => 'nullable|string|max:255',
                 'created_by_user_email' => 'nullable|email|max:255',
                 'updated_by_user_email' => 'nullable|email|max:255',
             ]);
@@ -343,13 +519,33 @@ class JobOrderController extends Controller
             }
 
             $data = $request->all();
+
+            // Sync pppoe_username to username if present
+            if (isset($data['pppoe_username']) && !empty($data['pppoe_username'])) {
+                $data['username'] = $data['pppoe_username'];
+            }
             
             \Log::info('JobOrder Updating with data', [
                 'id' => $id,
-                'data' => $data
+                'data' => $data,
+                'has_pppoe_password_in_data' => isset($data['pppoe_password']),
+                'pppoe_password_value' => $data['pppoe_password'] ?? 'NOT SET',
+                'pppoe_password_length' => isset($data['pppoe_password']) ? strlen($data['pppoe_password']) : 0
             ]);
 
+            $oldStatus = $jobOrder->onsite_status;
             $jobOrder->update($data);
+            
+            if (($data['onsite_status'] ?? null) === 'Done' && $oldStatus !== 'Done') {
+                $this->broadcastJobOrderDone($jobOrder);
+            }
+            
+            \Log::info('JobOrder After Update', [
+                'id' => $id,
+                'pppoe_password_in_model' => $jobOrder->pppoe_password ?? 'NULL',
+                'pppoe_password_length' => $jobOrder->pppoe_password ? strlen($jobOrder->pppoe_password) : 0,
+                'pppoe_username_in_model' => $jobOrder->pppoe_username ?? 'NULL'
+            ]);
 
             // Update technical_details if account_id exists
             if ($jobOrder->account_id) {
@@ -376,12 +572,18 @@ class JobOrderController extends Controller
                     if (isset($data['lcpnap'])) {
                         $technicalUpdateData['lcpnap'] = $data['lcpnap'];
                         
-                        // Parse LCP and NAP from lcpnap value
                         $lcpnapValue = $data['lcpnap'];
-                        if ($lcpnapValue && strpos($lcpnapValue, '/') !== false) {
-                            $parts = explode('/', $lcpnapValue);
-                            $technicalUpdateData['lcp'] = trim($parts[0]);
-                            $technicalUpdateData['nap'] = isset($parts[1]) ? trim($parts[1]) : null;
+                        $loc = LCPNAPLocation::where('lcpnap_name', trim($lcpnapValue))
+                                           ->orWhere('id', trim($lcpnapValue))
+                                           ->first();
+                        
+                        if ($loc) {
+                            $technicalUpdateData['lcp'] = $loc->lcp;
+                            $technicalUpdateData['nap'] = $loc->nap;
+                        } else {
+                            // Fallback if not found in lookup, but try to keep behavior safe
+                             $technicalUpdateData['lcp'] = null;
+                             $technicalUpdateData['nap'] = null;
                         }
                     }
                     if (isset($data['port'])) {
@@ -429,6 +631,30 @@ class JobOrderController extends Controller
         }
     }
 
+    private function broadcastJobOrderDone($jobOrder)
+    {
+        try {
+            $application = $jobOrder->application;
+            $data = [
+                'id' => $jobOrder->id,
+                'type' => 'job_order_done',
+                'customer_name' => trim(($application->first_name ?? '') . ' ' . ($application->last_name ?? '')),
+                'plan_name' => $application->desired_plan ?? 'Unknown Plan',
+                'title' => 'Job Order Completed',
+                'message' => 'Onsite status marked as Done',
+                'timestamp' => now()->timestamp,
+                'formatted_date' => now()->format('Y-m-d h:i:s A') // e.g. 2026-02-11 05:53:42 PM
+            ];
+
+            Http::timeout(2)->post('http://127.0.0.1:3001/broadcast/job-order-done', $data);
+            \Log::info('Real-time broadcast sent for Job Order Done', ['id' => $jobOrder->id]);
+        } catch (\Exception $e) {
+            \Log::warning('Failed to broadcast Job Order Done to socket server', [
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
     public function destroy($id): JsonResponse
     {
         try {
@@ -453,7 +679,7 @@ class JobOrderController extends Controller
         try {
             DB::beginTransaction();
 
-            $jobOrder = JobOrder::with('application')->lockForUpdate()->findOrFail($id);
+            $jobOrder = JobOrder::with(['application', 'lcpnapLocation'])->lockForUpdate()->findOrFail($id);
             
             if (!$jobOrder->application) {
                 throw new \Exception('Job order must have an associated application');
@@ -477,28 +703,43 @@ class JobOrderController extends Controller
                 ]);
             }
 
-            $customer = Customer::create([
-                'first_name' => $application->first_name,
-                'middle_initial' => $application->middle_initial,
-                'last_name' => $application->last_name,
-                'email_address' => $application->email_address,
-                'contact_number_primary' => $application->mobile_number,
-                'contact_number_secondary' => $application->secondary_mobile_number,
-                'address' => $application->installation_address,
-                'location' => $application->location,
-                'barangay' => $application->barangay,
-                'city' => $application->city,
-                'region' => $application->region,
-                'address_coordinates' => $jobOrder->address_coordinates,
-                'housing_status' => $application->housing_status,
-                'referred_by' => $application->referred_by,
-                'desired_plan' => $application->desired_plan,
-                'house_front_picture_url' => $jobOrder->house_front_picture_url,
-                'created_by' => $defaultUserId,
-                'updated_by' => $defaultUserId,
-            ]);
+            if ($jobOrder->billing_status === 'Done' || $jobOrder->account_id) {
+                throw new \Exception('Job order has already been approved and has an associated billing account.');
+            }
 
-            \Log::info('Customer Created with Contact Numbers', [
+            // Check if a customer with the same email and names already exists to maintain 1-to-1
+            $existingCustomer = Customer::where('email_address', $application->email_address)
+                ->where('first_name', $application->first_name)
+                ->where('last_name', $application->last_name)
+                ->first();
+
+            if ($existingCustomer) {
+                $customer = $existingCustomer;
+                \Log::info('Using existing customer for approval', ['customer_id' => $customer->id]);
+            } else {
+                $customer = Customer::create([
+                    'first_name' => $application->first_name,
+                    'middle_initial' => $application->middle_initial,
+                    'last_name' => $application->last_name,
+                    'email_address' => $application->email_address,
+                    'contact_number_primary' => $application->mobile_number,
+                    'contact_number_secondary' => $application->secondary_mobile_number,
+                    'address' => $application->installation_address,
+                    'location' => $application->location,
+                    'barangay' => $application->barangay,
+                    'city' => $application->city,
+                    'region' => $application->region,
+                    'address_coordinates' => $jobOrder->address_coordinates,
+                    'housing_status' => $application->housing_status,
+                    'referred_by' => $application->referred_by,
+                    'desired_plan' => $application->desired_plan,
+                    'house_front_picture_url' => $jobOrder->house_front_picture_url,
+                    'created_by' => $defaultUserId,
+                    'updated_by' => $defaultUserId,
+                ]);
+            }
+
+            \Log::info('Customer Ready with Contact Numbers', [
                 'customer_id' => $customer->id,
                 'contact_number_primary' => $customer->contact_number_primary,
                 'contact_number_secondary' => $customer->contact_number_secondary,
@@ -507,6 +748,11 @@ class JobOrderController extends Controller
 
             $accountNumber = $this->generateAccountNumber();
             
+            // Final safety check for 1-to-1 account_no uniqueness
+            if (BillingAccount::where('account_no', $accountNumber)->exists()) {
+                throw new \Exception('Billing account already exists with this account number.');
+            }
+
             \Log::info('Generated account number', [
                 'generated_account_no' => $accountNumber
             ]);
@@ -565,7 +811,7 @@ class JobOrderController extends Controller
                 'account_balance' => $installationFee,
                 'balance_update_date' => now(),
                 'billing_day' => $jobOrder->billing_day,
-                'billing_status_id' => 2,
+                'billing_status_id' => 1,
                 'created_by' => $defaultUserId,
                 'updated_by' => $defaultUserId,
             ]);
@@ -575,32 +821,31 @@ class JobOrderController extends Controller
                 'plan_id_stored' => $billingAccount->plan_id
             ]);
 
-            $lastName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $application->last_name ?? 'user'));
-            $mobileNumber = preg_replace('/[^0-9]/', '', $application->mobile_number ?? '');
-            $usernameForTechnical = $lastName . $mobileNumber;
-            
-            $existingUsername = TechnicalDetail::where('username', $usernameForTechnical)->first();
-            if ($existingUsername) {
-                $usernameForTechnical = $usernameForTechnical . '_' . time();
-            }
+            // Use username from job order if exists, otherwise fallback to account number
+            $usernameValue = $jobOrder->pppoe_username ?: ($jobOrder->username ?: $accountNumber);
+            $usernameForTechnical = $usernameValue;
 
             $modemSN = $jobOrder->modem_router_sn;
             if ($modemSN) {
-                $existingModemSN = TechnicalDetail::where('router_modem_sn', $modemSN)->first();
-                if ($existingModemSN) {
-                    $modemSN = $modemSN . '_' . time();
+                // Check if technical detail already exists for this modem SN
+                if (TechnicalDetail::where('router_modem_sn', $modemSN)->exists()) {
+                    throw new \Exception('Technical details already exist with this modem serial number.');
                 }
             }
 
-            $lcpnapValue = $jobOrder->lcpnap;
-            $lcpValue = null;
-            $napValue = null;
-            
-            if ($lcpnapValue && strpos($lcpnapValue, '/') !== false) {
-                $parts = explode('/', $lcpnapValue);
-                $lcpValue = trim($parts[0]);
-                $napValue = isset($parts[1]) ? trim($parts[1]) : null;
+            // Check for technical details with same account number to ensure 1-to-1
+            if (TechnicalDetail::where('account_no', $accountNumber)->exists()) {
+                throw new \Exception('Technical details already exist for this account number.');
             }
+            // Manual lookup for LCPNAP Location to ensure trimming
+            $lcpnapValue = trim($jobOrder->lcpnap);
+            $lcpnapData = LCPNAPLocation::where('lcpnap_name', $lcpnapValue)
+                                      ->orWhere('id', $lcpnapValue)
+                                      ->first();
+
+            $lcpValue = trim($lcpnapData->lcp ?? '');
+            $napValue = trim($lcpnapData->nap ?? '');
+            $portValue = $jobOrder->port ?? '';
 
             $technicalDetail = TechnicalDetail::create([
                 'account_id' => $billingAccount->id,
@@ -613,7 +858,7 @@ class JobOrderController extends Controller
                 'ip_address' => $jobOrder->ip_address,
                 'lcp' => $lcpValue,
                 'nap' => $napValue,
-                'port' => $jobOrder->port,
+                'port' => $portValue,
                 'vlan' => $jobOrder->vlan,
                 'lcpnap' => $jobOrder->lcpnap,
                 'usage_type' => $jobOrder->usage_type,
@@ -621,56 +866,37 @@ class JobOrderController extends Controller
                 'updated_by' => $defaultUserId,
             ]);
 
+
+
+            // Use the calculated username and contact number for credentials
+            $generatedUsername = $usernameValue;
+            $generatedPassword = $jobOrder->pppoe_password ?: $customer->contact_number_primary;
+
+            // Check if online status already exists for this username
+            if (OnlineStatus::where('username', $generatedUsername)->exists()) {
+                throw new \Exception('theirs already a data in database');
+            }
+
             OnlineStatus::create([
                 'account_id' => $billingAccount->id,
                 'account_no' => $accountNumber,
-                'username' => $usernameForTechnical,
-            ]);
-
-            // Generate PPPoE credentials using pattern-based service
-            \Log::info('=== STARTING PPPOE CREDENTIAL GENERATION ===', [
-                'job_order_id' => $id,
-                'customer_first_name' => $application->first_name,
-                'customer_last_name' => $application->last_name,
-                'customer_mobile' => $application->mobile_number
+                'username' => $generatedUsername,
+                'session_status' => '',
             ]);
             
-            $pppoeService = new PppoeUsernameService();
-            
-            $customerData = [
-                'first_name' => $application->first_name ?? '',
-                'middle_initial' => $application->middle_initial ?? '',
-                'last_name' => $application->last_name ?? '',
-                'mobile_number' => $application->mobile_number ?? '',
-            ];
-            
-            // Generate unique PPPoE username based on patterns
-            $pppoeUsername = $pppoeService->generateUniqueUsername($customerData, $id);
-            $pppoePassword = $pppoeService->generatePassword($customerData);
-            
-            \Log::info('PPPoE credentials generated successfully', [
-                'job_order_id' => $id,
-                'pppoe_username' => $pppoeUsername,
-                'pppoe_password' => '***' . substr($pppoePassword, -4), // Masked for security
-                'username_length' => strlen($pppoeUsername),
-                'password_length' => strlen($pppoePassword),
-                'username_pattern_source' => 'pppoe_username_patterns table (pattern_type=username)',
-                'password_pattern_source' => 'pppoe_username_patterns table (pattern_type=password)'
-            ]);
-
             $jobOrder->update([
-                'billing_status_id' => 2,
+                'billing_status' => 'Done',
                 'account_id' => $billingAccount->id,
-                'pppoe_username' => $pppoeUsername,
-                'pppoe_password' => $pppoePassword,
+                'pppoe_username' => $generatedUsername,
+                'pppoe_password' => $generatedPassword,
                 'updated_by_user_email' => 'system@ampere.com'
             ]);
             
-            \Log::info('PPPoE credentials saved to job_orders table', [
+            \Log::info('Credentials saved to job_orders table', [
                 'job_order_id' => $id,
                 'table' => 'job_orders',
-                'columns_updated' => ['pppoe_username', 'pppoe_password', 'billing_status_id', 'account_id'],
-                'pppoe_username_saved' => $pppoeUsername
+                'columns_updated' => ['username', 'password', 'billing_status', 'account_id'],
+                'username_saved' => $generatedUsername
             ]);
 
             $customerRoleId = 3;
@@ -715,6 +941,83 @@ class JobOrderController extends Controller
 
             DB::commit();
 
+            // Send Welcome SMS
+            try {
+                if (!empty($customer->contact_number_primary)) {
+                    $welcomeTemplate = \App\Models\SMSTemplate::where('template_type', 'Welcome')
+                        ->where('is_active', 1)
+                        ->first();
+                        
+                    if ($welcomeTemplate) {
+                        $message = $welcomeTemplate->message_content;
+                        
+                        // Replace variables
+                        $message = str_replace('{{customer_name}}', $customer->full_name, $message);
+                        $message = str_replace('{{account_no}}', $accountNumber, $message);
+                        $message = str_replace('{{username}}', $generatedUsername, $message);
+                        $message = str_replace('{{password}}', $generatedPassword, $message);
+                        
+                        $smsService = new \App\Services\ItexmoSmsService();
+                        $smsService->send([
+                            'contact_no' => $customer->contact_number_primary,
+                            'message' => $message
+                        ]);
+                        
+                        \Log::info('Welcome SMS sent successfully', [
+                             'customer_id' => $customer->id,
+                             'account_no' => $accountNumber
+                        ]);
+                    } else {
+                        \Log::warning('Welcome SMS template not found');
+                    }
+                }
+            } catch (\Exception $e) {
+                // Log but don't fail the request since approval is committed
+                \Log::error('Failed to send Welcome SMS: ' . $e->getMessage()); 
+            }
+
+            // Send Welcome Email
+            try {
+                if (!empty($customer->email_address)) {
+                    $welcomeEmailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'WELCOME')
+                        ->where('Is_Active', true)
+                        ->first();
+
+                    if ($welcomeEmailTemplate) {
+                        $emailBody = $welcomeEmailTemplate->email_body;
+
+                        // Replace variables in email body
+                        $emailBody = str_replace('{{customer_name}}', $customer->full_name, $emailBody);
+                        $emailBody = str_replace('{{account_no}}', $accountNumber, $emailBody);
+                        $emailBody = str_replace('{{username}}', $generatedUsername, $emailBody);
+                        $emailBody = str_replace('{{password}}', $generatedPassword, $emailBody);
+
+                         if (!empty($emailBody)) {
+                             $emailService = app(\App\Services\EmailQueueService::class);
+                             
+                             $emailService->queueEmail([
+                                 'account_no' => $accountNumber,
+                                 'recipient_email' => $customer->email_address,
+                                 'subject' => $welcomeEmailTemplate->Subject_Line ?? 'Welcome to Ampere', 
+                                 'body_html' => nl2br($emailBody), 
+                                 'attachment_path' => null
+                             ]);
+                             
+                             \Log::info('Welcome Email queued successfully', [
+                                  'customer_id' => $customer->id,
+                                  'email' => $customer->email_address
+                             ]);
+                         } else {
+                             \Log::warning('Welcome Email Body is empty');
+                         }
+                    } else {
+                        \Log::warning('Welcome Email template not found or inactive');
+                    }
+                }
+            } catch (\Exception $e) {
+                 \Log::error('Failed to send Welcome Email: ' . $e->getMessage());
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Job order approved successfully',
@@ -731,8 +1034,8 @@ class JobOrderController extends Controller
                     'contact_number_secondary' => $customer->contact_number_secondary,
                     'user_created' => !isset($existingUser),
                     'user_username' => $accountNumber,
-                    'pppoe_username' => $pppoeUsername,
-                    'pppoe_password' => $pppoePassword,
+                    'username' => $generatedUsername,
+                    'password' => $generatedPassword,
                 ]
             ]);
 
@@ -741,6 +1044,31 @@ class JobOrderController extends Controller
             
             \Log::error('Error approving job order: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Map common error messages to user-friendly "duplicate" message
+            $duplicateMessages = [
+                'theirs already a data in database',
+                'Duplicate entry',
+                'Integrity constraint violation',
+                'Billing account already exists',
+                'Technical details already exist'
+            ];
+            
+            $isDuplicate = false;
+            foreach ($duplicateMessages as $msg) {
+                if (strpos($e->getMessage(), $msg) !== false) {
+                    $isDuplicate = true;
+                    break;
+                }
+            }
+            
+            if ($isDuplicate) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'theirs already a data in database',
+                    'error' => $e->getMessage(),
+                ], 409); // Conflict
+            }
             
             return response()->json([
                 'success' => false,
@@ -913,7 +1241,7 @@ class JobOrderController extends Controller
     public function getLCPNAPs(): JsonResponse
     {
         try {
-            $lcpnaps = LCPNAP::all();
+            $lcpnaps = LCPNAPLocation::all();
             return response()->json([
                 'success' => true,
                 'data' => $lcpnaps,
@@ -1127,7 +1455,30 @@ class JobOrderController extends Controller
 
             DB::beginTransaction();
 
-            $jobOrder = JobOrder::with('application')->findOrFail($id);
+            $radiusConfig = RadiusConfig::first();
+            
+            if (!$radiusConfig) {
+                \Log::error('RADIUS configuration not found in database');
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'RADIUS configuration not found. Please configure RADIUS settings first.',
+                ], 500);
+            }
+
+            $radiusUrl = $radiusConfig->ssl_type . '://' . $radiusConfig->ip . ':' . $radiusConfig->port . '/rest/user-manage/user';
+            $radiusUsername = $radiusConfig->username;
+            $radiusPassword = $radiusConfig->password;
+
+            \Log::info('RADIUS configuration loaded', [
+                'ssl_type' => $radiusConfig->ssl_type,
+                'ip' => $radiusConfig->ip,
+                'port' => $radiusConfig->port,
+                'url' => $radiusUrl,
+                'username' => $radiusConfig->username
+            ]);
+
+            $jobOrder = JobOrder::with(['application', 'lcpnapLocation'])->findOrFail($id);
             
             if (!$jobOrder->application) {
                 throw new \Exception('Job order must have an associated application');
@@ -1138,73 +1489,200 @@ class JobOrderController extends Controller
             \Log::info('Job order and application loaded', [
                 'job_order_id' => $id,
                 'application_id' => $application->id,
-                'customer_name' => $application->first_name . ' ' . $application->last_name
+                'customer_name' => $application->first_name . ' ' . $application->last_name,
+                'existing_username' => $jobOrder->pppoe_username,
+                'existing_password' => $jobOrder->pppoe_password ? 'EXISTS' : 'NULL'
             ]);
 
-            // Generate PPPoE credentials using pattern-based service
-            \Log::info('Starting PPPoE credential generation', [
-                'job_order_id' => $id,
-                'customer_first_name' => $application->first_name,
-                'customer_last_name' => $application->last_name,
-                'customer_mobile' => $application->mobile_number
-            ]);
+            $credentialsExist = !empty($jobOrder->pppoe_username) && !empty($jobOrder->pppoe_password);
+            $pppoeUsername = $jobOrder->pppoe_username;
+            $pppoePassword = $jobOrder->pppoe_password;
+            $radiusSubmitted = false;
+            $radiusError = null;
+
+            // Fetch LCP/NAP details regardless of whether credentials exist
+            $lcpnapValue = trim($jobOrder->lcpnap);
+            $lcpnapData = LCPNAPLocation::where('lcpnap_name', $lcpnapValue)
+                                      ->orWhere('id', $lcpnapValue)
+                                      ->first();
+
+            $lcpValue = trim($lcpnapData->lcp ?? '');
+            $napValue = trim($lcpnapData->nap ?? '');
+            $portValue = $jobOrder->port ?? '';
+
+            if (!$credentialsExist) {
+                \Log::info('No existing credentials found, generating new ones', [
+                    'job_order_id' => $id
+                ]);
+                
+                $pppoeService = new PppoeUsernameService();
+                
+                \Log::info('LCPNAP/Port technical info', [
+                    'lcpnap_value' => $lcpnapValue,
+                    'lcp' => $lcpValue,
+                    'nap' => $napValue,
+                    'port' => $portValue
+                ]);
+                
+                $customerData = [
+                    'first_name' => $application->first_name ?? '',
+                    'middle_initial' => $application->middle_initial ?? '',
+                    'last_name' => $application->last_name ?? '',
+                    'mobile_number' => $application->mobile_number ?? '',
+                    'lcp' => $lcpValue,
+                    'nap' => $napValue,
+                    'port' => $portValue,
+                ];
+                
+                $pppoeUsername = $pppoeService->generateUniqueUsername($customerData, $id);
+                $pppoePassword = $pppoeService->generatePassword($customerData);
+                
+                if (empty($pppoeUsername) || empty($pppoePassword)) {
+                    throw new \Exception('Failed to generate PPPoE credentials');
+                }
+                
+                \Log::info('New PPPoE credentials generated', [
+                    'job_order_id' => $id,
+                    'pppoe_username' => $pppoeUsername,
+                    'username_length' => strlen($pppoeUsername),
+                    'password_length' => strlen($pppoePassword)
+                ]);
+
+                $updateResult = $jobOrder->update([
+                    'pppoe_username' => $pppoeUsername,
+                    'pppoe_password' => $pppoePassword,
+                    'updated_by_user_email' => request()->input('updated_by_user_email', 'system@ampere.com')
+                ]);
+                
+                $jobOrder->refresh();
+                
+                \Log::info('PPPoE credentials saved to job_orders table', [
+                    'job_order_id' => $id,
+                    'update_result' => $updateResult,
+                    'pppoe_username_saved' => $jobOrder->pppoe_username,
+                    'pppoe_password_saved_length' => strlen($jobOrder->pppoe_password ?? '')
+                ]);
+            } else {
+                \Log::info('Credentials already exist, reusing existing credentials', [
+                    'job_order_id' => $id,
+                    'pppoe_username' => $pppoeUsername
+                ]);
+            }
+
+            $desiredPlan = $application->desired_plan;
+            $plan = $desiredPlan;
             
-            $pppoeService = new PppoeUsernameService();
+            if ($desiredPlan && strpos($desiredPlan, ' - ') !== false) {
+                $parts = explode(' - ', $desiredPlan);
+                $plan = trim($parts[0]);
+            }
             
-            $customerData = [
-                'first_name' => $application->first_name ?? '',
-                'middle_initial' => $application->middle_initial ?? '',
-                'last_name' => $application->last_name ?? '',
-                'mobile_number' => $application->mobile_number ?? '',
-            ];
-            
-            // Generate unique PPPoE username based on patterns
-            $pppoeUsername = $pppoeService->generateUniqueUsername($customerData, $id);
-            $pppoePassword = $pppoeService->generatePassword($customerData);
-            
-            \Log::info('PPPoE credentials generated successfully', [
-                'job_order_id' => $id,
-                'pppoe_username' => $pppoeUsername,
-                'pppoe_password' => '***' . substr($pppoePassword, -4), // Masked for security
-                'username_length' => strlen($pppoeUsername),
-                'password_length' => strlen($pppoePassword),
-                'username_pattern_source' => 'pppoe_username_patterns table (pattern_type=username)',
-                'password_pattern_source' => 'pppoe_username_patterns table (pattern_type=password)'
+            \Log::info('Extracted plan name', [
+                'desired_plan' => $desiredPlan,
+                'extracted_plan' => $plan
             ]);
 
-            // Update job order with credentials
-            $jobOrder->update([
-                'pppoe_username' => $pppoeUsername,
-                'pppoe_password' => $pppoePassword,
-                'updated_by_user_email' => request()->input('updated_by_user_email', 'system@ampere.com')
-            ]);
-            
-            \Log::info('PPPoE credentials saved to job_orders table', [
-                'job_order_id' => $id,
-                'table' => 'job_orders',
-                'columns_updated' => ['pppoe_username', 'pppoe_password'],
-                'pppoe_username_saved' => $pppoeUsername
-            ]);
+            try {
+                $payload = [
+                    'name' => $pppoeUsername,
+                    'group' => $plan,
+                    'password' => $pppoePassword
+                ];
 
-            // Optionally create RADIUS account on RADIUS server
-            // This would call the RADIUS service to actually create the account
-            // For now, we just store the credentials in the database
-            
+                \Log::info('Submitting to RADIUS API', [
+                    'url' => $radiusUrl,
+                    'method' => 'PUT',
+                    'payload' => [
+                        'name' => $pppoeUsername,
+                        'group' => $plan,
+                        'password' => '***'
+                    ],
+                    'auth_username' => $radiusUsername
+                ]);
+
+                $response = Http::withOptions([
+                    'verify' => false
+                ])
+                ->withBasicAuth($radiusUsername, $radiusPassword)
+                ->put($radiusUrl, $payload);
+
+                $statusCode = $response->status();
+
+                if ($statusCode === 204 || $response->successful()) {
+                    $radiusSubmitted = true;
+                    \Log::info('RADIUS API submission successful', [
+                        'status' => $statusCode,
+                        'response' => $statusCode === 204 ? 'No Content (Success)' : $response->json()
+                    ]);
+                } else {
+                    $radiusError = 'HTTP ' . $statusCode . ': ' . $response->body();
+                    \Log::error('RADIUS API submission failed', [
+                        'status' => $statusCode,
+                        'error' => $response->body(),
+                        'headers' => $response->headers()
+                    ]);
+                    
+                    if (!$credentialsExist) {
+                        DB::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Failed to create RADIUS account',
+                            'error' => $radiusError,
+                            'radius_url' => $radiusUrl,
+                            'http_status' => $statusCode
+                        ], 500);
+                    }
+                }
+            } catch (\Exception $mikrotikException) {
+                $radiusError = $mikrotikException->getMessage();
+                \Log::error('RADIUS API submission exception', [
+                    'error' => $radiusError,
+                    'trace' => $mikrotikException->getTraceAsString()
+                ]);
+                
+                if (!$credentialsExist) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed to connect to RADIUS server',
+                        'error' => $radiusError,
+                        'radius_url' => $radiusUrl
+                    ], 500);
+                }
+            }
+
             DB::commit();
 
-            \Log::info('=== RADIUS ACCOUNT CREATED SUCCESSFULLY ===', [
+            \Log::info('=== RADIUS ACCOUNT OPERATION COMPLETED ===', [
                 'job_order_id' => $id,
-                'pppoe_username' => $pppoeUsername
+                'credentials_existed' => $credentialsExist,
+                'pppoe_username' => $pppoeUsername,
+                'radius_submitted' => $radiusSubmitted,
+                'radius_error' => $radiusError
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'RADIUS account created successfully',
+                'message' => $credentialsExist ? 'RADIUS credentials already exist' : 'RADIUS account created successfully',
                 'data' => [
                     'job_order_id' => $id,
-                    'pppoe_username' => $pppoeUsername,
-                    'pppoe_password' => $pppoePassword,
+                    'username' => $pppoeUsername,
+                    'password' => $pppoePassword,
+                    'group' => $plan,
+                    'credentials_exist' => $credentialsExist,
+                    'radius_response' => [
+                        'submitted' => $radiusSubmitted,
+                        'status' => $radiusSubmitted ? 'success' : 'failed',
+                        'error' => $radiusError
+                    ],
                     'customer_name' => $application->first_name . ' ' . $application->last_name,
+                    'plan' => $plan,
+                    'radius_config' => [
+                        'url' => $radiusUrl,
+                        'ssl_type' => $radiusConfig->ssl_type,
+                        'ip' => $radiusConfig->ip,
+                        'port' => $radiusConfig->port
+                    ]
                 ]
             ]);
 
