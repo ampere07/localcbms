@@ -72,24 +72,25 @@ class AutoDisconnectService
             $this->writeLog("[CONFIG] Target Due Date: {$targetDate}");
             $this->writeLog("");
 
-            // Fetch overdue invoices
-            $this->writeLog("[QUERY] Searching for overdue invoices...");
-            // 1. Identify accounts that have overdue invoices
-            $overdueAccountNos = Invoice::whereIn('status', ['Unpaid', 'Partial'])
-                ->whereDate('due_date', '<=', $targetDate)
-                ->pluck('account_no')
-                ->unique();
+            // Fetch ONLY the latest invoice for each account and check if IT is overdue
+            $this->writeLog("[QUERY] Searching for latest overdue invoices...");
+            
+            // 1. Get the IDs of the absolute latest invoice for every account
+            $latestInvoiceIds = DB::table('invoices')
+                ->select(DB::raw('MAX(id) as id'))
+                ->groupBy('account_no')
+                ->pluck('id');
 
-            // 2. Fetch the absolute latest invoice for each overdue account
+            // 2. Fetch those specific latest invoices and filter by EXACT disconnection day
+            // Logic: Due Date + Offset == Today (calculated as Due Date == Today - Offset)
             $invoices = Invoice::with(['billingAccount.customer', 'billingAccount.technicalDetails'])
-                ->whereIn('account_no', $overdueAccountNos)
-                ->orderBy('due_date', 'desc')
-                ->orderBy('id', 'desc')
-                ->get()
-                ->unique('account_no');
+                ->whereIn('id', $latestInvoiceIds)
+                ->whereIn('status', ['Unpaid', 'Partial'])
+                ->whereDate('due_date', $targetDate) 
+                ->get();
 
             $totalCount = $invoices->count();
-            $this->writeLog("[RESULT] Found {$totalCount} invoice(s) with due date = {$targetDate}");
+            $this->writeLog("[RESULT] Found {$totalCount} account(s) where (Due Date: {$targetDate} + Offset: {$dcActualOffset}) matches Today");
             $this->writeLog("");
 
             if ($totalCount === 0) {

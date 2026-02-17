@@ -165,6 +165,36 @@ const Inventory: React.FC = () => {
     }
   }, [inventoryItems, dbCategories]);
 
+  const getDriveDirectUrl = (url: string | undefined) => {
+    if (!url) return '';
+
+    // Check for Google Drive URLs
+    if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+      let fileId = '';
+
+      // Try to match /d/ID pattern
+      const matchD = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (matchD && matchD[1]) {
+        fileId = matchD[1];
+      }
+
+      // If not found, try id=ID pattern
+      if (!fileId) {
+        const matchId = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        if (matchId && matchId[1]) {
+          fileId = matchId[1];
+        }
+      }
+
+      if (fileId) {
+        // Use thumbnail endpoint which is more reliable for images
+        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+      }
+    }
+
+    return url;
+  };
+
   const fetchInventoryData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
@@ -478,25 +508,46 @@ const Inventory: React.FC = () => {
                       }`}
                     onClick={() => handleItemClick(item)}
                   >
-                    <div>
-                      <div className={`font-medium text-base ${isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>
-                        {item.item_name}
+                    <div className="flex items-center">
+                      <div className={`w-12 h-12 rounded mr-4 flex items-center justify-center overflow-hidden flex-shrink-0 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                        {item.image ? (
+                          <img
+                            src={getDriveDirectUrl(item.image)}
+                            alt={item.item_name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        ) : (
+                          <Package size={24} className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                        )}
+                        <Package
+                          size={24}
+                          className={`hidden absolute ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                        />
                       </div>
-                      {item.modified_date && (
-                        <div className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      <div>
+                        <div className={`font-medium text-base ${isDarkMode ? 'text-white' : 'text-gray-900'
                           }`}>
-                          {new Date(item.modified_date).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                            hour12: true
-                          })}
+                          {item.item_name}
                         </div>
-                      )}
+                        {item.modified_date && (
+                          <div className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
+                            {new Date(item.modified_date).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit',
+                              hour12: true
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center">
                       <div className={`mr-4 text-xs md:text-sm flex flex-col md:flex-row md:items-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>

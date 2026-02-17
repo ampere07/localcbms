@@ -339,7 +339,7 @@ const LcpNapLocation: React.FC = () => {
       fillColor: '#22c55e',
       fillOpacity: 1,
       strokeColor: '#ffffff',
-      strokeWeight: 2,
+      strokeWeight: 1,
     };
   };
 
@@ -518,7 +518,7 @@ const LcpNapLocation: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {lcpNapItems.map((item) => (
             <button
               key={item.id === 0 ? 'all' : item.id}

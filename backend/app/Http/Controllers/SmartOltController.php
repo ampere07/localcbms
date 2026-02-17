@@ -10,6 +10,51 @@ use Illuminate\Support\Facades\Log;
 
 class SmartOltController extends Controller
 {
+    public function index()
+    {
+        try {
+            $config = SmartOlt::first();
+            return response()->json([
+                'success' => true,
+                'data' => $config ? [$config] : [],
+                'count' => $config ? 1 : 0
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function store(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'sub_domain' => 'required|string',
+                'token' => 'required|string'
+            ]);
+
+            $config = SmartOlt::first();
+            if ($config) {
+                $config->update($validated);
+            } else {
+                $config = SmartOlt::create($validated);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'SmartOLT configuration saved successfully',
+                'data' => $config
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function validateOnuSn(Request $request)
     {
         try {

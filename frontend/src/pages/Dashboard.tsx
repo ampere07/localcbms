@@ -49,6 +49,7 @@ import Settings from './Settings';
 import LcpNapLocation from './LcpNapLocation';
 import BillingConfig from './BillingConfig';
 import RadiusConfig from './RadiusConfig';
+import SmartOltConfig from './SmartOltConfig';
 import SmsConfig from './SmsConfig';
 import SMSTemplate from './SMSTemplate';
 import EmailTemplates from './EmailTemplates';
@@ -185,6 +186,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 return <BillingConfig />;
             case 'radius-config':
                 return <RadiusConfig />;
+            case 'smart-olt':
+                return <SmartOltConfig />;
             case 'sms-config':
                 return <SmsConfig />;
             case 'sms-template':

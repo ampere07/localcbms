@@ -1,6 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ExternalLink } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+
+// Fix Leaflet default icon issue
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Component to update map center when coordinates change
+const MapUpdater: React.FC<{ center: [number, number] }> = ({ center }) => {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, map.getZoom());
+  }, [center, map]);
+  return null;
+};
 
 interface LocationMarker {
   id: number;
@@ -117,20 +137,31 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
 
   const getDriveDirectUrl = (url: string | undefined) => {
     if (!url) return '';
-    // Handle Google Drive /view links by converting them to direct download links
-    if (url.includes('drive.google.com') && (url.includes('/view') || url.includes('id='))) {
+
+    // Check for Google Drive URLs
+    if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
       let fileId = '';
-      if (url.includes('id=')) {
-        fileId = url.split('id=')[1].split('&')[0];
-      } else {
-        const parts = url.split('/');
-        const viewIndex = parts.indexOf('view');
-        if (viewIndex > 0) {
-          fileId = parts[viewIndex - 1];
+
+      // Try to match /d/ID pattern
+      const matchD = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (matchD && matchD[1]) {
+        fileId = matchD[1];
+      }
+
+      // If not found, try id=ID pattern
+      if (!fileId) {
+        const matchId = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        if (matchId && matchId[1]) {
+          fileId = matchId[1];
         }
       }
-      return fileId ? `https://drive.google.com/uc?export=view&id=${fileId}` : url;
+
+      if (fileId) {
+        // Use thumbnail endpoint which is more reliable for images
+        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+      }
     }
+
     return url;
   };
 
@@ -170,7 +201,7 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div className={`max-w-2xl mx-auto py-6 px-4 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
           }`}>
           <div className="space-y-4">
@@ -298,33 +329,59 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
             </div>
 
             {/* Coordinates */}
-            <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
-              }`}>
-              <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>Coordinates:</div>
-              <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>
-                {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+            <div className={`flex flex-col border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+              <div className={`w-full text-sm mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Coordinates:
+              </div>
+
+              <div className={`w-full h-64 border rounded overflow-hidden relative ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} style={{ zIndex: 1 }}>
+                <MapContainer
+                  center={[location.latitude, location.longitude]}
+                  zoom={16}
+                  style={{ height: '100%', width: '100%', zIndex: 1 }}
+                  scrollWheelZoom={false}
+                >
+                  <MapUpdater center={[location.latitude, location.longitude]} />
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <Marker position={[location.latitude, location.longitude]}>
+                    <Popup>
+                      <strong>{location.lcpnap_name}</strong><br />
+                      {location.street && <span>{location.street}<br /></span>}
+                      {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                    </Popup>
+                  </Marker>
+                </MapContainer>
+              </div>
+
+              <div className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                long and lat : {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
               </div>
             </div>
 
             {/* Reading Image */}
             {location.reading_image_url && (
-              <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+              <div className={`flex flex-col border-b pb-4 gap-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
                 }`}>
-                <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>Reading Image</div>
-                <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>
-                  <span className="truncate mr-2">
-                    {location.reading_image_url}
-                  </span>
-                  <button
-                    className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>Reading Image:</div>
+                <div className="relative group">
+                  <img
+                    src={getDriveDirectUrl(location.reading_image_url)}
+                    alt="Reading Image"
+                    className="w-full h-auto max-h-64 object-cover rounded-lg border border-gray-300 dark:border-gray-700 shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
                     onClick={() => window.open(location.reading_image_url)}
+                  />
+                  <button
+                    className={`absolute top-2 right-2 p-1.5 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all opacity-0 group-hover:opacity-100`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(location.reading_image_url);
+                    }}
                   >
-                    <ExternalLink size={16} />
+                    <ExternalLink size={14} />
                   </button>
                 </div>
               </div>
