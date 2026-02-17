@@ -286,7 +286,18 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
               <button
                 onClick={handleSave}
                 disabled={loading}
-                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
+                className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center transition-colors"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#ea580c'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent && !loading) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                }}
               >
                 {loading ? (
                   <>
@@ -318,8 +329,11 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                   type="number"
                   value={formData.numberOfDays}
                   onChange={(e) => handleInputChange('numberOfDays', parseInt(e.target.value) || 0)}
-                  className={`flex-1 px-3 py-2 border rounded-l focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  className={`flex-1 px-3 py-2 border rounded-l focus:outline-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                     } ${errors.numberOfDays ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                  style={{
+                    borderColor: errors.numberOfDays ? '#ef4444' : (colorPalette && formData.numberOfDays > 0 ? colorPalette.primary : '')
+                  }}
                 />
                 <div className="flex flex-col">
                   <button
@@ -353,11 +367,15 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                   type="button"
                   onClick={() => handleRebateTypeChange('lcpnap')}
                   className={`flex-1 px-4 py-2 rounded border transition-colors ${formData.rebateType === 'lcpnap'
-                    ? 'bg-orange-600 border-orange-600 text-white'
+                    ? 'text-white'
                     : isDarkMode
                       ? 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600'
                       : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
                     }`}
+                  style={formData.rebateType === 'lcpnap' ? {
+                    backgroundColor: colorPalette?.primary || '#ea580c',
+                    borderColor: colorPalette?.primary || '#ea580c'
+                  } : {}}
                 >
                   LCPNAP
                 </button>
@@ -365,11 +383,15 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                   type="button"
                   onClick={() => handleRebateTypeChange('lcp')}
                   className={`flex-1 px-4 py-2 rounded border transition-colors ${formData.rebateType === 'lcp'
-                    ? 'bg-orange-600 border-orange-600 text-white'
+                    ? 'text-white'
                     : isDarkMode
                       ? 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600'
                       : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
                     }`}
+                  style={formData.rebateType === 'lcp' ? {
+                    backgroundColor: colorPalette?.primary || '#ea580c',
+                    borderColor: colorPalette?.primary || '#ea580c'
+                  } : {}}
                 >
                   LCP
                 </button>
@@ -377,11 +399,15 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                   type="button"
                   onClick={() => handleRebateTypeChange('barangay')}
                   className={`flex-1 px-4 py-2 rounded border transition-colors ${formData.rebateType === 'barangay'
-                    ? 'bg-orange-600 border-orange-600 text-white'
+                    ? 'text-white'
                     : isDarkMode
                       ? 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600'
                       : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
                     }`}
+                  style={formData.rebateType === 'barangay' ? {
+                    backgroundColor: colorPalette?.primary || '#ea580c',
+                    borderColor: colorPalette?.primary || '#ea580c'
+                  } : {}}
                 >
                   Barangay
                 </button>
@@ -399,8 +425,11 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                   <select
                     value={formData.selectedId || ''}
                     onChange={(e) => handleInputChange('selectedId', e.target.value ? parseInt(e.target.value) : null)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    className={`w-full px-3 py-2 border rounded focus:outline-none appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                       } ${errors.selectedId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                    style={{
+                      borderColor: errors.selectedId ? '#ef4444' : (colorPalette && formData.selectedId ? colorPalette.primary : '')
+                    }}
                   >
                     <option value="">Select LCPNAP</option>
                     {lcpnapList.map(item => (
@@ -426,8 +455,11 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                   <select
                     value={formData.selectedId || ''}
                     onChange={(e) => handleInputChange('selectedId', e.target.value ? parseInt(e.target.value) : null)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    className={`w-full px-3 py-2 border rounded focus:outline-none appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                       } ${errors.selectedId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                    style={{
+                      borderColor: errors.selectedId ? '#ef4444' : (colorPalette && formData.selectedId ? colorPalette.primary : '')
+                    }}
                   >
                     <option value="">Select LCP</option>
                     {lcpList.map(item => (
@@ -452,8 +484,11 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                   <select
                     value={formData.selectedId || ''}
                     onChange={(e) => handleInputChange('selectedId', e.target.value ? parseInt(e.target.value) : null)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    className={`w-full px-3 py-2 border rounded focus:outline-none appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                       } ${errors.selectedId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                    style={{
+                      borderColor: errors.selectedId ? '#ef4444' : (colorPalette && formData.selectedId ? colorPalette.primary : '')
+                    }}
                   >
                     <option value="">Select Barangay</option>
                     {barangayList.map(item => (
@@ -477,8 +512,11 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                 <select
                   value={formData.month}
                   onChange={(e) => handleInputChange('month', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  className={`w-full px-3 py-2 border rounded focus:outline-none appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                     } ${errors.month ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                  style={{
+                    borderColor: errors.month ? '#ef4444' : (colorPalette && formData.month ? colorPalette.primary : '')
+                  }}
                 >
                   <option value="">Select Month</option>
                   <option value="January">January</option>
@@ -538,9 +576,12 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                 <select
                   value={formData.approvedBy}
                   onChange={(e) => handleInputChange('approvedBy', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  className={`w-full px-3 py-2 border rounded focus:outline-none appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                     } ${errors.approvedBy ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                     }`}
+                  style={{
+                    borderColor: errors.approvedBy ? '#ef4444' : (colorPalette && formData.approvedBy ? colorPalette.primary : '')
+                  }}
                 >
                   <option value="">Select Approver</option>
                   {usersList.map((user, index) => (

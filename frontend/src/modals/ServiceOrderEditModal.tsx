@@ -715,18 +715,20 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       newErrors.newPlan = 'New Plan is required';
     }
 
-    const validItems = orderItems.filter(item => item.itemId && item.quantity);
-    if (validItems.length === 0) {
-      newErrors.items = 'At least one item with quantity is required';
-    } else {
-      for (let i = 0; i < orderItems.length; i++) {
-        const item = orderItems[i];
-        if (item.itemId || item.quantity) {
-          if (!item.itemId) {
-            newErrors[`item_${i}`] = 'Item is required';
-          }
-          if (!item.quantity || parseInt(item.quantity) <= 0) {
-            newErrors[`quantity_${i}`] = 'Valid quantity is required';
+    if (formData.visitStatus === 'Done') {
+      const validItems = orderItems.filter(item => item.itemId && item.quantity);
+      if (validItems.length === 0) {
+        newErrors.items = 'At least one item with quantity is required';
+      } else {
+        for (let i = 0; i < orderItems.length; i++) {
+          const item = orderItems[i];
+          if (item.itemId || item.quantity) {
+            if (!item.itemId) {
+              newErrors[`item_${i}`] = 'Item is required';
+            }
+            if (!item.quantity || parseInt(item.quantity) <= 0) {
+              newErrors[`quantity_${i}`] = 'Valid quantity is required';
+            }
           }
         }
       }
