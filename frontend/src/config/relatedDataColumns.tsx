@@ -258,6 +258,51 @@ export const relatedDataColumns = {
       key: 'total_amount_due',
       label: 'Total Due',
       render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}`
+    },
+  ] as TableColumn[],
+
+  inventoryLogs: [
+    {
+      key: 'date',
+      label: 'Date',
+      render: (val: any) => val ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : 'N/A'
+    },
+    { key: 'item_quantity', label: 'Quantity', render: (val: any) => val || 0 },
+    { key: 'requested_by', label: 'Requested By', render: (val: any) => val || 'N/A' },
+    { key: 'requested_with', label: 'Requested With', render: (val: any) => val || 'N/A' },
+  ] as TableColumn[],
+
+  borrowedLogs: [
+    {
+      key: 'date',
+      label: 'Date',
+      render: (val: any) => val ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : 'N/A'
+    },
+    { key: 'borrowed_by', label: 'Borrowed By', render: (val: any) => val || 'N/A' },
+    { key: 'item_quantity', label: 'Quantity', render: (val: any) => val || 0 },
+    { key: 'status', label: 'Status', render: (val: any) => val || 'N/A' },
+  ] as TableColumn[],
+
+  jobOrders: [
+    { key: 'job_order_no', label: 'JO No.' },
+    { key: 'customer_name', label: 'Customer' },
+    { key: 'item_quantity', label: 'Quantity' },
+    { key: 'status', label: 'Status' },
+    {
+      key: 'created_at',
+      label: 'Date',
+      render: (val: any) => val ? (val.includes(' ') ? val.split(' ')[0] : val) : 'N/A'
     }
-  ] as TableColumn[]
+  ] as TableColumn[],
+
+  defectiveLogs: [
+    {
+      key: 'date',
+      label: 'Date',
+      render: (val: any) => val ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : 'N/A'
+    },
+    { key: 'reported_by', label: 'Reported By' },
+    { key: 'item_quantity', label: 'Quantity' },
+    { key: 'defect_type', label: 'Type' },
+  ] as TableColumn[],
 };

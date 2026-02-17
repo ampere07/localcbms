@@ -200,11 +200,6 @@ const InventoryLogsFormModal: React.FC<InventoryLogsFormModalProps> = ({
                     <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
                         }`}>
                         <div className="flex items-center space-x-3">
-                            <X
-                                size={24}
-                                className={`cursor-pointer transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
-                                onClick={onClose}
-                            />
                             <h2 className="text-xl font-semibold">Inventory Logs Form</h2>
                         </div>
                         <div className="flex items-center space-x-3">
@@ -229,7 +224,7 @@ const InventoryLogsFormModal: React.FC<InventoryLogsFormModalProps> = ({
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                    <div className="flex-1 overflow-y-auto p-8 space-y-6 scrollbar-none">
                         {/* Date */}
                         <div className="space-y-2">
                             <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -395,7 +390,7 @@ const InventoryLogsFormModal: React.FC<InventoryLogsFormModalProps> = ({
                             {/* SN */}
                             <div className="space-y-2">
                                 <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                                    SN<span className="text-red-500 ml-0.5">*</span>
+                                    SN
                                 </label>
                                 <div className="relative">
                                     <input
