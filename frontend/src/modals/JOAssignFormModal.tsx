@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, ChevronDown, Minus, Plus, Loader2 } from 'lucide-react';
+import { X, Calendar, ChevronDown, Minus, Plus, Loader2, Search } from 'lucide-react';
 import { createJobOrder, JobOrderData } from '../services/jobOrderService';
 import { updateApplication } from '../services/applicationService';
 import { getAllGroups, Group } from '../services/groupService';
@@ -44,7 +44,7 @@ interface JOFormData {
   choosePlan: string;
   promo: string;
   remarks: string;
-  installationFee: number;
+  installationFee: number | string;
   billingDay: string;
   isLastDayOfMonth: boolean;
   onsiteStatus: string;
@@ -96,7 +96,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     choosePlan: '',
     promo: '',
     remarks: '',
-    installationFee: 0.00,
+    installationFee: 0,
     billingDay: '',
     isLastDayOfMonth: false,
     onsiteStatus: 'In Progress',
@@ -151,6 +151,9 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
   const [promos, setPromos] = useState<Promo[]>([]);
   const [technicians, setTechnicians] = useState<Array<{ email: string; name: string }>>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
+  const [referredBySearch, setReferredBySearch] = useState('');
+  const [isReferredByOpen, setIsReferredByOpen] = useState(false);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -211,6 +214,31 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     };
 
     fetchTechnicians();
+  }, [isOpen]);
+
+  useEffect(() => {
+    const fetchAgents = async () => {
+      if (isOpen) {
+        try {
+          // Use role_id 4 or name 'agent' as requested
+          const response = await userService.getUsersByRole('agent');
+          if (response.success && response.data) {
+            setAgents(response.data);
+          } else {
+            // Fallback to role ID 4 if 'agent' name doesn't return anything
+            const responseById = await userService.getUsersByRoleId(4);
+            if (responseById.success && responseById.data) {
+              setAgents(responseById.data);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch agents:', error);
+          setAgents([]);
+        }
+      }
+    };
+
+    fetchAgents();
   }, [isOpen]);
 
   useEffect(() => {
@@ -364,6 +392,10 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
   }, [applicationData, isOpen]);
 
   const handleInputChange = (field: keyof JOFormData, value: string | number | boolean) => {
+    if (field === 'middleInitial' && typeof value === 'string') {
+      value = value.replace(/[0-9]/g, '');
+    }
+
     if (field === 'billingDay') {
       const numValue = parseInt(value as string);
       if (!isNaN(numValue) && numValue > 30) {
@@ -396,11 +428,11 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
 
   const handleInstallationFeeChange = (value: string) => {
     if (value === '' || value === '-') {
-      setFormData(prev => ({ ...prev, installationFee: 0 }));
+      setFormData(prev => ({ ...prev, installationFee: value }));
     } else {
       const numValue = parseFloat(value);
       if (!isNaN(numValue)) {
-        setFormData(prev => ({ ...prev, installationFee: numValue }));
+        setFormData(prev => ({ ...prev, installationFee: value }));
       }
     }
     if (errors.installationFee) {
@@ -411,9 +443,10 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
   const handleNumberChange = (field: 'installationFee' | 'billingDay', increment: boolean) => {
     setFormData(prev => {
       if (field === 'installationFee') {
+        const currentVal = Number(prev[field]) || 0;
         return {
           ...prev,
-          [field]: increment ? prev[field] + 0.01 : Math.max(0, prev[field] - 0.01)
+          [field]: increment ? currentVal + 0.01 : Math.max(0, currentVal - 0.01)
         };
       } else {
         const currentValue = parseInt(prev[field]) || 1;
@@ -479,7 +512,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
       newErrors.choosePlan = 'Choose Plan is required';
     }
 
-    if (formData.installationFee < 0) {
+    if (Number(formData.installationFee) < 0) {
       newErrors.installationFee = 'Installation fee cannot be negative';
     }
 
@@ -531,7 +564,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     return {
       application_id: applicationId,
       timestamp: formattedTimestamp,
-      installation_fee: data.installationFee || 0,
+      installation_fee: Number(data.installationFee) || 0,
       billing_day: data.isLastDayOfMonth ? 0 : (parseInt(data.billingDay) || 30),
       billing_status: 'In Progress',
       modem_router_sn: null,
@@ -804,18 +837,100 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                 {errors.status && <p className="text-red-500 text-xs mt-1">{errors.status}</p>}
               </div>
 
-              <div>
+              <div className="relative">
                 <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>Referred By</label>
-                <input
-                  type="text"
-                  value={formData.referredBy}
-                  onChange={(e) => handleInputChange('referredBy', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                    ? 'bg-gray-800 text-white border-gray-700'
-                    : 'bg-white text-gray-900 border-gray-300'
-                    }`}
-                />
+                <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                  } ${isReferredByOpen ? 'border-orange-500' : ''}`}>
+                  <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                  <input
+                    type="text"
+                    placeholder="Search Agent..."
+                    value={isReferredByOpen ? referredBySearch : (formData.referredBy || '')}
+                    onChange={(e) => {
+                      setReferredBySearch(e.target.value);
+                      if (!isReferredByOpen) setIsReferredByOpen(true);
+                    }}
+                    onFocus={() => {
+                      setIsReferredByOpen(true);
+                    }}
+                    className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isReferredByOpen) {
+                        setIsReferredByOpen(false);
+                        setReferredBySearch('');
+                      } else {
+                        handleInputChange('referredBy', '');
+                        setReferredBySearch('');
+                      }
+                    }}
+                    className={`ml-2 transition-transform duration-200 ${isReferredByOpen ? 'rotate-180' : ''}`}
+                  >
+                    <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                  </button>
+                </div>
+
+                {/* Agents Dropdown */}
+                {isReferredByOpen && (
+                  <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`} style={{ minWidth: '100%' }}>
+                    <div className="max-h-60 overflow-y-auto">
+                      {agents
+                        .filter(agent => {
+                          const fullName = `${agent.first_name || ''} ${agent.middle_initial || ''} ${agent.last_name || ''}`.replace(/\s+/g, ' ').trim();
+                          const searchLower = referredBySearch.toLowerCase();
+                          return fullName.toLowerCase().includes(searchLower) ||
+                            (agent.username && agent.username.toLowerCase().includes(searchLower)) ||
+                            (agent.email_address && agent.email_address.toLowerCase().includes(searchLower));
+                        })
+                        .map((agent) => {
+                          const fullName = `${agent.first_name || ''} ${agent.middle_initial || ''} ${agent.last_name || ''}`.replace(/\s+/g, ' ').trim();
+                          return (
+                            <div
+                              key={agent.id}
+                              className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'} ${formData.referredBy === fullName ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                              onClick={() => {
+                                handleInputChange('referredBy', fullName);
+                                setIsReferredByOpen(false);
+                                setReferredBySearch('');
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span>{fullName}</span>
+                                {formData.referredBy === fullName && (
+                                  <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      {agents.filter(agent => {
+                        const fullName = `${agent.first_name || ''} ${agent.middle_initial || ''} ${agent.last_name || ''}`.replace(/\s+/g, ' ').trim();
+                        const searchLower = referredBySearch.toLowerCase();
+                        return fullName.toLowerCase().includes(searchLower) ||
+                          (agent.username && agent.username.toLowerCase().includes(searchLower)) ||
+                          (agent.email_address && agent.email_address.toLowerCase().includes(searchLower));
+                      }).length === 0 && (
+                          <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                            No Agent found for "{referredBySearch}"
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Click outside to close */}
+                {isReferredByOpen && (
+                  <div
+                    className="fixed inset-0 z-40 bg-transparent"
+                    onClick={() => {
+                      setIsReferredByOpen(false);
+                      setReferredBySearch('');
+                    }}
+                  />
+                )}
               </div>
             </div>
 
@@ -844,6 +959,11 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   type="text"
                   value={formData.middleInitial}
                   onChange={(e) => handleInputChange('middleInitial', e.target.value)}
+                  onKeyDown={(e) => {
+                    if (/[0-9]/.test(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
                   maxLength={1}
                   className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
                     ? 'bg-gray-800 text-white border-gray-700'

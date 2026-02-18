@@ -57,6 +57,7 @@ const allColumns = [
   { key: 'pppoePassword', label: 'PPPoE Password', width: 'min-w-36' },
   { key: 'fullName', label: 'Full Name of Client', width: 'min-w-48' },
   { key: 'address', label: 'Full Address of Client', width: 'min-w-56' },
+  { key: 'location', label: 'Location', width: 'min-w-40' },
   { key: 'contractTemplate', label: 'Contract Template', width: 'min-w-36' },
   { key: 'modifiedBy', label: 'Modified By', width: 'min-w-32' },
   { key: 'modifiedDate', label: 'Modified Date', width: 'min-w-40' },
@@ -312,6 +313,7 @@ const JobOrderPage: React.FC = () => {
   const getClientFullAddress = (jobOrder: JobOrder): string => {
     const addressParts = [
       jobOrder.Address || jobOrder.address,
+      jobOrder.Location || jobOrder.location,
       jobOrder.Barangay || jobOrder.barangay,
       jobOrder.City || jobOrder.city,
       jobOrder.Region || jobOrder.region
@@ -957,6 +959,8 @@ const JobOrderPage: React.FC = () => {
         return getValue(jobOrder.City || jobOrder.city);
       case 'barangay':
         return getValue(jobOrder.Barangay || jobOrder.barangay);
+      case 'location':
+        return getValue(jobOrder.Location || jobOrder.location);
 
       case 'choosePlan':
         return getValue(jobOrder.Choose_Plan || jobOrder.Desired_Plan || jobOrder.choose_plan || jobOrder.desired_plan);
