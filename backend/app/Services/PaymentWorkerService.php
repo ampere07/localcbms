@@ -232,6 +232,8 @@ class PaymentWorkerService
                             $message = str_replace('{{amount_paid}}', number_format($totalPaid, 2), $message);
                             $message = str_replace('{{date}}', date('Y-m-d'), $message);
 
+                            $message = $this->replaceGlobalVariables($message);
+
                             $smsResult = $smsService->send([
                                 'contact_no' => $account->contact_number_primary,
                                 'message' => $message
@@ -273,6 +275,7 @@ class PaymentWorkerService
                              $emailBody = str_replace('{{invoice_id}}', $invoiceIds, $emailBody);
                              $emailBody = str_replace('{{amount_paid}}', number_format($totalPaid, 2), $emailBody);
                              $emailBody = str_replace('{{date}}', date('Y-m-d'), $emailBody);
+                             $emailBody = $this->replaceGlobalVariables($emailBody);
 
                              if (!empty($emailBody)) {
                                   $emailService->queueEmail([
@@ -313,6 +316,17 @@ class PaymentWorkerService
                 ->where('id', $payment->id)
                 ->update(['status' => 'API_RETRY', 'updated_at' => now()]);
         }
+    }
+
+    private function replaceGlobalVariables(string $message): string
+    {
+        $portalUrl = 'sync.atssfiber.ph';
+        $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
+
+        $message = str_replace('{{portal_url}}', $portalUrl, $message);
+        $message = str_replace('{{company_name}}', $brandName, $message);
+
+        return $message;
     }
 
     /**

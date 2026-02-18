@@ -1121,6 +1121,51 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
       }
     }
 
+    // Duplicate Modem SN Validation (Job Orders & Technical Details)
+    if (formData.onsiteStatus === 'Done' && formData.modemSN.trim()) {
+      try {
+        console.log('[MODEM SN VALIDATION] Validating duplicate SN:', formData.modemSN);
+        setLoading(true);
+
+        const snValidationResponse = await apiClient.get('/job-orders/validate-modem-sn', {
+          params: {
+            sn: formData.modemSN,
+            exclude_id: jobOrderData?.id || jobOrderData?.JobOrder_ID,
+            exclude_account_no: jobOrderData?.account_id || jobOrderData?.account_no
+          }
+        });
+
+        if (!(snValidationResponse.data as any).success) {
+          console.log('[MODEM SN VALIDATION] Failed:', snValidationResponse.data);
+          setLoading(false);
+          const errorMessage = (snValidationResponse.data as any).message || 'Modem SN already exists in the system.';
+          setErrors(prev => ({
+            ...prev,
+            modemSN: errorMessage
+          }));
+          showMessageModal('Duplicate Modem SN detected', [
+            { type: 'error', text: errorMessage }
+          ]);
+          return;
+        }
+
+        console.log('[MODEM SN VALIDATION] Success');
+        setLoading(false);
+      } catch (error: any) {
+        console.error('[MODEM SN VALIDATION] API Error:', error);
+        setLoading(false);
+        const errorMessage = error.response?.data?.message || 'Failed to validate Modem SN uniqueness.';
+        setErrors(prev => ({
+          ...prev,
+          modemSN: errorMessage
+        }));
+        showMessageModal('Validation Error', [
+          { type: 'error', text: errorMessage }
+        ]);
+        return;
+      }
+    }
+
     console.log('[SAVE VALIDATION] Form validation passed');
 
     if (!jobOrderData?.id && !jobOrderData?.JobOrder_ID) {

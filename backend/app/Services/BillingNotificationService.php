@@ -371,9 +371,15 @@ class BillingNotificationService
             $message = str_replace('{{customer_name}}', $customer->full_name, $message);
             $message = str_replace('{{account_no}}', $account->account_no, $message);
             $message = str_replace('{{amount_due}}', number_format($accountBalance, 2), $message);
+            $message = str_replace('{{amount}}', number_format($accountBalance, 2), $message);
+            $message = str_replace('{{balance}}', number_format($accountBalance, 2), $message);
             $message = str_replace('{{due_date}}', $dueDate->format('M d, Y'), $message);
             $message = str_replace('{{payment_link}}', $paymentLink, $message);
-            return $message;
+            
+            $soaDateStr = $soa && $soa->statement_date ? $soa->statement_date->format('M d, Y') : date('M d, Y');
+            $message = str_replace('{{soa_date}}', $soaDateStr, $message);
+            
+            return $this->replaceGlobalVariables($message);
         }
 
         return sprintf(
@@ -396,8 +402,10 @@ class BillingNotificationService
             $message = str_replace('{{customer_name}}', $account->customer->full_name, $message);
             $message = str_replace('{{account_no}}', $account->account_no, $message);
             $message = str_replace('{{amount_due}}', number_format($invoice->total_amount, 2), $message);
+            $message = str_replace('{{amount}}', number_format($invoice->total_amount, 2), $message);
+            $message = str_replace('{{balance}}', number_format($invoice->total_amount, 2), $message);
             $message = str_replace('{{due_date}}', $invoice->due_date->format('M d, Y'), $message);
-            return $message;
+            return $this->replaceGlobalVariables($message);
         }
 
         return sprintf(
@@ -421,8 +429,10 @@ class BillingNotificationService
             $message = str_replace('{{customer_name}}', $account->customer->full_name, $message);
             $message = str_replace('{{account_no}}', $account->account_no, $message);
             $message = str_replace('{{amount_due}}', number_format($invoice->total_amount, 2), $message);
+            $message = str_replace('{{amount}}', number_format($invoice->total_amount, 2), $message);
+            $message = str_replace('{{balance}}', number_format($invoice->total_amount, 2), $message);
             $message = str_replace('{{dc_date}}', $dcDate->format('M d, Y'), $message);
-            return $message;
+            return $this->replaceGlobalVariables($message);
         }
 
         return sprintf(
@@ -443,5 +453,15 @@ class BillingNotificationService
                 'error' => $e->getMessage()
             ]);
         }
+    }
+    private function replaceGlobalVariables(string $message): string
+    {
+        $portalUrl = 'sync.atssfiber.ph';
+        $brandName = \DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
+
+        $message = str_replace('{{portal_url}}', $portalUrl, $message);
+        $message = str_replace('{{company_name}}', $brandName, $message);
+
+        return $message;
     }
 }

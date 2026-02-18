@@ -890,6 +890,8 @@ class TransactionController extends Controller
                     $message = str_replace('{{amount_paid}}', number_format($totalPaidAmount, 2), $message);
                     $message = str_replace('{{date}}', date('Y-m-d'), $message);
                     
+                    $message = $this->replaceGlobalVariables($message);
+                    
                     $result = $smsService->send([
                         'contact_no' => $customer->contact_number_primary,
                         'message' => $message
@@ -942,6 +944,7 @@ class TransactionController extends Controller
                     $emailBody = str_replace('{{invoice_id}}', $invoiceIds, $emailBody);
                     $emailBody = str_replace('{{amount_paid}}', number_format($totalPaidAmount, 2), $emailBody);
                     $emailBody = str_replace('{{date}}', date('Y-m-d'), $emailBody);
+                    $emailBody = $this->replaceGlobalVariables($emailBody);
 
                     if (!empty($emailBody)) {
                         $emailService->queueEmail([
@@ -962,5 +965,16 @@ class TransactionController extends Controller
         } catch (\Exception $e) {
             \Log::error('Failed to send consolidated Paid Email: ' . $e->getMessage());
         }
+    }
+
+    private function replaceGlobalVariables(string $message): string
+    {
+        $portalUrl = 'sync.atssfiber.ph';
+        $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
+
+        $message = str_replace('{{portal_url}}', $portalUrl, $message);
+        $message = str_replace('{{company_name}}', $brandName, $message);
+
+        return $message;
     }
 }

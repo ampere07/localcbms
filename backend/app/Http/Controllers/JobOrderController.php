@@ -956,6 +956,7 @@ class JobOrderController extends Controller
                         $message = str_replace('{{account_no}}', $accountNumber, $message);
                         $message = str_replace('{{username}}', $generatedUsername, $message);
                         $message = str_replace('{{password}}', $generatedPassword, $message);
+                        $message = $this->replaceGlobalVariables($message);
                         
                         $smsService = new \App\Services\ItexmoSmsService();
                         $smsService->send([
@@ -991,6 +992,7 @@ class JobOrderController extends Controller
                         $emailBody = str_replace('{{account_no}}', $accountNumber, $emailBody);
                         $emailBody = str_replace('{{username}}', $generatedUsername, $emailBody);
                         $emailBody = str_replace('{{password}}', $generatedPassword, $emailBody);
+                        $emailBody = $this->replaceGlobalVariables($emailBody);
 
                          if (!empty($emailBody)) {
                              $emailService = app(\App\Services\EmailQueueService::class);
@@ -1701,5 +1703,81 @@ class JobOrderController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function validateModemSN(Request $request)
+    {
+        try {
+            $sn = $request->query('sn');
+            $excludeId = $request->query('exclude_id');
+
+            if (!$sn) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Modem SN is required'
+                ], 400);
+            }
+
+            // Check if SN exists in job_orders table (excluding current record if provided)
+            $jobOrderQuery = DB::table('job_orders')
+                ->where('modem_router_sn', $sn);
+            
+            if ($excludeId) {
+                $jobOrderQuery->where('id', '!=', $excludeId);
+            }
+
+            $jobOrderExists = $jobOrderQuery->exists();
+
+            if ($jobOrderExists) {
+                return response()->json([
+                    'success' => false,
+                    'exists' => true,
+                    'source' => 'job_orders',
+                    'message' => 'Modem SN already exists in another Job Order'
+                ]);
+            }
+
+            // Check if SN exists in technical_details table
+            $techDetailQuery = DB::table('technical_details')
+                ->where('router_modem_sn', $sn);
+
+            if ($request->has('exclude_account_no')) {
+                $techDetailQuery->where('account_no', '!=', $request->query('exclude_account_no'));
+            }
+
+            $techDetailExists = $techDetailQuery->exists();
+
+            if ($techDetailExists) {
+                return response()->json([
+                    'success' => false,
+                    'exists' => true,
+                    'source' => 'technical_details',
+                    'message' => 'Modem SN already exists in Technical Details'
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'exists' => false,
+                'message' => 'Modem SN is available'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Modem SN Validation Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error validating modem SN: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    private function replaceGlobalVariables(string $message): string
+    {
+        $portalUrl = 'sync.atssfiber.ph';
+        $brandName = \DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
+
+        $message = str_replace('{{portal_url}}', $portalUrl, $message);
+        $message = str_replace('{{company_name}}', $brandName, $message);
+
+        return $message;
     }
 }

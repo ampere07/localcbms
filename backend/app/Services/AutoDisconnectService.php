@@ -735,7 +735,7 @@ class AutoDisconnectService
                     $message = str_replace('{{balance}}', $data['balance'], $message);
                 }
 
-                return $message;
+                return $this->replaceGlobalVariables($message);
             }
 
             $this->writeLog("    [DEBUG] buildSmsMessage: Template type '{$type}' not found or inactive. Falling back to default.");
@@ -745,7 +745,7 @@ class AutoDisconnectService
                 case 'Disconnected':
                 case 'dcTxt':
                     $balance = $data['balance'] ?? '0.00';
-                    return "DISCONNECTION NOTICE: Dear {$name}, your account ({$accountNo}) has been disconnected due to non-payment. Outstanding balance: PHP {$balance}. Please settle immediately to restore service. Thank you!";
+                    return $this->replaceGlobalVariables("DISCONNECTION NOTICE: Dear {{customer_name}}, your account ({{account_no}}) has been disconnected due to non-payment. Outstanding balance: PHP {{balance}}. Please settle immediately to restore service. Thank you!", $name, $accountNo, $balance);
                     
                 default:
                     return '';
@@ -754,6 +754,22 @@ class AutoDisconnectService
             $this->writeLog("    [DEBUG] buildSmsMessage Error: " . $e->getMessage());
             return '';
         }
+    }
+
+    private function replaceGlobalVariables(string $message, string $name = '', string $accountNo = '', string $balance = ''): string
+    {
+        $portalUrl = 'sync.atssfiber.ph';
+        $brandName = \DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
+
+        $message = str_replace('{{portal_url}}', $portalUrl, $message);
+        $message = str_replace('{{company_name}}', $brandName, $message);
+        
+        // Handle fallbacks if needed
+        if ($name) $message = str_replace('{{customer_name}}', $name, $message);
+        if ($accountNo) $message = str_replace('{{account_no}}', $accountNo, $message);
+        if ($balance) $message = str_replace('{{balance}}', $balance, $message);
+
+        return $message;
     }
 
     /**

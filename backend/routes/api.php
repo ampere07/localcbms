@@ -45,8 +45,6 @@ Route::post('/monitor/handle', [MonitorController::class, 'handle']); // Ensure 
 Route::get('/sms-blast', [SmsBlastController::class, 'index']);
 Route::get('/expenses-logs', [ExpensesLogController::class, 'index']);
 Route::get('/disconnection-logs', [DisconnectionLogsController::class, 'index']);
-Route::get('/smart-olt', [\App\Http\Controllers\SmartOltController::class, 'index']);
-Route::post('/smart-olt', [\App\Http\Controllers\SmartOltController::class, 'store']);
 Route::get('/smart-olt/validate-sn', [\App\Http\Controllers\SmartOltController::class, 'validateOnuSn']);
 Route::get('/reconnection-logs', [ReconnectionLogsController::class, 'index']);
 
@@ -1228,6 +1226,7 @@ Route::prefix('job-orders')->middleware('ensure.database.tables')->group(functio
     Route::post('/{id}/approve', [JobOrderController::class, 'approve']);
     Route::post('/{id}/create-radius-account', [JobOrderController::class, 'createRadiusAccount']);
     Route::post('/{id}/upload-images', [JobOrderController::class, 'uploadImages']);
+    Route::get('/validate-modem-sn', [JobOrderController::class, 'validateModemSN']);
     
     // Lookup table endpoints
     Route::get('/lookup/modem-router-sns', [JobOrderController::class, 'getModemRouterSNs']);

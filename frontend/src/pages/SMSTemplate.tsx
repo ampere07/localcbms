@@ -224,7 +224,7 @@ const SMSTemplate: React.FC = () => {
   const templateTypes = [
     'Overdue',
     'DCNotice',
-    'SOA',
+    'StatementofAccount',
     'Disconnected',
     'Reconnect',
     'Apply',
@@ -242,7 +242,10 @@ const SMSTemplate: React.FC = () => {
     '{{plan_name}}',
     '{{payment_date}}',
     '{{installation_date}}',
-    '{{mobile_number}}'
+    '{{mobile_number}}',
+    '{{soa_date}}',
+    '{{portal_url}}',
+    '{{company_name}}'
   ];
 
   const insertVariable = (variable: string) => {

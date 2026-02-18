@@ -539,6 +539,27 @@ const EmailTemplates: React.FC = () => {
               {`{{${tag}}}`}
             </button>
           ))}
+
+          <h3 className={`text-xs font-semibold mb-2 mt-3 uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Global Variables</h3>
+          <button
+            onClick={() => insertTag('{{portal_url}}')}
+            className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-orange-500 ${isDarkMode
+              ? 'text-orange-400 bg-gray-700 hover:bg-gray-600'
+              : 'text-orange-600 bg-gray-100 hover:bg-gray-200'
+              }`}
+          >
+            {'{{portal_url}}'}
+          </button>
+          <button
+            onClick={() => insertTag('{{company_name}}')}
+            className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-orange-500 ${isDarkMode
+              ? 'text-orange-400 bg-gray-700 hover:bg-gray-600'
+              : 'text-orange-600 bg-gray-100 hover:bg-gray-200'
+              }`}
+          >
+            {'{{company_name}}'}
+          </button>
         </div>
       </div>
 
