@@ -18,6 +18,7 @@ use App\Http\Controllers\RegionController;
 use App\Http\Controllers\DebugController;
 use App\Http\Controllers\EmergencyLocationController;
 use App\Http\Controllers\RadiusController;
+use App\Http\Controllers\SmartOltController;
 use App\Http\Controllers\RadiusConfigController;
 use App\Http\Controllers\SmsConfigController;
 use App\Http\Controllers\SMSTemplateController;
@@ -156,6 +157,11 @@ Route::prefix('debug')->group(function () {
         ]);
     });
 });
+
+// SmartOLT Routes
+Route::get('/smart-olt', [SmartOltController::class, 'index']);
+Route::post('/smart-olt', [SmartOltController::class, 'store']);
+Route::post('/smart-olt/validate-onu-sn', [SmartOltController::class, 'validateOnuSn']);
 
 // Discount Management Routes
 Route::prefix('discounts')->group(function () {

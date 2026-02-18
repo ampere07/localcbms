@@ -818,24 +818,17 @@ class TransactionController extends Controller
                     $emailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'RECONNECT')->first();
                     
                     if ($emailTemplate && !empty($customerInfo->email_address)) {
-                         // Use email_body as the content (body) as requested
-                         $body = $emailTemplate->email_body;
+                         $emailService = app(\App\Services\EmailQueueService::class);
                          
-                         if (!empty($body)) {
-                             $emailService = app(\App\Services\EmailQueueService::class);
-                             
-                             $emailService->queueEmail([
-                                 'account_no' => $accountNo,
-                                 'recipient_email' => $customerInfo->email_address,
-                                 'subject' => $emailTemplate->Subject_Line ?? 'Reconnection Notice', 
-                                 'body_html' => nl2br($body), 
-                                 'attachment_path' => null
-                             ]);
-                             
-                             \Log::info('[TRANSACTION RECONNECT EMAIL] Email queued for ' . $customerInfo->email_address);
-                         } else {
-                             \Log::warning('[TRANSACTION RECONNECT EMAIL SKIP] email_body is empty');
-                         }
+                         $emailData = [
+                             'customer_name' => $customerInfo->full_name,
+                             'account_no' => $accountNo,
+                             'recipient_email' => $customerInfo->email_address,
+                         ];
+
+                         $emailService->queueFromTemplate('RECONNECT', $emailData);
+                         
+                         \Log::info('[TRANSACTION RECONNECT EMAIL] Email queued for ' . $customerInfo->email_address);
                     } else {
                         if (!$emailTemplate) \Log::warning('[TRANSACTION RECONNECT EMAIL SKIP] RECONNECT template not found');
                         if (empty($customerInfo->email_address)) \Log::warning('[TRANSACTION RECONNECT EMAIL SKIP] No email address for customer');
@@ -936,30 +929,21 @@ class TransactionController extends Controller
                     // Consolidate invoice IDs
                     $invoiceIds = collect($invoicesPaid)->pluck('invoice_id')->unique()->implode(', ');
                     
-                    $emailBody = $paidEmailTemplate->email_body;
-                    
-                    // Replace variables
-                    $emailBody = str_replace('{{customer_name}}', $customer->full_name, $emailBody);
-                    $emailBody = str_replace('{{account_no}}', $billingAccount->account_no, $emailBody);
-                    $emailBody = str_replace('{{invoice_id}}', $invoiceIds, $emailBody);
-                    $emailBody = str_replace('{{amount_paid}}', number_format($totalPaidAmount, 2), $emailBody);
-                    $emailBody = str_replace('{{date}}', date('Y-m-d'), $emailBody);
-                    $emailBody = $this->replaceGlobalVariables($emailBody);
+                    $emailData = [
+                        'customer_name' => $customer->full_name,
+                        'account_no' => $billingAccount->account_no,
+                        'invoice_id' => $invoiceIds,
+                        'amount_paid' => number_format($totalPaidAmount, 2),
+                        'date' => date('Y-m-d'),
+                        'recipient_email' => $customer->email_address,
+                    ];
 
-                    if (!empty($emailBody)) {
-                        $emailService->queueEmail([
-                            'account_no' => $billingAccount->account_no,
-                            'recipient_email' => $customer->email_address,
-                            'subject' => $paidEmailTemplate->Subject_Line ?? 'Payment Received', 
-                            'body_html' => nl2br($emailBody), 
-                            'attachment_path' => null
-                        ]);
-                        
-                        \Log::info('Consolidated Paid Email queued', [
-                            'account_no' => $billingAccount->account_no,
-                            'invoice_ids' => $invoiceIds
-                        ]);
-                    }
+                    $emailService->queueFromTemplate('PAID', $emailData);
+                    
+                    \Log::info('Consolidated Paid Email queued via template', [
+                        'account_no' => $billingAccount->account_no,
+                        'invoice_ids' => $invoiceIds
+                    ]);
                 }
             }
         } catch (\Exception $e) {

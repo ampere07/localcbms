@@ -688,21 +688,22 @@ class AutoDisconnectService
                  return;
             }
 
-            $this->writeLog("    [DEBUG] triggerEmail: Queueing email...");
+            $this->writeLog("    [DEBUG] triggerEmail: Queueing email via template...");
             
-            $emailQueued = $this->emailQueueService->queueEmail([
+            $emailData = [
+                'customer_name' => $customer->full_name,
                 'account_no' => $billingAccount->account_no,
+                'amount_due' => number_format($billingAccount->account_balance, 2),
+                'balance' => number_format($billingAccount->account_balance, 2),
                 'recipient_email' => $customer->email_address,
-                'subject' => $template->Subject_Line ?? 'Disconnection Notice',
-                // Convert newlines to BR tags since queueEmail typically sends HTML
-                'body_html' => nl2br($body), 
-                'attachment_path' => null
-            ]);
+            ];
+
+            $emailQueued = $this->emailQueueService->queueFromTemplate('DISCONNECTED', $emailData);
             
             if ($emailQueued) {
-                $this->writeLog("    [DEBUG] triggerEmail: Email queued successfully. ID: " . $emailQueued->id);
+                $this->writeLog("    [DEBUG] triggerEmail: Email queued successfully via template.");
             } else {
-                $this->writeLog("    [DEBUG] triggerEmail: Email failed to queue");
+                $this->writeLog("    [DEBUG] triggerEmail: Email failed to queue via template");
             }
 
         } catch (Throwable $e) {

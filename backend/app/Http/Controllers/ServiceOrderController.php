@@ -916,21 +916,16 @@ class ServiceOrderController extends Controller
                 try {
                     $emailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'RECONNECT')->first();
                     
-                    if ($emailTemplate && !empty($customerInfo->email_address)) {
-                         $body = $emailTemplate->email_body;
-                         
-                         if (!empty($body)) {
-                             $emailService = app(\App\Services\EmailQueueService::class);
-                             $emailService->queueEmail([
-                                 'account_no' => $accountNo,
-                                 'recipient_email' => $customerInfo->email_address,
-                                 'subject' => $emailTemplate->Subject_Line ?? 'Reconnection Notice', 
-                                 'body_html' => nl2br($body), 
-                                 'attachment_path' => null
-                             ]);
-                             \Log::info('[SERVICE ORDER RECONNECT EMAIL] Email queued');
+                         if (!empty($emailTemplate) && !empty($customerInfo->email_address)) {
+                              $emailService = app(\App\Services\EmailQueueService::class);
+                              $emailData = [
+                                  'customer_name' => $customerInfo->full_name,
+                                  'account_no' => $accountNo,
+                                  'recipient_email' => $customerInfo->email_address,
+                              ];
+                              $emailService->queueFromTemplate('RECONNECT', $emailData);
+                              \Log::info('[SERVICE ORDER RECONNECT EMAIL] Email queued');
                          }
-                    }
                 } catch (\Exception $e) {
                     \Log::error('[SERVICE ORDER RECONNECT EMAIL EXCEPTION] ' . $e->getMessage());
                 }
@@ -1043,21 +1038,18 @@ class ServiceOrderController extends Controller
                 try {
                     $emailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'DISCONNECTED')->first();
                     
-                    if ($emailTemplate && !empty($customerInfo->email_address)) {
-                         $body = $emailTemplate->email_body;
-                         
-                         if (!empty($body)) {
-                             $emailService = app(\App\Services\EmailQueueService::class);
-                             $emailService->queueEmail([
-                                 'account_no' => $accountNo,
-                                 'recipient_email' => $customerInfo->email_address,
-                                 'subject' => $emailTemplate->Subject_Line ?? 'Disconnection Notice', 
-                                 'body_html' => nl2br($body), 
-                                 'attachment_path' => null
-                             ]);
-                             \Log::info('[SERVICE ORDER DISCONNECT EMAIL] Email queued');
+                         if (!empty($emailTemplate) && !empty($customerInfo->email_address)) {
+                              $emailService = app(\App\Services\EmailQueueService::class);
+                              $emailData = [
+                                  'customer_name' => $customerInfo->full_name,
+                                  'account_no' => $accountNo,
+                                  'amount_due' => number_format($customerInfo->account_balance, 2),
+                                  'balance' => number_format($customerInfo->account_balance, 2),
+                                  'recipient_email' => $customerInfo->email_address,
+                              ];
+                              $emailService->queueFromTemplate('DISCONNECTED', $emailData);
+                              \Log::info('[SERVICE ORDER DISCONNECT EMAIL] Email queued');
                          }
-                    }
                 } catch (\Exception $e) {
                     \Log::error('[SERVICE ORDER DISCONNECT EMAIL EXCEPTION] ' . $e->getMessage());
                 }
@@ -1189,21 +1181,18 @@ class ServiceOrderController extends Controller
                 try {
                     $emailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'DISCONNECTED')->first();
                     
-                    if ($emailTemplate && !empty($customerInfo->email_address)) {
-                         $body = $emailTemplate->email_body;
-                         
-                         if (!empty($body)) {
-                             $emailService = app(\App\Services\EmailQueueService::class);
-                             $emailService->queueEmail([
-                                 'account_no' => $accountNo,
-                                 'recipient_email' => $customerInfo->email_address,
-                                 'subject' => $emailTemplate->Subject_Line ?? 'Disconnection Notice', 
-                                 'body_html' => nl2br($body), 
-                                 'attachment_path' => null
-                             ]);
-                             \Log::info('[SERVICE ORDER PULLOUT EMAIL] Email queued');
+                         if (!empty($emailTemplate) && !empty($customerInfo->email_address)) {
+                              $emailService = app(\App\Services\EmailQueueService::class);
+                              $emailData = [
+                                  'customer_name' => $customerInfo->full_name,
+                                  'account_no' => $accountNo,
+                                  'amount_due' => number_format($customerInfo->account_balance, 2),
+                                  'balance' => number_format($customerInfo->account_balance, 2),
+                                  'recipient_email' => $customerInfo->email_address,
+                              ];
+                              $emailService->queueFromTemplate('DISCONNECTED', $emailData);
+                              \Log::info('[SERVICE ORDER PULLOUT EMAIL] Email queued');
                          }
-                    }
                 } catch (\Exception $e) {
                     \Log::error('[SERVICE ORDER PULLOUT EMAIL EXCEPTION] ' . $e->getMessage());
                 }

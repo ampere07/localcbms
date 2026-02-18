@@ -985,33 +985,22 @@ class JobOrderController extends Controller
                         ->first();
 
                     if ($welcomeEmailTemplate) {
-                        $emailBody = $welcomeEmailTemplate->email_body;
+                         $emailService = app(\App\Services\EmailQueueService::class);
+                         
+                         $emailData = [
+                             'customer_name' => $customer->full_name,
+                             'account_no' => $accountNumber,
+                             'username' => $generatedUsername,
+                             'password' => $generatedPassword,
+                             'recipient_email' => $customer->email_address,
+                         ];
 
-                        // Replace variables in email body
-                        $emailBody = str_replace('{{customer_name}}', $customer->full_name, $emailBody);
-                        $emailBody = str_replace('{{account_no}}', $accountNumber, $emailBody);
-                        $emailBody = str_replace('{{username}}', $generatedUsername, $emailBody);
-                        $emailBody = str_replace('{{password}}', $generatedPassword, $emailBody);
-                        $emailBody = $this->replaceGlobalVariables($emailBody);
-
-                         if (!empty($emailBody)) {
-                             $emailService = app(\App\Services\EmailQueueService::class);
-                             
-                             $emailService->queueEmail([
-                                 'account_no' => $accountNumber,
-                                 'recipient_email' => $customer->email_address,
-                                 'subject' => $welcomeEmailTemplate->Subject_Line ?? 'Welcome to Ampere', 
-                                 'body_html' => nl2br($emailBody), 
-                                 'attachment_path' => null
-                             ]);
-                             
-                             \Log::info('Welcome Email queued successfully', [
-                                  'customer_id' => $customer->id,
-                                  'email' => $customer->email_address
-                             ]);
-                         } else {
-                             \Log::warning('Welcome Email Body is empty');
-                         }
+                         $emailService->queueFromTemplate('WELCOME', $emailData);
+                         
+                         \Log::info('Welcome Email queued successfully via template', [
+                              'customer_id' => $customer->id,
+                              'email' => $customer->email_address
+                         ]);
                     } else {
                         \Log::warning('Welcome Email template not found or inactive');
                     }

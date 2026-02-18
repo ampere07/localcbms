@@ -277,17 +277,19 @@ class PaymentWorkerService
                              $emailBody = str_replace('{{date}}', date('Y-m-d'), $emailBody);
                              $emailBody = $this->replaceGlobalVariables($emailBody);
 
-                             if (!empty($emailBody)) {
-                                  $emailService->queueEmail([
-                                      'account_no' => $account->account_no,
-                                      'recipient_email' => $account->email_address,
-                                      'subject' => $paidEmailTemplate->Subject_Line ?? 'Payment Received', 
-                                      'body_html' => nl2br($emailBody), 
-                                      'attachment_path' => null
-                                  ]);
-                                  
-                                  $this->workerLog("Consolidated Paid Email queued for Invoices: {$invoiceIds} to {$account->email_address}");
-                             } else {
+                              if (!empty($emailBody)) {
+                                   $emailData = [
+                                       'customer_name' => $account->full_name,
+                                       'account_no' => $account->account_no,
+                                       'invoice_id' => $invoiceIds,
+                                       'amount_paid' => number_format($totalPaid, 2),
+                                       'date' => date('Y-m-d'),
+                                       'recipient_email' => $account->email_address,
+                                   ];
+                                   $emailService->queueFromTemplate('PAID', $emailData);
+                                   
+                                   $this->workerLog("Consolidated Paid Email queued via template for Invoices: {$invoiceIds} to {$account->email_address}");
+                              } else {
                                  $this->workerLog("Consolidated Paid Email Body is empty");
                              }
                          } else {
@@ -591,15 +593,14 @@ class PaymentWorkerService
                             // Resolve EmailQueueService from container since it serves dependencies
                             $emailService = app(\App\Services\EmailQueueService::class);
 
-                            $emailService->queueEmail([
+                            $emailData = [
+                                'customer_name' => $customerInfo->full_name ?? 'Customer',
                                 'account_no' => $accountNo,
                                 'recipient_email' => $emailAddress,
-                                'subject' => $emailTemplate->Subject_Line ?? 'Reconnection Notice',
-                                'body_html' => nl2br($body),
-                                'attachment_path' => null
-                            ]);
+                            ];
+                            $emailService->queueFromTemplate('RECONNECT', $emailData);
 
-                            $this->workerLog("[RECONNECT EMAIL] Email queued for {$emailAddress}");
+                            $this->workerLog("[RECONNECT EMAIL] Email queued via template for {$emailAddress}");
                         } else {
                             $this->workerLog("[RECONNECT EMAIL SKIP] email_body is empty");
                         }
