@@ -27,6 +27,8 @@ interface Transaction {
   image_url: string | null;
   created_at: string;
   updated_at: string;
+  approved_by?: string;
+  account_balance_before?: number;
   payment_method_info?: {
     id: number;
     payment_method: string;
@@ -52,9 +54,10 @@ interface TransactionListDetailsProps {
   onClose: () => void;
   onNavigate?: (section: string, extra?: string) => void;
   onViewCustomer?: (accountNo: string) => void;
+  onApprovalSuccess?: () => void;
 }
 
-const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transaction, onClose, onNavigate, onViewCustomer }) => {
+const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transaction, onClose, onNavigate, onViewCustomer, onApprovalSuccess }) => {
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
@@ -100,23 +103,23 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   useEffect(() => {
     const fetchRelatedInvoices = async () => {
       if (!transaction.account_no) {
-        console.log('❌ No account_no found in transaction');
+        console.log('No account_no found in transaction');
         return;
       }
 
       const accountNo = transaction.account_no;
-      console.log('🔍 Fetching related invoices for account:', accountNo);
+      console.log('Fetching related invoices for account:', accountNo);
 
       try {
         const result = await relatedDataService.getRelatedInvoices(accountNo);
-        console.log('✅ Invoices fetched:', { count: result.count || 0, hasData: (result.data || []).length > 0 });
+        console.log('Invoices fetched:', { count: result.count || 0, hasData: (result.data || []).length > 0 });
         // Store full data for modal view
         setFullRelatedInvoices(result.data || []);
         // Limit to 5 latest items for dropdown display
         setRelatedInvoices((result.data || []).slice(0, 5));
         setInvoicesCount(result.count || 0);
       } catch (error) {
-        console.error('❌ Error fetching invoices:', error);
+        console.error('Error fetching invoices:', error);
         setRelatedInvoices([]);
         setFullRelatedInvoices([]);
         setInvoicesCount(0);
@@ -209,6 +212,9 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
 
         setSuccessMessage(`Transaction approved successfully. Status: ${status}`);
         setShowSuccessModal(true);
+        if (onApprovalSuccess) {
+          onApprovalSuccess();
+        }
       } else {
         setError(result.message || 'Failed to approve transaction');
       }
@@ -374,6 +380,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
               {renderField('Payment Date', formatDate(transaction.payment_date))}
               {renderField('Date Processed', formatDate(transaction.date_processed))}
               {renderField('Processed By', transaction.processed_by_user, true)}
+              {renderField('Approved By', transaction.approved_by, true)}
               {renderField('Payment Method', transaction.payment_method_info?.payment_method || transaction.payment_method, true)}
               {renderField('Reference No.', transaction.reference_no)}
               {renderField('OR No.', transaction.or_no)}
@@ -398,7 +405,8 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
               {renderField('City', transaction.account?.customer?.city)}
               {renderField('Region', transaction.account?.customer?.region)}
               {renderField('Plan', transaction.account?.customer?.desired_plan, true)}
-              {renderField('Account Balance', formatCurrency(transaction.account?.account_balance || 0))}
+              {renderField('Balance Before', formatCurrency(transaction.account_balance_before || 0))}
+              {renderField('Current Balance', formatCurrency(transaction.account?.account_balance || 0))}
 
               {transaction.image_url && (
                 <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'

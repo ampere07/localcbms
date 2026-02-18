@@ -174,6 +174,7 @@ class PaymentWorkerService
                     'reference_no' => $ref,
                     'account_id' => $account->account_id,
                     'total_amount' => $amount,
+                    'account_balance_before' => $account->account_balance,
                     'date_time' => now(),
                     'checkout_id' => $checkoutID,
                     'status' => $status,
@@ -218,26 +219,28 @@ class PaymentWorkerService
 
                         if ($paidTemplate) {
                             $smsService = new \App\Services\ItexmoSmsService();
+                            
+                            // Consolidate invoice IDs
+                            $invoiceIds = collect($paidInvoices)->pluck('invoice_id')->unique()->implode(', ');
+                            $totalPaid = collect($paidInvoices)->sum('amount_paid');
 
-                            foreach ($paidInvoices as $paidInvoice) {
-                                $message = $paidTemplate->message_content;
-                                
-                                $message = str_replace('{{customer_name}}', $account->full_name, $message);
-                                $message = str_replace('{{account_no}}', $account->account_no, $message);
-                                $message = str_replace('{{invoice_id}}', $paidInvoice['invoice_id'], $message);
-                                $message = str_replace('{{amount_paid}}', $paidInvoice['amount_paid'], $message);
-                                $message = str_replace('{{date}}', date('Y-m-d'), $message);
+                            $message = $paidTemplate->message_content;
+                            
+                            $message = str_replace('{{customer_name}}', $account->full_name, $message);
+                            $message = str_replace('{{account_no}}', $account->account_no, $message);
+                            $message = str_replace('{{invoice_id}}', $invoiceIds, $message);
+                            $message = str_replace('{{amount_paid}}', number_format($totalPaid, 2), $message);
+                            $message = str_replace('{{date}}', date('Y-m-d'), $message);
 
-                                $smsResult = $smsService->send([
-                                    'contact_no' => $account->contact_number_primary,
-                                    'message' => $message
-                                ]);
+                            $smsResult = $smsService->send([
+                                'contact_no' => $account->contact_number_primary,
+                                'message' => $message
+                            ]);
 
-                                if ($smsResult['success']) {
-                                    $this->workerLog("Paid Invoice SMS sent for Invoice #{$paidInvoice['invoice_id']}");
-                                } else {
-                                    $this->workerLog("Paid Invoice SMS Failed: " . ($smsResult['error'] ?? 'Unknown error'));
-                                }
+                            if ($smsResult['success']) {
+                                $this->workerLog("Consolidated Paid SMS sent for Invoices: {$invoiceIds}");
+                            } else {
+                                $this->workerLog("Consolidated Paid SMS Failed: " . ($smsResult['error'] ?? 'Unknown error'));
                             }
                         }
                     }
@@ -258,29 +261,31 @@ class PaymentWorkerService
                          if ($paidEmailTemplate) {
                              $emailService = app(\App\Services\EmailQueueService::class);
                              
-                             foreach ($paidInvoices as $paidInvoice) {
-                                  $emailBody = $paidEmailTemplate->email_body;
-                                  
-                                  // Replace variables
-                                  $emailBody = str_replace('{{customer_name}}', $account->full_name, $emailBody);
-                                  $emailBody = str_replace('{{account_no}}', $account->account_no, $emailBody);
-                                  $emailBody = str_replace('{{invoice_id}}', $paidInvoice['invoice_id'], $emailBody);
-                                  $emailBody = str_replace('{{amount_paid}}', $paidInvoice['amount_paid'], $emailBody);
-                                  $emailBody = str_replace('{{date}}', date('Y-m-d'), $emailBody);
+                             // Consolidate invoice IDs
+                             $invoiceIds = collect($paidInvoices)->pluck('invoice_id')->unique()->implode(', ');
+                             $totalPaid = collect($paidInvoices)->sum('amount_paid');
 
-                                  if (!empty($emailBody)) {
-                                       $emailService->queueEmail([
-                                           'account_no' => $account->account_no,
-                                           'recipient_email' => $account->email_address,
-                                           'subject' => $paidEmailTemplate->Subject_Line ?? 'Payment Received', 
-                                           'body_html' => nl2br($emailBody), 
-                                           'attachment_path' => null
-                                       ]);
-                                       
-                                       $this->workerLog("Paid Invoice Email queued for Invoice #{$paidInvoice['invoice_id']} to {$account->email_address}");
-                                  } else {
-                                      $this->workerLog("Paid Invoice Email Body is empty");
-                                  }
+                             $emailBody = $paidEmailTemplate->email_body;
+                             
+                             // Replace variables
+                             $emailBody = str_replace('{{customer_name}}', $account->full_name, $emailBody);
+                             $emailBody = str_replace('{{account_no}}', $account->account_no, $emailBody);
+                             $emailBody = str_replace('{{invoice_id}}', $invoiceIds, $emailBody);
+                             $emailBody = str_replace('{{amount_paid}}', number_format($totalPaid, 2), $emailBody);
+                             $emailBody = str_replace('{{date}}', date('Y-m-d'), $emailBody);
+
+                             if (!empty($emailBody)) {
+                                  $emailService->queueEmail([
+                                      'account_no' => $account->account_no,
+                                      'recipient_email' => $account->email_address,
+                                      'subject' => $paidEmailTemplate->Subject_Line ?? 'Payment Received', 
+                                      'body_html' => nl2br($emailBody), 
+                                      'attachment_path' => null
+                                  ]);
+                                  
+                                  $this->workerLog("Consolidated Paid Email queued for Invoices: {$invoiceIds} to {$account->email_address}");
+                             } else {
+                                 $this->workerLog("Consolidated Paid Email Body is empty");
                              }
                          } else {
                              $this->workerLog("Paid Email (WELCOME) template not found or inactive");

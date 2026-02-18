@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Minus, Plus, ChevronDown } from 'lucide-react';
+import { X, Minus, Plus, ChevronDown, Search } from 'lucide-react';
 import LoadingModal from '../components/LoadingModal';
 import * as massRebateService from '../services/massRebateService';
 import * as lcpnapService from '../services/lcpnapService';
@@ -56,6 +56,12 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [lcpnapSearch, setLcpnapSearch] = useState('');
+  const [isLcpnapOpen, setIsLcpnapOpen] = useState(false);
+  const [lcpSearch, setLcpSearch] = useState('');
+  const [isLcpOpen, setIsLcpOpen] = useState(false);
+  const [barangaySearch, setBarangaySearch] = useState('');
+  const [isBarangayOpen, setIsBarangayOpen] = useState(false);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -422,24 +428,71 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                   Select LCPNAP<span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <select
-                    value={formData.selectedId || ''}
-                    onChange={(e) => handleInputChange('selectedId', e.target.value ? parseInt(e.target.value) : null)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                      } ${errors.selectedId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                    style={{
-                      borderColor: errors.selectedId ? '#ef4444' : (colorPalette && formData.selectedId ? colorPalette.primary : '')
-                    }}
-                  >
-                    <option value="">Select LCPNAP</option>
-                    {lcpnapList.map(item => (
-                      <option key={item.id} value={item.id}>
-                        {item.lcpnap_name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`} size={20} />
+                  <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                    } ${errors.selectedId ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
+                    <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                    <input
+                      type="text"
+                      placeholder="Type to search LCP-NAP..."
+                      value={isLcpnapOpen ? lcpnapSearch : (lcpnapList.find(i => i.id === formData.selectedId)?.lcpnap_name || lcpnapSearch)}
+                      onChange={(e) => {
+                        setLcpnapSearch(e.target.value);
+                        if (!isLcpnapOpen) setIsLcpnapOpen(true);
+                      }}
+                      onFocus={() => setIsLcpnapOpen(true)}
+                      className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isLcpnapOpen) {
+                          setIsLcpnapOpen(false);
+                          setLcpnapSearch('');
+                        } else {
+                          handleInputChange('selectedId', null);
+                          setLcpnapSearch('');
+                        }
+                      }}
+                      className="ml-2"
+                    >
+                      {isLcpnapOpen || formData.selectedId ? (
+                        <X size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                      ) : (
+                        <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                      )}
+                    </button>
+                  </div>
+
+                  {isLcpnapOpen && (
+                    <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                      <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                        {lcpnapList
+                          .filter(item => item.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase()))
+                          .map((item) => (
+                            <div
+                              key={item.id}
+                              className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'} ${formData.selectedId === item.id ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                              onClick={() => {
+                                handleInputChange('selectedId', item.id);
+                                setLcpnapSearch('');
+                                setIsLcpnapOpen(false);
+                              }}
+                            >
+                              {item.lcpnap_name}
+                            </div>
+                          ))}
+                        {lcpnapList.filter(item => item.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase())).length === 0 && (
+                          <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                            No results for "{lcpnapSearch}"
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {isLcpnapOpen && (
+                    <div className="fixed inset-0 z-40 bg-transparent" onClick={() => { setIsLcpnapOpen(false); setLcpnapSearch(''); }} />
+                  )}
                 </div>
                 {errors.selectedId && <p className="text-red-500 text-xs mt-1">{errors.selectedId}</p>}
               </div>
@@ -452,23 +505,71 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                   Select LCP<span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <select
-                    value={formData.selectedId || ''}
-                    onChange={(e) => handleInputChange('selectedId', e.target.value ? parseInt(e.target.value) : null)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                      } ${errors.selectedId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                    style={{
-                      borderColor: errors.selectedId ? '#ef4444' : (colorPalette && formData.selectedId ? colorPalette.primary : '')
-                    }}
-                  >
-                    <option value="">Select LCP</option>
-                    {lcpList.map(item => (
-                      <option key={item.id} value={item.id}>
-                        {item.lcp_name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                  <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                    } ${errors.selectedId ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
+                    <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                    <input
+                      type="text"
+                      placeholder="Type to search LCP..."
+                      value={isLcpOpen ? lcpSearch : (lcpList.find(i => i.id === formData.selectedId)?.lcp_name || lcpSearch)}
+                      onChange={(e) => {
+                        setLcpSearch(e.target.value);
+                        if (!isLcpOpen) setIsLcpOpen(true);
+                      }}
+                      onFocus={() => setIsLcpOpen(true)}
+                      className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isLcpOpen) {
+                          setIsLcpOpen(false);
+                          setLcpSearch('');
+                        } else {
+                          handleInputChange('selectedId', null);
+                          setLcpSearch('');
+                        }
+                      }}
+                      className="ml-2"
+                    >
+                      {isLcpOpen || formData.selectedId ? (
+                        <X size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                      ) : (
+                        <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                      )}
+                    </button>
+                  </div>
+
+                  {isLcpOpen && (
+                    <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                      <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                        {lcpList
+                          .filter(item => item.lcp_name.toLowerCase().includes(lcpSearch.toLowerCase()))
+                          .map((item) => (
+                            <div
+                              key={item.id}
+                              className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'} ${formData.selectedId === item.id ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                              onClick={() => {
+                                handleInputChange('selectedId', item.id);
+                                setLcpSearch('');
+                                setIsLcpOpen(false);
+                              }}
+                            >
+                              {item.lcp_name}
+                            </div>
+                          ))}
+                        {lcpList.filter(item => item.lcp_name.toLowerCase().includes(lcpSearch.toLowerCase())).length === 0 && (
+                          <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                            No results for "{lcpSearch}"
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {isLcpOpen && (
+                    <div className="fixed inset-0 z-40 bg-transparent" onClick={() => { setIsLcpOpen(false); setLcpSearch(''); }} />
+                  )}
                 </div>
                 {errors.selectedId && <p className="text-red-500 text-xs mt-1">{errors.selectedId}</p>}
               </div>
@@ -481,23 +582,71 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                   Select Barangay<span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <select
-                    value={formData.selectedId || ''}
-                    onChange={(e) => handleInputChange('selectedId', e.target.value ? parseInt(e.target.value) : null)}
-                    className={`w-full px-3 py-2 border rounded focus:outline-none appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                      } ${errors.selectedId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                    style={{
-                      borderColor: errors.selectedId ? '#ef4444' : (colorPalette && formData.selectedId ? colorPalette.primary : '')
-                    }}
-                  >
-                    <option value="">Select Barangay</option>
-                    {barangayList.map(item => (
-                      <option key={item.id} value={item.id}>
-                        {item.barangay}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                  <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                    } ${errors.selectedId ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
+                    <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                    <input
+                      type="text"
+                      placeholder="Type to search Barangay..."
+                      value={isBarangayOpen ? barangaySearch : (barangayList.find(i => i.id === formData.selectedId)?.barangay || barangaySearch)}
+                      onChange={(e) => {
+                        setBarangaySearch(e.target.value);
+                        if (!isBarangayOpen) setIsBarangayOpen(true);
+                      }}
+                      onFocus={() => setIsBarangayOpen(true)}
+                      className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isBarangayOpen) {
+                          setIsBarangayOpen(false);
+                          setBarangaySearch('');
+                        } else {
+                          handleInputChange('selectedId', null);
+                          setBarangaySearch('');
+                        }
+                      }}
+                      className="ml-2"
+                    >
+                      {isBarangayOpen || formData.selectedId ? (
+                        <X size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                      ) : (
+                        <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                      )}
+                    </button>
+                  </div>
+
+                  {isBarangayOpen && (
+                    <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                      <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                        {barangayList
+                          .filter(item => item.barangay.toLowerCase().includes(barangaySearch.toLowerCase()))
+                          .map((item) => (
+                            <div
+                              key={item.id}
+                              className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'} ${formData.selectedId === item.id ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                              onClick={() => {
+                                handleInputChange('selectedId', item.id);
+                                setBarangaySearch('');
+                                setIsBarangayOpen(false);
+                              }}
+                            >
+                              {item.barangay}
+                            </div>
+                          ))}
+                        {barangayList.filter(item => item.barangay.toLowerCase().includes(barangaySearch.toLowerCase())).length === 0 && (
+                          <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                            No results for "{barangaySearch}"
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {isBarangayOpen && (
+                    <div className="fixed inset-0 z-40 bg-transparent" onClick={() => { setIsBarangayOpen(false); setBarangaySearch(''); }} />
+                  )}
                 </div>
                 {errors.selectedId && <p className="text-red-500 text-xs mt-1">{errors.selectedId}</p>}
               </div>

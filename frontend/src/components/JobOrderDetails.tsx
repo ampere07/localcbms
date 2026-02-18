@@ -412,21 +412,40 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         }
         onClose();
       } else {
-        throw new Error(response.message || 'Failed to approve job order');
+        setShowLoadingModal(false);
+        let msg = response.message || 'Failed to approve job order';
+
+        // If there's duplicate data, show the table name if provided
+        if (msg.includes('already a data') || msg.includes('duplicate')) {
+          if (response.table) {
+            msg = `Duplicate Entry Error: ${msg}\nTable: ${response.table}`;
+          }
+        }
+
+        setErrorMessage(msg);
+        setShowErrorModal(true);
       }
     } catch (err: any) {
       setShowLoadingModal(false);
 
       let msg = 'Failed to approve job order';
-      if (err.response?.data?.message === 'theirs already a data in database') {
-        msg = 'theirs already a data in database';
-      } else if (err.response?.data?.message) {
-        msg = `Failed to approve job order: ${err.response.data.message}`;
+      let tableInfo = '';
+
+      if (err.response?.data) {
+        const data = err.response.data;
+        if (data.message === 'theirs already a data in database' || data.message?.toLowerCase().includes('duplicate')) {
+          msg = data.message;
+          if (data.table) {
+            tableInfo = `\nTable: ${data.table}`;
+          }
+        } else if (data.message) {
+          msg = data.message;
+        }
       } else if (err.message) {
-        msg = `Failed to approve job order: ${err.message}`;
+        msg = err.message;
       }
 
-      setErrorMessage(msg);
+      setErrorMessage(`${msg}${tableInfo}`);
       setShowErrorModal(true);
       console.error('Approve error:', err);
     } finally {

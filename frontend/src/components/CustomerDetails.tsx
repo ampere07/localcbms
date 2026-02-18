@@ -14,6 +14,7 @@ import { relatedDataColumns } from '../config/relatedDataColumns';
 import { BillingDetailRecord } from '../types/billing';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { customerDetailUpdateService } from '../services/customerDetailUpdateService';
+import { userService } from '../services/userService';
 import { relatedDataService } from '../services/relatedDataService';
 import SOADetails from './SOADetails';
 import InvoiceDetails from './InvoiceDetails';
@@ -44,13 +45,15 @@ interface BillingDetailsProps {
   onlineStatusRecords?: OnlineStatusRecord[];
   onClose?: () => void;
   onRefresh?: () => Promise<void> | void;
+  refreshKey?: number;
 }
 
 const BillingDetails: React.FC<BillingDetailsProps> = ({
   billingRecord,
   onlineStatusRecords = [],
   onClose,
-  onRefresh
+  onRefresh,
+  refreshKey
 }) => {
   console.log('CustomerDetails - Received billingRecord:', billingRecord);
   console.log('CustomerDetails - houseFrontPicture value:', billingRecord.houseFrontPicture);
@@ -147,26 +150,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     if (!id) return;
     try {
       setLoadingServiceOrder(true);
-      // Assuming relatedDataService has getServiceOrderById or similar. 
-      // If not, use getRelatedServiceOrders? No, that's a list.
-      // Wait, ServiceOrderDetails expects a specific object structure.
-      // Let's check relatedDataService for getDetails method or reuse the data if it's correct.
-      // But typically we fetch details. I'll use the existing service.
-      // Wait, looking at `ServiceOrderDetails.tsx`, it takes `serviceOrder` prop.
-      // I should assume fetching by ID.
-      // Let me check `relatedDataService.ts` content... but I don't want to break flow.
-      // I'll assume getServiceOrderById exists or use a generic getter.
-      // Actually, looking at `CustomerDetails.tsx` imports, `relatedDataService` is used.
-      // Let me check if `getServiceOrderById` is available.
-      // I'll take a quick peek at `relatedDataService.ts` in a separate tool call if needed, 
-      // but for now I'll use `relatedDataService.getServiceOrderById(id)` pattern.
-      // Wait, better to be safe. I'll assume it exists if others do.
 
-      // Checking `ServiceOrderDetails.tsx` again, it expects a lot of fields.
-      // If `relatedDataService` doesn't have it, I might need to add it or use `serviceOrderService`.
-      // But let's stick to `relatedDataService` context.
-
-      // Let's assume `getServiceOrderById` exists in `relatedDataService` for now.
       const response = await relatedDataService.getServiceOrderById(id);
       if (response.success && response.data) {
         const transformedOrder = transformServiceOrder(response.data);
@@ -266,6 +250,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   });
 
   const [loadingData, setLoadingData] = useState<Record<string, boolean>>({});
+  const [userEmailCache, setUserEmailCache] = useState<Record<string, string>>({});
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
 
@@ -435,10 +420,38 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     setRelatedDataCounts(newCounts);
   };
 
-  // Fetch related data when account number changes
+  // Fetch related data when account number changes or refreshKey increments
   useEffect(() => {
     fetchRelatedData();
-  }, [billingRecord.applicationId]);
+  }, [billingRecord.applicationId, refreshKey]);
+
+  // Resolve user IDs for Created By / Updated By fields
+  useEffect(() => {
+    const resolveUserIds = async () => {
+      const ids = [
+        billingRecord.billingAccountCreatedBy,
+        billingRecord.billingAccountUpdatedBy
+      ].filter((v): v is string => !!v && !isNaN(Number(v)));
+
+      const uniqueIds = Array.from(new Set(ids));
+
+      await Promise.all(
+        uniqueIds.map(async (id) => {
+          if (userEmailCache[id]) return;
+          try {
+            const res = await userService.getUserById(Number(id));
+            if (res.success && res.data?.email_address) {
+              setUserEmailCache(prev => ({ ...prev, [id]: res.data!.email_address }));
+            }
+          } catch {
+            // silently ignore unresolvable IDs
+          }
+        })
+      );
+    };
+
+    resolveUserIds();
+  }, [billingRecord.billingAccountCreatedBy, billingRecord.billingAccountUpdatedBy]);
 
   const toggleColumnVisibility = (column: string) => {
     setColumnVisibility((prev: Record<string, boolean>) => ({
@@ -842,14 +855,20 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             }`}>₱{Number(billingRecord.accountBalance ?? billingRecord.balance ?? 0).toFixed(2)}</span>
         </div>
       ),
-      billingAccountCreatedBy: () => (
-        <div className="flex justify-between items-center">
-          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Created By</span>
-          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.billingAccountCreatedBy || '-'}</span>
-        </div>
-      ),
+      billingAccountCreatedBy: () => {
+        const raw = billingRecord.billingAccountCreatedBy;
+        const display = (raw && !isNaN(Number(raw)))
+          ? (userEmailCache[raw] || raw)
+          : (raw || '-');
+        return (
+          <div className="flex justify-between items-center">
+            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Created By</span>
+            <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{display}</span>
+          </div>
+        );
+      },
       billingAccountCreatedAt: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -858,14 +877,20 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             }`}>{billingRecord.billingAccountCreatedAt || '-'}</span>
         </div>
       ),
-      billingAccountUpdatedBy: () => (
-        <div className="flex justify-between items-center">
-          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Updated By</span>
-          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.billingAccountUpdatedBy || '-'}</span>
-        </div>
-      ),
+      billingAccountUpdatedBy: () => {
+        const raw = billingRecord.billingAccountUpdatedBy;
+        const display = (raw && !isNaN(Number(raw)))
+          ? (userEmailCache[raw] || raw)
+          : (raw || '-');
+        return (
+          <div className="flex justify-between items-center">
+            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Updated By</span>
+            <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{display}</span>
+          </div>
+        );
+      },
       billingAccountUpdatedAt: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -1060,6 +1085,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       if (onRefresh) {
         await onRefresh();
       }
+      await fetchRelatedData();
 
       // We don't close the modal here anymore. The modal component handles the success UI and closing.
     } catch (error) {

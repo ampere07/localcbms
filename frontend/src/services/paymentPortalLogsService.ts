@@ -25,6 +25,7 @@ export interface PaymentPortalLog {
   payment_url?: string;
   json_payload?: string;
   callback_payload?: string;
+  account_balance_before?: number;
   updated_at?: string;
   // Joined account details
   accountNo?: string;

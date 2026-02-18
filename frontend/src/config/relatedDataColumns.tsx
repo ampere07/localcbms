@@ -22,7 +22,8 @@ export const relatedDataColumns = {
 
   paymentPortalLogs: [
     { key: 'id', label: 'ID' },
-    { key: 'total_amount', label: 'Amount', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'account_balance_before', label: 'Balance Before', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'total_amount', label: 'Received', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'status', label: 'Status' },
     {
       key: 'date_time',

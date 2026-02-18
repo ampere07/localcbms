@@ -103,6 +103,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
+  const [customerRefreshKey, setCustomerRefreshKey] = useState<number>(0);
   const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
   const [activeFilters, setActiveFilters] = useState<FilterValues>(() => {
     const saved = localStorage.getItem('transactionFunnelFilters');
@@ -481,6 +482,33 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     }
   };
 
+  const refreshCustomerDetails = async (accountNo: string) => {
+    try {
+      const detail = await getCustomerDetail(accountNo);
+      if (detail) {
+        setSelectedCustomer(detail);
+        setCustomerRefreshKey(prev => prev + 1);
+      }
+    } catch (err) {
+      console.error('Error refreshing customer details:', err);
+    }
+  };
+
+  const handleApprovalSuccess = async () => {
+    await silentRefresh();
+    // Sync selectedTransaction with fresh store data
+    if (selectedTransaction) {
+      const freshTransactions = useTransactionStore.getState().transactions;
+      const updated = freshTransactions.find(t => t.id === selectedTransaction.id);
+      if (updated) setSelectedTransaction(updated);
+    }
+    // Refresh customer panel if open
+    if (selectedCustomer) {
+      const accountNo = selectedCustomer.billingAccount?.accountNo;
+      if (accountNo) await refreshCustomerDetails(accountNo);
+    }
+  };
+
   const handleViewCustomer = async (accountNo: string) => {
     setIsLoadingDetails(true);
     try {
@@ -567,6 +595,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
 
         // Refresh transactions using context
         await silentRefresh();
+        // Refresh customer panel if open
+        if (selectedCustomer) {
+          const accountNo = selectedCustomer.billingAccount?.accountNo;
+          if (accountNo) await refreshCustomerDetails(accountNo);
+        }
       } else {
         setApprovalMessage(result.message || 'Failed to approve transactions');
         setShowFailedModal(true);
@@ -987,6 +1020,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Plan</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Balance Before</th>
+                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Approved By</th>
+                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Account Balance</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Created At</th>
@@ -1065,6 +1102,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                             }`}>{transaction.account?.customer?.city || '-'}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{transaction.account?.customer?.desired_plan || '-'}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>{formatCurrency(transaction.account_balance_before || 0)}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>{transaction.approved_by || '-'}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{formatCurrency(transaction.account?.account_balance || 0)}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
@@ -1243,6 +1284,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
             onClose={() => setSelectedTransaction(null)}
             onNavigate={onNavigate}
             onViewCustomer={handleViewCustomer}
+            onApprovalSuccess={handleApprovalSuccess}
           />
         </div>
       )}
@@ -1267,6 +1309,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
               billingRecord={convertCustomerDataToBillingDetail(selectedCustomer)}
               onlineStatusRecords={[]}
               onClose={() => setSelectedCustomer(null)}
+              onRefresh={async () => {
+                const accountNo = selectedCustomer.billingAccount?.accountNo;
+                if (accountNo) await refreshCustomerDetails(accountNo);
+              }}
+              refreshKey={customerRefreshKey}
             />
           ) : null}
         </div>

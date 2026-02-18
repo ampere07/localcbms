@@ -290,7 +290,15 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
             <div className={`flex py-3 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
               }`}>
               <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>Account Balance</div>
+                }`}>Balance Before</div>
+              <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{formatCurrency(record.account_balance_before || 0)}</div>
+            </div>
+
+            <div className={`flex py-3 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+              <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Current Balance</div>
               <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>{formatCurrency(record.accountBalance || 0)}</div>
             </div>

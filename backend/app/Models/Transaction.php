@@ -26,6 +26,8 @@ class Transaction extends Model
         'image_url',
         'created_by_user',
         'updated_by_user',
+        'approved_by',
+        'account_balance_before',
     ];
 
     protected $casts = [

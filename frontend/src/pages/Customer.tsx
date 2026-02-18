@@ -11,6 +11,7 @@ import { settingsColorPaletteService, ColorPalette } from '../services/settingsC
 import CustomerFunnelFilter from '../filter/CustomerFunnelFilter';
 import { useBillingStore } from '../store/billingStore';
 import { billingStatusService, BillingStatus } from '../services/billingStatusService';
+import { userService } from '../services/userService';
 
 const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
   return {
@@ -46,7 +47,7 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     provider: customerData.groupName || '',
     lcp: customerData.technicalDetails?.lcp || '',
     nap: customerData.technicalDetails?.nap || '',
-    modifiedBy: '',
+    modifiedBy: (customerData.billingAccount as any)?.updatedBy || '',
     modifiedDate: customerData.updatedAt || '',
     barangay: customerData.barangay || '',
     city: customerData.city || '',
@@ -136,6 +137,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
   const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [customerRefreshKey, setCustomerRefreshKey] = useState<number>(0);
 
   const [selectedBillingStatus, setSelectedBillingStatus] = useState<string>('');
   const [selectedAccountBalance, setSelectedAccountBalance] = useState<number | null>(null);
@@ -177,6 +179,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
   const [sidebarWidth, setSidebarWidth] = useState<number>(256);
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [userEmailCache, setUserEmailCache] = useState<Record<string, string>>({});
   const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
   const [activeFilters, setActiveFilters] = useState<any>(() => {
     const saved = localStorage.getItem('customerFilters');
@@ -678,6 +681,35 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     }
   };
 
+  // Resolve user IDs for Modified By column
+  useEffect(() => {
+    const resolveUserIds = async () => {
+      const ids = paginatedRecords
+        .map(record => record.modifiedBy)
+        .filter((v): v is string => !!v && !isNaN(Number(v)));
+
+      const uniqueIds = Array.from(new Set(ids));
+
+      await Promise.all(
+        uniqueIds.map(async (id) => {
+          if (userEmailCache[id]) return;
+          try {
+            const res = await userService.getUserById(Number(id));
+            if (res.success && res.data?.email_address) {
+              setUserEmailCache(prev => ({ ...prev, [id]: res.data!.email_address }));
+            }
+          } catch (error) {
+            console.error(`Failed to resolve user ID ${id}:`, error);
+          }
+        })
+      );
+    };
+
+    if (paginatedRecords.length > 0) {
+      resolveUserIds();
+    }
+  }, [paginatedRecords]);
+
   // Pagination Controls Component
   const PaginationControls = () => {
     if (totalPages <= 1) return null;
@@ -811,7 +843,8 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       case 'nap':
         return record.nap || '-';
       case 'modifiedBy':
-        return record.modifiedBy || '-';
+        const rawMod = record.modifiedBy;
+        return (rawMod && !isNaN(Number(rawMod))) ? (userEmailCache[rawMod] || rawMod) : (rawMod || '-');
       case 'modifiedDate':
         return record.modifiedDate || '-';
       case 'barangay':
@@ -1850,11 +1883,13 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                     if (selectedCustomer?.billingAccount?.accountNo) {
                       const updatedCustomer = await getCustomerDetail(selectedCustomer.billingAccount.accountNo);
                       setSelectedCustomer(updatedCustomer);
+                      setCustomerRefreshKey(prev => prev + 1);
                     }
                   } catch (error) {
                     console.error('Failed to refresh customer data:', error);
                   }
                 }}
+                refreshKey={customerRefreshKey}
               />
             ) : null}
           </div>

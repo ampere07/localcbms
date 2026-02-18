@@ -735,7 +735,11 @@ const PaymentPortal: React.FC = () => {
                       </th>
                       <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                        Account Balance
+                        Balance Before
+                      </th>
+                      <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                        Current Balance
                       </th>
                       <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
@@ -789,7 +793,12 @@ const PaymentPortal: React.FC = () => {
                             }`}>
                             {record.contactNo || 'N/A'}
                           </td>
-                          {/* Account Balance */}
+                          {/* Balance Before */}
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
+                            {formatCurrency(record.account_balance_before || 0)}
+                          </td>
+                          {/* Current Balance */}
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>
                             {formatCurrency(record.accountBalance || 0)}
