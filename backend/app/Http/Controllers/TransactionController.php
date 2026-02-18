@@ -815,13 +815,13 @@ class TransactionController extends Controller
 
                 // Send Email Notification
                 try {
-                    $emailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'RECONNECT')->first();
-                    
-                    if ($emailTemplate && !empty($customerInfo->email_address)) {
+                    if (!empty($customerInfo->email_address)) {
                          $emailService = app(\App\Services\EmailQueueService::class);
                          
                          $emailData = [
-                             'customer_name' => $customerInfo->full_name,
+                             'Full_Name' => $customerInfo->full_name,
+                             'Plan' => $plan,
+                             'Account_No' => $accountNo,
                              'account_no' => $accountNo,
                              'recipient_email' => $customerInfo->email_address,
                          ];
@@ -830,8 +830,7 @@ class TransactionController extends Controller
                          
                          \Log::info('[TRANSACTION RECONNECT EMAIL] Email queued for ' . $customerInfo->email_address);
                     } else {
-                        if (!$emailTemplate) \Log::warning('[TRANSACTION RECONNECT EMAIL SKIP] RECONNECT template not found');
-                        if (empty($customerInfo->email_address)) \Log::warning('[TRANSACTION RECONNECT EMAIL SKIP] No email address for customer');
+                        \Log::warning('[TRANSACTION RECONNECT EMAIL SKIP] No email address for customer');
                     }
                 } catch (\Exception $e) {
                     \Log::error('[TRANSACTION RECONNECT EMAIL EXCEPTION] ' . $e->getMessage());
@@ -919,32 +918,29 @@ class TransactionController extends Controller
             $customer = $billingAccount->customer;
             
             if ($customer && !empty($customer->email_address)) {
-                $paidEmailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'PAID')
-                    ->where('Is_Active', true)
-                    ->first();
+                $emailService = app(\App\Services\EmailQueueService::class);
                 
-                if ($paidEmailTemplate) {
-                    $emailService = app(\App\Services\EmailQueueService::class);
-                    
-                    // Consolidate invoice IDs
-                    $invoiceIds = collect($invoicesPaid)->pluck('invoice_id')->unique()->implode(', ');
-                    
-                    $emailData = [
-                        'customer_name' => $customer->full_name,
-                        'account_no' => $billingAccount->account_no,
-                        'invoice_id' => $invoiceIds,
-                        'amount_paid' => number_format($totalPaidAmount, 2),
-                        'date' => date('Y-m-d'),
-                        'recipient_email' => $customer->email_address,
-                    ];
+                // Consolidate invoice IDs
+                $invoiceIds = collect($invoicesPaid)->pluck('invoice_id')->unique()->implode(', ');
+                $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
+                
+                $emailData = [
+                    'Amount' => number_format($totalPaidAmount, 2),
+                    'Company_Name' => $brandName,
+                    'Account_No' => $billingAccount->account_no,
+                    'account_no' => $billingAccount->account_no,
+                    'Date' => date('Y-m-d'),
+                    'Full_Name' => $customer->full_name,
+                    'invoice_ids' => $invoiceIds,
+                    'recipient_email' => $customer->email_address,
+                ];
 
-                    $emailService->queueFromTemplate('PAID', $emailData);
-                    
-                    \Log::info('Consolidated Paid Email queued via template', [
-                        'account_no' => $billingAccount->account_no,
-                        'invoice_ids' => $invoiceIds
-                    ]);
-                }
+                $emailService->queueFromTemplate('PAID', $emailData);
+                
+                \Log::info('Consolidated Paid Email queued via template', [
+                    'account_no' => $billingAccount->account_no,
+                    'invoice_ids' => $invoiceIds
+                ]);
             }
         } catch (\Exception $e) {
             \Log::error('Failed to send consolidated Paid Email: ' . $e->getMessage());

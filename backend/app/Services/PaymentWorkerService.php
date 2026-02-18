@@ -278,12 +278,15 @@ class PaymentWorkerService
                              $emailBody = $this->replaceGlobalVariables($emailBody);
 
                               if (!empty($emailBody)) {
+                                   $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
                                    $emailData = [
-                                       'customer_name' => $account->full_name,
+                                       'Amount' => number_format($totalPaid, 2),
+                                       'Company_Name' => $brandName,
+                                       'Account_No' => $account->account_no,
                                        'account_no' => $account->account_no,
-                                       'invoice_id' => $invoiceIds,
-                                       'amount_paid' => number_format($totalPaid, 2),
-                                       'date' => date('Y-m-d'),
+                                       'Date' => date('Y-m-d'),
+                                       'Full_Name' => $account->full_name,
+                                       'invoice_ids' => $invoiceIds,
                                        'recipient_email' => $account->email_address,
                                    ];
                                    $emailService->queueFromTemplate('PAID', $emailData);
@@ -594,7 +597,9 @@ class PaymentWorkerService
                             $emailService = app(\App\Services\EmailQueueService::class);
 
                             $emailData = [
-                                'customer_name' => $customerInfo->full_name ?? 'Customer',
+                                'Full_Name' => $customerInfo->full_name ?? 'Customer',
+                                'Plan' => $plan,
+                                'Account_No' => $accountNo,
                                 'account_no' => $accountNo,
                                 'recipient_email' => $emailAddress,
                             ];
