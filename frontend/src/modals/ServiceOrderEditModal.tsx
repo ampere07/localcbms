@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { X, Calendar, ChevronDown, Minus, Plus } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Calendar, ChevronDown, Minus, Plus, Eraser, CheckCircle, Search } from 'lucide-react';
+import SignatureCanvas from 'react-signature-canvas';
 import { UserData } from '../types/api';
 import apiClient from '../config/api';
 import { getAllInventoryItems, InventoryItem } from '../services/inventoryItemService';
 import { createServiceOrderItems, ServiceOrderItem, deleteServiceOrderItems } from '../services/serviceOrderItemService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
+import { concernService, Concern } from '../services/concernService';
+import { getUsedPorts } from '../services/portService';
+import { getAllLCPNAPs, LCPNAP } from '../services/lcpnapService';
+import { routerModelService, RouterModel } from '../services/routerModelService';
+
 
 interface ServiceOrderEditModalProps {
   isOpen: boolean;
@@ -35,7 +41,7 @@ interface ServiceOrderEditFormData {
   contactNumber: string;
   emailAddress: string;
   plan: string;
-  affiliate: string;
+
   username: string;
   connectionType: string;
   routerModemSN: string;
@@ -70,6 +76,8 @@ interface ServiceOrderEditFormData {
   newPort: string;
   newVlan: string;
   routerModel: string;
+  newPlan: string;
+  newLcpnap: string;
 }
 
 interface ImageFiles {
@@ -88,6 +96,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
+  const sigCanvas = useRef<SignatureCanvas>(null);
 
   const getCurrentUser = (): UserData | null => {
     try {
@@ -103,13 +112,20 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
   const currentUser = getCurrentUser();
   const currentUserEmail = currentUser?.email || 'unknown@ampere.com';
+  const isTechnician = currentUser?.role_id === 2 || (typeof currentUser?.role === 'string' && currentUser.role.toLowerCase() === 'technician');
 
-  const [technicians, setTechnicians] = useState<UserData[]>([]);
+  const [technicians, setTechnicians] = useState<Array<{ name: string; email: string }>>([]);
   const [lcps, setLcps] = useState<string[]>([]);
   const [naps, setNaps] = useState<string[]>([]);
-  const [ports, setPorts] = useState<string[]>([]);
+  const [usedPorts, setUsedPorts] = useState<string[]>([]);
+  const [totalPorts, setTotalPorts] = useState<number>(32);
+  const [lcpnaps, setLcpnaps] = useState<LCPNAP[]>([]);
   const [vlans, setVlans] = useState<string[]>([]);
+  const [concerns, setConcerns] = useState<Concern[]>([]);
+  const [plans, setPlans] = useState<string[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [routerModels, setRouterModels] = useState<RouterModel[]>([]);
+
   const [orderItems, setOrderItems] = useState<OrderItem[]>([{ itemId: '', quantity: '' }]);
 
   const [formData, setFormData] = useState<ServiceOrderEditFormData>({
@@ -119,7 +135,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     contactNumber: '',
     emailAddress: '',
     plan: '',
-    affiliate: '',
+
     username: '',
     connectionType: '',
     routerModemSN: '',
@@ -128,7 +144,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     port: '',
     vlan: '',
     supportStatus: 'In Progress',
-    visitStatus: '',
+    visitStatus: 'In Progress',
     repairCategory: '',
     visitBy: '',
     visitWith: '',
@@ -161,8 +177,15 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     newNap: '',
     newPort: '',
     newVlan: '',
-    routerModel: ''
+    routerModel: '',
+    newPlan: '',
+    newLcpnap: ''
   });
+
+  const [activeItemIndex, setActiveItemIndex] = useState<number | null>(null);
+  const [itemSearchTerm, setItemSearchTerm] = useState<string>('');
+  const [lcpnapSearch, setLcpnapSearch] = useState<string>('');
+  const [isLcpnapOpen, setIsLcpnapOpen] = useState<boolean>(false);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -263,8 +286,27 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         timeOutFile: null,
         clientSignatureFile: null
       });
+      setOrderItems([{ itemId: '', quantity: '' }]);
+      setItemSearchTerm('');
+      setActiveItemIndex(null);
+      setLcpnapSearch('');
+      setIsLcpnapOpen(false);
     }
   }, [isOpen, imagePreviews]);
+
+  useEffect(() => {
+    const fetchRouterModels = async () => {
+      if (isOpen) {
+        try {
+          const fetchedRouterModels = await routerModelService.getAllRouterModels();
+          setRouterModels(fetchedRouterModels);
+        } catch (error) {
+          console.error('Failed to fetch router models:', error);
+        }
+      }
+    };
+    fetchRouterModels();
+  }, [isOpen]);
 
   useEffect(() => {
     const fetchServiceOrderItems = async () => {
@@ -338,12 +380,24 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   useEffect(() => {
     const fetchTechnicians = async () => {
       try {
-        const response = await apiClient.get<{ success: boolean; data: UserData[] }>('/users');
+        const response = await apiClient.get<{ success: boolean; data: any[] }>('/users');
         if (response.data.success && Array.isArray(response.data.data)) {
-          const technicianUsers = response.data.data.filter(user => {
-            const role = typeof user.role === 'string' ? user.role : (user.role as any)?.role_name || '';
-            return role.toLowerCase() === 'technician';
-          });
+          const technicianUsers = response.data.data
+            .filter(user => {
+              const role = typeof user.role === 'string' ? user.role : (user.role as any)?.role_name || '';
+              return role.toLowerCase() === 'technician';
+            })
+            .map(user => {
+              const firstName = (user.first_name || '').trim();
+              const lastName = (user.last_name || '').trim();
+              const fullName = `${firstName} ${lastName}`.trim();
+              return {
+                email: user.email_address || user.email || '',
+                name: fullName || user.username || user.email_address || user.email || ''
+              };
+            })
+            .filter(tech => tech.name);
+
           console.log('Fetched technicians:', technicianUsers);
           setTechnicians(technicianUsers);
         }
@@ -354,11 +408,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
     const fetchTechnicalDetails = async () => {
       try {
-        const [lcpResponse, napResponse, portResponse, vlanResponse] = await Promise.all([
+        const [lcpResponse, napResponse, vlanResponse, lcpnapsRes] = await Promise.all([
           apiClient.get<{ success: boolean; data: any[] }>('/lcp'),
           apiClient.get<{ success: boolean; data: any[] }>('/nap'),
-          apiClient.get<{ success: boolean; data: any[] }>('/port'),
-          apiClient.get<{ success: boolean; data: any[] }>('/vlan')
+          apiClient.get<{ success: boolean; data: any[] }>('/vlan'),
+          getAllLCPNAPs('', 1, 1000)
         ]);
 
         if (lcpResponse.data.success && Array.isArray(lcpResponse.data.data)) {
@@ -371,31 +425,89 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
           setNaps(napOptions as string[]);
         }
 
-        if (portResponse.data.success && Array.isArray(portResponse.data.data)) {
-          const portOptions = portResponse.data.data.map(item => item.Label).filter(Boolean);
-          setPorts(portOptions as string[]);
-        }
-
         if (vlanResponse.data.success && Array.isArray(vlanResponse.data.data)) {
           const vlanOptions = vlanResponse.data.data.map(item => item.value).filter(Boolean);
           setVlans(vlanOptions as string[]);
+        }
+
+        const planResponse = await apiClient.get<{ success: boolean; data: any[] }>('/plans');
+        if (planResponse.data.success && Array.isArray(planResponse.data.data)) {
+          setPlans(planResponse.data.data.map(p => p.plan_name || p.name).filter(Boolean));
+        }
+
+        if (lcpnapsRes.success && Array.isArray(lcpnapsRes.data)) {
+          setLcpnaps(lcpnapsRes.data);
         }
       } catch (error) {
         console.error('Error fetching technical details:', error);
       }
     };
 
+    const fetchConcerns = async () => {
+      try {
+        const data = await concernService.getAllConcerns();
+        setConcerns(data);
+      } catch (error) {
+        console.error('Error fetching concerns:', error);
+      }
+    };
+
     if (isOpen) {
       fetchTechnicians();
       fetchTechnicalDetails();
+      fetchConcerns();
     }
+
   }, [isOpen]);
+
+  useEffect(() => {
+    const fetchUsedPorts = async () => {
+      if (isOpen && formData.newLcpnap) {
+        try {
+          const serviceOrderId = serviceOrderData?.id;
+
+          // Also fetch total ports for this LCP-NAP
+          const lcpnapsRes = await getAllLCPNAPs(formData.newLcpnap, 1, 1);
+          if (lcpnapsRes.success && Array.isArray(lcpnapsRes.data) && lcpnapsRes.data.length > 0) {
+            const match = lcpnapsRes.data.find(item => item.lcpnap_name === formData.newLcpnap);
+            if (match) {
+              setTotalPorts(match.port_total || 32);
+            }
+          }
+
+          const usedRes = await getUsedPorts(formData.newLcpnap, serviceOrderId);
+
+          if (usedRes.success && usedRes.data) {
+            setUsedPorts(usedRes.data.used);
+            // Only update totalPorts if not already set by location fetch
+            if (!totalPorts) setTotalPorts(usedRes.data.total);
+          } else {
+            setUsedPorts([]);
+            if (!totalPorts) setTotalPorts(32);
+          }
+        } catch (error) {
+          console.error('Error fetching used ports/location:', error);
+          setUsedPorts([]);
+          setTotalPorts(32);
+        }
+      } else {
+        setUsedPorts([]);
+        setTotalPorts(32);
+      }
+    };
+
+    fetchUsedPorts();
+  }, [isOpen, formData.newLcpnap, serviceOrderData?.id]);
 
   useEffect(() => {
     if (serviceOrderData && isOpen) {
       console.log('ServiceOrderEditModal - Received data:', serviceOrderData);
-      console.log('Date Installed (dateInstalled):', serviceOrderData.dateInstalled);
-      console.log('Date Installed (date_installed):', serviceOrderData.date_installed);
+
+      const normalizePort = (rawPort: any) => {
+        if (!rawPort) return '';
+        const portNum = String(rawPort).toUpperCase().replace(/[^\d]/g, '');
+        return portNum ? `p${portNum.padStart(2, '0')}` : '';
+      };
 
       setFormData(prev => ({
         ...prev,
@@ -405,16 +517,18 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         contactNumber: serviceOrderData.contactNumber || serviceOrderData.contact_number || '',
         emailAddress: serviceOrderData.emailAddress || serviceOrderData.email_address || '',
         plan: serviceOrderData.plan || '',
-        affiliate: serviceOrderData.affiliate || serviceOrderData.group_name || '',
+
         username: serviceOrderData.username || '',
         connectionType: serviceOrderData.connectionType || serviceOrderData.connection_type || '',
         routerModemSN: serviceOrderData.routerModemSN || serviceOrderData.router_modem_sn || '',
         lcp: serviceOrderData.lcp || '',
         nap: serviceOrderData.nap || '',
-        port: serviceOrderData.port || '',
+        port: normalizePort(serviceOrderData.port || serviceOrderData.PORT),
         vlan: serviceOrderData.vlan || '',
-        supportStatus: serviceOrderData.supportStatus || serviceOrderData.support_status || 'In Progress',
-        visitStatus: serviceOrderData.visitStatus || serviceOrderData.visit_status || '',
+        supportStatus: (serviceOrderData.supportStatus || serviceOrderData.support_status) === 'Pending'
+          ? 'In Progress'
+          : (serviceOrderData.supportStatus || serviceOrderData.support_status || 'In Progress'),
+        visitStatus: serviceOrderData.visitStatus || serviceOrderData.visit_status === 'Pending' ? 'In Progress' : (serviceOrderData.visitStatus || serviceOrderData.visit_status || 'In Progress'),
         repairCategory: serviceOrderData.repairCategory || serviceOrderData.repair_category || '',
         visitBy: serviceOrderData.visitBy || serviceOrderData.visit_by || '',
         visitWith: serviceOrderData.visitWith || serviceOrderData.visit_with || '',
@@ -430,6 +544,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         concernRemarks: serviceOrderData.concernRemarks || serviceOrderData.concern_remarks || '',
         userEmail: serviceOrderData.userEmail || serviceOrderData.assignedEmail || serviceOrderData.assigned_email || currentUserEmail,
         supportRemarks: serviceOrderData.supportRemarks || serviceOrderData.support_remarks || '',
+        newPlan: serviceOrderData.new_plan || '',
         serviceCharge: serviceOrderData.serviceCharge ? serviceOrderData.serviceCharge.toString().replace('₱', '').trim() : (serviceOrderData.service_charge ? serviceOrderData.service_charge.toString().replace('₱', '').trim() : '0.00'),
         status: serviceOrderData.status || 'unused',
         newRouterModemSN: '',
@@ -443,7 +558,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   }, [serviceOrderData, isOpen, currentUserEmail]);
 
   const handleInputChange = (field: keyof ServiceOrderEditFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newState = { ...prev, [field]: value };
+      if (field === 'newLcp' || field === 'newNap' || field === 'newLcpnap') {
+        newState.newPort = '';
+      }
+      return newState;
+    });
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -532,10 +653,10 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     }
   };
 
-  const uploadAllImages = async (): Promise<{ image1_url: string; image2_url: string; image3_url: string; client_signature_url: string }> => {
+  const uploadAllImages = async (tempSignatureFile?: File | null): Promise<{ image1_url: string; image2_url: string; image3_url: string; client_signature_url: string }> => {
     const urls = { image1_url: '', image2_url: '', image3_url: '', client_signature_url: '' };
     const filesToUpload = [
-      { file: imageFiles.clientSignatureFile, key: 'client_signature_url' },
+      { file: tempSignatureFile || imageFiles.clientSignatureFile, key: 'client_signature_url' },
       { file: imageFiles.timeInFile, key: 'image1_url' },
       { file: imageFiles.modemSetupFile, key: 'image2_url' },
       { file: imageFiles.timeOutFile, key: 'image3_url' }
@@ -589,12 +710,58 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     if (!formData.supportStatus.trim()) newErrors.supportStatus = 'Support Status is required';
     if (!formData.concern.trim()) newErrors.concern = 'Concern is required';
 
-    if ((formData.repairCategory === 'Migrate' || formData.repairCategory === 'Replace Router') && !formData.newRouterModemSN.trim()) {
-      newErrors.newRouterModemSN = 'This entry is required';
+    // Only validate newPlan if the concern is 'Upgrade/Downgrade Plan' (when the field is visible)
+    if (formData.concern === 'Upgrade/Downgrade Plan' && !formData.newPlan.trim()) {
+      newErrors.newPlan = 'New Plan is required';
+    }
+
+    if (formData.visitStatus === 'Done') {
+      const validItems = orderItems.filter(item => item.itemId && item.quantity);
+      if (validItems.length === 0) {
+        newErrors.items = 'At least one item with quantity is required';
+      } else {
+        for (let i = 0; i < orderItems.length; i++) {
+          const item = orderItems[i];
+          if (item.itemId || item.quantity) {
+            if (!item.itemId) {
+              newErrors[`item_${i}`] = 'Item is required';
+            }
+            if (!item.quantity || parseInt(item.quantity) <= 0) {
+              newErrors[`quantity_${i}`] = 'Valid quantity is required';
+            }
+          }
+        }
+      }
+    }
+
+    // Only validate repair category fields if visitStatus is 'Done' (when these fields are visible)
+    if (formData.visitStatus === 'Done') {
+      if (['Migrate', 'Relocate', 'Relocate Router', 'Transfer LCP/NAP/PORT'].includes(formData.repairCategory)) {
+        if (!formData.newRouterModemSN.trim()) newErrors.newRouterModemSN = 'New Router Modem SN is required';
+        if (!formData.newLcpnap.trim()) newErrors.newLcpnap = 'New LCP-NAP is required';
+        if (!formData.newPort.trim()) newErrors.newPort = 'New Port is required';
+        if (!formData.routerModel.trim()) newErrors.routerModel = 'Router Model is required';
+      }
+
+      if (formData.repairCategory === 'Replace Router') {
+        if (!formData.newRouterModemSN.trim()) newErrors.newRouterModemSN = 'New Router Modem SN is required';
+      }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const checkReconnectionTrigger = () => {
+    const status = formData.supportStatus.toLowerCase();
+    const concern = formData.concern.toLowerCase();
+    return status === 'resolved' && (concern === 'reconnect' || concern === 'upgrade/downgrade plan');
+  };
+
+  const checkMigrationTrigger = () => {
+    const visitStatus = formData.visitStatus.toLowerCase();
+    const repairCategory = formData.repairCategory.toLowerCase();
+    return visitStatus === 'done' && repairCategory === 'migrate';
   };
 
   const handleItemChange = (index: number, field: 'itemId' | 'quantity', value: string) => {
@@ -641,6 +808,124 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       return;
     }
 
+    // SmartOLT Validation Logic
+    if (formData.connectionType === 'Fiber') {
+      // Validate Router Modem SN if provided
+      if (formData.routerModemSN?.trim()) {
+        try {
+          console.log('[SMARTOLT VALIDATION] Validating Modem SN:', formData.routerModemSN);
+
+          // Use modal for loading feedback here as ServiceOrderEditModal uses modal for loading
+          setModal({
+            isOpen: true,
+            type: 'loading',
+            title: 'Validating',
+            message: 'Validating Router Modem SN...'
+          });
+
+          const smartOltResponse = await apiClient.get('/smart-olt/validate-sn', {
+            params: { sn: formData.routerModemSN }
+          });
+
+          if (!(smartOltResponse.data as any).success) {
+            console.log('[SMARTOLT VALIDATION] Failed:', smartOltResponse.data);
+
+            const errorMessage = (smartOltResponse.data as any).message || 'Invalid Modem SN';
+            setErrors(prev => ({
+              ...prev,
+              routerModemSN: errorMessage
+            }));
+
+            setModal({
+              isOpen: true,
+              type: 'error',
+              title: 'SmartOLT Verification Failed',
+              message: errorMessage,
+              onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
+            });
+            return;
+          }
+          console.log('[SMARTOLT VALIDATION] Router Modem SN Success');
+          setModal(prev => ({ ...prev, isOpen: false }));
+        } catch (error: any) {
+          console.error('[SMARTOLT VALIDATION] API Error:', error);
+          const errorMessage = error.response?.data?.message || 'Failed to validate Modem SN with SmartOLT system.';
+
+          setErrors(prev => ({
+            ...prev,
+            routerModemSN: errorMessage
+          }));
+
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Validation Error',
+            message: errorMessage,
+            onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
+          });
+          return;
+        }
+      }
+
+      // Validate New Router Modem SN if provided
+      if (formData.newRouterModemSN?.trim()) {
+        try {
+          console.log('[SMARTOLT VALIDATION] Validating New Modem SN:', formData.newRouterModemSN);
+
+          setModal({
+            isOpen: true,
+            type: 'loading',
+            title: 'Validating',
+            message: 'Validating New Router Modem SN...'
+          });
+
+          const smartOltResponse = await apiClient.get('/smart-olt/validate-sn', {
+            params: { sn: formData.newRouterModemSN }
+          });
+
+          if (!(smartOltResponse.data as any).success) {
+            console.log('[SMARTOLT VALIDATION] Failed:', smartOltResponse.data);
+
+            const errorMessage = (smartOltResponse.data as any).message || 'Invalid New Modem SN';
+            setErrors(prev => ({
+              ...prev,
+              newRouterModemSN: errorMessage
+            }));
+
+            setModal({
+              isOpen: true,
+              type: 'error',
+              title: 'SmartOLT Verification Failed',
+              message: errorMessage,
+              onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
+            });
+            return;
+          }
+          console.log('[SMARTOLT VALIDATION] New Router Modem SN Success');
+          setModal(prev => ({ ...prev, isOpen: false }));
+        } catch (error: any) {
+          console.error('[SMARTOLT VALIDATION] API Error:', error);
+          const errorMessage = error.response?.data?.message || 'Failed to validate New Modem SN with SmartOLT system.';
+
+          setErrors(prev => ({
+            ...prev,
+            newRouterModemSN: errorMessage
+          }));
+
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Validation Error',
+            message: errorMessage,
+            onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
+          });
+          return;
+        }
+      }
+    }
+
+
+
     if (!serviceOrderData?.id) {
       setModal({
         isOpen: true,
@@ -671,7 +956,34 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         message: `Uploading images to Google Drive... 0%`
       });
 
-      const imageUrls = await uploadAllImages();
+      let tempSigFile: File | null = null;
+      if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
+        try {
+          // Use a safer way to get the signature blob
+          const canvas = sigCanvas.current.getCanvas();
+          if (canvas) {
+            try {
+              // Try trimming first
+              const trimmedCanvas = sigCanvas.current.getTrimmedCanvas();
+              const blob = await new Promise<Blob | null>(resolve => trimmedCanvas.toBlob(resolve, 'image/png'));
+              if (blob) {
+                tempSigFile = new File([blob], 'signature.png', { type: 'image/png' });
+              }
+            } catch (trimErr) {
+              console.warn('getTrimmedCanvas failed, falling back to full canvas:', trimErr);
+              // Fallback to full canvas if trimming fails
+              const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
+              if (blob) {
+                tempSigFile = new File([blob], 'signature.png', { type: 'image/png' });
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Error processing signature:', err);
+        }
+      }
+
+      const imageUrls = await uploadAllImages(tempSigFile);
 
       setModal({
         isOpen: true,
@@ -687,7 +999,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         contact_number: updatedFormData.contactNumber,
         email_address: updatedFormData.emailAddress,
         plan: updatedFormData.plan,
-        group_name: updatedFormData.affiliate,
+
         username: updatedFormData.username,
         connection_type: updatedFormData.connectionType,
         router_modem_sn: updatedFormData.routerModemSN,
@@ -700,6 +1012,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         repair_category: updatedFormData.repairCategory,
         visit_by_user: updatedFormData.visitBy,
         visit_with: updatedFormData.visitWith,
+        visit_with_other: updatedFormData.visitWithOther,
         visit_remarks: updatedFormData.visitRemarks,
         client_signature: updatedFormData.clientSignature,
         item_name_1: updatedFormData.itemName1,
@@ -715,14 +1028,21 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         service_charge: parseFloat(updatedFormData.serviceCharge),
         status: updatedFormData.status,
         new_router_modem_sn: updatedFormData.newRouterModemSN,
-        new_lcp: updatedFormData.newLcp,
-        new_nap: updatedFormData.newNap,
+        new_lcpnap: updatedFormData.newLcpnap,
         new_port: updatedFormData.newPort,
         new_vlan: updatedFormData.newVlan,
-        router_model: updatedFormData.routerModel
+        router_model: updatedFormData.routerModel,
+        new_plan: updatedFormData.newPlan
       };
 
-      const response = await apiClient.put<{ success: boolean; message?: string; data?: any }>(
+      const response = await apiClient.put<{
+        success: boolean;
+        message?: string;
+        data?: any;
+        reconnect_status?: string | null;
+        migration_status?: string | null;
+        pullout_status?: string | null;
+      }>(
         `/service-orders/${serviceOrderId}`,
         serviceOrderUpdateData
       );
@@ -788,11 +1108,38 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         }
       }
 
+      let successMessage = 'Service Order updated successfully!';
+
+      // Reconnection Messages
+      if (response.data.reconnect_status === 'success') {
+        if (updatedFormData.concern === 'Upgrade/Downgrade Plan') {
+          successMessage = 'Plan upgraded and User reconnected successfully!';
+        } else {
+          successMessage = 'Service Order updated and User reconnected successfully!';
+        }
+      } else if (response.data.reconnect_status === 'balance_positive') {
+        successMessage = 'Service Order updated. Reconnection skipped: Account has a remaining balance.';
+      } else if (response.data.reconnect_status === 'failed') {
+        successMessage = 'Service Order updated, but reconnection failed. Please check technical details.';
+      }
+
+      // Migration / Relocation Messages
+      if (response.data.migration_status === 'success') {
+        successMessage += '\n\nRADIUS account updated/relocated successfully!';
+      } else if (response.data.migration_status === 'failed') {
+        successMessage += '\n\nWarning: Failed to update RADIUS account for relocation.';
+      }
+
+      // Pullout Messages
+      if (response.data.pullout_status === 'success') {
+        successMessage += '\n\nRADIUS account disabled for pullout.';
+      }
+
       setModal({
         isOpen: true,
         type: 'success',
         title: 'Success',
-        message: 'Service Order updated successfully!',
+        message: successMessage,
         onConfirm: () => {
           setErrors({});
           onSave(updatedFormData);
@@ -822,26 +1169,47 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
   return (
     <>
+      <style>{`
+        .focus-primary:focus {
+          border-color: ${colorPalette?.primary || '#ea580c'} !important;
+        }
+      `}</style>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
         <div className={`h-full w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
           }`}>
           <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
             }`}>
             <div className="flex items-center space-x-3">
-              <button onClick={onClose} className={`${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                }`}>
-                <X size={24} />
-              </button>
+
               <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>
                 {serviceOrderData?.ticket_id || serviceOrderData?.id} | {formData.fullName}
               </h2>
             </div>
             <div className="flex items-center space-x-3">
-              <button onClick={onClose} className={`px-4 py-2 rounded text-sm ${isDarkMode
-                ? 'border border-orange-600 text-orange-600 hover:bg-orange-600 hover:text-white'
-                : 'bg-gray-400 hover:bg-gray-500 text-white'
-                }`}>
+              <button
+                onClick={onClose}
+                className={`px-4 py-2 rounded text-sm transition-colors ${isDarkMode
+                  ? 'border border-gray-600 text-gray-400 hover:text-white'
+                  : 'bg-gray-400 hover:bg-gray-500 text-white'
+                  }`}
+                style={isDarkMode ? {
+                  borderColor: colorPalette?.primary || '#ea580c',
+                  color: colorPalette?.primary || '#ea580c'
+                } : {}}
+                onMouseEnter={(e) => {
+                  if (isDarkMode && colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                    e.currentTarget.style.color = 'white';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (isDarkMode && colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = colorPalette.primary;
+                  }
+                }}
+              >
                 Cancel
               </button>
               <button
@@ -871,25 +1239,19 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>Account No<span className="text-red-500">*</span></label>
-              <div className="relative">
-                <select
-                  value={formData.accountNo}
-                  onChange={(e) => handleInputChange('accountNo', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    } ${errors.accountNo ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                >
-                  <option value="">Select Account</option>
-                  {formData.accountNo && (
-                    <option value={formData.accountNo}>{formData.accountNo}</option>
-                  )}
-                </select>
-                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
-              </div>
+              <input
+                type="text"
+                value={formData.accountNo}
+                readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.accountNo ? 'border-red-500' : ''}`}
+                placeholder="Account No"
+              />
               {errors.accountNo && (
                 <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                  <p className="text-orange-500 text-xs">This entry is required</p>
+                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                 </div>
               )}
             </div>
@@ -901,17 +1263,18 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 <input
                   type="date"
                   value={formData.dateInstalled}
-                  onChange={(e) => handleInputChange('dateInstalled', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    } ${errors.dateInstalled ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                  readOnly
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                    } ${errors.dateInstalled ? 'border-red-500' : ''}`}
                 />
                 <Calendar className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`} size={20} />
               </div>
               {errors.dateInstalled && (
                 <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                  <p className="text-orange-500 text-xs">This entry is required</p>
+                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                 </div>
               )}
             </div>
@@ -922,9 +1285,9 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               <input
                 type="text"
                 value={formData.fullName}
-                onChange={(e) => handleInputChange('fullName', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.fullName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.fullName ? 'border-red-500' : ''}`}
               />
               {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
             </div>
@@ -935,9 +1298,9 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               <input
                 type="text"
                 value={formData.contactNumber}
-                onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.contactNumber ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.contactNumber ? 'border-red-500' : ''}`}
               />
               {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
             </div>
@@ -946,11 +1309,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>Email Address<span className="text-red-500">*</span></label>
               <input
-                type="email"
+                type="text"
                 value={formData.emailAddress}
-                onChange={(e) => handleInputChange('emailAddress', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.emailAddress ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.emailAddress ? 'border-red-500' : ''}`}
               />
               {errors.emailAddress && <p className="text-red-500 text-xs mt-1">{errors.emailAddress}</p>}
             </div>
@@ -961,26 +1324,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               <input
                 type="text"
                 value={formData.plan}
-                onChange={(e) => handleInputChange('plan', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
-                  } ${errors.plan ? 'border-red-500' : ''}`}
                 readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.plan ? 'border-red-500' : ''}`}
               />
               {errors.plan && <p className="text-red-500 text-xs mt-1">{errors.plan}</p>}
             </div>
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Affiliate</label>
-              <input
-                type="text"
-                value={formData.affiliate}
-                onChange={(e) => handleInputChange('affiliate', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
-                  }`}
-                readOnly
-              />
-            </div>
+
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
@@ -988,9 +1339,9 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               <input
                 type="text"
                 value={formData.username}
-                onChange={(e) => handleInputChange('username', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.username ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.username ? 'border-red-500' : ''}`}
               />
               {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
             </div>
@@ -1002,20 +1353,21 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 <button
                   type="button"
                   onClick={() => handleInputChange('connectionType', 'Fiber')}
-                  className={`py-2 px-4 rounded border transition-colors duration-200 ${formData.connectionType === 'Fiber'
-                    ? 'bg-orange-600 border-orange-700'
-                    : isDarkMode
-                      ? 'bg-gray-800 border-gray-700'
-                      : 'bg-white border-gray-300'
-                    } text-white`}
+                  className={`py-2 px-4 rounded border transition-colors duration-200 text-white`}
+                  style={{
+                    backgroundColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#ea580c') : 'transparent',
+                    borderColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#ea580c') : (isDarkMode ? '#374151' : '#d1d5db'),
+                    color: formData.connectionType === 'Fiber' ? 'white' : (isDarkMode ? '#9ca3af' : '#4b5563')
+                  }}
                 >
                   Fiber
                 </button>
               </div>
               {errors.connectionType && (
                 <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                  <p className="text-orange-500 text-xs">This entry is required</p>
+                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                 </div>
               )}
             </div>
@@ -1026,14 +1378,15 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               <input
                 type="text"
                 value={formData.routerModemSN}
-                onChange={(e) => handleInputChange('routerModemSN', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  } ${errors.routerModemSN ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  } ${errors.routerModemSN ? 'border-red-500' : ''}`}
               />
               {errors.routerModemSN && (
                 <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                  <p className="text-orange-500 text-xs">This entry is required</p>
+                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                 </div>
               )}
             </div>
@@ -1045,7 +1398,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 type="text"
                 value={formData.lcp}
                 onChange={(e) => handleInputChange('lcp', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   }`}
                 readOnly
               />
@@ -1058,7 +1411,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 type="text"
                 value={formData.nap}
                 onChange={(e) => handleInputChange('nap', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   }`}
                 readOnly
               />
@@ -1071,7 +1424,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 type="text"
                 value={formData.port}
                 onChange={(e) => handleInputChange('port', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   } ${errors.port ? 'border-red-500' : ''}`}
                 readOnly
               />
@@ -1084,7 +1437,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 type="text"
                 value={formData.vlan}
                 onChange={(e) => handleInputChange('vlan', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   } ${errors.vlan ? 'border-red-500' : ''}`}
                 readOnly
               />
@@ -1097,7 +1450,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 <select
                   value={formData.supportStatus}
                   onChange={(e) => handleInputChange('supportStatus', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                  className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
                     }`}
                 >
                   <option value="Resolved">Resolved</option>
@@ -1119,7 +1472,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     <select
                       value={formData.visitStatus}
                       onChange={(e) => handleInputChange('visitStatus', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                         } ${errors.visitStatus ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                     >
                       <option value="">Select Visit Status</option>
@@ -1133,8 +1486,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                   </div>
                   {errors.visitStatus && (
                     <div className="flex items-center mt-1">
-                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                      <p className="text-orange-500 text-xs">This entry is required</p>
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -1149,10 +1502,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         console.log('Assigned Email changed to:', e.target.value);
                         handleInputChange('assignedEmail', e.target.value);
                       }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                         } ${errors.assignedEmail ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                     >
                       <option value="">Select Technician</option>
+                      <option value="None">None</option>
                       {technicians.map((tech) => {
                         const emailValue = (tech as any).email_address || tech.email || '';
                         console.log('Technician option:', tech, 'Email:', emailValue);
@@ -1167,8 +1521,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                   </div>
                   {errors.assignedEmail && (
                     <div className="flex items-center mt-1">
-                      <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                      <p className="text-orange-500 text-xs">This entry is required</p>
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -1182,10 +1536,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         <select
                           value={formData.repairCategory}
                           onChange={(e) => handleInputChange('repairCategory', e.target.value)}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                             } ${errors.repairCategory ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                         >
                           <option value="">Select Repair Category</option>
+                          <option value="None">None</option>
                           <option value="Fiber Relaying">Fiber Relaying</option>
                           <option value="Migrate">Migrate</option>
                           <option value="others">others</option>
@@ -1204,13 +1559,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </div>
                       {errors.repairCategory && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                          <p className="text-orange-500 text-xs">This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
 
-                    {formData.repairCategory === 'Migrate' && (
+                    {(formData.repairCategory === 'Migrate' || formData.repairCategory === 'Relocate' || formData.repairCategory === 'Relocate Router' || formData.repairCategory === 'Transfer LCP/NAP/PORT') && (
                       <>
                         <div>
                           <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
@@ -1220,65 +1575,89 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                             value={formData.newRouterModemSN}
                             onChange={(e) => handleInputChange('newRouterModemSN', e.target.value)}
                             placeholder="Enter Router Modem SN"
-                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                            className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                               } ${errors.newRouterModemSN ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                           />
                           {errors.newRouterModemSN && (
                             <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                              <p className="text-orange-500 text-xs">This entry is required</p>
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                              <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                             </div>
                           )}
                         </div>
 
-                        <div>
-                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>New LCP<span className="text-red-500">*</span></label>
-                          <div className="relative">
-                            <select
-                              value={formData.newLcp}
-                              onChange={(e) => handleInputChange('newLcp', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                                } ${errors.newLcp ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                        <div className="relative">
+                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            New LCP-NAP<span className="text-red-500">*</span>
+                          </label>
+                          <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'} ${errors.newLcpnap ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
+                            <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                            <input
+                              type="text"
+                              placeholder="Search LCP-NAP..."
+                              value={isLcpnapOpen ? lcpnapSearch : (formData.newLcpnap || '')}
+                              onChange={(e) => {
+                                setLcpnapSearch(e.target.value);
+                                if (!isLcpnapOpen) setIsLcpnapOpen(true);
+                              }}
+                              onFocus={() => {
+                                setIsLcpnapOpen(true);
+                                setLcpnapSearch(formData.newLcpnap || '');
+                              }}
+                              className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isLcpnapOpen || formData.newLcpnap) {
+                                  setIsLcpnapOpen(!isLcpnapOpen);
+                                  if (!isLcpnapOpen) setLcpnapSearch(formData.newLcpnap || '');
+                                }
+                              }}
+                              className={`ml-2 transition-transform duration-200 ${isLcpnapOpen ? 'rotate-180' : ''}`}
                             >
-                              <option value="">Select LCP</option>
-                              {lcps.map((lcp) => (
-                                <option key={lcp} value={lcp}>{lcp}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} size={20} />
+                              <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                            </button>
                           </div>
-                          {errors.newLcp && (
-                            <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                              <p className="text-orange-500 text-xs">This entry is required</p>
+
+                          {/* LCP-NAP Recommendation Dropdown */}
+                          {isLcpnapOpen && (
+                            <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`} style={{ minWidth: '100%' }}>
+                              <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                {lcpnaps
+                                  .filter(item => item.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase()))
+                                  .map((item) => (
+                                    <div
+                                      key={item.id}
+                                      className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'} ${formData.newLcpnap === item.lcpnap_name ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                                      onClick={() => {
+                                        handleInputChange('newLcpnap', item.lcpnap_name);
+                                        setLcpnapSearch(item.lcpnap_name);
+                                        setIsLcpnapOpen(false);
+                                      }}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <span>{item.lcpnap_name}</span>
+                                        {formData.newLcpnap === item.lcpnap_name && <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>}
+                                      </div>
+                                    </div>
+                                  ))}
+                                {lcpnaps.filter(item => item.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase())).length === 0 && (
+                                  <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                    No LCP-NAPs found for "{lcpnapSearch}"
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
-                        </div>
 
-                        <div>
-                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>New NAP<span className="text-red-500">*</span></label>
-                          <div className="relative">
-                            <select
-                              value={formData.newNap}
-                              onChange={(e) => handleInputChange('newNap', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                                } ${errors.newNap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                            >
-                              <option value="">Select NAP</option>
-                              {naps.map((nap) => (
-                                <option key={nap} value={nap}>{nap}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} size={20} />
-                          </div>
-                          {errors.newNap && (
+                          {/* Click outside to close */}
+                          {isLcpnapOpen && <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsLcpnapOpen(false)} />}
+
+                          {errors.newLcpnap && (
                             <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                              <p className="text-orange-500 text-xs">This entry is required</p>
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                              <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                             </div>
                           )}
                         </div>
@@ -1290,21 +1669,31 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                             <select
                               value={formData.newPort}
                               onChange={(e) => handleInputChange('newPort', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                                } ${errors.newPort ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                                } ${errors.newPort ? 'border-red-500' : ''}`}
                             >
-                              <option value="">Select Port</option>
-                              {ports.map((port) => (
-                                <option key={port} value={port}>{port}</option>
-                              ))}
+                              <option value="">{formData.newLcpnap ? 'Select Port' : 'Select LCP-NAP first'}</option>
+                              {Array.from({ length: totalPorts }, (_, i) => {
+                                const portVal = `p${(i + 1).toString().padStart(2, '0')}`;
+                                const isUsed = usedPorts.includes(portVal);
+                                const isSelected = formData.newPort === portVal;
+
+                                if (isUsed && !isSelected) return null;
+
+                                return (
+                                  <option key={portVal} value={portVal}>
+                                    {portVal}
+                                  </option>
+                                );
+                              })}
                             </select>
                             <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                               }`} size={20} />
                           </div>
                           {errors.newPort && (
                             <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                              <p className="text-orange-500 text-xs">This entry is required</p>
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                              <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                             </div>
                           )}
                         </div>
@@ -1316,10 +1705,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                             <select
                               value={formData.newVlan}
                               onChange={(e) => handleInputChange('newVlan', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                                 } ${errors.newVlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                             >
                               <option value="">Select VLAN</option>
+                              <option value="None">None</option>
                               {vlans.map((vlan) => (
                                 <option key={vlan} value={vlan}>{vlan}</option>
                               ))}
@@ -1329,8 +1719,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                           </div>
                           {errors.newVlan && (
                             <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                              <p className="text-orange-500 text-xs">This entry is required</p>
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                              <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                             </div>
                           )}
                         </div>
@@ -1338,147 +1728,29 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         <div>
                           <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>Router Model<span className="text-red-500">*</span></label>
-                          <input
-                            type="text"
-                            value={formData.routerModel}
-                            onChange={(e) => handleInputChange('routerModel', e.target.value)}
-                            placeholder="Enter Router Model"
-                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                              } ${errors.routerModel ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                          />
+                          <div className="relative">
+                            <select
+                              value={formData.routerModel}
+                              onChange={(e) => handleInputChange('routerModel', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                                } ${errors.routerModel ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                            >
+                              <option value=""></option>
+                              <option value="None">None</option>
+                              {formData.routerModel && !routerModels.some(rm => rm.model === formData.routerModel) && (
+                                <option value={formData.routerModel}>{formData.routerModel}</option>
+                              )}
+                              {routerModels.map((routerModel, index) => (
+                                <option key={index} value={routerModel.model}>{routerModel.model}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`} size={20} />
+                          </div>
                           {errors.routerModel && (
                             <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                              <p className="text-orange-500 text-xs">This entry is required</p>
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
-
-                    {formData.repairCategory === 'Relocate Router' && (
-                      <div>
-                        <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>Router Model<span className="text-red-500">*</span></label>
-                        <input
-                          type="text"
-                          value={formData.routerModel}
-                          onChange={(e) => handleInputChange('routerModel', e.target.value)}
-                          placeholder="Enter Router Model"
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                            } ${errors.routerModel ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                        />
-                        {errors.routerModel && (
-                          <div className="flex items-center mt-1">
-                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                            <p className="text-orange-500 text-xs">This entry is required</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {formData.repairCategory === 'Relocate' && (
-                      <>
-                        <div>
-                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>New LCP<span className="text-red-500">*</span></label>
-                          <div className="relative">
-                            <select
-                              value={formData.newLcp}
-                              onChange={(e) => handleInputChange('newLcp', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                                } ${errors.newLcp ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                            >
-                              <option value="">Select LCP</option>
-                              {lcps.map((lcp) => (
-                                <option key={lcp} value={lcp}>{lcp}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} size={20} />
-                          </div>
-                          {errors.newLcp && (
-                            <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                              <p className="text-orange-500 text-xs">This entry is required</p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div>
-                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>New NAP<span className="text-red-500">*</span></label>
-                          <div className="relative">
-                            <select
-                              value={formData.newNap}
-                              onChange={(e) => handleInputChange('newNap', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                                } ${errors.newNap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                            >
-                              <option value="">Select NAP</option>
-                              {naps.map((nap) => (
-                                <option key={nap} value={nap}>{nap}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} size={20} />
-                          </div>
-                          {errors.newNap && (
-                            <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                              <p className="text-orange-500 text-xs">This entry is required</p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div>
-                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>New Port<span className="text-red-500">*</span></label>
-                          <div className="relative">
-                            <select
-                              value={formData.newPort}
-                              onChange={(e) => handleInputChange('newPort', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                                } ${errors.newPort ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                            >
-                              <option value="">Select Port</option>
-                              {ports.map((port) => (
-                                <option key={port} value={port}>{port}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} size={20} />
-                          </div>
-                          {errors.newPort && (
-                            <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                              <p className="text-orange-500 text-xs">This entry is required</p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div>
-                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>New VLAN<span className="text-red-500">*</span></label>
-                          <div className="relative">
-                            <select
-                              value={formData.newVlan}
-                              onChange={(e) => handleInputChange('newVlan', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                                } ${errors.newVlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                            >
-                              <option value="">Select VLAN</option>
-                              {vlans.map((vlan) => (
-                                <option key={vlan} value={vlan}>{vlan}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} size={20} />
-                          </div>
-                          {errors.newVlan && (
-                            <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                              <p className="text-orange-500 text-xs">This entry is required</p>
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                              <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                             </div>
                           )}
                         </div>
@@ -1494,99 +1766,18 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                           value={formData.newRouterModemSN}
                           onChange={(e) => handleInputChange('newRouterModemSN', e.target.value)}
                           placeholder="Enter Router Modem SN"
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                             } ${errors.newRouterModemSN ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                         />
                         {errors.newRouterModemSN && (
                           <div className="flex items-center mt-1">
-                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                            <p className="text-orange-500 text-xs">This entry is required</p>
+                            <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                            <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                           </div>
                         )}
                       </div>
                     )}
 
-                    {formData.repairCategory === 'Transfer LCP/NAP/PORT' && (
-                      <>
-                        <div>
-                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>New LCP<span className="text-red-500">*</span></label>
-                          <div className="relative">
-                            <select
-                              value={formData.newLcp}
-                              onChange={(e) => handleInputChange('newLcp', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                                } ${errors.newLcp ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                            >
-                              <option value="">Select LCP</option>
-                              {lcps.map((lcp) => (
-                                <option key={lcp} value={lcp}>{lcp}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} size={20} />
-                          </div>
-                          {errors.newLcp && (
-                            <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                              <p className="text-orange-500 text-xs">This entry is required</p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div>
-                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>New NAP<span className="text-red-500">*</span></label>
-                          <div className="relative">
-                            <select
-                              value={formData.newNap}
-                              onChange={(e) => handleInputChange('newNap', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                                } ${errors.newNap ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                            >
-                              <option value="">Select NAP</option>
-                              {naps.map((nap) => (
-                                <option key={nap} value={nap}>{nap}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} size={20} />
-                          </div>
-                          {errors.newNap && (
-                            <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                              <p className="text-orange-500 text-xs">This entry is required</p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div>
-                          <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>New Port<span className="text-red-500">*</span></label>
-                          <div className="relative">
-                            <select
-                              value={formData.newPort}
-                              onChange={(e) => handleInputChange('newPort', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                                } ${errors.newPort ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                            >
-                              <option value="">Select Port</option>
-                              {ports.map((port) => (
-                                <option key={port} value={port}>{port}</option>
-                              ))}
-                            </select>
-                            <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} size={20} />
-                          </div>
-                          {errors.newPort && (
-                            <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                              <p className="text-orange-500 text-xs">This entry is required</p>
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
 
                     {formData.repairCategory === 'Update Vlan' && (
                       <div>
@@ -1596,10 +1787,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                           <select
                             value={formData.newVlan}
                             onChange={(e) => handleInputChange('newVlan', e.target.value)}
-                            className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                            className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                               } ${errors.newVlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                           >
                             <option value="">Select VLAN</option>
+                            <option value="None">None</option>
                             {vlans.map((vlan) => (
                               <option key={vlan} value={vlan}>{vlan}</option>
                             ))}
@@ -1609,8 +1801,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         </div>
                         {errors.newVlan && (
                           <div className="flex items-center mt-1">
-                            <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                            <p className="text-orange-500 text-xs">This entry is required</p>
+                            <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                            <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                           </div>
                         )}
                       </div>
@@ -1623,25 +1815,23 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         <select
                           value={formData.visitBy}
                           onChange={(e) => handleInputChange('visitBy', e.target.value)}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                             } ${errors.visitBy ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                         >
                           <option value="">Select Visit By</option>
-                          {technicians.map((tech) => {
-                            const emailValue = (tech as any).email_address || tech.email || '';
-                            return (
-                              <option key={emailValue} value={emailValue}>
-                                {emailValue}
-                              </option>
-                            );
-                          })}
+                          <option value="None">None</option>
+                          {technicians.filter(t => t.name !== formData.visitWith && t.name !== formData.visitWithOther).map((tech, index) => (
+                            <option key={index} value={tech.name}>
+                              {tech.name}
+                            </option>
+                          ))}
                         </select>
                         <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
                       </div>
                       {errors.visitBy && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                          <p className="text-orange-500 text-xs">This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -1653,18 +1843,16 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         <select
                           value={formData.visitWith}
                           onChange={(e) => handleInputChange('visitWith', e.target.value)}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
                             }`}
                         >
                           <option value="">Select Visit With</option>
-                          {technicians.map((tech) => {
-                            const emailValue = (tech as any).email_address || tech.email || '';
-                            return (
-                              <option key={emailValue} value={emailValue}>
-                                {emailValue}
-                              </option>
-                            );
-                          })}
+                          <option value="None">None</option>
+                          {technicians.filter((tech) => tech.name !== formData.visitBy && tech.name !== formData.visitWithOther).map((tech, index) => (
+                            <option key={index} value={tech.name}>
+                              {tech.name}
+                            </option>
+                          ))}
                         </select>
                         <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
                       </div>
@@ -1677,18 +1865,16 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         <select
                           value={formData.visitWithOther}
                           onChange={(e) => handleInputChange('visitWithOther', e.target.value)}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                          className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
                             }`}
                         >
                           <option value="">Select Visit With Other</option>
-                          {technicians.map((tech) => {
-                            const emailValue = (tech as any).email_address || tech.email || '';
-                            return (
-                              <option key={emailValue} value={emailValue}>
-                                {emailValue}
-                              </option>
-                            );
-                          })}
+                          <option value="None">None</option>
+                          {technicians.filter((tech) => tech.name !== formData.visitBy && tech.name !== formData.visitWith).map((tech, index) => (
+                            <option key={index} value={tech.name}>
+                              {tech.name}
+                            </option>
+                          ))}
                         </select>
                         <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
                       </div>
@@ -1701,97 +1887,251 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         value={formData.visitRemarks}
                         onChange={(e) => handleInputChange('visitRemarks', e.target.value)}
                         rows={3}
-                        className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                        className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary resize-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                           } ${errors.visitRemarks ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
                       />
                       {errors.visitRemarks && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                          <p className="text-orange-500 text-xs">This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>Client Signature<span className="text-red-500">*</span></label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleImageChange('clientSignatureFile', e.target.files?.[0] || null)}
-                        className="hidden"
-                        id="clientSignatureInput"
-                      />
-                      <label
-                        htmlFor="clientSignatureInput"
-                        className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer flex flex-col items-center justify-center ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
-                          }`}
-                      >
-                        {imagePreviews.clientSignatureFile ? (
-                          <div className="relative w-full h-full">
+                        }`}>Client Signature</label>
+
+                      <div className={`border rounded overflow-hidden ${isDarkMode ? 'bg-white border-gray-700' : 'bg-white border-gray-300'}`}>
+                        {(imagePreviews.clientSignatureFile || formData.clientSignature) ? (
+                          <div className="relative w-full h-48 bg-white flex items-center justify-center">
                             <img
-                              src={imagePreviews.clientSignatureFile}
+                              src={imagePreviews.clientSignatureFile || formData.clientSignature}
                               alt="Client Signature"
-                              className="w-full h-full object-contain"
+                              className="max-w-full max-h-full object-contain"
                             />
-                            <div className="absolute bottom-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center pointer-events-none">
-                              <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                              </svg>
-                              Uploaded
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setImagePreviews(prev => ({ ...prev, clientSignatureFile: null }));
+                                setImageFiles(prev => ({ ...prev, clientSignatureFile: null }));
+                                setFormData(prev => ({ ...prev, clientSignature: '' }));
+                              }}
+                              className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition-colors"
+                              title="Clear Signature"
+                            >
+                              <Eraser size={16} />
+                            </button>
+                            {imagePreviews.clientSignatureFile && (
+                              <div className="absolute bottom-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center pointer-events-none">
+                                <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                New
+                              </div>
+                            )}
                           </div>
                         ) : (
-                          <>
-                            <svg className={`w-12 h-12 mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`}>Click to upload</p>
-                          </>
+                          <div className="relative w-full h-48 bg-white">
+                            <SignatureCanvas
+                              ref={sigCanvas}
+                              penColor="black"
+                              canvasProps={{
+                                className: 'w-full h-full cursor-crosshair'
+                              }}
+                              backgroundColor="white"
+                            />
+                            <div className="absolute top-2 right-2">
+                              <button
+                                type="button"
+                                onClick={() => sigCanvas.current?.clear()}
+                                className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded-full shadow transition-colors"
+                                title="Clear Canvas"
+                              >
+                                <Eraser size={16} />
+                              </button>
+                            </div>
+                            <div className="absolute bottom-2 left-2 pointer-events-none opacity-50 text-xs text-gray-500">
+                              Sign above
+                            </div>
+                          </div>
                         )}
-                      </label>
+                      </div>
+
                       {errors.clientSignature && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                          <p className="text-orange-500 text-xs">This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>Item Name 1<span className="text-red-500">*</span></label>
-                      <div className="relative">
-                        <select
-                          value={formData.itemName1}
-                          onChange={(e) => handleInputChange('itemName1', e.target.value)}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                            } ${errors.itemName1 ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                        >
-                          <option value="">Select Item</option>
-                          {inventoryItems.map((invItem) => (
-                            <option key={invItem.id} value={invItem.item_name}>
-                              {invItem.item_name}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`} size={20} />
-                      </div>
-                      {errors.itemName1 && (
+                        }`}>Items<span className="text-red-500">*</span></label>
+                      {orderItems.map((item, index) => (
+                        <div key={index} className="mb-3">
+                          <div className="flex items-start gap-2">
+                            <div className="flex-1">
+                              <div className="relative">
+                                <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                                  } ${errors[`item_${index}`] ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
+                                  <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                                  <input
+                                    type="text"
+                                    placeholder={`Search Item ${index + 1}...`}
+                                    value={activeItemIndex === index ? itemSearchTerm : (item.itemId || '')}
+                                    onChange={(e) => {
+                                      setItemSearchTerm(e.target.value);
+                                      if (activeItemIndex !== index) setActiveItemIndex(index);
+                                    }}
+                                    onFocus={() => {
+                                      setActiveItemIndex(index);
+                                      setItemSearchTerm(item.itemId || '');
+                                    }}
+                                    className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (activeItemIndex === index) {
+                                        setActiveItemIndex(null);
+                                        setItemSearchTerm('');
+                                      } else {
+                                        handleItemChange(index, 'itemId', '');
+                                        setItemSearchTerm('');
+                                      }
+                                    }}
+                                    className={`ml-2 transition-transform duration-200`}
+                                  >
+                                    {activeItemIndex === index || item.itemId ? (
+                                      <X size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                                    ) : (
+                                      <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                                    )}
+                                  </button>
+                                </div>
+
+                                {/* Recommendation Dropdown */}
+                                {activeItemIndex === index && (
+                                  <div
+                                    className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                                      }`}
+                                    style={{ minWidth: '100%' }}
+                                  >
+                                    <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                      {/* Show None option if it matches search term */}
+                                      {('none'.includes(itemSearchTerm.toLowerCase()) || itemSearchTerm === '') && (
+                                        <div
+                                          className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode
+                                            ? 'hover:bg-gray-700 text-gray-200'
+                                            : 'hover:bg-gray-100 text-gray-700'
+                                            } ${item.itemId === 'None' ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                                          onClick={() => {
+                                            handleItemChange(index, 'itemId', 'None');
+                                            setItemSearchTerm('None');
+                                            setActiveItemIndex(null);
+                                          }}
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <span>None</span>
+                                            {item.itemId === 'None' && (
+                                              <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+                                      {inventoryItems
+                                        .filter(invItem => invItem.item_name.toLowerCase().includes(itemSearchTerm.toLowerCase()))
+                                        .map((invItem) => (
+                                          <div
+                                            key={invItem.id}
+                                            className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode
+                                              ? 'hover:bg-gray-700 text-gray-200'
+                                              : 'hover:bg-gray-100 text-gray-700'
+                                              } ${item.itemId === invItem.item_name ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                                            onClick={() => {
+                                              handleItemChange(index, 'itemId', invItem.item_name);
+                                              setItemSearchTerm(invItem.item_name);
+                                              setActiveItemIndex(null);
+                                            }}
+                                          >
+                                            <div className="flex items-center justify-between">
+                                              <span>{invItem.item_name}</span>
+                                              {item.itemId === invItem.item_name && (
+                                                <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      {inventoryItems.filter(invItem => invItem.item_name.toLowerCase().includes(itemSearchTerm.toLowerCase())).length === 0 && (
+                                        <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                          No items found for "{itemSearchTerm}"
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Click outside to close */}
+                                {activeItemIndex === index && (
+                                  <div
+                                    className="fixed inset-0 z-40 bg-transparent"
+                                    onClick={() => {
+                                      setActiveItemIndex(null);
+                                      setItemSearchTerm('');
+                                    }}
+                                  />
+                                )}
+                              </div>
+                              {errors[`item_${index}`] && (
+                                <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors[`item_${index}`]}</p>
+                              )}
+                            </div>
+
+                            {item.itemId && (
+                              <div className="w-32">
+                                <input
+                                  type="number"
+                                  value={item.quantity}
+                                  onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                                  placeholder="Qty"
+                                  min="1"
+                                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                                    }`}
+                                />
+                                {errors[`quantity_${index}`] && (
+                                  <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors[`quantity_${index}`]}</p>
+                                )}
+                              </div>
+                            )}
+
+                            {orderItems.length > 1 && item.itemId && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveItem(index)}
+                                className="p-2 text-red-500 hover:text-red-400"
+                              >
+                                <X size={20} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {errors.items && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                          <p className="text-orange-500 text-xs">This entry is required</p>
+                          <div
+                            className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                            style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                          >!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.items}</p>
                         </div>
                       )}
                     </div>
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>Time In<span className="text-red-500">*</span></label>
+                        }`}>Time In</label>
                       <input
                         type="file"
                         accept="image/*"
@@ -1831,15 +2171,15 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </label>
                       {errors.timeIn && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                          <p className="text-orange-500 text-xs">This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>Modem Setup Image<span className="text-red-500">*</span></label>
+                        }`}>Modem Setup Image</label>
                       <input
                         type="file"
                         accept="image/*"
@@ -1879,15 +2219,15 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </label>
                       {errors.modemSetupImage && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                          <p className="text-orange-500 text-xs">This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>Time Out<span className="text-red-500">*</span></label>
+                        }`}>Time Out</label>
                       <input
                         type="file"
                         accept="image/*"
@@ -1927,8 +2267,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </label>
                       {errors.timeOut && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                          <p className="text-orange-500 text-xs">This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -1943,12 +2283,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         <select
                           value={formData.visitBy}
                           onChange={(e) => handleInputChange('visitBy', e.target.value)}
-                          className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitBy ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
+                          className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitBy ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus-primary appearance-none`}
                         >
                           <option value="">Select Visit By</option>
-                          {technicians.map((tech) => (
-                            <option key={tech.email} value={tech.email}>
-                              {tech.email}
+                          <option value="None">None</option>
+                          {technicians.map((tech, index) => (
+                            <option key={index} value={tech.name}>
+                              {tech.name}
                             </option>
                           ))}
                         </select>
@@ -1956,8 +2297,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </div>
                       {errors.visitBy && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                          <p className="text-orange-500 text-xs">This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -1968,12 +2309,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         <select
                           value={formData.visitWith}
                           onChange={(e) => handleInputChange('visitWith', e.target.value)}
-                          className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitWith ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
+                          className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitWith ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus-primary appearance-none`}
                         >
                           <option value="">Select Visit With</option>
-                          {technicians.map((tech) => (
-                            <option key={tech.email} value={tech.email}>
-                              {tech.email}
+                          <option value="None">None</option>
+                          {technicians.filter(tech => tech.name !== formData.visitBy).map((tech, index) => (
+                            <option key={index} value={tech.name}>
+                              {tech.name}
                             </option>
                           ))}
                         </select>
@@ -1981,8 +2323,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </div>
                       {errors.visitWith && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                          <p className="text-orange-500 text-xs">This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -1993,12 +2335,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         <select
                           value={formData.visitWithOther}
                           onChange={(e) => handleInputChange('visitWithOther', e.target.value)}
-                          className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitWithOther ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 appearance-none`}
+                          className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitWithOther ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus-primary appearance-none`}
                         >
                           <option value="">Select Visit With Other</option>
-                          {technicians.map((tech) => (
-                            <option key={tech.email} value={tech.email}>
-                              {tech.email}
+                          <option value="None">None</option>
+                          {technicians.filter(tech => tech.name !== formData.visitBy).map((tech, index) => (
+                            <option key={index} value={tech.name}>
+                              {tech.name}
                             </option>
                           ))}
                         </select>
@@ -2006,8 +2349,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </div>
                       {errors.visitWithOther && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                          <p className="text-orange-500 text-xs">This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -2018,12 +2361,12 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         value={formData.visitRemarks}
                         onChange={(e) => handleInputChange('visitRemarks', e.target.value)}
                         rows={3}
-                        className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitRemarks ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus:border-orange-500 resize-none`}
+                        className={`w-full px-3 py-2 bg-gray-800 border ${errors.visitRemarks ? 'border-red-500' : 'border-gray-700'} rounded text-white focus:outline-none focus-primary resize-none`}
                       />
                       {errors.visitRemarks && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                          <p className="text-orange-500 text-xs">This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -2032,100 +2375,80 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               </>
             )}
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Items<span className="text-red-500">*</span></label>
-              {orderItems.map((item, index) => (
-                <div key={index} className="mb-3">
-                  <div className="flex items-start gap-2">
-                    <div className="flex-1">
-                      <div className="relative">
-                        <select
-                          value={item.itemId}
-                          onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                            }`}
-                        >
-                          <option value="">Select Item {index + 1}</option>
-                          {inventoryItems.map((invItem) => (
-                            <option key={invItem.id} value={invItem.item_name}>
-                              {invItem.item_name}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`} size={20} />
-                      </div>
-                      {errors[`item_${index}`] && (
-                        <p className="text-orange-500 text-xs mt-1">{errors[`item_${index}`]}</p>
-                      )}
-                    </div>
 
-                    {item.itemId && (
-                      <div className="w-32">
-                        <input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                          placeholder="Qty"
-                          min="1"
-                          className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                            }`}
-                        />
-                        {errors[`quantity_${index}`] && (
-                          <p className="text-orange-500 text-xs mt-1">{errors[`quantity_${index}`]}</p>
-                        )}
-                      </div>
-                    )}
-
-                    {orderItems.length > 1 && item.itemId && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(index)}
-                        className="p-2 text-red-500 hover:text-red-400"
-                      >
-                        <X size={20} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {errors.items && (
-                <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                  <p className="text-orange-500 text-xs">{errors.items}</p>
-                </div>
-              )}
-            </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>Concern<span className="text-red-500">*</span></label>
               <div className="relative">
-                <select
-                  value={formData.concern}
-                  onChange={(e) => handleInputChange('concern', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    } ${errors.concern ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
-                >
-                  <option value="">Select Concern</option>
-                  <option value="No Internet">No Internet</option>
-                  <option value="Slow Internet">Slow Internet</option>
-                  <option value="Intermittent Connection">Intermittent Connection</option>
-                  <option value="Router Issue">Router Issue</option>
-                  <option value="Billing Concern">Billing Concern</option>
-                  <option value="Others">Others</option>
-                </select>
-                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`} size={20} />
+                {isTechnician ? (
+                  <input
+                    type="text"
+                    value={formData.concern}
+                    readOnly
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                      } ${errors.concern ? 'border-red-500' : ''}`}
+                  />
+                ) : (
+                  <>
+                    <select
+                      value={formData.concern}
+                      onChange={(e) => handleInputChange('concern', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary appearance-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
+                        } ${errors.concern ? 'border-red-500' : ''}`}
+                    >
+                      <option value="">Select Concern</option>
+                      <option value="None">None</option>
+                      {concerns.map((concern) => (
+                        <option key={concern.id} value={concern.concern_name}>
+                          {concern.concern_name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`} size={20} />
+                  </>
+                )}
               </div>
               {errors.concern && (
                 <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                  <p className="text-orange-500 text-xs">This entry is required</p>
+                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                 </div>
               )}
             </div>
+
+            {formData.concern === 'Upgrade/Downgrade Plan' && (
+              <div className="mt-4">
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>New Plan<span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <select
+                    value={formData.newPlan}
+                    onChange={(e) => handleInputChange('newPlan', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary appearance-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                      } ${errors.newPlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+                  >
+                    <option value="">Select New Plan</option>
+                    {plans.map((planName, idx) => (
+                      <option key={idx} value={planName}>
+                        {planName}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`} size={20} />
+                </div>
+                {errors.newPlan && (
+                  <div className="flex items-center mt-1">
+                    <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.newPlan}</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
@@ -2133,14 +2456,22 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               <textarea
                 value={formData.concernRemarks}
                 onChange={(e) => handleInputChange('concernRemarks', e.target.value)}
+                readOnly={isTechnician}
                 rows={3}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary resize-none ${isTechnician
+                  ? isDarkMode
+                    ? 'bg-gray-800 text-gray-400 border-gray-700 cursor-not-allowed'
+                    : 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed'
+                  : isDarkMode
+                    ? 'bg-gray-800 text-white'
+                    : 'bg-white text-gray-900'
                   } ${errors.concernRemarks ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
               />
               {errors.concernRemarks && (
                 <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                  <p className="text-orange-500 text-xs">This entry is required</p>
+                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                 </div>
               )}
             </div>
@@ -2173,17 +2504,40 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               </div>
             </div>
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>User Email</label>
-              <input
-                type="email"
-                value={formData.userEmail}
-                onChange={(e) => handleInputChange('userEmail', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-300'
-                  }`}
-              />
-            </div>
+
+            {checkReconnectionTrigger() && (
+              <div className={`p-3 rounded-lg flex items-start space-x-3 mb-4 ${isDarkMode ? 'bg-blue-900/30 border border-blue-800' : 'bg-blue-50 border border-blue-200'
+                }`}>
+                <div className={`mt-0.5 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                  <CheckCircle size={18} />
+                </div>
+                <div>
+                  <p className={`text-sm font-medium ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                    Reconnection Trigger Detected
+                  </p>
+                  <p className={`text-xs mt-1 ${isDarkMode ? 'text-blue-400/80' : 'text-blue-700/80'}`}>
+                    Saving this service order with "Resolved" status will automatically trigger a technical reconnection and set the billing status to "Active".
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {checkMigrationTrigger() && (
+              <div className={`p-3 rounded-lg flex items-start space-x-3 mb-4 ${isDarkMode ? 'bg-amber-900/30 border border-amber-800' : 'bg-amber-50 border border-amber-200'
+                }`}>
+                <div className={`mt-0.5 ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`}>
+                  <CheckCircle size={18} />
+                </div>
+                <div>
+                  <p className={`text-sm font-medium ${isDarkMode ? 'text-amber-300' : 'text-amber-800'}`}>
+                    Migration Trigger Detected
+                  </p>
+                  <p className={`text-xs mt-1 ${isDarkMode ? 'text-amber-400/80' : 'text-amber-700/80'}`}>
+                    Saving this service order with "Done" visit status and "Migrate" repair category will automatically regenerate the RADIUS username based on the technical details pattern (same as Job Order). The password will remain unchanged.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
@@ -2191,14 +2545,22 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               <textarea
                 value={formData.supportRemarks}
                 onChange={(e) => handleInputChange('supportRemarks', e.target.value)}
+                readOnly={isTechnician}
                 rows={3}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary resize-none ${isTechnician
+                  ? isDarkMode
+                    ? 'bg-gray-800 text-gray-400 border-gray-700 cursor-not-allowed'
+                    : 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed'
+                  : isDarkMode
+                    ? 'bg-gray-800 text-white'
+                    : 'bg-white text-gray-900'
                   } ${errors.supportRemarks ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
               />
               {errors.supportRemarks && (
                 <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                  <p className="text-orange-500 text-xs">This entry is required</p>
+                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
+                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                 </div>
               )}
             </div>
@@ -2224,6 +2586,12 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     onClick={() => handleNumberChange('serviceCharge', false)}
                     className={`px-3 py-2 border-l ${isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'
                       }`}
+                    onMouseEnter={(e) => {
+                      if (colorPalette?.primary) e.currentTarget.style.color = colorPalette.primary;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = '';
+                    }}
                   >
                     <Minus size={16} />
                   </button>
@@ -2232,6 +2600,12 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     onClick={() => handleNumberChange('serviceCharge', true)}
                     className={`px-3 py-2 border-l ${isDarkMode ? 'text-gray-400 hover:text-white border-gray-700' : 'text-gray-600 hover:text-gray-900 border-gray-300'
                       }`}
+                    onMouseEnter={(e) => {
+                      if (colorPalette?.primary) e.currentTarget.style.color = colorPalette.primary;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = '';
+                    }}
                   >
                     <Plus size={16} />
                   </button>
@@ -2239,8 +2613,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               </div>
               {errors.serviceCharge && (
                 <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full bg-orange-500 text-white text-xs mr-2">!</div>
-                  <p className="text-orange-500 text-xs">This entry is required</p>
+                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                 </div>
               )}
             </div>
@@ -2254,7 +2628,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               {modal.type === 'loading' ? (
                 <>
                   <div className="flex flex-col items-center justify-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-500 mb-4"></div>
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 mb-4"
+                      style={{ borderColor: colorPalette?.primary || '#ea580c' }}></div>
                     {modal.title === 'Uploading Images' && uploadProgress > 0 && (
                       <h3 className="text-4xl font-bold text-white">{uploadProgress}%</h3>
                     )}
@@ -2301,7 +2676,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         </button>
                         <button
                           onClick={modal.onConfirm}
-                          className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+                          className="px-4 py-2 text-white rounded transition-colors"
+                          style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                          onMouseEnter={(e) => {
+                            if (colorPalette?.accent) e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                          }}
                         >
                           Confirm
                         </button>
@@ -2315,7 +2697,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                             setModal({ ...modal, isOpen: false });
                           }
                         }}
-                        className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+                        className="px-6 py-2 text-white rounded transition-colors"
+                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.accent) e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                        }}
                       >
                         OK
                       </button>
