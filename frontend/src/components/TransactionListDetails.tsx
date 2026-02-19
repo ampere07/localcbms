@@ -10,6 +10,7 @@ import LoadingModal from './LoadingModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import RelatedDataTable from './RelatedDataTable';
 import { relatedDataColumns } from '../config/relatedDataColumns';
+import { useBillingStore } from '../store/billingStore';
 
 interface Transaction {
   id: string;
@@ -188,8 +189,11 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
     setShowConfirmModal(true);
   };
 
+  const { refreshBillingRecords } = useBillingStore();
+
   const confirmApprove = async () => {
     setShowConfirmModal(false);
+
 
     try {
       setLoading(true);
@@ -207,6 +211,14 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
 
         const status = result.data?.status || 'Done';
         transaction.status = status;
+
+        // Auto-refresh customer data
+        try {
+          await refreshBillingRecords();
+          console.log('Customer data refreshed after transaction approval');
+        } catch (refreshErr) {
+          console.error('Failed to auto-refresh customer data:', refreshErr);
+        }
 
         await new Promise(resolve => setTimeout(resolve, 500));
 

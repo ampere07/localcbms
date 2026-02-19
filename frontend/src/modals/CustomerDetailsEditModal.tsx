@@ -14,6 +14,7 @@ import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/i
 import { billingStatusService, BillingStatus } from '../services/billingStatusService';
 import { getUsedPorts } from '../services/portService';
 import apiClient from '../config/api';
+import { useBillingStore } from '../store/billingStore';
 
 interface CustomerDetailsEditModalProps {
   isOpen: boolean;
@@ -45,6 +46,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [editType, setEditType] = useState<'customer_details' | 'billing_details' | 'technical_details'>(initialEditType);
+  const { refreshBillingRecords } = useBillingStore();
 
   const [formData, setFormData] = useState<any>({});
 
@@ -652,6 +654,14 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
       });
 
       await onSave(formData, editType);
+
+      // Auto-refresh customer data
+      try {
+        await refreshBillingRecords();
+        console.log('Customer data refreshed after edit');
+      } catch (refreshErr) {
+        console.error('Failed to auto-refresh customer data:', refreshErr);
+      }
 
       setModal({
         isOpen: true,

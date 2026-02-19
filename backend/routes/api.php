@@ -18,7 +18,6 @@ use App\Http\Controllers\RegionController;
 use App\Http\Controllers\DebugController;
 use App\Http\Controllers\EmergencyLocationController;
 use App\Http\Controllers\RadiusController;
-use App\Http\Controllers\SmartOltController;
 use App\Http\Controllers\RadiusConfigController;
 use App\Http\Controllers\SmsConfigController;
 use App\Http\Controllers\SMSTemplateController;
@@ -157,11 +156,6 @@ Route::prefix('debug')->group(function () {
         ]);
     });
 });
-
-// SmartOLT Routes
-Route::get('/smart-olt', [SmartOltController::class, 'index']);
-Route::post('/smart-olt', [SmartOltController::class, 'store']);
-Route::post('/smart-olt/validate-onu-sn', [SmartOltController::class, 'validateOnuSn']);
 
 // Discount Management Routes
 Route::prefix('discounts')->group(function () {
@@ -1232,7 +1226,6 @@ Route::prefix('job-orders')->middleware('ensure.database.tables')->group(functio
     Route::post('/{id}/approve', [JobOrderController::class, 'approve']);
     Route::post('/{id}/create-radius-account', [JobOrderController::class, 'createRadiusAccount']);
     Route::post('/{id}/upload-images', [JobOrderController::class, 'uploadImages']);
-    Route::get('/validate-modem-sn', [JobOrderController::class, 'validateModemSN']);
     
     // Lookup table endpoints
     Route::get('/lookup/modem-router-sns', [JobOrderController::class, 'getModemRouterSNs']);

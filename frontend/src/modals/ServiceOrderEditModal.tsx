@@ -924,73 +924,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       }
     }
 
-    // Duplicate Modem SN Validation (Job Orders & Technical Details) - For ALL connection types
-    // This checks if the modem SN (either current or new) already exists in another job order.
-    const modemSNsToValidate: { sn: string; field: 'routerModemSN' | 'newRouterModemSN' }[] = [];
 
-    // Check current routerModemSN if it has changed from its initial value
-    const initialSN = serviceOrderData?.routerModemSN || serviceOrderData?.router_modem_sn || '';
-    if (formData.routerModemSN?.trim() && formData.routerModemSN !== initialSN) {
-      modemSNsToValidate.push({ sn: formData.routerModemSN, field: 'routerModemSN' });
-    }
-
-    // Check newRouterModemSN if it's provided
-    if (formData.newRouterModemSN?.trim()) {
-      modemSNsToValidate.push({ sn: formData.newRouterModemSN, field: 'newRouterModemSN' });
-    }
-
-    for (const { sn, field } of modemSNsToValidate) {
-      try {
-        console.log(`[MODEM SN VALIDATION] Validating ${field} uniqueness:`, sn);
-
-        setModal({
-          isOpen: true,
-          type: 'loading',
-          title: 'Validating',
-          message: `Checking if ${field} already exists...`
-        });
-
-        const snValidationResponse = await apiClient.get('/job-orders/validate-modem-sn', {
-          params: {
-            sn: sn,
-            exclude_account_no: formData.accountNo
-          }
-        });
-
-        if (!(snValidationResponse.data as any).success) {
-          console.log(`[MODEM SN VALIDATION] Failed for ${field}:`, snValidationResponse.data);
-          const errorMessage = (snValidationResponse.data as any).message || 'Modem SN already exists in the system.';
-
-          setErrors(prev => ({
-            ...prev,
-            [field]: errorMessage
-          }));
-
-          setModal({
-            isOpen: true,
-            type: 'error',
-            title: 'Duplicate Modem SN Detected',
-            message: errorMessage,
-            onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
-          });
-          return;
-        }
-        console.log(`[MODEM SN VALIDATION] ${field} Success`);
-        setModal(prev => ({ ...prev, isOpen: false }));
-      } catch (error: any) {
-        console.error(`[MODEM SN VALIDATION] API Error for ${field}:`, error);
-        const errorMessage = error.response?.data?.message || 'Failed to validate Modem SN uniqueness.';
-
-        setModal({
-          isOpen: true,
-          type: 'error',
-          title: 'Validation Error',
-          message: errorMessage,
-          onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
-        });
-        return;
-      }
-    }
 
     if (!serviceOrderData?.id) {
       setModal({
