@@ -439,8 +439,8 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
               <img src={logoUrl} alt="ATSS Fiber" className="h-10 object-contain" />
             ) : (
               <div className="flex items-center">
-                <span className="text-slate-900 font-bold text-lg tracking-tight hidden sm:inline uppercase">SYNC <span className="font-black">PORTAL</span></span>
-                <span className="text-slate-900 font-bold text-lg tracking-tight sm:hidden uppercase">SYNC</span>
+                <span className="text-slate-900 font-bold text-lg tracking-tight hidden sm:inline uppercase">ATSS <span className="font-black">FIBER</span></span>
+                <span className="text-slate-900 font-bold text-lg tracking-tight sm:hidden uppercase">ATSS FIBER</span>
               </div>
             )}
           </div>
@@ -593,7 +593,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
           )}
           <h1 className={`${isDarkMode ? 'text-white' : 'text-gray-900'
             } text-xs font-semibold`}>
-            Powered by Sync
+            Powered by ATSS Fiber
           </h1>
         </div>
       </div>

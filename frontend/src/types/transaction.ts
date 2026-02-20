@@ -34,4 +34,8 @@ export interface Transaction {
         };
         account_balance: number;
     };
+    processor?: {
+        email_address: string;
+        full_name: string;
+    };
 }

@@ -46,6 +46,10 @@ Route::get('/sms-blast', [SmsBlastController::class, 'index']);
 Route::get('/expenses-logs', [ExpensesLogController::class, 'index']);
 Route::get('/disconnection-logs', [DisconnectionLogsController::class, 'index']);
 Route::get('/smart-olt/validate-sn', [\App\Http\Controllers\SmartOltController::class, 'validateOnuSn']);
+Route::get('/smart-olt', [\App\Http\Controllers\SmartOltController::class, 'index']);
+Route::post('/smart-olt', [\App\Http\Controllers\SmartOltController::class, 'store']);
+Route::put('/smart-olt/{id}', [\App\Http\Controllers\SmartOltController::class, 'update']);
+Route::delete('/smart-olt/{id}', [\App\Http\Controllers\SmartOltController::class, 'destroy']);
 Route::get('/reconnection-logs', [ReconnectionLogsController::class, 'index']);
 
 // SMS Template Routes

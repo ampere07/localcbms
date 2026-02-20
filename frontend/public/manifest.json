@@ -1,19 +1,19 @@
 {
-  "short_name": "Sync",
-  "name": "Sync - Customer Billing Management",
+  "short_name": "ATSS Fiber",
+  "name": "ATSS Fiber - Customer Billing Management",
   "icons": [
     {
-      "src": "logo1.png",
+      "src": "atsslogo.png",
       "type": "image/png",
       "sizes": "64x64 32x32 24x24 16x16"
     },
     {
-      "src": "logo1.png",
+      "src": "atsslogo.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "logo1.png",
+      "src": "atsslogo.png",
       "type": "image/png",
       "sizes": "512x512"
     }

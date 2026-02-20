@@ -149,7 +149,11 @@ const SmartOltConfig: React.FC = () => {
                 ...formData
             };
 
-            await apiClient.post('/smart-olt', payload);
+            if (editingId) {
+                await apiClient.put(`/smart-olt/${editingId}`, payload);
+            } else {
+                await apiClient.post('/smart-olt', payload);
+            }
 
             setModal({
                 isOpen: true,
@@ -175,6 +179,38 @@ const SmartOltConfig: React.FC = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleDelete = async (id: number) => {
+        setModal({
+            isOpen: true,
+            type: 'confirm',
+            title: 'Delete Configuration',
+            message: 'Are you sure you want to delete this configuration?',
+            onConfirm: async () => {
+                try {
+                    setLoading(true);
+                    await apiClient.delete(`/smart-olt/${id}`);
+                    setModal({
+                        isOpen: true,
+                        type: 'success',
+                        title: 'Deleted',
+                        message: 'SmartOLT configuration deleted successfully'
+                    });
+                    await fetchConfigs();
+                } catch (error: any) {
+                    console.error('Error deleting SmartOLT config:', error);
+                    setModal({
+                        isOpen: true,
+                        type: 'error',
+                        title: 'Error',
+                        message: `Failed to delete: ${error.message}`
+                    });
+                } finally {
+                    setLoading(false);
+                }
+            }
+        });
     };
 
     const handleCancel = () => {
@@ -355,16 +391,28 @@ const SmartOltConfig: React.FC = () => {
                                                 </div>
                                                 <h3 className="text-lg font-bold">Active Configuration</h3>
                                             </div>
-                                            <button
-                                                onClick={() => handleStartEdit(config)}
-                                                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-blue-400' : 'hover:bg-gray-100 text-blue-600'
-                                                    }`}
-                                                title="Edit Configuration"
-                                            >
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                </svg>
-                                            </button>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => handleStartEdit(config)}
+                                                    className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-blue-400' : 'hover:bg-gray-100 text-blue-600'
+                                                        }`}
+                                                    title="Edit Configuration"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(config.id)}
+                                                    className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-red-400' : 'hover:bg-gray-100 text-red-600'
+                                                        }`}
+                                                    title="Delete Configuration"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 01-1-1H5m14 0a2 2 0 012 2v2H5" />
+                                                    </svg>
+                                                </button>
+                                            </div>
                                         </div>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -565,23 +613,30 @@ const SmartOltConfig: React.FC = () => {
                             <p className="text-gray-500 text-center text-sm mt-1">{modal.message}</p>
                         </div>
 
-                        <button
-                            onClick={() => setModal({ ...modal, isOpen: false })}
-                            className="w-full py-3 rounded-xl text-white font-bold transition-all hover:brightness-110 active:scale-95 shadow-lg"
-                            style={{
-                                backgroundColor: colorPalette?.primary || '#ea580c'
-                            }}
-                            onMouseEnter={(e) => {
-                                if (colorPalette?.accent) {
-                                    e.currentTarget.style.backgroundColor = colorPalette.accent;
-                                }
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
-                            }}
-                        >
-                            Understand
-                        </button>
+                        <div className="flex gap-3">
+                            {modal.type === 'confirm' && (
+                                <button
+                                    onClick={() => setModal({ ...modal, isOpen: false })}
+                                    className={`flex-1 py-3 rounded-xl font-bold transition-all active:scale-95 ${isDarkMode ? 'bg-gray-800 text-gray-400 hover:bg-gray-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                            <button
+                                onClick={() => {
+                                    if (modal.type === 'confirm' && modal.onConfirm) {
+                                        modal.onConfirm();
+                                    }
+                                    setModal({ ...modal, isOpen: false });
+                                }}
+                                className="flex-1 py-3 rounded-xl text-white font-bold transition-all hover:brightness-110 active:scale-95 shadow-lg"
+                                style={{
+                                    backgroundColor: modal.type === 'confirm' ? '#ef4444' : (colorPalette?.primary || '#ea580c')
+                                }}
+                            >
+                                {modal.type === 'confirm' ? 'Delete' : 'Understand'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

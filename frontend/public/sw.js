@@ -8,9 +8,9 @@ self.addEventListener('push', (event) => {
     const title = data.title || 'New Notification';
     const options = {
         body: data.message || 'You have a new update.',
-        icon: '/logo1.png',
-        badge: '/logo1.png',
-        tag: data.tag || 'sync-notification',
+        icon: '/atsslogo.png',
+        badge: '/atsslogo.png',
+        tag: data.tag || 'atss-notification',
         requireInteraction: true,
         data: data.url || '/'
     };

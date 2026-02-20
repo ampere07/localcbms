@@ -69,6 +69,7 @@ class TransactionController extends Controller
                 'payment_date' => 'required|date',
                 'date_processed' => 'nullable|date',
                 'processed_by_user_id' => 'nullable|exists:users,id',
+                'processed_by_user' => 'nullable|string|max:255',
                 'payment_method' => 'required|string|max:255',
                 'reference_no' => 'required|string|max:255',
                 'or_no' => 'required|string|max:255',
@@ -89,12 +90,12 @@ class TransactionController extends Controller
                 ? \Carbon\Carbon::parse($validated['date_processed'])->format('Y-m-d H:i:s')
                 : now()->format('Y-m-d H:i:s');
             $validated['status'] = $validated['status'] ?? 'Pending';
-            $validated['created_by_user'] = Auth::check() ? Auth::user()->email : 'unknown';
-            $validated['updated_by_user'] = Auth::check() ? Auth::user()->email : 'unknown';
+            $validated['created_by_user'] = Auth::check() ? Auth::user()->email_address : 'unknown';
+            $validated['updated_by_user'] = Auth::check() ? Auth::user()->email_address : 'unknown';
             
-            if (isset($validated['processed_by_user_id'])) {
-                $validated['processed_by_user'] = $validated['processed_by_user_id'];
-                unset($validated['processed_by_user_id']);
+            // If processed_by_user is not provided in request, default to authenticated user
+            if (!isset($validated['processed_by_user'])) {
+                $validated['processed_by_user'] = Auth::check() ? Auth::user()->email_address : 'unknown';
             }
 
             $autoApplyPayment = $validated['auto_apply_payment'] ?? false;
@@ -208,9 +209,13 @@ class TransactionController extends Controller
         }
     }
 
-    public function approve(string $id): JsonResponse
+    public function approve(Request $request, string $id): JsonResponse
     {
         try {
+            $request->validate([
+                'approved_by' => 'nullable|string|email'
+            ]);
+
             DB::beginTransaction();
 
             $transaction = Transaction::findOrFail($id);
@@ -273,8 +278,8 @@ class TransactionController extends Controller
 
             $transaction->status = 'Done';
             $transaction->date_processed = $currentTime;
-            $transaction->updated_by_user = Auth::check() ? Auth::user()->email : 'unknown';
-            $transaction->approved_by = Auth::check() ? Auth::user()->email : 'unknown';
+            $transaction->updated_by_user = Auth::check() ? Auth::user()->email_address : 'unknown';
+            $transaction->approved_by = $request->input('approved_by') ?? (Auth::check() ? Auth::user()->email_address : 'unknown');
             $transaction->account_balance_before = $currentBalance;
             $transaction->save();
 
@@ -433,7 +438,7 @@ class TransactionController extends Controller
             ];
 
             $invoice->transaction_id = $transactionId;
-            $invoice->updated_by = Auth::check() ? Auth::user()->email : 'unknown';
+            $invoice->updated_by = Auth::check() ? Auth::user()->email_address : 'unknown';
             $invoice->updated_at = $currentTime;
             $invoice->save();
         }
@@ -464,7 +469,7 @@ class TransactionController extends Controller
 
             $transaction = Transaction::findOrFail($id);
             $transaction->status = $request->status;
-            $transaction->updated_by_user = Auth::check() ? Auth::user()->email : 'unknown';
+            $transaction->updated_by_user = Auth::check() ? Auth::user()->email_address : 'unknown';
             $transaction->save();
 
             DB::commit();
@@ -496,7 +501,8 @@ class TransactionController extends Controller
 
             $validated = $request->validate([
                 'transaction_ids' => 'required|array',
-                'transaction_ids.*' => 'required|exists:transactions,id'
+                'transaction_ids.*' => 'required|exists:transactions,id',
+                'approved_by' => 'nullable|string|email'
             ]);
 
             $transactionIds = $validated['transaction_ids'];
@@ -561,8 +567,8 @@ class TransactionController extends Controller
 
                     $transaction->status = 'Done';
                     $transaction->date_processed = $currentTime;
-                    $transaction->updated_by_user = Auth::check() ? Auth::user()->email : 'unknown';
-                    $transaction->approved_by = Auth::check() ? Auth::user()->email : 'unknown';
+                    $transaction->updated_by_user = Auth::check() ? Auth::user()->email_address : 'unknown';
+                    $transaction->approved_by = $request->input('approved_by') ?? (Auth::check() ? Auth::user()->email_address : 'unknown');
                     $transaction->account_balance_before = $currentBalance;
                     $transaction->save();
 
@@ -879,8 +885,15 @@ class TransactionController extends Controller
                     $message = str_replace('{{customer_name}}', $customer->full_name, $message);
                     $message = str_replace('{{account_no}}', $billingAccount->account_no, $message);
                     $message = str_replace('{{invoice_id}}', $invoiceIds, $message);
-                    $message = str_replace('{{amount_paid}}', number_format($totalPaidAmount, 2), $message);
-                    $message = str_replace('{{date}}', date('Y-m-d'), $message);
+                    
+                    // Support multiple variations of placeholders
+                    $formattedAmount = number_format($totalPaidAmount, 2);
+                    $currentDate = date('Y-m-d');
+                    
+                    $message = str_replace('{{amount_paid}}', $formattedAmount, $message);
+                    $message = str_replace('{{amount}}', $formattedAmount, $message);
+                    $message = str_replace('{{date}}', $currentDate, $message);
+                    $message = str_replace('{{payment_date}}', $currentDate, $message);
                     
                     $message = $this->replaceGlobalVariables($message);
                     

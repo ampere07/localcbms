@@ -47,6 +47,11 @@ interface Transaction {
       region: string;
     };
     account_balance: number;
+    billing_status_id?: number | null;
+  };
+  processor?: {
+    email_address: string;
+    full_name: string;
   };
 }
 
@@ -202,7 +207,18 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
 
       setLoadingPercentage(20);
 
-      const result = await transactionService.approveTransaction(transaction.id);
+      let currentUserEmail = '';
+      try {
+        const authData = localStorage.getItem('authData');
+        if (authData) {
+          const parsed = JSON.parse(authData);
+          currentUserEmail = parsed.email || parsed.user?.email || '';
+        }
+      } catch (err) {
+        console.error('Error getting current user email:', err);
+      }
+
+      const result = await transactionService.approveTransaction(transaction.id, currentUserEmail);
 
       setLoadingPercentage(60);
 
@@ -391,7 +407,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
               {renderField('Received Payment', formatCurrency(transaction.received_payment), false, true)}
               {renderField('Payment Date', formatDate(transaction.payment_date))}
               {renderField('Date Processed', formatDate(transaction.date_processed))}
-              {renderField('Processed By', transaction.processed_by_user, true)}
+              {renderField('Processed By', transaction.processor?.email_address || transaction.processed_by_user, true)}
               {renderField('Approved By', transaction.approved_by, true)}
               {renderField('Payment Method', transaction.payment_method_info?.payment_method || transaction.payment_method, true)}
               {renderField('Reference No.', transaction.reference_no)}

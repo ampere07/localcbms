@@ -45,7 +45,7 @@ class JobOrderController extends Controller
                 'fast_mode' => $fastMode
             ]);
 
-            $query = JobOrder::with('application')->orderBy('id', 'desc');
+            $query = JobOrder::with(['application', 'items'])->orderBy('id', 'desc');
             
             if ($request->has('assigned_email')) {
                 $assignedEmail = $request->query('assigned_email');
@@ -192,6 +192,7 @@ class JobOrderController extends Controller
                     'Desired_Plan' => $application ? $application->desired_plan : null,
                     'Referred_By' => $application ? $application->referred_by : null,
                     'Billing_Status' => $jobOrder->billing_status,
+                    'job_order_items' => $jobOrder->items,
                 ];
             });
 
@@ -305,7 +306,7 @@ class JobOrderController extends Controller
     public function show($id): JsonResponse
     {
         try {
-            $jobOrder = JobOrder::with('application')->findOrFail($id);
+            $jobOrder = JobOrder::with(['application', 'items'])->findOrFail($id);
 
             return response()->json([
                 'success' => true,
@@ -944,6 +945,11 @@ class JobOrderController extends Controller
             // Send Welcome SMS
             try {
                 if (!empty($customer->contact_number_primary)) {
+                    \Log::info('Attempting to send Welcome SMS', [
+                        'customer_id' => $customer->id,
+                        'contact_number' => $customer->contact_number_primary
+                    ]);
+
                     $welcomeTemplate = \App\Models\SMSTemplate::where('template_type', 'Welcome')
                         ->where('is_active', 1)
                         ->first();
@@ -953,27 +959,40 @@ class JobOrderController extends Controller
                         
                         // Replace variables
                         $message = str_replace('{{customer_name}}', $customer->full_name, $message);
+                        $message = str_replace('{{customer_tag}}', $customer->full_name, $message);
+                        $message = str_replace('{{company_name}}', 'ATSS Fiber', $message);
                         $message = str_replace('{{account_no}}', $accountNumber, $message);
                         $message = str_replace('{{username}}', $generatedUsername, $message);
                         $message = str_replace('{{password}}', $generatedPassword, $message);
                         
                         $smsService = new \App\Services\ItexmoSmsService();
-                        $smsService->send([
+                        $result = $smsService->send([
                             'contact_no' => $customer->contact_number_primary,
                             'message' => $message
                         ]);
                         
-                        \Log::info('Welcome SMS sent successfully', [
-                             'customer_id' => $customer->id,
-                             'account_no' => $accountNumber
-                        ]);
+                        if ($result['success']) {
+                            \Log::info('Welcome SMS sent successfully', [
+                                 'customer_id' => $customer->id,
+                                 'account_no' => $accountNumber,
+                                 'response' => $result
+                            ]);
+                        } else {
+                            \Log::error('Welcome SMS failed to send', [
+                                'customer_id' => $customer->id,
+                                'error' => $result['error'] ?? 'Unknown error'
+                            ]);
+                        }
                     } else {
-                        \Log::warning('Welcome SMS template not found');
+                        \Log::warning('Welcome SMS template not found or inactive');
                     }
+                } else {
+                    \Log::warning('Welcome SMS skipped: No contact number provided');
                 }
             } catch (\Exception $e) {
                 // Log but don't fail the request since approval is committed
-                \Log::error('Failed to send Welcome SMS: ' . $e->getMessage()); 
+                \Log::error('Failed to send Welcome SMS Exception: ' . $e->getMessage()); 
+                \Log::error('Trace: ' . $e->getTraceAsString());
             }
 
             // Send Welcome Email
@@ -988,6 +1007,9 @@ class JobOrderController extends Controller
 
                         // Replace variables in email body
                         $emailBody = str_replace('{{customer_name}}', $customer->full_name, $emailBody);
+                        $emailBody = str_replace('{{customer_tag}}', $customer->full_name, $emailBody);
+                        $emailBody = str_replace('{{company_name}}', 'ATSS Fiber', $emailBody);
+                        $emailBody = str_replace('{{fb_username}}', 'https://www.facebook.com/atssfiber', $emailBody);
                         $emailBody = str_replace('{{account_no}}', $accountNumber, $emailBody);
                         $emailBody = str_replace('{{username}}', $generatedUsername, $emailBody);
                         $emailBody = str_replace('{{password}}', $generatedPassword, $emailBody);
@@ -1000,7 +1022,10 @@ class JobOrderController extends Controller
                                  'recipient_email' => $customer->email_address,
                                  'subject' => $welcomeEmailTemplate->Subject_Line ?? 'Welcome to Ampere', 
                                  'body_html' => nl2br($emailBody), 
-                                 'attachment_path' => null
+                                 'attachment_path' => null,
+                                 'email_sender' => $welcomeEmailTemplate->email_sender,
+                                 'reply_to' => $welcomeEmailTemplate->reply_to,
+                                 'sender_name' => $welcomeEmailTemplate->sender_name
                              ]);
                              
                              \Log::info('Welcome Email queued successfully', [

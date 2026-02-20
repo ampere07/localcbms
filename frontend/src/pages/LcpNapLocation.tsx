@@ -525,9 +525,13 @@ const LcpNapLocation: React.FC = () => {
               onClick={() => handleLcpNapSelect(item.id === 0 ? 'all' : item.id)}
               className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
                 } ${(item.id === 0 && selectedLcpNapId === 'all') || (item.id !== 0 && selectedLcpNapId === item.id)
-                  ? 'bg-orange-500 bg-opacity-20 text-orange-400 font-medium'
+                  ? 'font-medium'
                   : isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}
+              style={(item.id === 0 && selectedLcpNapId === 'all') || (item.id !== 0 && selectedLcpNapId === item.id) ? {
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : isDarkMode ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.1)',
+                color: colorPalette?.primary || (isDarkMode ? '#fb923c' : '#ea580c')
+              } : {}}
             >
               <div className="flex items-center">
                 <MapPin className="h-4 w-4 mr-2" />
@@ -535,9 +539,13 @@ const LcpNapLocation: React.FC = () => {
               </div>
               {item.count > 0 && (
                 <span className={`px-2 py-1 rounded-full text-xs ${(item.id === 0 && selectedLcpNapId === 'all') || (item.id !== 0 && selectedLcpNapId === item.id)
-                  ? 'bg-orange-600 text-white'
+                  ? 'text-white'
                   : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                  }`}>
+                  }`}
+                  style={(item.id === 0 && selectedLcpNapId === 'all') || (item.id !== 0 && selectedLcpNapId === item.id) ? {
+                    backgroundColor: colorPalette?.primary || '#ea580c'
+                  } : {}}
+                >
                   {item.count}
                 </span>
               )}
@@ -546,7 +554,16 @@ const LcpNapLocation: React.FC = () => {
         </div>
 
         <div
-          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-10"
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
+          style={{
+            backgroundColor: 'transparent'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
           onMouseDown={handleMouseDownSidebarResize}
         />
       </div>
@@ -590,7 +607,10 @@ const LcpNapLocation: React.FC = () => {
               <div className={`absolute inset-0 bg-opacity-75 flex items-center justify-center z-[1000] ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'
                 }`}>
                 <div className="flex flex-col items-center gap-3">
-                  <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+                  <Loader2
+                    className="h-8 w-8 animate-spin"
+                    style={{ color: colorPalette?.primary || '#ea580c' }}
+                  />
                   <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
                     }`}>Loading map...</p>
                 </div>

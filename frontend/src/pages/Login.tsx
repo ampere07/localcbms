@@ -479,7 +479,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 color: '#6b7280',
                 marginTop: '10px'
               }}>
-                Powered by <span style={{ color: '#7c3aed' }}>Sync</span>
+                Powered by <span style={{ color: '#7c3aed' }}>SYNC</span>
               </p>
             </div>
 

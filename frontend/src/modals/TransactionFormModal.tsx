@@ -301,7 +301,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
         received_payment: parseFloat(formData.receivedPayment) || 0,
         payment_date: formData.paymentDate,
         date_processed: new Date().toISOString(),
-        processed_by_user_id: undefined,
+        processed_by_user: formData.processedBy,
         payment_method: formData.paymentMethod,
         reference_no: formData.referenceNo,
         or_no: formData.orNo,

@@ -567,10 +567,19 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
 
     try {
       setIsApproving(true);
-      // Removed setError(null) as error is now managed by context primarily, though local error handling for this action would be ideal.
-      // We'll rely on global error or modal for now.
 
-      const result = await transactionService.batchApproveTransactions(selectedTransactionIds);
+      let currentUserEmail = '';
+      try {
+        const authData = localStorage.getItem('authData');
+        if (authData) {
+          const parsed = JSON.parse(authData);
+          currentUserEmail = parsed.email || parsed.user?.email || '';
+        }
+      } catch (err) {
+        console.error('Error getting current user email:', err);
+      }
+
+      const result = await transactionService.batchApproveTransactions(selectedTransactionIds, currentUserEmail);
 
       if (result.success) {
         const successCount = result.data?.success?.length || 0;
@@ -1079,7 +1088,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{transaction.payment_method_info?.payment_method || transaction.payment_method}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{transaction.processed_by_user || '-'}</td>
+                            }`}>{transaction.processor?.email_address || transaction.processed_by_user || '-'}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{transaction.account?.customer?.full_name || '-'}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'

@@ -43,7 +43,7 @@ class Transaction extends Model
 
     public function processor()
     {
-        return $this->belongsTo(User::class, 'processed_by_user', 'id');
+        return $this->belongsTo(User::class, 'processed_by_user', 'email_address');
     }
 
     public function getProcessedByUserAttribute($value)

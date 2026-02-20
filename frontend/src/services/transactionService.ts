@@ -21,6 +21,7 @@ interface CreateTransactionPayload {
   payment_date: string;
   date_processed: string;
   processed_by_user_id?: number;
+  processed_by_user?: string;
   payment_method: string;
   reference_no: string;
   or_no: string;
@@ -37,9 +38,11 @@ interface CreateTransactionResponse {
 }
 
 export const transactionService = {
-  approveTransaction: async (transactionId: string): Promise<ApproveTransactionResponse> => {
+  approveTransaction: async (transactionId: string, approvedBy?: string): Promise<ApproveTransactionResponse> => {
     try {
-      const response = await apiClient.post<ApiResponse>(`/transactions/${transactionId}/approve`);
+      const response = await apiClient.post<ApiResponse>(`/transactions/${transactionId}/approve`, {
+        approved_by: approvedBy
+      });
       return {
         success: true,
         message: response.data.message || 'Transaction approved successfully',
@@ -119,14 +122,15 @@ export const transactionService = {
     }
   },
 
-  batchApproveTransactions: async (transactionIds: string[]): Promise<any> => {
+  batchApproveTransactions: async (transactionIds: string[], approvedBy?: string): Promise<any> => {
     try {
       console.log('Batch approving transactions:', transactionIds);
       console.log('Transaction IDs type:', typeof transactionIds);
       console.log('First ID:', transactionIds[0], 'Type:', typeof transactionIds[0]);
 
       const response = await apiClient.post<ApiResponse>('/transactions/batch-approve', {
-        transaction_ids: transactionIds
+        transaction_ids: transactionIds,
+        approved_by: approvedBy
       });
 
       console.log('Batch approve response:', response.data);

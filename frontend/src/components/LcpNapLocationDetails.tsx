@@ -173,8 +173,14 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
     >
       {!isMobile && (
         <div
-          className={`hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
-            }`}
+          className="hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
+          style={{ backgroundColor: 'transparent' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
           onMouseDown={handleMouseDownResize}
         />
       )}

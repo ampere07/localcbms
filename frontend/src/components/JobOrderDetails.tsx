@@ -60,7 +60,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     'connectionType',
     'modemRouterSn',
     'routerModel',
-
+    'installationFee',
     'lcpnap',
     'port',
     'vlan',
@@ -461,6 +461,24 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     return onsiteStatus === 'done' && billingStatus !== 'done' && isAdministrator;
   };
 
+  const shouldShowEditButton = () => {
+    const isAdministrator = userRole === 'administrator' || roleId === 1;
+    const isTechnician = userRole === 'technician' || roleId === 2;
+
+    const billingStatus = (jobOrder.billing_status || jobOrder.Billing_Status || '').toLowerCase();
+    const onsiteStatus = (jobOrder.Onsite_Status || jobOrder.onsite_status || '').toLowerCase();
+
+    if (isAdministrator) {
+      return billingStatus === 'in progress' || jobOrder.billing_status_id === 1 || jobOrder.Billing_Status_ID === 1;
+    }
+
+    if (isTechnician) {
+      return onsiteStatus === 'in progress' || onsiteStatus === 'inprogress';
+    }
+
+    return false;
+  };
+
   const handleStatusUpdate = async (newStatus: string) => {
     if (loading) return;
     try {
@@ -509,7 +527,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       connectionType: 'Connection Type',
       modemRouterSn: 'Modem/Router SN',
       routerModel: 'Router Model',
-
+      installationFee: 'Installation Fee',
       lcpnap: 'LCPNAP',
       port: 'PORT',
       vlan: 'VLAN',
@@ -521,7 +539,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       visitWith: 'Visit With',
       visitWithOther: 'Visit With Other',
       onsiteStatus: 'Onsite Status',
-      jobOrderItems: 'Job Order Items',
+      jobOrderItems: 'Item Used',
 
       modifiedBy: 'Modified By',
       modifiedDate: 'Modified Date',
@@ -730,7 +748,13 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           </div>
         );
 
-
+      case 'installationFee':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Installation Fee:</div>
+            <div className={valueClass}>{formatPrice(jobOrder.Installation_Fee || jobOrder.installation_fee)}</div>
+          </div>
+        );
 
       case 'lcpnap':
         return (
@@ -833,7 +857,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       case 'jobOrderItems':
         return (
           <div className={`flex flex-col border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-            <div className={`text-sm mb-2 font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Job Order Items</div>
+            <div className={`text-sm mb-2 font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Item Used</div>
             {jobOrder.job_order_items && jobOrder.job_order_items.length > 0 ? (
               <div className={`overflow-x-auto rounded border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                 <table className={`min-w-full text-sm text-left ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -1060,7 +1084,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
               <span>Approve</span>
             </button>
           )}
-          {!(jobOrder.Onsite_Status && jobOrder.Onsite_Status.toLowerCase() === 'done') && (
+          {shouldShowEditButton() && (
             <button
               className="text-white px-3 py-1 rounded-sm flex items-center transition-colors text-sm md:text-base font-medium"
               style={{
