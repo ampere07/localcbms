@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LayoutDashboard, Users, FileText, LogOut, ChevronRight, User, Building2, Shield, FileCheck, Wrench, Map, MapPinned, MapPin, Package, CreditCard, List, Router, DollarSign, Receipt, FileBarChart, Clock, Calendar, UserCheck, AlertTriangle, Tag, MessageSquare, Settings, Network, Activity, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, LogOut, ChevronRight, User, Building2, Shield, FileCheck, Wrench, Map, MapPinned, MapPin, Package, CreditCard, List, Router, DollarSign, Receipt, FileBarChart, Clock, Calendar, UserCheck, AlertTriangle, Tag, MessageSquare, Settings, Network, Activity, AlertCircle, ReceiptCent, Clipboard } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface SidebarProps {
@@ -144,6 +144,30 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         { id: 'usage-type', label: 'Usage Type', icon: Activity, allowedRoles: ['administrator'] }
       ]
     },
+
+    { 
+      id: 'work-order-group', 
+      label: 'Work Order', 
+      icon: Clipboard, 
+      allowedRoles: ['administrator', 'technician'],
+      children: [
+      {
+      id: 'work-order', 
+      label: 'Work Order', 
+      icon: Clipboard, 
+      allowedRoles: ['administrator', 'technician']}] 
+      /*
+      { #temp child
+        id: 'assign-work-order', 
+        label: 'Assign Work Order', 
+        icon: Wrench, allowedRoles: ['administrator']},
+
+      ]
+      */
+    
+    },
+    
+    
     {
       id: 'sms',
       label: 'SMS',

@@ -28,6 +28,8 @@ import TransactionList from './TransactionList';
 import PaymentPortal from './PaymentPortal';
 import JobOrder from './JobOrder';
 import ServiceOrder from './ServiceOrder';
+import WorkOrder from './WorkOrder';
+import AddWorkOrder from '../modals/AddWorkOrder';
 // import ApplicationVisit from './ApplicationVisit';
 import LocationList from './LocationList';
 import PlanList from './PlanList';
@@ -232,6 +234,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 return <JobOrder />;
             case 'service-order':
                 return <ServiceOrder />;
+    
+            case 'work-order':
+                return <WorkOrder />;
+            case 'assign-work-order':
+                return <AddWorkOrder />;
             // case 'application-visit':
             //     return <ApplicationVisit />;
             case 'location-list':
