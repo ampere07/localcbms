@@ -234,7 +234,7 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
   };
 
   const handleRequestPlanUpdate = () => {
-    window.open('https://forms.gle/your-plan-update-form', '_blank');
+    window.open('https://www.facebook.com/atssfiber2022', '_blank');
   };
 
   return (

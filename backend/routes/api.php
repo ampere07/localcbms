@@ -603,13 +603,13 @@ Route::delete('/barangays/{id}', function($id, Request $request) {
     return app(\App\Http\Controllers\Api\LocationApiController::class)->deleteLocation('barangay', $id, $request);
 });
 
-Route::get('/villages', [\App\Http\Controllers\Api\LocationApiController::class, 'getAllVillages']);
-Route::post('/villages', [\App\Http\Controllers\Api\LocationApiController::class, 'addVillage']);
+Route::get('/villages', [\App\Http\Controllers\Api\LocationApiController::class, 'getAllDetails']);
+Route::post('/villages', [\App\Http\Controllers\Api\LocationApiController::class, 'addLocation']);
 Route::put('/villages/{id}', function($id, Request $request) {
-    return app(\App\Http\Controllers\Api\LocationApiController::class)->updateLocation('village', $id, $request);
+    return app(\App\Http\Controllers\Api\LocationApiController::class)->updateLocation('location', $id, $request);
 });
 Route::delete('/villages/{id}', function($id, Request $request) {
-    return app(\App\Http\Controllers\Api\LocationApiController::class)->deleteLocation('village', $id, $request);
+    return app(\App\Http\Controllers\Api\LocationApiController::class)->deleteLocation('location', $id, $request);
 });
 
 // Alternative endpoint formats for maximum compatibility

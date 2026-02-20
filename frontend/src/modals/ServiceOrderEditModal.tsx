@@ -796,6 +796,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       })
     };
 
+    if (updatedFormData.supportStatus === 'Resolved') {
+      const originalVisitStatus = serviceOrderData.visitStatus || (serviceOrderData.visit_status === 'Pending' ? 'In Progress' : (serviceOrderData.visitStatus || serviceOrderData.visit_status || 'In Progress'));
+      updatedFormData.visitStatus = originalVisitStatus;
+    }
+
     setFormData(updatedFormData);
 
     if (!validateForm()) {
@@ -811,8 +816,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     // SmartOLT Validation Logic
     if (formData.connectionType === 'Fiber') {
       // Check if New Router Modem SN field is visible
-      const isNewRouterModemSNVisible = formData.visitStatus === 'Done' &&
-        ['Migrate', 'Relocate', 'Relocate Router', 'Transfer LCP/NAP/PORT', 'Replace Router'].includes(formData.repairCategory);
+      const isNewRouterModemSNVisible = updatedFormData.visitStatus === 'Done' &&
+        ['Migrate', 'Relocate', 'Relocate Router', 'Transfer LCP/NAP/PORT', 'Replace Router'].includes(updatedFormData.repairCategory);
 
       // Validate New Router Modem SN if provided and visible
       if (isNewRouterModemSNVisible && formData.newRouterModemSN?.trim()) {
@@ -955,7 +960,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         port: updatedFormData.port,
         vlan: updatedFormData.vlan,
         support_status: updatedFormData.supportStatus,
-        visit_status: updatedFormData.visitStatus,
+        ...(updatedFormData.supportStatus !== 'Resolved' ? { visit_status: updatedFormData.visitStatus } : {}),
         repair_category: updatedFormData.repairCategory,
         visit_by_user: updatedFormData.visitBy,
         visit_with: updatedFormData.visitWith,
@@ -1621,7 +1626,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                             >
                               <option value="">{formData.newLcpnap ? 'Select Port' : 'Select LCP-NAP first'}</option>
                               {Array.from({ length: totalPorts }, (_, i) => {
-                                const portVal = `p${(i + 1).toString().padStart(2, '0')}`;
+                                const portVal = `P${(i + 1).toString().padStart(2, '0')}`;
                                 const isUsed = usedPorts.includes(portVal);
                                 const isSelected = formData.newPort === portVal;
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown } from 'lucide-react';
+import { X, ChevronDown, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import {
   createRegion,
   createCity,
@@ -58,6 +58,53 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
   const [filteredBarangays, setFilteredBarangays] = useState<Borough[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [alertConfig, setAlertConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'alert' | 'confirm' | 'error' | 'warning';
+    onConfirm?: () => void;
+    onCancel?: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'alert'
+  });
+
+  const customConfirm = (title: string, message: string, type: 'confirm' | 'warning' = 'confirm'): Promise<boolean> => {
+    return new Promise((resolve) => {
+      setAlertConfig({
+        isOpen: true,
+        title,
+        message,
+        type,
+        onConfirm: () => {
+          setAlertConfig(prev => ({ ...prev, isOpen: false }));
+          resolve(true);
+        },
+        onCancel: () => {
+          setAlertConfig(prev => ({ ...prev, isOpen: false }));
+          resolve(false);
+        }
+      });
+    });
+  };
+
+  const customAlert = (title: string, message: string, type: 'alert' | 'error' | 'warning' = 'alert'): Promise<void> => {
+    return new Promise((resolve) => {
+      setAlertConfig({
+        isOpen: true,
+        title,
+        message,
+        type,
+        onConfirm: () => {
+          setAlertConfig(prev => ({ ...prev, isOpen: false }));
+          resolve();
+        }
+      });
+    });
+  };
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -209,31 +256,31 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
       };
 
       if (locationData.barangay.isNew && !locationData.city.isNew && !locationData.city.id) {
-        alert('Please select a city or create a new one before adding a barangay');
+        await customAlert('Required Information', 'Please select a city or create a new one before adding a barangay', 'warning');
         setLoading(false);
         return;
       }
 
       if ((locationData.city.isNew || locationData.barangay.isNew) && !locationData.region.isNew && !locationData.region.id) {
-        alert('Please select a region or create a new one before adding a city or barangay');
+        await customAlert('Required Information', 'Please select a region or create a new one before adding a city or barangay', 'warning');
         setLoading(false);
         return;
       }
 
       if (locationData.region.isNew && !locationData.region.name.trim()) {
-        alert('Please enter a region name');
+        await customAlert('Required Information', 'Please enter a region name', 'warning');
         setLoading(false);
         return;
       }
 
       if (locationData.city.isNew && !locationData.city.name.trim()) {
-        alert('Please enter a city name');
+        await customAlert('Required Information', 'Please enter a city name', 'warning');
         setLoading(false);
         return;
       }
 
       if (locationData.barangay.isNew && !locationData.barangay.name.trim()) {
-        alert('Please enter a barangay name');
+        await customAlert('Required Information', 'Please enter a barangay name', 'warning');
         setLoading(false);
         return;
       }
@@ -270,7 +317,7 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
       if (locationData.barangay.isNew) createdLocations.push(`Barangay: ${locationData.barangay.name}`);
 
       if (createdLocations.length > 0) {
-        alert(`Successfully created:\n${createdLocations.join('\n')}`);
+        await customAlert('Success', `Successfully created:\n${createdLocations.join('\n')}`);
       }
 
       onSave(locationData);
@@ -279,7 +326,7 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
     } catch (error: any) {
       console.error('Error creating location:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to create location. Please try again.';
-      alert(`Error: ${errorMessage}`);
+      await customAlert('Error', `Error: ${errorMessage}`, 'error');
       setLoading(false);
     }
   };
@@ -310,8 +357,8 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-gray-100 border-gray-300'
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-300'
           }`}>
           <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>Add Location</h2>
@@ -319,8 +366,8 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
             <button
               onClick={handleClose}
               className={`px-4 py-2 rounded text-sm ${isDarkMode
-                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                 }`}
             >
               Cancel
@@ -379,8 +426,8 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                       onChange={(e) => setNewRegionName(e.target.value)}
                       placeholder="Enter new region name"
                       className={`w-full px-3 py-2 border border-orange-500 rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                          ? 'bg-gray-800 text-white'
-                          : 'bg-white text-gray-900'
+                        ? 'bg-gray-800 text-white'
+                        : 'bg-white text-gray-900'
                         }`}
                       autoFocus
                     />
@@ -429,8 +476,8 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                       onChange={(e) => setNewCityName(e.target.value)}
                       placeholder="Enter new city name"
                       className={`w-full px-3 py-2 border border-orange-500 rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                          ? 'bg-gray-800 text-white'
-                          : 'bg-white text-gray-900'
+                        ? 'bg-gray-800 text-white'
+                        : 'bg-white text-gray-900'
                         }`}
                       autoFocus
                     />
@@ -480,8 +527,8 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                       onChange={(e) => setNewBarangayName(e.target.value)}
                       placeholder="Enter new barangay name"
                       className={`w-full px-3 py-2 border border-orange-500 rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                          ? 'bg-gray-800 text-white'
-                          : 'bg-white text-gray-900'
+                        ? 'bg-gray-800 text-white'
+                        : 'bg-white text-gray-900'
                         }`}
                       autoFocus
                     />
@@ -521,6 +568,62 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
           )}
         </div>
       </div>
+      {/* Inline Alert Modal */}
+      {alertConfig.isOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+            onClick={() => (alertConfig.type === 'alert' || alertConfig.type === 'error') ? alertConfig.onConfirm?.() : alertConfig.onCancel?.()}
+          />
+          <div className={`relative w-full max-w-sm transform overflow-hidden rounded-2xl p-6 text-left align-middle shadow-2xl transition-all ${isDarkMode ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-100'
+            }`}>
+            <div className="flex items-center space-x-3 mb-4">
+              <div className={`p-2 rounded-full ${alertConfig.type === 'error' ? 'bg-red-500/10 text-red-500' :
+                alertConfig.type === 'warning' ? 'bg-yellow-500/10 text-yellow-500' :
+                  'bg-blue-500/10 text-blue-500'
+                }`}>
+                {alertConfig.type === 'error' ? <AlertCircle size={24} /> :
+                  alertConfig.type === 'warning' ? <AlertTriangle size={24} /> :
+                    <Info size={24} />}
+              </div>
+              <h3 className={`text-lg font-bold leading-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {alertConfig.title}
+              </h3>
+            </div>
+            <div className="mt-2">
+              <p className={`text-sm whitespace-pre-line leading-relaxed ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                {alertConfig.message}
+              </p>
+            </div>
+
+            <div className="mt-8 flex justify-end space-x-3">
+              {(alertConfig.type === 'confirm' || alertConfig.type === 'warning') && (
+                <button
+                  type="button"
+                  className={`px-5 py-2 text-sm font-semibold rounded-lg transition-colors ${isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  onClick={alertConfig.onCancel}
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="button"
+                className="px-5 py-2 text-sm font-semibold text-white rounded-lg transition-all shadow-lg active:scale-95"
+                style={{
+                  backgroundColor: alertConfig.type === 'error' ? '#ef4444' : (colorPalette?.primary || '#ea580c'),
+                  boxShadow: `0 4px 14px 0 ${(alertConfig.type === 'error' ? '#ef4444' : (colorPalette?.primary || '#ea580c'))}40`
+                }}
+                onClick={alertConfig.onConfirm}
+              >
+                {alertConfig.type === 'confirm' || alertConfig.type === 'warning' ?
+                  (alertConfig.title.toLowerCase().includes('delete') ? 'Delete' : 'Confirm')
+                  : 'OK'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

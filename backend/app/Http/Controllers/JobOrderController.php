@@ -965,6 +965,12 @@ class JobOrderController extends Controller
                         $message = str_replace('{{username}}', $generatedUsername, $message);
                         $message = str_replace('{{password}}', $generatedPassword, $message);
                         
+                        $displayPlan = $application->desired_plan ?? 'N/A';
+                        if (strpos($displayPlan, ' - P') !== false) {
+                            $displayPlan = trim(explode(' - P', $displayPlan)[0]);
+                        }
+                        $message = str_replace('{{plan_name}}', $displayPlan, $message);
+                        
                         $smsService = new \App\Services\ItexmoSmsService();
                         $result = $smsService->send([
                             'contact_no' => $customer->contact_number_primary,
@@ -1013,6 +1019,12 @@ class JobOrderController extends Controller
                         $emailBody = str_replace('{{account_no}}', $accountNumber, $emailBody);
                         $emailBody = str_replace('{{username}}', $generatedUsername, $emailBody);
                         $emailBody = str_replace('{{password}}', $generatedPassword, $emailBody);
+
+                        $displayPlan = $application->desired_plan ?? 'N/A';
+                        if (strpos($displayPlan, ' - P') !== false) {
+                            $displayPlan = trim(explode(' - P', $displayPlan)[0]);
+                        }
+                        $emailBody = str_replace('{{plan_name}}', $displayPlan, $emailBody);
 
                          if (!empty($emailBody)) {
                              $emailService = app(\App\Services\EmailQueueService::class);

@@ -1433,7 +1433,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                             return <option value={currentPort}>{currentPort}</option>;
                           })()}
                           {Array.from({ length: totalPorts }, (_, i) => {
-                            const portVal = `p${(i + 1).toString().padStart(2, '0')}`;
+                            const portVal = `P${(i + 1).toString().padStart(2, '0')}`;
 
                             // Hide port if it is used AND not the one currently selected
                             if (usedPorts.has(portVal) && formData.port !== portVal) {

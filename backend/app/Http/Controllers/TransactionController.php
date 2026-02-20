@@ -138,11 +138,12 @@ class TransactionController extends Controller
                         'transaction_id' => $transaction->id
                     ]);
 
-                    // Send Paid Notifications (consolidated)
-                    if (!empty($appliedData['invoices_updated']['invoices_paid'])) {
-                        $this->sendPaidSms($billingAccount, $appliedData['invoices_updated']['invoices_paid'], $transaction->received_payment);
-                        $this->sendPaidEmail($billingAccount, $appliedData['invoices_updated']['invoices_paid'], $transaction->received_payment);
+                    // Send Approval Notifications
+                    if ($billingAccount) {
+                        $this->sendApprovalSms($billingAccount, $appliedData['invoices_updated']['invoices_paid'] ?? [], $transaction->received_payment);
+                        $this->sendApprovalEmail($billingAccount, $appliedData['invoices_updated']['invoices_paid'] ?? [], $transaction->received_payment);
                     }
+
                 } else {
                     \Log::warning('Billing account not found for auto-apply', [
                         'account_no' => $transaction->account_no
@@ -293,11 +294,10 @@ class TransactionController extends Controller
                 'invoices_partial' => $invoiceUpdateResult['invoices_partial']
             ]);
 
-            // Send Paid Notifications (consolidated)
-            if (!empty($invoiceUpdateResult['invoices_paid'])) {
-                $this->sendPaidSms($billingAccount, $invoiceUpdateResult['invoices_paid'], $paymentReceived);
-                $this->sendPaidEmail($billingAccount, $invoiceUpdateResult['invoices_paid'], $paymentReceived);
-            }
+            // Send Approval Notifications (previously only on Paid status)
+            $this->sendApprovalSms($billingAccount, $invoiceUpdateResult['invoices_paid'] ?? [], $paymentReceived);
+            $this->sendApprovalEmail($billingAccount, $invoiceUpdateResult['invoices_paid'] ?? [], $paymentReceived);
+
 
             // Attempt reconnection after successful approval
             $reconnectStatus = $this->attemptReconnectionAfterApproval($billingAccount);
@@ -574,18 +574,18 @@ class TransactionController extends Controller
 
                     DB::commit();
 
-                    // Track for consolidated notification
-                    if (!empty($invoiceUpdateResult['invoices_paid'])) {
-                        if (!isset($accountPayments[$accountNo])) {
-                            $accountPayments[$accountNo] = [
-                                'account' => $billingAccount,
-                                'invoices' => [],
-                                'total' => 0
-                            ];
-                        }
-                        $accountPayments[$accountNo]['invoices'] = array_merge($accountPayments[$accountNo]['invoices'], $invoiceUpdateResult['invoices_paid']);
-                        $accountPayments[$accountNo]['total'] += $paymentReceived;
+                    // Track for consolidated notification (Always track success now)
+                    if (!isset($accountPayments[$accountNo])) {
+                        $accountPayments[$accountNo] = [
+                            'account' => $billingAccount,
+                            'invoices' => [],
+                            'total' => 0
+                        ];
                     }
+                    if (!empty($invoiceUpdateResult['invoices_paid'])) {
+                        $accountPayments[$accountNo]['invoices'] = array_merge($accountPayments[$accountNo]['invoices'], $invoiceUpdateResult['invoices_paid']);
+                    }
+                    $accountPayments[$accountNo]['total'] += $paymentReceived;
 
                     // Attempt reconnection after successful approval
                     $reconnectStatus = $this->attemptReconnectionAfterApproval($billingAccount);
@@ -618,13 +618,12 @@ class TransactionController extends Controller
                 }
             }
 
-            // Send consolidated notifications for each account
+            // Send consolidated notifications for each account (Successfully approved)
             foreach ($accountPayments as $accountNo => $data) {
-                if (!empty($data['invoices'])) {
-                    $this->sendPaidSms($data['account'], $data['invoices'], $data['total']);
-                    $this->sendPaidEmail($data['account'], $data['invoices'], $data['total']);
-                }
+                $this->sendApprovalSms($data['account'], $data['invoices'], $data['total']);
+                $this->sendApprovalEmail($data['account'], $data['invoices'], $data['total']);
             }
+
 
             $successCount = count($results['success']);
             $failedCount = count($results['failed']);
@@ -854,30 +853,40 @@ class TransactionController extends Controller
             return 'exception';
         }
     }
+
+    private function replaceGlobalVariables(string $message): string
+    {
+        $portalUrl = 'sync.atssfiber.ph';
+        $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
+
+        $message = str_replace('{{portal_url}}', $portalUrl, $message);
+        $message = str_replace('{{company_name}}', $brandName, $message);
+
+        return $message;
+    }
+
     /**
-     * Send Paid SMS notification (consolidated)
+     * Send Transaction Approval SMS notification
      */
-    private function sendPaidSms($billingAccount, $invoicesPaid, $totalPaidAmount)
+    private function sendApprovalSms($billingAccount, $invoicesPaid, $totalPaidAmount)
     {
         try {
-            if (empty($invoicesPaid)) {
-                return;
-            }
-
             $billingAccount->load('customer');
             $customer = $billingAccount->customer;
             
             if ($customer && !empty($customer->contact_number_primary)) {
                 $paidTemplate = DB::table('sms_templates')
-                    ->where('template_type', 'Paid')
+                    ->where('template_name', 'Paid')
                     ->where('is_active', 1)
                     ->first();
                     
                 if ($paidTemplate) {
                     $smsService = new \App\Services\ItexmoSmsService();
                     
-                    // Consolidate invoice IDs
-                    $invoiceIds = collect($invoicesPaid)->pluck('invoice_id')->unique()->implode(', ');
+                    // Consolidate invoice IDs or use N/A if none
+                    $invoiceIds = !empty($invoicesPaid) 
+                        ? collect($invoicesPaid)->pluck('invoice_id')->unique()->implode(', ')
+                        : 'N/A';
                     
                     $message = $paidTemplate->message_content;
                     
@@ -903,38 +912,37 @@ class TransactionController extends Controller
                     ]);
                     
                     if ($result['success']) {
-                        \Log::info('Consolidated Paid SMS sent', [
+                        \Log::info('Approval SMS sent', [
                             'account_no' => $billingAccount->account_no,
-                            'invoice_ids' => $invoiceIds
+                            'transaction_id' => !empty($invoicesPaid) ? null : 'approved'
                         ]);
                     } else {
-                        \Log::error('Consolidated Paid SMS Failed: ' . ($result['error'] ?? 'Unknown error'));
+                        \Log::error('Approval SMS Failed: ' . ($result['error'] ?? 'Unknown error'));
                     }
                 }
             }
         } catch (\Exception $e) {
-            \Log::error('Failed to send consolidated Paid SMS: ' . $e->getMessage());
+            \Log::error('Failed to send Approval SMS: ' . $e->getMessage());
         }
     }
 
     /**
-     * Send Paid Email notification (consolidated)
+     * Send Transaction Approval Email notification
      */
-    private function sendPaidEmail($billingAccount, $invoicesPaid, $totalPaidAmount)
+    private function sendApprovalEmail($billingAccount, $invoicesPaid, $totalPaidAmount)
     {
         try {
-            if (empty($invoicesPaid)) {
-                return;
-            }
-
             $billingAccount->load('customer');
             $customer = $billingAccount->customer;
             
             if ($customer && !empty($customer->email_address)) {
                 $emailService = app(\App\Services\EmailQueueService::class);
                 
-                // Consolidate invoice IDs
-                $invoiceIds = collect($invoicesPaid)->pluck('invoice_id')->unique()->implode(', ');
+                // Consolidate invoice IDs or use N/A
+                $invoiceIds = !empty($invoicesPaid) 
+                    ? collect($invoicesPaid)->pluck('invoice_id')->unique()->implode(', ')
+                    : 'N/A';
+                    
                 $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
                 
                 $emailData = [
@@ -950,24 +958,13 @@ class TransactionController extends Controller
 
                 $emailService->queueFromTemplate('PAID', $emailData);
                 
-                \Log::info('Consolidated Paid Email queued via template', [
-                    'account_no' => $billingAccount->account_no,
-                    'invoice_ids' => $invoiceIds
+                \Log::info('Approval Email queued via template', [
+                    'account_no' => $billingAccount->account_no
                 ]);
             }
         } catch (\Exception $e) {
-            \Log::error('Failed to send consolidated Paid Email: ' . $e->getMessage());
+            \Log::error('Failed to send Approval Email: ' . $e->getMessage());
         }
     }
 
-    private function replaceGlobalVariables(string $message): string
-    {
-        $portalUrl = 'sync.atssfiber.ph';
-        $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
-
-        $message = str_replace('{{portal_url}}', $portalUrl, $message);
-        $message = str_replace('{{company_name}}', $brandName, $message);
-
-        return $message;
-    }
 }
