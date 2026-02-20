@@ -794,7 +794,13 @@ class TransactionController extends Controller
                         if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
                             // Replace variables
                             $message = $smsTemplate->message_content;
-                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
+                            $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->full_name));
+                            $planNameFormatted = str_replace('₱', 'P', $plan ?? '');
+                            
+                            $message = str_replace('{{customer_name}}', $customerName, $message);
+                            $message = str_replace('{{account_no}}', $accountNo, $message);
+                            $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                            $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
 
                             // Send SMS
                             $smsService = new \App\Services\ItexmoSmsService();
@@ -891,8 +897,14 @@ class TransactionController extends Controller
                     $message = $paidTemplate->message_content;
                     
                     // Replace variables
-                    $message = str_replace('{{customer_name}}', $customer->full_name, $message);
+                    $customerName = preg_replace('/\s+/', ' ', trim($customer->full_name));
+                    $planNameRaw = $billingAccount->plan ? $billingAccount->plan->plan_name : ($customer->desired_plan ?? 'N/A');
+                    $planNameFormatted = str_replace('₱', 'P', $planNameRaw);
+
+                    $message = str_replace('{{customer_name}}', $customerName, $message);
                     $message = str_replace('{{account_no}}', $billingAccount->account_no, $message);
+                    $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                    $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
                     $message = str_replace('{{invoice_id}}', $invoiceIds, $message);
                     
                     // Support multiple variations of placeholders

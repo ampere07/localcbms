@@ -957,8 +957,9 @@ class JobOrderController extends Controller
                         $emailBody = $welcomeEmailTemplate->email_body;
 
                         // Replace variables in email body
-                        $emailBody = str_replace('{{customer_name}}', $customer->full_name, $emailBody);
-                        $emailBody = str_replace('{{customer_tag}}', $customer->full_name, $emailBody);
+                        $customerName = preg_replace('/\s+/', ' ', trim($customer->full_name));
+                        $emailBody = str_replace('{{customer_name}}', $customerName, $emailBody);
+                        $emailBody = str_replace('{{customer_tag}}', $customerName, $emailBody);
                         $emailBody = str_replace('{{company_name}}', 'ATSS Fiber', $emailBody);
                         $emailBody = str_replace('{{fb_username}}', 'https://www.facebook.com/atssfiber', $emailBody);
                         $emailBody = str_replace('{{account_no}}', $accountNumber, $emailBody);
@@ -969,6 +970,7 @@ class JobOrderController extends Controller
                         if (strpos($displayPlan, ' - P') !== false) {
                             $displayPlan = trim(explode(' - P', $displayPlan)[0]);
                         }
+                        $displayPlan = str_replace('₱', 'P', $displayPlan);
                         $emailBody = str_replace('{{plan_name}}', $displayPlan, $emailBody);
 
                          if (!empty($emailBody)) {
@@ -1702,8 +1704,9 @@ class JobOrderController extends Controller
                     $message = $welcomeTemplate->message_content;
                     
                     // Replace variables
-                    $message = str_replace('{{customer_name}}', $customer->full_name, $message);
-                    $message = str_replace('{{customer_tag}}', $customer->full_name, $message);
+                    $customerName = preg_replace('/\s+/', ' ', trim($customer->full_name));
+                    $message = str_replace('{{customer_name}}', $customerName, $message);
+                    $message = str_replace('{{customer_tag}}', $customerName, $message);
                     $message = str_replace('{{account_no}}', $accountNumber, $message);
                     $message = str_replace('{{username}}', $pppoeUsername, $message);
                     $message = str_replace('{{password}}', $pppoePassword, $message);
@@ -1712,6 +1715,7 @@ class JobOrderController extends Controller
                     if (strpos($displayPlan, ' - P') !== false) {
                         $displayPlan = trim(explode(' - P', $displayPlan)[0]);
                     }
+                    $displayPlan = str_replace('₱', 'P', $displayPlan);
                     $message = str_replace('{{plan_name}}', $displayPlan, $message);
                     
                     // Support more variables like in TransactionController

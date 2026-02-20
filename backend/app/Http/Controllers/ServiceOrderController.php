@@ -227,7 +227,7 @@ class ServiceOrderController extends Controller
                 'concern_remarks' => $request->concern_remarks,
                 'priority_level' => $request->priority_level,
                 'requested_by' => $request->requested_by,
-                'visit_status' => $request->visit_status ?? 'In Progress',
+                'visit_status' => $request->visit_status,
                 'status' => $request->status ?? 'unused',
                 'created_by_user_id' => null,
                 'created_at' => now(),
@@ -889,13 +889,19 @@ class ServiceOrderController extends Controller
                             ->select(
                                 'customers.contact_number_primary',
                                 'customers.email_address',
+                                'customers.desired_plan as plan_name',
                                 DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name")
                             )
                             ->first();
 
                         if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
                             $message = $smsTemplate->message_content;
-                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
+                            $planNameFormatted = str_replace('₱', 'P', $customerInfo->plan_name ?? '');
+                            $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->full_name));
+                            $message = str_replace('{{customer_name}}', $customerName, $message);
+                            $message = str_replace('{{account_no}}', $accountNo, $message);
+                            $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                            $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
 
                             $smsService = new \App\Services\ItexmoSmsService();
                             $smsResult = $smsService->send([
@@ -1007,6 +1013,7 @@ class ServiceOrderController extends Controller
                             ->select(
                                 'customers.contact_number_primary',
                                 'customers.email_address',
+                                'customers.desired_plan as plan_name',
                                 DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name"),
                                 'billing_accounts.account_balance'
                             )
@@ -1014,8 +1021,12 @@ class ServiceOrderController extends Controller
 
                         if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
                             $message = $smsTemplate->message_content;
-                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
+                            $planNameFormatted = str_replace('₱', 'P', $customerInfo->plan_name ?? '');
+                            $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->full_name));
+                            $message = str_replace('{{customer_name}}', $customerName, $message);
                             $message = str_replace('{{account_no}}', $accountNo, $message);
+                            $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                            $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
                             $message = str_replace('{{amount_due}}', number_format($customerInfo->account_balance, 2), $message);
                             $message = str_replace('{{balance}}', number_format($customerInfo->account_balance, 2), $message);
 
@@ -1150,6 +1161,7 @@ class ServiceOrderController extends Controller
                             ->select(
                                 'customers.contact_number_primary',
                                 'customers.email_address',
+                                'customers.desired_plan as plan_name',
                                 DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name"),
                                 'billing_accounts.account_balance'
                             )
@@ -1157,8 +1169,12 @@ class ServiceOrderController extends Controller
 
                         if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
                             $message = $smsTemplate->message_content;
-                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
+                            $planNameFormatted = str_replace('₱', 'P', $customerInfo->plan_name ?? '');
+                            $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->full_name));
+                            $message = str_replace('{{customer_name}}', $customerName, $message);
                             $message = str_replace('{{account_no}}', $accountNo, $message);
+                            $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                            $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
                             $message = str_replace('{{amount_due}}', number_format($customerInfo->account_balance, 2), $message);
                             $message = str_replace('{{balance}}', number_format($customerInfo->account_balance, 2), $message);
 

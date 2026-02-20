@@ -326,8 +326,14 @@ class BillingNotificationService
                     
                     $message = $template->message_content;
                     
-                    $message = str_replace('{{customer_name}}', $customer->full_name, $message);
+                    $planNameRaw = $account->plan ? $account->plan->plan_name : ($account->customer->desired_plan ?? 'N/A');
+                    $planNameFormatted = str_replace('₱', 'P', $planNameRaw);
+                    $customerName = preg_replace('/\s+/', ' ', trim($customer->full_name));
+
+                    $message = str_replace('{{customer_name}}', $customerName, $message);
                     $message = str_replace('{{account_no}}', $account->account_no, $message);
+                    $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                    $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
                     $message = str_replace('{{amount_due}}', number_format($amount, 2), $message);
                     $message = str_replace('{{amount}}', number_format($amount, 2), $message);
                     $message = str_replace('{{balance}}', number_format($amount, 2), $message);
@@ -380,8 +386,14 @@ class BillingNotificationService
                 if ($template) {
                     $message = $template->message_content;
                     
-                    $message = str_replace('{{customer_name}}', $customer->full_name, $message);
+                    $planNameRaw = $account->plan ? $account->plan->plan_name : ($account->customer->desired_plan ?? 'N/A');
+                    $planNameFormatted = str_replace('₱', 'P', $planNameRaw);
+                    $customerName = preg_replace('/\s+/', ' ', trim($customer->full_name));
+
+                    $message = str_replace('{{customer_name}}', $customerName, $message);
                     $message = str_replace('{{account_no}}', $account->account_no, $message);
+                    $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                    $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
                     $message = str_replace('{{amount_due}}', number_format($invoice->total_amount, 2), $message);
                     $message = str_replace('{{amount}}', number_format($invoice->total_amount, 2), $message);
                     $message = str_replace('{{balance}}', number_format($invoice->total_amount, 2), $message);
@@ -432,8 +444,14 @@ class BillingNotificationService
                     $dcDate = $invoice->due_date->copy()->addDays(4);
                     $message = $template->message_content;
                     
-                    $message = str_replace('{{customer_name}}', $customer->full_name, $message);
+                    $planNameRaw = $account->plan ? $account->plan->plan_name : ($account->customer->desired_plan ?? 'N/A');
+                    $planNameFormatted = str_replace('₱', 'P', $planNameRaw);
+                    $customerName = preg_replace('/\s+/', ' ', trim($customer->full_name));
+
+                    $message = str_replace('{{customer_name}}', $customerName, $message);
                     $message = str_replace('{{account_no}}', $account->account_no, $message);
+                    $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                    $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
                     $message = str_replace('{{amount_due}}', number_format($invoice->total_amount, 2), $message);
                     $message = str_replace('{{amount}}', number_format($invoice->total_amount, 2), $message);
                     $message = str_replace('{{balance}}', number_format($invoice->total_amount, 2), $message);
@@ -480,24 +498,27 @@ class BillingNotificationService
         $dueDate = $invoice ? $invoice->due_date : $soa->due_date;
         $dcDate = $dueDate->copy()->addDays(4); // Default rule
 
+        $customerName = preg_replace('/\s+/', ' ', trim($customer->full_name));
+        $planFormatted = str_replace('₱', 'P', $customer->desired_plan ?? '');
+
         // Common Data
         $data = [
-            'Full_Name' => $customer->full_name,
+            'Full_Name' => $customerName,
             'Address' => $customer->address,
             'Contact_No' => $customer->contact_number_primary,
             'Email' => $customer->email_address,
             'Account_No' => $account->account_no,
-            'Plan' => $customer->desired_plan,
+            'Plan' => $planFormatted,
             'Due_Date' => $dueDate->format('F d, Y'),
             'DC_Date' => $dcDate->format('F d, Y'),
             'Total_Due' => number_format($amount ?? 0, 2),
             'Amount_Due' => number_format($amount ?? 0, 2),
             // Legacy mapping used by some simple templates
             'account_no' => $account->account_no,
-            'customer_name' => $customer->full_name,
+            'customer_name' => $customerName,
             'total_amount' => number_format($amount ?? 0, 2),
             'due_date' => $dueDate->format('F d, Y'),
-            'plan' => $customer->desired_plan,
+            'plan' => $planFormatted,
             'contact_no' => $customer->contact_number_primary
         ];
 

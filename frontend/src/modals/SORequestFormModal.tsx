@@ -192,7 +192,7 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
         concern_remarks: formData.concernRemarks,
         priority_level: 'Medium',
         requested_by: getUserEmail(),
-        visit_status: 'In Progress',
+        visit_status: '',
         created_by_user: getUserEmail(),
         status: 'unused'
       };

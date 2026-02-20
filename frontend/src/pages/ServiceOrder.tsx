@@ -569,7 +569,7 @@ const ServiceOrderPage: React.FC = () => {
   };
 
   const StatusText = ({ status, type }: { status?: string, type: 'support' | 'visit' }) => {
-    if (!status) return <span className="text-gray-400">Unknown</span>;
+    if (!status) return <span className="text-gray-400">-</span>;
 
     let textColor = '';
 

@@ -581,12 +581,13 @@ class AutoDisconnectService
         $serviceOrder->timestamp = Carbon::now();
         $serviceOrder->account_no = $billingAccount->account_no;
         $serviceOrder->date_installed = $billingAccount->date_installed;
-        $serviceOrder->full_name = $customer->full_name ?? null;
+        $serviceOrder->full_name = preg_replace('/\s+/', ' ', trim($customer->full_name ?? ''));
         $serviceOrder->contact_number = $customer->contact_number_primary ?? null;
         $serviceOrder->email_address = $customer->email_address ?? null;
         $serviceOrder->address = $customer->complete_address ?? null;
         $serviceOrder->location = $customer->location ?? null;
-        $serviceOrder->plan = $billingAccount->plan->name ?? null;
+        $planNameRaw = $billingAccount->plan->name ?? $customer->desired_plan ?? null;
+        $serviceOrder->plan = str_replace('₱', 'P', $planNameRaw ?? '');
         $serviceOrder->provider = $technicalDetail->provider ?? null;
         $serviceOrder->username = $technicalDetail->username ?? null;
         $serviceOrder->connection_type = $technicalDetail->connection_type ?? null;
@@ -625,11 +626,15 @@ class AutoDisconnectService
             }
             $this->writeLog("    [DEBUG] triggerSMS: Target number: {$customer->contact_number_primary}");
 
+            $planNameRaw = $billingAccount->plan->name ?? $customer->desired_plan ?? 'N/A';
             $message = $this->buildSmsMessage(
                 $type, 
                 $customer->full_name, 
                 $billingAccount->account_no, 
-                ['balance' => number_format($billingAccount->account_balance, 2)]
+                [
+                    'balance' => number_format($billingAccount->account_balance, 2),
+                    'plan_name' => $planNameRaw
+                ]
             );
             $this->writeLog("    [DEBUG] triggerSMS: Message built: " . (empty($message) ? 'EMPTY' : 'OK'));
 
@@ -690,11 +695,16 @@ class AutoDisconnectService
 
             $this->writeLog("    [DEBUG] triggerEmail: Queueing email via template...");
             
+            $customerName = preg_replace('/\s+/', ' ', trim($customer->full_name ?? ''));
+            $planNameRaw = $billingAccount->plan->name ?? $customer->desired_plan ?? 'N/A';
+            $planNameFormatted = str_replace('₱', 'P', $planNameRaw);
+
             $emailData = [
-                'customer_name' => $customer->full_name,
+                'customer_name' => $customerName,
                 'account_no' => $billingAccount->account_no,
                 'amount_due' => number_format($billingAccount->account_balance, 2),
                 'balance' => number_format($billingAccount->account_balance, 2),
+                'plan_name' => $planNameFormatted,
                 'recipient_email' => $customer->email_address,
             ];
 
@@ -727,8 +737,13 @@ class AutoDisconnectService
                 $message = $template->message_content;
                 
                 // Common variable replacements
-                $message = str_replace('{{customer_name}}', $name, $message);
+                $customerName = preg_replace('/\s+/', ' ', trim($name));
+                $planNameFormatted = str_replace('₱', 'P', $data['plan_name'] ?? '');
+
+                $message = str_replace('{{customer_name}}', $customerName, $message);
                 $message = str_replace('{{account_no}}', $accountNo, $message);
+                $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
                 
                 // Add balance if present in data
                 if (isset($data['balance'])) {
@@ -766,6 +781,7 @@ class AutoDisconnectService
         $message = str_replace('{{company_name}}', $brandName, $message);
         
         // Handle fallbacks if needed
+        $name = preg_replace('/\s+/', ' ', trim($name));
         if ($name) $message = str_replace('{{customer_name}}', $name, $message);
         if ($accountNo) $message = str_replace('{{account_no}}', $accountNo, $message);
         if ($balance) $message = str_replace('{{balance}}', $balance, $message);
