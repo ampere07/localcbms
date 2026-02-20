@@ -187,12 +187,12 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
         ticket_id: formData.ticketId,
         account_no: formData.accountNo,
         timestamp: new Date().toISOString(),
-        support_status: 'Open',
+        support_status: 'In Progress',
         concern: formData.concern,
         concern_remarks: formData.concernRemarks,
         priority_level: 'Medium',
         requested_by: getUserEmail(),
-        visit_status: 'Pending',
+        visit_status: 'In Progress',
         created_by_user: getUserEmail(),
         status: 'unused'
       };

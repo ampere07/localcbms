@@ -525,10 +525,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         nap: serviceOrderData.nap || '',
         port: normalizePort(serviceOrderData.port || serviceOrderData.PORT),
         vlan: serviceOrderData.vlan || '',
-        supportStatus: (serviceOrderData.supportStatus || serviceOrderData.support_status) === 'Pending'
-          ? 'In Progress'
-          : (serviceOrderData.supportStatus || serviceOrderData.support_status || 'In Progress'),
-        visitStatus: serviceOrderData.visitStatus || serviceOrderData.visit_status === 'Pending' ? 'In Progress' : (serviceOrderData.visitStatus || serviceOrderData.visit_status || 'In Progress'),
+        supportStatus: serviceOrderData.supportStatus || serviceOrderData.support_status || 'In Progress',
+        visitStatus: serviceOrderData.visitStatus || serviceOrderData.visit_status || '',
         repairCategory: serviceOrderData.repairCategory || serviceOrderData.repair_category || '',
         visitBy: serviceOrderData.visitBy || serviceOrderData.visit_by || '',
         visitWith: serviceOrderData.visitWith || serviceOrderData.visit_with || '',
@@ -797,7 +795,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     };
 
     if (updatedFormData.supportStatus === 'Resolved') {
-      const originalVisitStatus = serviceOrderData.visitStatus || (serviceOrderData.visit_status === 'Pending' ? 'In Progress' : (serviceOrderData.visitStatus || serviceOrderData.visit_status || 'In Progress'));
+      const originalVisitStatus = serviceOrderData.visitStatus || (serviceOrderData.visit_status === 'In Progress' ? 'In Progress' : (serviceOrderData.visitStatus || serviceOrderData.visit_status || 'In Progress'));
       updatedFormData.visitStatus = originalVisitStatus;
     }
 

@@ -593,7 +593,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
           )}
           <h1 className={`${isDarkMode ? 'text-white' : 'text-gray-900'
             } text-xs font-semibold`}>
-            Powered by ATSS Fiber
+            Powered by SYNC
           </h1>
         </div>
       </div>

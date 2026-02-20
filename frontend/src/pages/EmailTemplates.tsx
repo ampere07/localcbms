@@ -58,6 +58,29 @@ const EmailTemplates: React.FC = () => {
     email_body: ''
   });
 
+  const availableVariables = [
+    '{{account_no}}',
+    '{{customer_name}}',
+    '{{amount}}',
+    '{{due_date}}',
+    '{{balance}}',
+    '{{plan_name}}',
+    '{{payment_date}}',
+    '{{installation_date}}',
+    '{{mobile_number}}',
+    '{{soa_date}}',
+    '{{portal_url}}',
+    '{{company_name}}'
+  ];
+
+  const insertVariableToBody = (variable: string) => {
+    const currentContent = formData.email_body || '';
+    const needsSpace = currentContent.length > 0 && currentContent.charAt(currentContent.length - 1) !== ' ';
+    const newContent = currentContent + (needsSpace ? ' ' : '') + variable;
+    setFormData({ ...formData, email_body: newContent });
+  };
+
+
   const [modal, setModal] = useState<ModalConfig>({
     isOpen: false,
     type: 'success',
@@ -682,16 +705,37 @@ const EmailTemplates: React.FC = () => {
                       : 'bg-white border-gray-300 text-gray-900'
                       }`}
                   />
+                  <div className="mb-4">
+                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Available Variables
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {availableVariables.map(variable => (
+                        <button
+                          key={variable}
+                          type="button"
+                          onClick={() => insertVariableToBody(variable)}
+                          className={`px-3 py-1 rounded text-xs font-mono transition-colors ${isDarkMode
+                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                        >
+                          {variable}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <textarea
                     value={formData.email_body}
                     onChange={(e) => handleInputChange('email_body', e.target.value)}
-                    placeholder="Email Body"
+                    placeholder="Email Body. Click variables above to insert them."
                     rows={6}
                     className={`w-full px-3 py-2 text-sm border rounded resize-none ${isDarkMode
                       ? 'bg-gray-700 border-gray-600 text-white'
                       : 'bg-white border-gray-300 text-gray-900'
                       }`}
                   />
+
                 </div>
               ) : selectedTemplate ? (
                 <div>

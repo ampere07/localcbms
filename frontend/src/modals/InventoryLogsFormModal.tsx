@@ -60,8 +60,9 @@ const InventoryLogsFormModal: React.FC<InventoryLogsFormModalProps> = ({
                 ]);
                 setColorPalette(palette);
 
-                // Filter users with role_id 1 or 2
-                const filteredUsers = (usersRes.data || []).filter(u => u.role_id === 1 || u.role_id === 2);
+                // Filter users: exclude role_id 3 (customers)
+                const filteredUsers = (usersRes.data || []).filter(u => u.role_id !== 3);
+
                 setUsers(filteredUsers);
             } catch (err) {
                 console.error('Failed to fetch initial data:', err);

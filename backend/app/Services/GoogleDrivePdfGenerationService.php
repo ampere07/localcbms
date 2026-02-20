@@ -402,7 +402,7 @@ class GoogleDrivePdfGenerationService
             'Contact_No' => $customer->contact_number_primary,
             'Email' => $customer->email_address,
             'Account_No' => $account->account_no,
-            'Plan' => $customer->desired_plan,
+            'Plan' => str_replace('₱', 'P', $customer->desired_plan),
             'Statement_Date' => now()->format('F d, Y'),
             'Payment_Link' => config('app.payment_link', 'https://pay.example.com')
         ];
@@ -511,6 +511,7 @@ class GoogleDrivePdfGenerationService
             'Street' => $customer->address,
             'Barangay' => $customer->barangay,
             'City' => $customer->city,
+            'Plan' => str_replace('₱', 'P', $customer->desired_plan),
             'Total_Due' => number_format($invoice->total_amount, 2),
             'Due_Date' => $invoice->due_date->format('F d, Y'),
             'Invoice_No' => $invoice->id,
@@ -537,6 +538,7 @@ class GoogleDrivePdfGenerationService
             'Street' => $customer->address,
             'Barangay' => $customer->barangay,
             'City' => $customer->city,
+            'Plan' => str_replace('₱', 'P', $customer->desired_plan),
             'Total_Due' => number_format($invoice->total_amount, 2),
             'Due_Date' => $invoice->due_date->format('F d, Y'),
             'DC_Date' => $dcDate->format('F d, Y'),
