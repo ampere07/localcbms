@@ -506,10 +506,10 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       }
 
       // 2. Global search query
-      const matchesSearch = searchQuery === '' ||
-        record.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.applicationId.includes(searchQuery);
+      const matchesSearch = searchQuery === '' || Object.values(record).some(value => {
+        if (value === null || value === undefined) return false;
+        return String(value).toLowerCase().includes(searchQuery.toLowerCase());
+      });
 
       return matchesLocation && matchesSearch;
     });

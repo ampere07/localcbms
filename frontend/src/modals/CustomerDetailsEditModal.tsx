@@ -192,7 +192,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
         };
 
         setFormData({
-          billingStatus: recordData.billing_status_id || recordData.billingStatus || recordData.billingAccount?.billingStatusName || recordData.status || recordData.billing_status || recordData.billingAccount?.billing_status || ''
+          billingStatus: recordData.billing_status_id || recordData.billingStatus || recordData.billingAccount?.billingStatusName || recordData.status || recordData.billing_status || recordData.billingAccount?.billing_status || '',
+          billingDay: recordData.billing_day || recordData.billingDay || recordData.Billing_Day || recordData.billingAccount?.billing_day || ''
         });
       } else if (editType === 'technical_details') {
         let lcpnapValue = recordData.lcpnap || recordData.LCPNAP || '';
@@ -557,7 +558,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
       if (!formData.city?.trim()) newErrors.city = 'City is required';
       if (!formData.barangay?.trim()) newErrors.barangay = 'Barangay is required';
     } else if (editType === 'billing_details') {
-      if (!formData.billingStatus?.trim()) newErrors.billingStatus = 'Billing Status is required';
+      if (!formData.billingStatus?.toString().trim()) newErrors.billingStatus = 'Billing Status is required';
+      if (!formData.billingDay) newErrors.billingDay = 'Billing Day is required';
     } else if (editType === 'technical_details') {
       if (!formData.username?.trim()) newErrors.username = 'Username is required';
       if (!formData.connectionType?.trim()) newErrors.connectionType = 'Connection Type is required';
@@ -566,7 +568,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
       if (formData.connectionType === 'Fiber') {
         if (!formData.lcpnap?.trim()) newErrors.lcpnap = 'LCPNAP is required';
         if (!formData.port?.trim()) newErrors.port = 'Port is required';
-        if (!formData.vlan?.trim()) newErrors.vlan = 'VLAN is required';
+        if (!formData.vlan?.toString().trim()) newErrors.vlan = 'VLAN is required';
       }
 
       if (formData.connectionType === 'Antenna' || formData.connectionType === 'Local') {
@@ -1153,6 +1155,43 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                     <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
                   </div>
                   {errors.billingStatus && <p className="text-red-500 text-xs mt-1">{errors.billingStatus}</p>}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Billing Day (1-30)<span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter day (1-30)"
+                    value={formData.billingDay || ''}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, ''); // Remove letters
+                      if (val === '') {
+                        handleInputChange('billingDay', '');
+                      } else {
+                        const num = parseInt(val);
+                        if (num >= 1 && num <= 30) {
+                          handleInputChange('billingDay', num.toString());
+                        } else if (num > 30) {
+                          handleInputChange('billingDay', '30'); // Cap at 30
+                        }
+                      }
+                    }}
+                    onFocus={(e) => {
+                      if (colorPalette?.primary) {
+                        e.currentTarget.style.borderColor = colorPalette.primary;
+                        e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                      }
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = errors.billingDay ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${errors.billingDay ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                  />
+                  {errors.billingDay && <p className="text-red-500 text-xs mt-1">{errors.billingDay}</p>}
                 </div>
               </>
             )}

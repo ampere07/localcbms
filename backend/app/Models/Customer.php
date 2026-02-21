@@ -72,6 +72,7 @@ class Customer extends Model
      */
     public function getFullNameAttribute()
     {
-        return trim($this->first_name . ' ' . $this->middle_initial . ' ' . $this->last_name);
+        $parts = array_filter([$this->first_name, $this->middle_initial, $this->last_name]);
+        return implode(' ', $parts);
     }
 }

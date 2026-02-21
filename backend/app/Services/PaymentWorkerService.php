@@ -446,6 +446,28 @@ class PaymentWorkerService
             if ($result['status'] === 'success') {
                 $this->workerLog("[RECONNECT SUCCESS] Reconnection and Session Kill completed successfully");
 
+                // Log reconnection in reconnection_logs table
+                try {
+                    // Try to get plan_id from billing_account
+                    $planId = DB::table('billing_accounts')->where('id', $billingAccount->id)->value('plan_id');
+
+                    DB::table('reconnection_logs')->insert([
+                        'account_id' => $billingAccount->id,
+                        'session_id' => null,
+                        'username' => $username,
+                        'plan_id' => $planId,
+                        'reconnection_fee' => 0.00,
+                        'remarks' => 'Auto-reconnect after Payment Portal Payment',
+                        'created_at' => now(),
+                        'created_by_user_id' => null, // System-triggered
+                        'updated_at' => now(),
+                        'updated_by_user_id' => null
+                    ]);
+                    $this->workerLog("[RECONNECT LOG] Stored data in reconnection_logs for account: {$accountNo}");
+                } catch (Exception $e) {
+                    $this->workerLog("[RECONNECT LOG ERROR] Failed to store reconnection log: " . $e->getMessage());
+                }
+
                 // Send SMS Notification
                 try {
                     // Fetch SMS template
@@ -468,7 +490,13 @@ class PaymentWorkerService
                         if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
                             // Replace variables
                             $message = $smsTemplate->message_content;
-                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
+                            $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->full_name));
+                            $planNameFormatted = str_replace('₱', 'P', $plan ?? '');
+
+                            $message = str_replace('{{customer_name}}', $customerName, $message);
+                            $message = str_replace('{{account_no}}', $accountNo, $message);
+                            $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                            $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
 
                             // Send SMS
                             $smsService = new \App\Services\ItexmoSmsService();
@@ -504,9 +532,14 @@ class PaymentWorkerService
                             // Resolve EmailQueueService from container since it serves dependencies
                             $emailService = app(\App\Services\EmailQueueService::class);
 
+                            $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->full_name ?? 'Customer'));
+                            $planNameFormatted = str_replace('₱', 'P', $plan ?? '');
+
                             $emailData = [
-                                'Full_Name' => $customerInfo->full_name ?? 'Customer',
-                                'Plan' => $plan,
+                                'Full_Name' => $customerName,
+                                'Plan' => $planNameFormatted,
+                                'plan_name' => $planNameFormatted,
+                                'plan_nam' => $planNameFormatted,
                                 'Account_No' => $accountNo,
                                 'account_no' => $accountNo,
                                 'recipient_email' => $emailAddress,
@@ -561,8 +594,13 @@ class PaymentWorkerService
                     $message = $paidTemplate->message_content;
                     
                     // Replace variables
-                    $message = str_replace('{{customer_name}}', $account->full_name, $message);
+                    $customerName = preg_replace('/\s+/', ' ', trim($account->full_name));
+                    $planNameFormatted = str_replace('₱', 'P', $account->desired_plan ?? 'N/A');
+
+                    $message = str_replace('{{customer_name}}', $customerName, $message);
                     $message = str_replace('{{account_no}}', $account->account_no, $message);
+                    $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                    $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
                     $message = str_replace('{{invoice_id}}', $invoiceIds, $message);
                     
                     // Support multiple variations of placeholders
@@ -609,13 +647,19 @@ class PaymentWorkerService
                     
                 $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
                 
+                $customerName = preg_replace('/\s+/', ' ', trim($account->full_name));
+                $planNameFormatted = str_replace('₱', 'P', $account->desired_plan ?? 'N/A');
+
                 $emailData = [
                     'Amount' => number_format($totalPaidAmount, 2),
                     'Company_Name' => $brandName,
                     'Account_No' => $account->account_no,
                     'account_no' => $account->account_no,
                     'Date' => date('Y-m-d'),
-                    'Full_Name' => $account->full_name,
+                    'Full_Name' => $customerName,
+                    'Plan' => $planNameFormatted,
+                    'plan_name' => $planNameFormatted,
+                    'plan_nam' => $planNameFormatted,
                     'invoice_ids' => $invoiceIds,
                     'recipient_email' => $account->email_address,
                 ];

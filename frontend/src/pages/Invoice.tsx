@@ -313,13 +313,15 @@ const Invoice: React.FC = () => {
   const filteredRecords = useMemo(() => {
     let filtered = invoiceRecords.filter(record => {
       const matchesDate = selectedDate === 'All' || record.invoiceDate === selectedDate;
-      const matchesSearch = searchQuery === '' ||
-        record.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.accountNo.includes(searchQuery) ||
-        record.id.includes(searchQuery) ||
-        record.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (record.transactionId && record.transactionId.toLowerCase().includes(searchQuery.toLowerCase()));
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => checkValue(v));
+        }
+        return String(val).toLowerCase().includes(searchQuery.toLowerCase());
+      };
+
+      const matchesSearch = searchQuery === '' || checkValue(record);
 
       return matchesDate && matchesSearch;
     });

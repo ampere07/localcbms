@@ -268,6 +268,7 @@ export const relatedDataColumns = {
       label: 'Date',
       render: (val: any) => val ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : 'N/A'
     },
+    { key: 'log_type', label: 'Type', render: (val: any) => val || 'N/A' },
     { key: 'item_quantity', label: 'Quantity', render: (val: any) => val || 0 },
     { key: 'requested_by', label: 'Requested By', render: (val: any) => val || 'N/A' },
     { key: 'requested_with', label: 'Requested With', render: (val: any) => val || 'N/A' },

@@ -39,15 +39,15 @@ const UserManagement: React.FC = () => {
       const theme = localStorage.getItem('theme');
       setIsDarkMode(theme === 'dark');
     };
-    
+
     checkDarkMode();
-    
+
     const observer = new MutationObserver(checkDarkMode);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['class']
     });
-    
+
     return () => observer.disconnect();
   }, []);
 
@@ -55,7 +55,7 @@ const UserManagement: React.FC = () => {
     setLoading(true);
     try {
       const response = await userService.getAllUsers();
-      
+
       if (response.success && response.data) {
         setUsers(response.data);
       }
@@ -117,7 +117,7 @@ const UserManagement: React.FC = () => {
       alert('Warning: Failed to receive user data. Please refresh the page.');
       return;
     }
-    
+
     setUsers(prev => [...prev, newUser]);
     setShowAddUserForm(false);
   };
@@ -128,7 +128,7 @@ const UserManagement: React.FC = () => {
       alert('Cannot edit user: No user data');
       return;
     }
-    
+
     setEditingUser(user);
   };
 
@@ -137,7 +137,7 @@ const UserManagement: React.FC = () => {
   };
 
   const handleUserUpdated = (updatedUser: User) => {
-    setUsers(prev => prev.map(user => 
+    setUsers(prev => prev.map(user =>
       user.id === updatedUser.id ? updatedUser : user
     ));
     setEditingUser(null);
@@ -156,7 +156,7 @@ const UserManagement: React.FC = () => {
 
     try {
       const response = await userService.deleteUser(deletingUser.id);
-      
+
       if (response.success) {
         setUsers(prev => prev.filter(user => user.id !== deletingUser.id));
         setDeletingUser(null);
@@ -185,21 +185,18 @@ const UserManagement: React.FC = () => {
       <Breadcrumb items={[
         { label: 'Users' }
       ]} />
-      <div className={`rounded-lg border overflow-hidden text-white ${
-        isDarkMode
+      <div className={`rounded-lg border overflow-hidden text-white ${isDarkMode
           ? 'bg-gray-800 border-gray-600'
           : 'bg-white border-gray-300'
-      }`}>
+        }`}>
         <div className="p-6">
           <div className="mb-8">
-            <h2 className={`text-2xl font-semibold mb-2 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>
+            <h2 className={`text-2xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               User Management
             </h2>
-            <p className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
+            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>
               Manage system users and their permissions
             </p>
           </div>
@@ -210,11 +207,10 @@ const UserManagement: React.FC = () => {
               placeholder="Search users by name, username, or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className={`px-4 py-3 border rounded placeholder-gray-500 focus:outline-none w-full md:w-80 ${
-                isDarkMode
+              className={`px-4 py-3 border rounded placeholder-gray-500 focus:outline-none w-full md:w-80 ${isDarkMode
                   ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-100'
                   : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
-              }`}
+                }`}
               onFocus={(e) => {
                 if (colorPalette?.primary) {
                   e.currentTarget.style.borderColor = colorPalette.primary;
@@ -226,7 +222,7 @@ const UserManagement: React.FC = () => {
                 e.currentTarget.style.boxShadow = 'none';
               }}
             />
-            <button 
+            <button
               onClick={handleAddNewUser}
               className="px-6 py-3 rounded transition-colors text-sm font-medium whitespace-nowrap text-white"
               style={{
@@ -252,121 +248,102 @@ const UserManagement: React.FC = () => {
           ) : (
             <>
               {/* Desktop Table View */}
-              <div className={`hidden md:block rounded border overflow-hidden ${
-                isDarkMode
+              <div className={`hidden md:block rounded border overflow-hidden ${isDarkMode
                   ? 'bg-gray-800 border-gray-600'
                   : 'bg-white border-gray-300'
-              }`}>
+                }`}>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="">
-                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${
-                          isDarkMode
+                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${isDarkMode
                             ? 'text-gray-300 border-gray-600'
                             : 'text-gray-700 border-gray-300'
-                        }`}>Name</th>
-                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${
-                          isDarkMode
+                          }`}>Name</th>
+                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${isDarkMode
                             ? 'text-gray-300 border-gray-600'
                             : 'text-gray-700 border-gray-300'
-                        }`}>Username</th>
-                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${
-                          isDarkMode
+                          }`}>Username</th>
+                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${isDarkMode
                             ? 'text-gray-300 border-gray-600'
                             : 'text-gray-700 border-gray-300'
-                        }`}>Email</th>
-                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${
-                          isDarkMode
+                          }`}>Email</th>
+                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${isDarkMode
                             ? 'text-gray-300 border-gray-600'
                             : 'text-gray-700 border-gray-300'
-                        }`}>Contact</th>
-                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${
-                          isDarkMode
+                          }`}>Contact</th>
+                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${isDarkMode
                             ? 'text-gray-300 border-gray-600'
                             : 'text-gray-700 border-gray-300'
-                        }`}>Organization</th>
-                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${
-                          isDarkMode
+                          }`}>Role</th>
+                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${isDarkMode
                             ? 'text-gray-300 border-gray-600'
                             : 'text-gray-700 border-gray-300'
-                        }`}>Created</th>
-                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${
-                          isDarkMode
+                          }`}>Created</th>
+                        <th className={`px-4 py-4 text-left text-sm font-medium border-b ${isDarkMode
                             ? 'text-gray-300 border-gray-600'
                             : 'text-gray-700 border-gray-300'
-                        }`}>Actions</th>
+                          }`}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {currentUsers.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className={`px-6 py-8 text-center ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
+                          <td colSpan={7} className={`px-6 py-8 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
                             No users found
                           </td>
                         </tr>
                       ) : (
                         currentUsers.map((user: User) => (
-                          <tr key={user.id} className={`border-b ${
-                            isDarkMode
+                          <tr key={user.id} className={`border-b ${isDarkMode
                               ? 'border-gray-700 hover:bg-gray-750'
                               : 'border-gray-200 hover:bg-gray-50'
-                          }`}>
-                            <td className={`px-4 py-4 text-sm ${
-                              isDarkMode ? 'text-white' : 'text-gray-900'
                             }`}>
+                            <td className={`px-4 py-4 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
                               {user.salutation && (
-                                <span className={`mr-1 ${
-                                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                                }`}>{user.salutation}</span>
+                                <span className={`mr-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                  }`}>{user.salutation}</span>
                               )}
                               {getFullName(user)}
                             </td>
-                            <td className={`px-4 py-4 text-sm ${
-                              isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>{user.username}</td>
-                            <td className={`px-4 py-4 text-sm ${
-                              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{user.email_address}</td>
-                            <td className={`px-4 py-4 text-sm ${
-                              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>
+                            <td className={`px-4 py-4 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>{user.username}</td>
+                            <td className={`px-4 py-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>{user.email_address}</td>
+                            <td className={`px-4 py-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>
                               {user.contact_number || '-'}
                             </td>
-                            <td className={`px-4 py-4 text-sm ${
-                              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>
-                              {user.organization?.organization_name || 'No Organization'}
+                            <td className={`px-4 py-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>
+                              {user.role?.role_name || 'No Role'}
                             </td>
-                            <td className={`px-4 py-4 text-sm ${
-                              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>
+                            <td className={`px-4 py-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>
                               {new Date(user.created_at).toLocaleDateString()}
                             </td>
                             <td className="px-4 py-4">
                               <div className="flex gap-2">
-                                <button 
+                                <button
                                   onClick={() => handleEditUser(user)}
-                                  className={`p-2 rounded transition-colors ${
-                                    isDarkMode
+                                  className={`p-2 rounded transition-colors ${isDarkMode
                                       ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900'
                                       : 'text-blue-600 hover:text-blue-700 hover:bg-blue-100'
-                                  }`}
+                                    }`}
                                   title="Edit user"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                   </svg>
                                 </button>
-                                <button 
+                                <button
                                   onClick={() => handleDeleteClick(user)}
-                                  className={`p-2 rounded transition-colors ${
-                                    isDarkMode
+                                  className={`p-2 rounded transition-colors ${isDarkMode
                                       ? 'text-red-400 hover:text-red-300 hover:bg-red-900'
                                       : 'text-red-600 hover:text-red-700 hover:bg-red-100'
-                                  }`}
+                                    }`}
                                   title="Delete user"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -386,91 +363,75 @@ const UserManagement: React.FC = () => {
               {/* Mobile Card View */}
               <div className="md:hidden space-y-4">
                 {currentUsers.length === 0 ? (
-                  <div className={`rounded border p-6 text-center ${
-                    isDarkMode
+                  <div className={`rounded border p-6 text-center ${isDarkMode
                       ? 'bg-gray-800 border-gray-600 text-gray-400'
                       : 'bg-white border-gray-300 text-gray-600'
-                  }`}>
+                    }`}>
                     No users found
                   </div>
                 ) : (
                   currentUsers.map((user: User) => (
-                    <div key={user.id} className={`rounded border p-4 ${
-                      isDarkMode
+                    <div key={user.id} className={`rounded border p-4 ${isDarkMode
                         ? 'bg-gray-800 border-gray-600'
                         : 'bg-white border-gray-300'
-                    }`}>
+                      }`}>
                       <div className="mb-3">
-                        <div className={`font-medium mb-1 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>
+                        <div className={`font-medium mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                           {user.salutation && (
-                            <span className={`mr-1 ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`}>{user.salutation}</span>
+                            <span className={`mr-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`}>{user.salutation}</span>
                           )}
                           {getFullName(user)}
                         </div>
-                        <div className={`text-sm ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>@{user.username}</div>
+                        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>@{user.username}</div>
                       </div>
-                      
+
                       <div className="space-y-2 mb-4">
                         <div className="flex justify-between text-sm">
-                          <span className={`text-sm ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Email:</span>
-                          <span className={`text-sm truncate ml-2 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>{user.email_address}</span>
+                          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Email:</span>
+                          <span className={`text-sm truncate ml-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>{user.email_address}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className={`text-sm ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Contact:</span>
-                          <span className={`text-sm ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>{user.contact_number || '-'}</span>
+                          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Contact:</span>
+                          <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>{user.contact_number || '-'}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className={`text-sm ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Organization:</span>
-                          <span className={`text-sm truncate ml-2 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>{user.organization?.organization_name || 'No Organization'}</span>
+                          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Role:</span>
+                          <span className={`text-sm truncate ml-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>{user.role?.role_name || 'No Role'}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className={`text-sm ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>Created:</span>
-                          <span className={`text-sm ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>{new Date(user.created_at).toLocaleDateString()}</span>
+                          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>Created:</span>
+                          <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>{new Date(user.created_at).toLocaleDateString()}</span>
                         </div>
                       </div>
-                      
-                      <div className={`flex gap-2 pt-3 border-t ${
-                        isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                      }`}>
-                        <button 
+
+                      <div className={`flex gap-2 pt-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                        }`}>
+                        <button
                           onClick={() => handleEditUser(user)}
-                          className={`flex-1 px-4 py-2 border rounded transition-colors text-sm font-medium ${
-                            isDarkMode
+                          className={`flex-1 px-4 py-2 border rounded transition-colors text-sm font-medium ${isDarkMode
                               ? 'text-blue-400 border-blue-400 hover:bg-blue-900'
                               : 'text-blue-600 border-blue-600 hover:bg-blue-100'
-                          }`}
+                            }`}
                         >
                           Edit
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDeleteClick(user)}
-                          className={`flex-1 px-4 py-2 border rounded transition-colors text-sm font-medium ${
-                            isDarkMode
+                          className={`flex-1 px-4 py-2 border rounded transition-colors text-sm font-medium ${isDarkMode
                               ? 'text-red-400 border-red-400 hover:bg-red-900'
                               : 'text-red-600 border-red-600 hover:bg-red-100'
-                          }`}
+                            }`}
                         >
                           Delete
                         </button>
@@ -487,23 +448,20 @@ const UserManagement: React.FC = () => {
             <div className="mt-4">
               <div className="px-4 md:px-6 py-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                  <div className={`text-sm text-center sm:text-left ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <div className={`text-sm text-center sm:text-left ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     Showing {showingStart} to {showingEnd} of {totalItems} entries
                   </div>
                   <div className="flex items-center justify-center gap-2">
-                    <span className={`text-sm ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>Show</span>
+                    <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>Show</span>
                     <select
                       value={itemsPerPage}
                       onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                      className={`px-3 py-1 border rounded text-sm focus:outline-none ${
-                        isDarkMode
+                      className={`px-3 py-1 border rounded text-sm focus:outline-none ${isDarkMode
                           ? 'bg-gray-800 border-gray-600 text-white focus:border-gray-400'
                           : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
-                      }`}
+                        }`}
                       onFocus={(e) => {
                         if (colorPalette?.primary) {
                           e.currentTarget.style.borderColor = colorPalette.primary;
@@ -520,75 +478,69 @@ const UserManagement: React.FC = () => {
                       <option value={50}>50</option>
                       <option value={100}>100</option>
                     </select>
-                    <span className={`text-sm ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>entries</span>
+                    <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>entries</span>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center justify-center gap-1 flex-wrap">
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1 || totalPages === 0}
-                    className={`px-3 py-1 text-sm border rounded whitespace-nowrap ${
-                      isDarkMode
+                    className={`px-3 py-1 text-sm border rounded whitespace-nowrap ${isDarkMode
                         ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
                         : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
-                    }`}
+                      }`}
                   >
                     Previous
                   </button>
-                  
+
                   <div className="hidden sm:flex items-center gap-1">
-                  {totalPages > 0 && Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(page => {
-                      const distance = Math.abs(page - currentPage);
-                      return distance <= 2 || page === 1 || page === totalPages;
-                    })
-                    .map((page, index, array) => {
-                      const prevPage = array[index - 1];
-                      const showEllipsis = prevPage && page - prevPage > 1;
-                      
-                      return (
-                        <React.Fragment key={page}>
-                          {showEllipsis && (
-                            <span className={`px-2 ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`}>...</span>
-                          )}
-                          <button
-                            onClick={() => handlePageChange(page)}
-                            className={`px-3 py-1 text-sm border rounded ${
-                              currentPage === page
-                                ? isDarkMode
-                                  ? 'bg-blue-600 border-blue-600 text-white'
-                                  : 'bg-blue-500 border-blue-500 text-white'
-                                : isDarkMode
-                                  ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'
-                                  : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        </React.Fragment>
-                      );
-                    })}
+                    {totalPages > 0 && Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(page => {
+                        const distance = Math.abs(page - currentPage);
+                        return distance <= 2 || page === 1 || page === totalPages;
+                      })
+                      .map((page, index, array) => {
+                        const prevPage = array[index - 1];
+                        const showEllipsis = prevPage && page - prevPage > 1;
+
+                        return (
+                          <React.Fragment key={page}>
+                            {showEllipsis && (
+                              <span className={`px-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                }`}>...</span>
+                            )}
+                            <button
+                              onClick={() => handlePageChange(page)}
+                              className={`px-3 py-1 text-sm border rounded ${currentPage === page
+                                  ? isDarkMode
+                                    ? 'bg-blue-600 border-blue-600 text-white'
+                                    : 'bg-blue-500 border-blue-500 text-white'
+                                  : isDarkMode
+                                    ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'
+                                    : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100'
+                                }`}
+                            >
+                              {page}
+                            </button>
+                          </React.Fragment>
+                        );
+                      })}
                   </div>
-                  
-                  <div className={`sm:hidden text-sm px-3 py-1 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+
+                  <div className={`sm:hidden text-sm px-3 py-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     {currentPage} / {totalPages}
                   </div>
-                  
+
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages || totalPages === 0}
-                    className={`px-3 py-1 text-sm border rounded whitespace-nowrap ${
-                      isDarkMode
+                    className={`px-3 py-1 text-sm border rounded whitespace-nowrap ${isDarkMode
                         ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
                         : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
-                    }`}
+                      }`}
                   >
                     Next
                   </button>
@@ -597,33 +549,29 @@ const UserManagement: React.FC = () => {
             </div>
           )}
         </div>
-        
+
         {/* Delete Confirmation Modal */}
         {deletingUser && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className={`p-6 rounded border max-w-md w-full mx-4 ${
-              isDarkMode
+            <div className={`p-6 rounded border max-w-md w-full mx-4 ${isDarkMode
                 ? 'bg-gray-900 border-gray-700'
                 : 'bg-white border-gray-300'
-            }`}>
-              <h3 className={`text-lg font-semibold mb-4 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
+              <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
                 Confirm Delete User
               </h3>
-              <p className={`mb-6 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Are you sure you want to delete user "{getFullName(deletingUser)}" ({deletingUser.username})? This action cannot be undone.
               </p>
               <div className="flex gap-4">
                 <button
                   onClick={handleCancelDelete}
-                  className={`px-4 py-2 border rounded transition-colors text-sm font-medium ${
-                    isDarkMode
+                  className={`px-4 py-2 border rounded transition-colors text-sm font-medium ${isDarkMode
                       ? 'border-gray-600 text-white hover:bg-gray-800'
                       : 'border-gray-300 text-gray-900 hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   Cancel
                 </button>

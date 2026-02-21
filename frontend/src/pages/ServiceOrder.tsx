@@ -461,10 +461,15 @@ const ServiceOrderPage: React.FC = () => {
         return false;
       })();
 
-      const matchesSearch = searchQuery === '' ||
-        serviceOrder.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        serviceOrder.fullAddress.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (serviceOrder.concern && serviceOrder.concern.toLowerCase().includes(searchQuery.toLowerCase()));
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => checkValue(v));
+        }
+        return String(val).toLowerCase().includes(searchQuery.toLowerCase());
+      };
+
+      const matchesSearch = searchQuery === '' || checkValue(serviceOrder);
 
       return matchesLocation && matchesSearch;
     });
@@ -569,7 +574,7 @@ const ServiceOrderPage: React.FC = () => {
   };
 
   const StatusText = ({ status, type }: { status?: string, type: 'support' | 'visit' }) => {
-    if (!status) return <span className="text-gray-400">Unknown</span>;
+    if (!status) return <span className="text-gray-400">-</span>;
 
     let textColor = '';
 

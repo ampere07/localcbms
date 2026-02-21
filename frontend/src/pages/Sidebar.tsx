@@ -144,30 +144,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         { id: 'usage-type', label: 'Usage Type', icon: Activity, allowedRoles: ['administrator'] }
       ]
     },
-
-    { 
-      id: 'work-order-group', 
-      label: 'Work Order', 
-      icon: Clipboard, 
-      allowedRoles: ['administrator', 'technician'],
-      children: [
-      {
-      id: 'work-order', 
-      label: 'Work Order', 
-      icon: Clipboard, 
-      allowedRoles: ['administrator', 'technician']}] 
-      /*
-      { #temp child
-        id: 'assign-work-order', 
-        label: 'Assign Work Order', 
-        icon: Wrench, allowedRoles: ['administrator']},
-
-      ]
-      */
-    
-    },
-    
-    
     {
       id: 'sms',
       label: 'SMS',
@@ -202,6 +178,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       icon: Network,
       allowedRoles: ['administrator', 'technician'],
       children: [
+        { id: 'promo-list', label: 'Promo', icon: Tag, allowedRoles: ['administrator'] },
+        { id: 'plan-list', label: 'Plan', icon: List, allowedRoles: ['administrator'] },
+        { id: 'location-list', label: 'Location', icon: MapPin, allowedRoles: ['administrator'] },
+        { id: 'status-remarks-list', label: 'Status Remarks', icon: List, allowedRoles: ['administrator'] },
+        { id: 'lcp', label: 'LCP', icon: Network, allowedRoles: ['administrator'] },
+        { id: 'nap', label: 'NAP', icon: Network, allowedRoles: ['administrator'] },
+        { id: 'usage-type', label: 'Usage Type', icon: Activity, allowedRoles: ['administrator'] },
         { id: 'lcp-nap-location', label: 'LCP/NAP Location', icon: MapPinned, allowedRoles: ['administrator', 'technician'] },
         { id: 'radius-config', label: 'Radius Config', icon: MapPin, allowedRoles: ['administrator'] },
         { id: 'smart-olt', label: 'SmartOLT Config', icon: Network, allowedRoles: ['administrator'] },

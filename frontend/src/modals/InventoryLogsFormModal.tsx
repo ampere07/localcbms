@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, FileText, User, Users, CheckCircle2, Clock, AlertCircle, Minus, Plus, Loader2 } from 'lucide-react';
+import { X, Calendar, FileText, User, Users, CheckCircle2, Clock, AlertCircle, Minus, Plus, Loader2, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { createInventoryLog } from '../services/inventoryLogService';
 import { InventoryItem } from '../services/inventoryItemService';
@@ -42,6 +42,7 @@ const InventoryLogsFormModal: React.FC<InventoryLogsFormModalProps> = ({
         item_id: selectedItem?.id?.toString() || '',
         item_name: selectedItem?.item_name || '',
         item_description: selectedItem?.item_description || '',
+        log_type: 'Stock Out',
         item_quantity: 1,
         requested_by: 'None',
         requested_with: 'None',
@@ -60,8 +61,9 @@ const InventoryLogsFormModal: React.FC<InventoryLogsFormModalProps> = ({
                 ]);
                 setColorPalette(palette);
 
-                // Filter users with role_id 1 or 2
-                const filteredUsers = (usersRes.data || []).filter(u => u.role_id === 1 || u.role_id === 2);
+                // Filter users: exclude role_id 3 (customers)
+                const filteredUsers = (usersRes.data || []).filter(u => u.role_id !== 3);
+
                 setUsers(filteredUsers);
             } catch (err) {
                 console.error('Failed to fetch initial data:', err);
@@ -113,7 +115,7 @@ const InventoryLogsFormModal: React.FC<InventoryLogsFormModalProps> = ({
     const handleQuantityChange = (type: 'inc' | 'dec') => {
         setFormData(prev => ({
             ...prev,
-            item_quantity: type === 'inc' ? prev.item_quantity + 1 : prev.item_quantity - 1
+            item_quantity: type === 'inc' ? prev.item_quantity + 1 : Math.max(1, prev.item_quantity - 1)
         }));
     };
 
@@ -262,6 +264,40 @@ const InventoryLogsFormModal: React.FC<InventoryLogsFormModalProps> = ({
                                 />
                             </div>
 
+                            {/* Log Type */}
+                            <div className="space-y-3">
+                                <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                    Transaction Type<span className="text-red-500 ml-0.5">*</span>
+                                </label>
+                                <div className={`grid grid-cols-2 gap-2 p-1 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                                    {['Stock In', 'Stock Out'].map((type) => {
+                                        const isActive = formData.log_type === type;
+                                        return (
+                                            <button
+                                                key={type}
+                                                type="button"
+                                                onClick={() => setFormData(prev => ({ ...prev, log_type: type }))}
+                                                className={`py-2.5 rounded-md text-sm font-semibold transition-all duration-200 ${isActive
+                                                    ? 'text-white shadow-lg'
+                                                    : isDarkMode
+                                                        ? 'text-gray-400 hover:text-gray-200'
+                                                        : 'text-gray-500 hover:text-gray-700'
+                                                    }`}
+                                                style={{
+                                                    backgroundColor: isActive ? (colorPalette?.primary || '#ef4444') : 'transparent'
+                                                }}
+                                            >
+                                                <div className="flex items-center justify-center space-x-1.5">
+                                                    {type === 'Stock In' && <ArrowDownToLine size={16} />}
+                                                    {type === 'Stock Out' && <ArrowUpFromLine size={16} />}
+                                                    <span>{type}</span>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
                             {/* Item Quantity */}
                             <div className="space-y-2">
                                 <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -279,7 +315,7 @@ const InventoryLogsFormModal: React.FC<InventoryLogsFormModalProps> = ({
                                     <input
                                         type="number"
                                         value={formData.item_quantity}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, item_quantity: parseInt(e.target.value) || 0 }))}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, item_quantity: Math.max(1, parseInt(e.target.value) || 1) }))}
                                         className="flex-1 bg-transparent text-center border-none outline-none text-sm font-bold"
                                     />
                                     <button

@@ -190,13 +190,13 @@ class ServiceOrderApiController extends Controller
                 'ticket_id' => $ticketId,
                 'account_no' => $validated['account_no'],
                 'timestamp' => $timestamp,
-                'support_status' => $validated['support_status'] ?? 'Open',
+                'support_status' => $validated['support_status'] ?? 'In Progress',
                 'concern' => $validated['concern'],
                 'concern_remarks' => $validated['concern_remarks'] ?? null,
                 'priority_level' => $validated['priority_level'] ?? 'Medium',
                 'requested_by' => $validated['requested_by'] ?? null,
                 'assigned_email' => $validated['assigned_email'] ?? null,
-                'visit_status' => $validated['visit_status'] ?? 'Pending',
+                'visit_status' => $validated['visit_status'] ?? null,
                 'visit_by_user' => $validated['visit_by_user'] ?? null,
                 'visit_with' => $validated['visit_with'] ?? null,
                 'visit_remarks' => $validated['visit_remarks'] ?? null,
@@ -806,13 +806,19 @@ class ServiceOrderApiController extends Controller
                             ->select(
                                 'customers.contact_number_primary',
                                 'customers.email_address',
+                                'customers.desired_plan as plan_name',
                                 DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name")
                             )
                             ->first();
 
                         if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
                             $message = $smsTemplate->message_content;
-                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
+                            $planNameFormatted = str_replace('₱', 'P', $customerInfo->plan_name ?? '');
+                            $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->full_name));
+                            $message = str_replace('{{customer_name}}', $customerName, $message);
+                            $message = str_replace('{{account_no}}', $accountNo, $message);
+                            $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                            $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
 
                             $smsService = new \App\Services\ItexmoSmsService();
                             $smsResult = $smsService->send([
@@ -924,6 +930,7 @@ class ServiceOrderApiController extends Controller
                             ->select(
                                 'customers.contact_number_primary',
                                 'customers.email_address',
+                                'customers.desired_plan as plan_name',
                                 DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name"),
                                 'billing_accounts.account_balance'
                             )
@@ -931,8 +938,12 @@ class ServiceOrderApiController extends Controller
 
                         if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
                             $message = $smsTemplate->message_content;
-                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
+                            $planNameFormatted = str_replace('₱', 'P', $customerInfo->plan_name ?? '');
+                            $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->full_name));
+                            $message = str_replace('{{customer_name}}', $customerName, $message);
                             $message = str_replace('{{account_no}}', $accountNo, $message);
+                            $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                            $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
                             $message = str_replace('{{amount_due}}', number_format($customerInfo->account_balance, 2), $message);
                             $message = str_replace('{{balance}}', number_format($customerInfo->account_balance, 2), $message);
 
@@ -1067,6 +1078,7 @@ class ServiceOrderApiController extends Controller
                             ->select(
                                 'customers.contact_number_primary',
                                 'customers.email_address',
+                                'customers.desired_plan as plan_name',
                                 DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name"),
                                 'billing_accounts.account_balance'
                             )
@@ -1074,8 +1086,12 @@ class ServiceOrderApiController extends Controller
 
                         if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
                             $message = $smsTemplate->message_content;
-                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
+                            $planNameFormatted = str_replace('₱', 'P', $customerInfo->plan_name ?? '');
+                            $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->full_name));
+                            $message = str_replace('{{customer_name}}', $customerName, $message);
                             $message = str_replace('{{account_no}}', $accountNo, $message);
+                            $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                            $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
                             $message = str_replace('{{amount_due}}', number_format($customerInfo->account_balance, 2), $message);
                             $message = str_replace('{{balance}}', number_format($customerInfo->account_balance, 2), $message);
 

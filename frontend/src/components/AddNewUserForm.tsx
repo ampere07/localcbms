@@ -167,12 +167,26 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
 
     setLoading(true);
     try {
+      let userId = null;
+      try {
+        const authDataStr = localStorage.getItem('authData');
+        if (authDataStr) {
+          const authData = JSON.parse(authDataStr);
+          userId = authData.id || authData.user?.id || null;
+        }
+      } catch (e) {
+        console.error('Failed to parse authData', e);
+      }
+
       const dataToSend: CreateUserRequest = {
         first_name: formData.first_name.trim(),
         last_name: formData.last_name.trim(),
         username: formData.username.trim().toLowerCase(),
         email_address: formData.email_address.trim().toLowerCase(),
         password: formData.password,
+        darkmode: 'inactive',
+        created_by_user_id: userId,
+        updated_by_user_id: userId,
       };
 
       if (formData.salutation && formData.salutation.trim() && formData.salutation !== '') {
@@ -257,8 +271,8 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
 
           {errors.general && (
             <div className={`mb-6 p-4 rounded ${isDarkMode
-                ? 'bg-red-900 border border-red-600 text-red-200'
-                : 'bg-red-100 border border-red-300 text-red-700'
+              ? 'bg-red-900 border border-red-600 text-red-200'
+              : 'bg-red-100 border border-red-300 text-red-700'
               }`}>
               {errors.general}
             </div>
@@ -276,8 +290,8 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   value={formData.salutation}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
-                      ? 'bg-gray-900 border border-gray-600 text-white focus:border-gray-400'
-                      : 'bg-white border border-gray-300 text-gray-900 focus:border-gray-500'
+                    ? 'bg-gray-900 border border-gray-600 text-white focus:border-gray-400'
+                    : 'bg-white border border-gray-300 text-gray-900 focus:border-gray-500'
                     }`}
                 >
                   {salutationOptions.map(option => (
@@ -298,8 +312,8 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   value={formData.first_name}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
-                      ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
-                      : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                    ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
+                    : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
                     } ${errors.first_name
                       ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
@@ -324,8 +338,8 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   onChange={handleInputChange}
                   maxLength={1}
                   className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
-                      ? 'bg-gray-900 border border-gray-600 text-white placeholder-gray-500 focus:border-gray-400'
-                      : 'bg-white border border-gray-300 text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                    ? 'bg-gray-900 border border-gray-600 text-white placeholder-gray-500 focus:border-gray-400'
+                    : 'bg-white border border-gray-300 text-gray-900 placeholder-gray-400 focus:border-gray-500'
                     }`}
                   placeholder="M"
                 />
@@ -345,8 +359,8 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   value={formData.last_name}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
-                      ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
-                      : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                    ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
+                    : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
                     } ${errors.last_name
                       ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
@@ -370,8 +384,8 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   value={formData.username}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
-                      ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
-                      : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                    ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
+                    : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
                     } ${errors.username
                       ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
@@ -395,8 +409,8 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   value={formData.email_address}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
-                      ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
-                      : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                    ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
+                    : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
                     } ${errors.email_address
                       ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
@@ -420,8 +434,8 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   value={formData.contact_number}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
-                      ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
-                      : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                    ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
+                    : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
                     } ${errors.contact_number
                       ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
@@ -443,8 +457,8 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   value={formData.organization_id || ''}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
-                      ? 'bg-gray-900 text-white focus:border-gray-400'
-                      : 'bg-white text-gray-900 focus:border-gray-500'
+                    ? 'bg-gray-900 text-white focus:border-gray-400'
+                    : 'bg-white text-gray-900 focus:border-gray-500'
                     } ${errors.organization_id
                       ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
@@ -472,8 +486,8 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   value={formData.role_id || ''}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
-                      ? 'bg-gray-900 text-white focus:border-gray-400'
-                      : 'bg-white text-gray-900 focus:border-gray-500'
+                    ? 'bg-gray-900 text-white focus:border-gray-400'
+                    : 'bg-white text-gray-900 focus:border-gray-500'
                     } ${errors.role_id
                       ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
@@ -502,8 +516,8 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   value={formData.password}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
-                      ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
-                      : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                    ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
+                    : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
                     } ${errors.password
                       ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
@@ -527,8 +541,8 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                   value={confirmPassword}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
-                      ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
-                      : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
+                    ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
+                    : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
                     } ${errors.confirmPassword
                       ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
@@ -548,8 +562,8 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                 onClick={onCancel}
                 disabled={loading}
                 className={`px-6 py-3 border rounded transition-colors text-sm font-medium disabled:opacity-50 ${isDarkMode
-                    ? 'border-gray-600 text-white hover:bg-gray-800'
-                    : 'border-gray-300 text-gray-900 hover:bg-gray-100'
+                  ? 'border-gray-600 text-white hover:bg-gray-800'
+                  : 'border-gray-300 text-gray-900 hover:bg-gray-100'
                   }`}
               >
                 Cancel

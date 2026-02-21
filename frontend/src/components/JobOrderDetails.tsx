@@ -416,7 +416,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         let msg = response.message || 'Failed to approve job order';
 
         // If there's duplicate data, show the table name if provided
-        if (msg.includes('already a data') || msg.includes('duplicate')) {
+        if (msg.includes('already data') || msg.includes('duplicate')) {
           if (response.table) {
             msg = `Duplicate Entry Error: ${msg}\nTable: ${response.table}`;
           }
@@ -433,7 +433,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
 
       if (err.response?.data) {
         const data = err.response.data;
-        if (data.message === 'theirs already a data in database' || data.message?.toLowerCase().includes('duplicate')) {
+        if (data.message === "there's already data in database" || data.message?.toLowerCase().includes('duplicate')) {
           msg = data.message;
           if (data.table) {
             tableInfo = `\nTable: ${data.table}`;

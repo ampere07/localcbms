@@ -69,6 +69,8 @@ interface JobOrderDoneFormData {
   statusRemarks: string;
   ip: string;
   addressCoordinates: string;
+  billingDay: string;
+  isLastDayOfMonth: boolean;
 }
 
 interface OrderItem {
@@ -178,7 +180,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     visit_with_other: '',
     statusRemarks: '',
     ip: '',
-    addressCoordinates: ''
+    addressCoordinates: '',
+    billingDay: '',
+    isLastDayOfMonth: false
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -773,7 +777,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                 visit_with_other: getValue(jobOrderData.Visit_With_Other || jobOrderData.visit_with_other, 'visit_with_other'),
                 statusRemarks: getValue(jobOrderData.Status_Remarks || jobOrderData.status_remarks, 'statusRemarks'),
                 ip: getValue(jobOrderData.IP || jobOrderData.ip, 'ip'),
-                addressCoordinates: getValue(jobOrderData.Address_Coordinates || jobOrderData.address_coordinates, 'addressCoordinates')
+                addressCoordinates: getValue(jobOrderData.Address_Coordinates || jobOrderData.address_coordinates, 'addressCoordinates'),
+                billingDay: (jobOrderData.billing_day !== undefined && jobOrderData.billing_day !== null) ? String(jobOrderData.billing_day) : (jobOrderData.Billing_Day !== undefined && jobOrderData.Billing_Day !== null) ? String(jobOrderData.Billing_Day) : '',
+                isLastDayOfMonth: jobOrderData.billing_day === 0 || jobOrderData.Billing_Day === 0
               };
 
               setFormData(prev => ({
@@ -831,7 +837,9 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
           visit_with_other: getValue(jobOrderData.Visit_With_Other || jobOrderData.visit_with_other, 'visit_with_other'),
           statusRemarks: getValue(jobOrderData.Status_Remarks || jobOrderData.status_remarks, 'statusRemarks'),
           ip: getValue(jobOrderData.IP || jobOrderData.ip, 'ip'),
-          addressCoordinates: getValue(jobOrderData.Address_Coordinates || jobOrderData.address_coordinates, 'addressCoordinates')
+          addressCoordinates: getValue(jobOrderData.Address_Coordinates || jobOrderData.address_coordinates, 'addressCoordinates'),
+          billingDay: (jobOrderData.billing_day !== undefined && jobOrderData.billing_day !== null) ? String(jobOrderData.billing_day) : (jobOrderData.Billing_Day !== undefined && jobOrderData.Billing_Day !== null) ? String(jobOrderData.Billing_Day) : '',
+          isLastDayOfMonth: jobOrderData.billing_day === 0 || jobOrderData.Billing_Day === 0
         };
 
         setFormData(prev => ({
@@ -1191,7 +1199,8 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
         visit_with: updatedFormData.visit_with,
         visit_with_other: updatedFormData.visit_with_other,
         updated_by_user_email: updatedFormData.modifiedBy,
-        desired_plan: updatedFormData.choosePlan
+        desired_plan: updatedFormData.choosePlan,
+        billing_day: updatedFormData.isLastDayOfMonth ? 0 : (parseInt(updatedFormData.billingDay) || null)
       };
 
       if (updatedFormData.onsiteStatus === 'Done') {
@@ -1913,6 +1922,55 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
                     </div>
                   )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Billing Day (1-30)
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      disabled={formData.isLastDayOfMonth}
+                      value={formData.isLastDayOfMonth ? 'Last' : formData.billingDay}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        if (val === '') {
+                          handleInputChange('billingDay', '');
+                          return;
+                        }
+                        const num = parseInt(val);
+                        if (num >= 1 && num <= 30) {
+                          handleInputChange('billingDay', num.toString());
+                        } else if (num > 30) {
+                          handleInputChange('billingDay', '30');
+                        }
+                      }}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'} ${formData.isLastDayOfMonth ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      placeholder="Enter 1-30"
+                    />
+                  </div>
+                  <div className="flex items-end pb-2">
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.isLastDayOfMonth}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setFormData(prev => ({
+                            ...prev,
+                            isLastDayOfMonth: checked,
+                            billingDay: checked ? '0' : ''
+                          }));
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                      />
+                      <span className={`ml-2 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Last day of month
+                      </span>
+                    </label>
+                  </div>
                 </div>
 
                 <div>

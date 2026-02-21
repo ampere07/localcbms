@@ -30,6 +30,7 @@ interface InventoryLog {
   status?: string;
   account_no?: string;
   remarks?: string;
+  log_type?: string;
 }
 
 interface BorrowedLog {
@@ -92,7 +93,8 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
       item_quantity: 4,
       requested_by: 'None',
       requested_with: 'None',
-      status: 'STOCK-IN'
+      status: 'STOCK-IN',
+      log_type: 'Stock In'
     }
   ],
   borrowedLogs = [],

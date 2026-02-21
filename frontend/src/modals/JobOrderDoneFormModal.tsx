@@ -291,8 +291,8 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
         promo: jobOrderData.promo || jobOrderData.Promo || '',
         remarks: jobOrderData.Onsite_Remarks || jobOrderData.onsite_remarks || jobOrderData.remarks || '',
         installationFee: jobOrderData.installation_fee || jobOrderData.Installation_Fee || 0,
-        billingDay: jobOrderData.billing_day !== undefined ? String(jobOrderData.billing_day) : '',
-        isLastDayOfMonth: jobOrderData.billing_day === 0,
+        billingDay: (jobOrderData.billing_day !== undefined && jobOrderData.billing_day !== null) ? String(jobOrderData.billing_day) : (jobOrderData.Billing_Day !== undefined && jobOrderData.Billing_Day !== null) ? String(jobOrderData.Billing_Day) : '',
+        isLastDayOfMonth: jobOrderData.billing_day === 0 || jobOrderData.Billing_Day === 0,
         onsiteStatus: jobOrderData.Onsite_Status || jobOrderData.onsite_status || 'In Progress',
         assignedEmail: jobOrderData.Assigned_Email || jobOrderData.assigned_email || '',
         installationLandmark: jobOrderData.installation_landmark || jobOrderData.Installation_Landmark || ''
@@ -467,26 +467,14 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
       const applicationId = jobOrderData.Application_ID || jobOrderData.application_id;
 
       const jobOrderUpdateData: any = {
-        First_Name: updatedFormData.firstName,
-        Middle_Initial: updatedFormData.middleInitial,
-        Last_Name: updatedFormData.lastName,
-        Contact_Number: updatedFormData.contactNumber,
-        Email_Address: updatedFormData.email,
-        Address: updatedFormData.address,
-        Barangay: updatedFormData.barangay,
-        City: updatedFormData.city,
-        Region: updatedFormData.region,
-        Choose_Plan: updatedFormData.choosePlan,
-        Status: updatedFormData.status,
-        Referred_By: updatedFormData.referredBy,
-        Onsite_Status: updatedFormData.onsiteStatus,
-        Assigned_Email: updatedFormData.assignedEmail,
-        Onsite_Remarks: updatedFormData.remarks,
+        timestamp: updatedFormData.timestamp,
+        onsite_status: updatedFormData.onsiteStatus,
+        assigned_email: updatedFormData.assignedEmail,
+        onsite_remarks: updatedFormData.remarks,
         installation_fee: Number(updatedFormData.installationFee) || 0,
         billing_day: updatedFormData.isLastDayOfMonth ? 0 : (parseInt(updatedFormData.billingDay) || 30),
         installation_landmark: updatedFormData.installationLandmark || null,
-        Modified_By: updatedFormData.modifiedBy,
-        Modified_Date: updatedFormData.modifiedDate
+        updated_by_user_email: updatedFormData.modifiedBy
       };
 
       const jobOrderResponse = await updateJobOrder(jobOrderId, jobOrderUpdateData);
@@ -495,22 +483,10 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
 
       if (applicationId) {
         const applicationUpdateData: any = {
-          first_name: updatedFormData.firstName,
-          middle_initial: updatedFormData.middleInitial,
-          last_name: updatedFormData.lastName,
-          mobile_number: updatedFormData.contactNumber,
-          email_address: updatedFormData.email,
-          installation_address: updatedFormData.address,
-          barangay: updatedFormData.barangay,
-          city: updatedFormData.city,
-          region: updatedFormData.region,
-          desired_plan: updatedFormData.choosePlan,
-          referred_by: updatedFormData.referredBy,
-          promo: updatedFormData.promo || null,
           status: updatedFormData.status
         };
         await updateApplication(applicationId, applicationUpdateData);
-        saveMessages.push({ type: 'success', text: 'Application updated successfully' });
+        saveMessages.push({ type: 'success', text: 'Application status updated' });
       }
 
       clearInterval(progressInterval);
@@ -577,19 +553,19 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
               <div className="space-y-3">
                 {modalContent.messages.map((message, index) => (
                   <div key={index} className={`flex items-start gap-3 p-3 rounded-lg ${message.type === 'success'
-                      ? isDarkMode ? 'bg-green-900/30 border border-green-700' : 'bg-green-100 border border-green-300'
-                      : message.type === 'warning'
-                        ? isDarkMode ? 'bg-yellow-900/30 border border-yellow-700' : 'bg-yellow-100 border border-yellow-300'
-                        : isDarkMode ? 'bg-red-900/30 border border-red-700' : 'bg-red-100 border border-red-300'
+                    ? isDarkMode ? 'bg-green-900/30 border border-green-700' : 'bg-green-100 border border-green-300'
+                    : message.type === 'warning'
+                      ? isDarkMode ? 'bg-yellow-900/30 border border-yellow-700' : 'bg-yellow-100 border border-yellow-300'
+                      : isDarkMode ? 'bg-red-900/30 border border-red-700' : 'bg-red-100 border border-red-300'
                     }`}>
                     {message.type === 'success' && <CheckCircle className="text-green-500 flex-shrink-0 mt-0.5" size={20} />}
                     {message.type === 'warning' && <AlertCircle className="text-yellow-500 flex-shrink-0 mt-0.5" size={20} />}
                     {message.type === 'error' && <XCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />}
                     <p className={`text-sm ${message.type === 'success'
-                        ? isDarkMode ? 'text-green-200' : 'text-green-800'
-                        : message.type === 'warning'
-                          ? isDarkMode ? 'text-yellow-200' : 'text-yellow-800'
-                          : isDarkMode ? 'text-red-200' : 'text-red-800'
+                      ? isDarkMode ? 'text-green-200' : 'text-green-800'
+                      : message.type === 'warning'
+                        ? isDarkMode ? 'text-yellow-200' : 'text-yellow-800'
+                        : isDarkMode ? 'text-red-200' : 'text-red-800'
                       }`}>{message.text}</p>
                   </div>
                 ))}

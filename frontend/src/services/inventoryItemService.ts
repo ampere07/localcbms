@@ -32,7 +32,7 @@ export const getAllInventoryItems = async (search?: string, page: number = 1, li
     if (search) {
       params.search = search;
     }
-    
+
     const response = await apiClient.get<ApiResponse<InventoryItem[]>>('/inventory-items', { params });
     return response.data;
   } catch (error: any) {

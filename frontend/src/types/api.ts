@@ -133,6 +133,9 @@ export interface CreateUserRequest {
   password: string;
   organization_id?: number;
   role_id?: number;
+  darkmode?: string;
+  created_by_user_id?: number | null;
+  updated_by_user_id?: number | null;
 }
 
 export interface UpdateUserRequest {

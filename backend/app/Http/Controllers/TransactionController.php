@@ -771,6 +771,25 @@ class TransactionController extends Controller
             if ($result['status'] === 'success') {
                 \Log::info('[TRANSACTION RECONNECT SUCCESS] Reconnection and Session Kill completed successfully');
 
+                // Log reconnection in reconnection_logs table
+                try {
+                    DB::table('reconnection_logs')->insert([
+                        'account_id' => $billingAccount->id,
+                        'session_id' => null,
+                        'username' => $username,
+                        'plan_id' => $billingAccount->plan_id,
+                        'reconnection_fee' => 0.00,
+                        'remarks' => 'Auto-reconnect after Transaction Approval',
+                        'created_at' => now(),
+                        'created_by_user_id' => Auth::id(),
+                        'updated_at' => now(),
+                        'updated_by_user_id' => Auth::id()
+                    ]);
+                    \Log::info('[TRANSACTION RECONNECT LOG] Stored data in reconnection_logs for account: ' . $accountNo);
+                } catch (\Exception $e) {
+                    \Log::error('[TRANSACTION RECONNECT LOG ERROR] Failed to store reconnection log: ' . $e->getMessage());
+                }
+
                 // Send SMS Notification
                 try {
                     // Fetch SMS template
@@ -794,7 +813,13 @@ class TransactionController extends Controller
                         if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
                             // Replace variables
                             $message = $smsTemplate->message_content;
-                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
+                            $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->full_name));
+                            $planNameFormatted = str_replace('₱', 'P', $plan ?? '');
+                            
+                            $message = str_replace('{{customer_name}}', $customerName, $message);
+                            $message = str_replace('{{account_no}}', $accountNo, $message);
+                            $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                            $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
 
                             // Send SMS
                             $smsService = new \App\Services\ItexmoSmsService();
@@ -823,9 +848,13 @@ class TransactionController extends Controller
                     if (!empty($customerInfo->email_address)) {
                          $emailService = app(\App\Services\EmailQueueService::class);
                          
+                         $planNameFormatted = str_replace('₱', 'P', $plan ?? '');
+                         
                          $emailData = [
                              'Full_Name' => $customerInfo->full_name,
-                             'Plan' => $plan,
+                             'Plan' => $planNameFormatted,
+                             'plan_name' => $planNameFormatted,
+                             'plan_nam' => $planNameFormatted,
                              'Account_No' => $accountNo,
                              'account_no' => $accountNo,
                              'recipient_email' => $customerInfo->email_address,
@@ -891,8 +920,14 @@ class TransactionController extends Controller
                     $message = $paidTemplate->message_content;
                     
                     // Replace variables
-                    $message = str_replace('{{customer_name}}', $customer->full_name, $message);
+                    $customerName = preg_replace('/\s+/', ' ', trim($customer->full_name));
+                    $planNameRaw = $billingAccount->plan ? $billingAccount->plan->plan_name : ($customer->desired_plan ?? 'N/A');
+                    $planNameFormatted = str_replace('₱', 'P', $planNameRaw);
+
+                    $message = str_replace('{{customer_name}}', $customerName, $message);
                     $message = str_replace('{{account_no}}', $billingAccount->account_no, $message);
+                    $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                    $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
                     $message = str_replace('{{invoice_id}}', $invoiceIds, $message);
                     
                     // Support multiple variations of placeholders
@@ -945,11 +980,17 @@ class TransactionController extends Controller
                     
                 $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
                 
+                $planNameRaw = $billingAccount->plan ? $billingAccount->plan->plan_name : ($customer->desired_plan ?? 'N/A');
+                $planNameFormatted = str_replace('₱', 'P', $planNameRaw);
+
                 $emailData = [
                     'Amount' => number_format($totalPaidAmount, 2),
                     'Company_Name' => $brandName,
                     'Account_No' => $billingAccount->account_no,
                     'account_no' => $billingAccount->account_no,
+                    'Plan' => $planNameFormatted,
+                    'plan_name' => $planNameFormatted,
+                    'plan_nam' => $planNameFormatted,
                     'Date' => date('Y-m-d'),
                     'Full_Name' => $customer->full_name,
                     'invoice_ids' => $invoiceIds,

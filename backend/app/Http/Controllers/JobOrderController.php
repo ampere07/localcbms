@@ -481,6 +481,7 @@ class JobOrderController extends Controller
                 'installation_fee' => 'nullable|numeric|min:0',
                 'billing_day' => 'nullable|integer|min:0',
                 'onsite_status' => 'nullable|string|max:100',
+                'billing_status' => 'nullable|string|max:255',
                 'assigned_email' => 'nullable|email|max:255',
                 'onsite_remarks' => 'nullable|string',
                 'status_remarks' => 'nullable|string|max:255',
@@ -875,7 +876,7 @@ class JobOrderController extends Controller
 
             // Check if online status already exists for this username
             if (OnlineStatus::where('username', $generatedUsername)->exists()) {
-                throw new \Exception('theirs already a data in database');
+                throw new \Exception('there\'s already data in database');
             }
 
             OnlineStatus::create([
@@ -943,63 +944,8 @@ class JobOrderController extends Controller
             DB::commit();
 
             // Send Welcome SMS
-            try {
-                if (!empty($customer->contact_number_primary)) {
-                    \Log::info('Attempting to send Welcome SMS', [
-                        'customer_id' => $customer->id,
-                        'contact_number' => $customer->contact_number_primary
-                    ]);
+            $this->sendWelcomeSms($customer, $accountNumber, $generatedUsername, $generatedPassword, $application->desired_plan);
 
-                    $welcomeTemplate = \App\Models\SMSTemplate::where('template_type', 'Welcome')
-                        ->where('is_active', 1)
-                        ->first();
-                        
-                    if ($welcomeTemplate) {
-                        $message = $welcomeTemplate->message_content;
-                        
-                        // Replace variables
-                        $message = str_replace('{{customer_name}}', $customer->full_name, $message);
-                        $message = str_replace('{{customer_tag}}', $customer->full_name, $message);
-                        $message = str_replace('{{company_name}}', 'ATSS Fiber', $message);
-                        $message = str_replace('{{account_no}}', $accountNumber, $message);
-                        $message = str_replace('{{username}}', $generatedUsername, $message);
-                        $message = str_replace('{{password}}', $generatedPassword, $message);
-                        
-                        $displayPlan = $application->desired_plan ?? 'N/A';
-                        if (strpos($displayPlan, ' - P') !== false) {
-                            $displayPlan = trim(explode(' - P', $displayPlan)[0]);
-                        }
-                        $message = str_replace('{{plan_name}}', $displayPlan, $message);
-                        
-                        $smsService = new \App\Services\ItexmoSmsService();
-                        $result = $smsService->send([
-                            'contact_no' => $customer->contact_number_primary,
-                            'message' => $message
-                        ]);
-                        
-                        if ($result['success']) {
-                            \Log::info('Welcome SMS sent successfully', [
-                                 'customer_id' => $customer->id,
-                                 'account_no' => $accountNumber,
-                                 'response' => $result
-                            ]);
-                        } else {
-                            \Log::error('Welcome SMS failed to send', [
-                                'customer_id' => $customer->id,
-                                'error' => $result['error'] ?? 'Unknown error'
-                            ]);
-                        }
-                    } else {
-                        \Log::warning('Welcome SMS template not found or inactive');
-                    }
-                } else {
-                    \Log::warning('Welcome SMS skipped: No contact number provided');
-                }
-            } catch (\Exception $e) {
-                // Log but don't fail the request since approval is committed
-                \Log::error('Failed to send Welcome SMS Exception: ' . $e->getMessage()); 
-                \Log::error('Trace: ' . $e->getTraceAsString());
-            }
 
             // Send Welcome Email
             try {
@@ -1012,8 +958,9 @@ class JobOrderController extends Controller
                         $emailBody = $welcomeEmailTemplate->email_body;
 
                         // Replace variables in email body
-                        $emailBody = str_replace('{{customer_name}}', $customer->full_name, $emailBody);
-                        $emailBody = str_replace('{{customer_tag}}', $customer->full_name, $emailBody);
+                        $customerName = preg_replace('/\s+/', ' ', trim($customer->full_name));
+                        $emailBody = str_replace('{{customer_name}}', $customerName, $emailBody);
+                        $emailBody = str_replace('{{customer_tag}}', $customerName, $emailBody);
                         $emailBody = str_replace('{{company_name}}', 'ATSS Fiber', $emailBody);
                         $emailBody = str_replace('{{fb_username}}', 'https://www.facebook.com/atssfiber', $emailBody);
                         $emailBody = str_replace('{{account_no}}', $accountNumber, $emailBody);
@@ -1024,6 +971,7 @@ class JobOrderController extends Controller
                         if (strpos($displayPlan, ' - P') !== false) {
                             $displayPlan = trim(explode(' - P', $displayPlan)[0]);
                         }
+                        $displayPlan = str_replace('₱', 'P', $displayPlan);
                         $emailBody = str_replace('{{plan_name}}', $displayPlan, $emailBody);
 
                          if (!empty($emailBody)) {
@@ -1084,7 +1032,7 @@ class JobOrderController extends Controller
             
             // Map common error messages to user-friendly "duplicate" message
             $duplicateMessages = [
-                'theirs already a data in database',
+                'there\'s already data in database',
                 'Duplicate entry',
                 'Integrity constraint violation',
                 'Billing account already exists',
@@ -1102,7 +1050,7 @@ class JobOrderController extends Controller
             if ($isDuplicate) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'theirs already a data in database',
+                    'message' => 'there\'s already data in database',
                     'error' => $e->getMessage(),
                 ], 409); // Conflict
             }
@@ -1740,5 +1688,78 @@ class JobOrderController extends Controller
         }
     }
 
+    /**
+     * Send Welcome SMS notification just like in TransactionController
+     */
+    private function sendWelcomeSms($customer, $accountNumber, $pppoeUsername, $pppoePassword, $planName)
+    {
+        try {
+            if ($customer && !empty($customer->contact_number_primary)) {
+                $welcomeTemplate = DB::table('sms_templates')
+                    ->where('template_type', 'Welcome')
+                    ->where('is_active', 1)
+                    ->first();
+                    
+                if ($welcomeTemplate) {
+                    $smsService = new \App\Services\ItexmoSmsService();
+                    $message = $welcomeTemplate->message_content;
+                    
+                    // Replace variables
+                    $customerName = preg_replace('/\s+/', ' ', trim($customer->full_name));
+                    $message = str_replace('{{customer_name}}', $customerName, $message);
+                    $message = str_replace('{{customer_tag}}', $customerName, $message);
+                    $message = str_replace('{{account_no}}', $accountNumber, $message);
+                    $message = str_replace('{{username}}', $pppoeUsername, $message);
+                    $message = str_replace('{{password}}', $pppoePassword, $message);
+                    
+                    $displayPlan = $planName ?? 'N/A';
+                    if (strpos($displayPlan, ' - P') !== false) {
+                        $displayPlan = trim(explode(' - P', $displayPlan)[0]);
+                    }
+                    $displayPlan = str_replace('₱', 'P', $displayPlan);
+                    $message = str_replace('{{plan_name}}', $displayPlan, $message);
+                    
+                    // Support more variables like in TransactionController
+                    $currentDate = date('Y-m-d');
+                    $message = str_replace('{{date}}', $currentDate, $message);
+                    $message = str_replace('{{payment_date}}', $currentDate, $message);
+                    
+                    $message = $this->replaceGlobalVariables($message);
+                    
+                    $result = $smsService->send([
+                        'contact_no' => $customer->contact_number_primary,
+                        'message' => $message
+                    ]);
+                    
+                    if ($result['success']) {
+                        \Log::info('Welcome SMS sent successfully', [
+                             'customer_id' => $customer->id,
+                             'account_no' => $accountNumber
+                        ]);
+                    } else {
+                        \Log::error('Welcome SMS failed to send: ' . ($result['error'] ?? 'Unknown error'));
+                    }
+                } else {
+                    \Log::warning('Welcome SMS template not found or inactive');
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to send Welcome SMS: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Replace global placeholders in SMS messages
+     */
+    private function replaceGlobalVariables(string $message): string
+    {
+        $portalUrl = 'sync.atssfiber.ph';
+        $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
+
+        $message = str_replace('{{portal_url}}', $portalUrl, $message);
+        $message = str_replace('{{company_name}}', $brandName, $message);
+
+        return $message;
+    }
 
 }

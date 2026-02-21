@@ -247,9 +247,15 @@ const Inventory: React.FC = () => {
     const itemCategory = (item.category || '').toLowerCase().replace(/\s+/g, '-');
     const matchesCategory = selectedCategory === 'all' || itemCategory === selectedCategory;
 
-    const matchesSearch = searchQuery === '' ||
-      item.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.item_description && item.item_description.toLowerCase().includes(searchQuery.toLowerCase()));
+    const checkValue = (val: any): boolean => {
+      if (val === null || val === undefined) return false;
+      if (typeof val === 'object') {
+        return Object.values(val).some(v => checkValue(v));
+      }
+      return String(val).toLowerCase().includes(searchQuery.toLowerCase());
+    };
+
+    const matchesSearch = searchQuery === '' || checkValue(item);
 
     return matchesCategory && matchesSearch;
   });
