@@ -771,6 +771,25 @@ class TransactionController extends Controller
             if ($result['status'] === 'success') {
                 \Log::info('[TRANSACTION RECONNECT SUCCESS] Reconnection and Session Kill completed successfully');
 
+                // Log reconnection in reconnection_logs table
+                try {
+                    DB::table('reconnection_logs')->insert([
+                        'account_id' => $billingAccount->id,
+                        'session_id' => null,
+                        'username' => $username,
+                        'plan_id' => $billingAccount->plan_id,
+                        'reconnection_fee' => 0.00,
+                        'remarks' => 'Auto-reconnect after Transaction Approval',
+                        'created_at' => now(),
+                        'created_by_user_id' => Auth::id(),
+                        'updated_at' => now(),
+                        'updated_by_user_id' => Auth::id()
+                    ]);
+                    \Log::info('[TRANSACTION RECONNECT LOG] Stored data in reconnection_logs for account: ' . $accountNo);
+                } catch (\Exception $e) {
+                    \Log::error('[TRANSACTION RECONNECT LOG ERROR] Failed to store reconnection log: ' . $e->getMessage());
+                }
+
                 // Send SMS Notification
                 try {
                     // Fetch SMS template

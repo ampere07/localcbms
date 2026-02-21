@@ -446,6 +446,28 @@ class PaymentWorkerService
             if ($result['status'] === 'success') {
                 $this->workerLog("[RECONNECT SUCCESS] Reconnection and Session Kill completed successfully");
 
+                // Log reconnection in reconnection_logs table
+                try {
+                    // Try to get plan_id from billing_account
+                    $planId = DB::table('billing_accounts')->where('id', $billingAccount->id)->value('plan_id');
+
+                    DB::table('reconnection_logs')->insert([
+                        'account_id' => $billingAccount->id,
+                        'session_id' => null,
+                        'username' => $username,
+                        'plan_id' => $planId,
+                        'reconnection_fee' => 0.00,
+                        'remarks' => 'Auto-reconnect after Payment Portal Payment',
+                        'created_at' => now(),
+                        'created_by_user_id' => null, // System-triggered
+                        'updated_at' => now(),
+                        'updated_by_user_id' => null
+                    ]);
+                    $this->workerLog("[RECONNECT LOG] Stored data in reconnection_logs for account: {$accountNo}");
+                } catch (Exception $e) {
+                    $this->workerLog("[RECONNECT LOG ERROR] Failed to store reconnection log: " . $e->getMessage());
+                }
+
                 // Send SMS Notification
                 try {
                     // Fetch SMS template

@@ -432,7 +432,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
         const planResponse = await apiClient.get<{ success: boolean; data: any[] }>('/plans');
         if (planResponse.data.success && Array.isArray(planResponse.data.data)) {
-          setPlans(planResponse.data.data.map(p => p.plan_name || p.name).filter(Boolean));
+          setPlans(planResponse.data.data.map(p => {
+            const name = p.plan_name || p.name;
+            const price = p.price ? Math.floor(p.price) : '';
+            return price ? `${name} - ${price}` : name;
+          }).filter(Boolean));
         }
 
         if (lcpnapsRes.success && Array.isArray(lcpnapsRes.data)) {
