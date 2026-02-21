@@ -303,11 +303,15 @@ const SOA: React.FC = () => {
   const filteredRecords = useMemo(() => {
     let filtered = soaRecords.filter((record: SOARecordUI) => {
       const matchesDate = selectedDate === 'All' || record.statementDate === selectedDate;
-      const matchesSearch = searchQuery === '' ||
-        record.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.accountNo.includes(searchQuery) ||
-        record.id.includes(searchQuery);
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => checkValue(v));
+        }
+        return String(val).toLowerCase().includes(searchQuery.toLowerCase());
+      };
+
+      const matchesSearch = searchQuery === '' || checkValue(record);
 
       return matchesDate && matchesSearch;
     });

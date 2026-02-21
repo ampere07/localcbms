@@ -1146,6 +1146,16 @@ class ServiceOrderController extends Controller
                     ]);
 
                 \Log::info('[SERVICE ORDER PULLOUT DB] Cleared technical details for Account: ' . $accountNo);
+                
+                // Also clear port in job_orders table
+                DB::table('job_orders')
+                    ->where('account_id', $billingAccount->id)
+                    ->update([
+                        'port' => null,
+                        'updated_at' => now()
+                    ]);
+                
+                \Log::info('[SERVICE ORDER PULLOUT DB] Cleared port in job_orders for Account ID: ' . $billingAccount->id);
 
                 // Send SMS Notification
                 try {

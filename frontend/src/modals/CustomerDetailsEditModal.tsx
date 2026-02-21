@@ -193,7 +193,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
 
         setFormData({
           billingStatus: recordData.billing_status_id || recordData.billingStatus || recordData.billingAccount?.billingStatusName || recordData.status || recordData.billing_status || recordData.billingAccount?.billing_status || '',
-          billingDay: recordData.billing_day || recordData.billingDay || recordData.billingAccount?.billing_day || ''
+          billingDay: recordData.billing_day || recordData.billingDay || recordData.Billing_Day || recordData.billingAccount?.billing_day || ''
         });
       } else if (editType === 'technical_details') {
         let lcpnapValue = recordData.lcpnap || recordData.LCPNAP || '';

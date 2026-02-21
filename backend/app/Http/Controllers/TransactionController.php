@@ -829,9 +829,13 @@ class TransactionController extends Controller
                     if (!empty($customerInfo->email_address)) {
                          $emailService = app(\App\Services\EmailQueueService::class);
                          
+                         $planNameFormatted = str_replace('₱', 'P', $plan ?? '');
+                         
                          $emailData = [
                              'Full_Name' => $customerInfo->full_name,
-                             'Plan' => $plan,
+                             'Plan' => $planNameFormatted,
+                             'plan_name' => $planNameFormatted,
+                             'plan_nam' => $planNameFormatted,
                              'Account_No' => $accountNo,
                              'account_no' => $accountNo,
                              'recipient_email' => $customerInfo->email_address,
@@ -957,11 +961,17 @@ class TransactionController extends Controller
                     
                 $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
                 
+                $planNameRaw = $billingAccount->plan ? $billingAccount->plan->plan_name : ($customer->desired_plan ?? 'N/A');
+                $planNameFormatted = str_replace('₱', 'P', $planNameRaw);
+
                 $emailData = [
                     'Amount' => number_format($totalPaidAmount, 2),
                     'Company_Name' => $brandName,
                     'Account_No' => $billingAccount->account_no,
                     'account_no' => $billingAccount->account_no,
+                    'Plan' => $planNameFormatted,
+                    'plan_name' => $planNameFormatted,
+                    'plan_nam' => $planNameFormatted,
                     'Date' => date('Y-m-d'),
                     'Full_Name' => $customer->full_name,
                     'invoice_ids' => $invoiceIds,

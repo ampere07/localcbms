@@ -465,11 +465,16 @@ const JobOrderPage: React.FC = () => {
       }
     }
 
+    const checkValue = (val: any): boolean => {
+      if (val === null || val === undefined) return false;
+      if (typeof val === 'object') {
+        return Object.values(val).some(v => checkValue(v));
+      }
+      return String(val).toLowerCase().includes(searchQuery.toLowerCase());
+    };
+
     const fullName = getClientFullName(jobOrder).toLowerCase();
-    const matchesSearch = searchQuery === '' ||
-      fullName.includes(searchQuery.toLowerCase()) ||
-      ((jobOrder.Address || jobOrder.address) || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ((jobOrder.Assigned_Email || jobOrder.assigned_email) || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = searchQuery === '' || checkValue(jobOrder);
 
     return matchesLocation && matchesSearch;
   });

@@ -113,9 +113,15 @@ const DCNoticePage: React.FC = () => {
   };
 
   const filteredRecords = dcNoticeRecords.filter(record => {
-    const matchesSearch = searchQuery === '' ||
-      record.account_no?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.full_name?.toLowerCase().includes(searchQuery.toLowerCase());
+    const checkValue = (val: any): boolean => {
+      if (val === null || val === undefined) return false;
+      if (typeof val === 'object') {
+        return Object.values(val).some(v => checkValue(v));
+      }
+      return String(val).toLowerCase().includes(searchQuery.toLowerCase());
+    };
+
+    const matchesSearch = searchQuery === '' || checkValue(record);
 
     return matchesSearch;
   });

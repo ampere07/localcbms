@@ -118,50 +118,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         { id: 'billing-config', label: 'Billing Configurations', icon: Receipt, allowedRoles: ['administrator'] }
       ]
     },
-    {
-      id: 'application',
-      label: 'Application',
-      icon: FileCheck,
-      allowedRoles: ['administrator', 'technician'],
-      children: [
-        { id: 'application-management', label: 'Application', icon: FileCheck, allowedRoles: ['administrator'] },
-        // { id: 'application-visit', label: 'Application Visit', icon: MapPin, allowedRoles: ['administrator', 'technician'] },
-        { id: 'promo-list', label: 'Promo', icon: Tag, allowedRoles: ['administrator'] },
-        { id: 'plan-list', label: 'Plan', icon: List, allowedRoles: ['administrator'] },
-        { id: 'location-list', label: 'Location', icon: MapPin, allowedRoles: ['administrator'] },
-        { id: 'status-remarks-list', label: 'Status Remarks', icon: List, allowedRoles: ['administrator'] }
-      ]
-    },
-    {
-      id: 'job-order-group',
-      label: 'Job Order',
-      icon: Wrench,
-      allowedRoles: ['administrator', 'technician'],
-      children: [
-        { id: 'job-order', label: 'Job Order', icon: Wrench, allowedRoles: ['administrator', 'technician'] },
-        { id: 'lcp', label: 'LCP', icon: Network, allowedRoles: ['administrator'] },
-        { id: 'nap', label: 'NAP', icon: Network, allowedRoles: ['administrator'] },
-        { id: 'usage-type', label: 'Usage Type', icon: Activity, allowedRoles: ['administrator'] }
-      ]
-    },
-    {
-      id: 'sms',
-      label: 'SMS',
-      icon: MessageSquare,
-      allowedRoles: ['administrator'],
-      children: [
-        { id: 'sms-blast', label: 'SMS Blast', icon: MessageSquare, allowedRoles: ['administrator'] }
-      ]
-    },
-    {
-      id: 'support',
-      label: 'Support',
-      icon: Wrench,
-      allowedRoles: ['administrator', 'technician'],
-      children: [
-        { id: 'service-order', label: 'Service Order', icon: Wrench, allowedRoles: ['administrator', 'technician'] }
-      ]
-    },
+    { id: 'application-management', label: 'Application', icon: FileCheck, allowedRoles: ['administrator'] },
+    // { id: 'application-visit', label: 'Application Visit', icon: MapPin, allowedRoles: ['administrator', 'technician'] },
+    { id: 'job-order', label: 'Job Order', icon: Wrench, allowedRoles: ['administrator', 'technician'] },
+    { id: 'sms-blast', label: 'SMS Blast', icon: MessageSquare, allowedRoles: ['administrator'] },
+    { id: 'service-order', label: 'Service Order', icon: Wrench, allowedRoles: ['administrator', 'technician'] },
     {
       id: 'inventory-group',
       label: 'Inventory',
@@ -178,6 +139,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       icon: Network,
       allowedRoles: ['administrator', 'technician'],
       children: [
+        { id: 'promo-list', label: 'Promo', icon: Tag, allowedRoles: ['administrator'] },
+        { id: 'plan-list', label: 'Plan', icon: List, allowedRoles: ['administrator'] },
+        { id: 'location-list', label: 'Location', icon: MapPin, allowedRoles: ['administrator'] },
+        { id: 'status-remarks-list', label: 'Status Remarks', icon: List, allowedRoles: ['administrator'] },
+        { id: 'lcp', label: 'LCP', icon: Network, allowedRoles: ['administrator'] },
+        { id: 'nap', label: 'NAP', icon: Network, allowedRoles: ['administrator'] },
+        { id: 'usage-type', label: 'Usage Type', icon: Activity, allowedRoles: ['administrator'] },
         { id: 'lcp-nap-location', label: 'LCP/NAP Location', icon: MapPinned, allowedRoles: ['administrator', 'technician'] },
         { id: 'radius-config', label: 'Radius Config', icon: MapPin, allowedRoles: ['administrator'] },
         { id: 'smart-olt', label: 'SmartOLT Config', icon: Network, allowedRoles: ['administrator'] },

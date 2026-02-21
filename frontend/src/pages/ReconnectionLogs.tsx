@@ -1,7 +1,8 @@
+import { AlertTriangle, Search, Circle, X, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
-import { AlertTriangle, Search, Circle, X } from 'lucide-react';
 import ReconnectionLogsDetails from '../components/ReconnectionLogsDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { useReconnectionStore } from '../store/reconnectionStore';
 
 interface ReconnectionLogRecord {
   id: string;
@@ -24,6 +25,7 @@ interface ReconnectionLogRecord {
   reconnectionCode?: string;
   onlineStatus?: string;
   username?: string;
+  sessionId?: string;
   splynxId?: string;
   mikrotikId?: string;
   date?: string;
@@ -39,14 +41,16 @@ interface LocationItem {
 }
 
 const ReconnectionLogs: React.FC = () => {
+  const { logRecords, isLoading, error, fetchLogRecords, refreshLogRecords } = useReconnectionStore();
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedLog, setSelectedLog] = useState<ReconnectionLogRecord | null>(null);
-  const [logRecords, setLogRecords] = useState<ReconnectionLogRecord[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -79,7 +83,7 @@ const ReconnectionLogs: React.FC = () => {
 
   // Essential table columns - only show the most important ones initially
   const [visibleColumns, setVisibleColumns] = useState([
-    'date', 'accountNo', 'username', 'reconnectionFee', 'plan', 'remarks', 'splynxId', 'mikrotikId'
+    'date', 'accountNo', 'username', 'reconnectionFee', 'plan', 'remarks', 'sessionId', 'reconnectedBy'
   ]);
 
   // All available columns for the table
@@ -90,8 +94,7 @@ const ReconnectionLogs: React.FC = () => {
     { key: 'reconnectionFee', label: 'Reconnection Fee', width: 'min-w-40' },
     { key: 'plan', label: 'Plan', width: 'min-w-40' },
     { key: 'remarks', label: 'Remarks', width: 'min-w-40' },
-    { key: 'splynxId', label: 'Splynx ID', width: 'min-w-32' },
-    { key: 'mikrotikId', label: 'Mikrotik ID', width: 'min-w-32' },
+    { key: 'sessionId', label: 'Session ID', width: 'min-w-32' },
     { key: 'status', label: 'Status', width: 'min-w-28' },
     { key: 'customerName', label: 'Full Name', width: 'min-w-40' },
     { key: 'address', label: 'Address', width: 'min-w-56' },
@@ -106,35 +109,15 @@ const ReconnectionLogs: React.FC = () => {
     { key: 'reconnectionCode', label: 'Reconnection Code', width: 'min-w-36' }
   ];
 
-  // API Base URL
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://backend.atssfiber.ph/api';
-
-  // Fetch reconnection log data
+  // Fetch reconnection log data via store
   useEffect(() => {
-    const fetchReconnectionData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+    fetchLogRecords();
+  }, [fetchLogRecords]);
 
-        const response = await fetch(`${API_BASE_URL}/reconnection-logs`);
-        const result = await response.json();
-
-        if (result.status === 'success') {
-          setLogRecords(result.data);
-        } else {
-          throw new Error(result.message || 'Failed to fetch logs');
-        }
-      } catch (err: any) {
-        console.error('Failed to fetch reconnection logs:', err);
-        setError(err.message || 'Failed to load reconnection logs. Please try again.');
-        setLogRecords([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchReconnectionData();
-  }, []);
+  // Reset pagination when search or location changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedLocation]);
 
   // Memoize location items for performance
   const locationItems: LocationItem[] = useMemo(() => {
@@ -178,20 +161,34 @@ const ReconnectionLogs: React.FC = () => {
     return cityMap[cityId] || `City ${cityId}`;
   }
 
+  // Recursive search function to enable deep searching through all record data
+  const checkValue = (obj: any, query: string): boolean => {
+    if (!obj || query === "") return query === "";
+    if (typeof obj === "string") return obj.toLowerCase().includes(query.toLowerCase());
+    if (typeof obj === "number") return obj.toString().includes(query);
+    if (Array.isArray(obj)) return obj.some((item) => checkValue(item, query));
+    if (typeof obj === "object") return Object.values(obj).some((value) => checkValue(value, query));
+    return false;
+  };
+
   // Memoize filtered records for performance
   const filteredLogRecords = useMemo(() => {
     return logRecords.filter(record => {
       const matchesLocation = selectedLocation === 'all' ||
         (record.cityId !== undefined && record.cityId === Number(selectedLocation));
 
-      const matchesSearch = searchQuery === '' ||
-        record.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.accountNo.includes(searchQuery);
+      const matchesSearch = searchQuery === '' || checkValue(record, searchQuery);
 
       return matchesLocation && matchesSearch;
     });
   }, [logRecords, selectedLocation, searchQuery]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredLogRecords.length / itemsPerPage);
+  const paginatedRecords = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredLogRecords.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredLogRecords, currentPage]);
 
   const handleRowClick = (record: ReconnectionLogRecord) => {
     setSelectedLog(record);
@@ -202,24 +199,7 @@ const ReconnectionLogs: React.FC = () => {
   };
 
   const handleRefresh = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const response = await fetch(`${API_BASE_URL}/reconnection-logs`);
-      const result = await response.json();
-
-      if (result.status === 'success') {
-        setLogRecords(result.data);
-      } else {
-        throw new Error(result.message || 'Failed to refresh logs');
-      }
-    } catch (err: any) {
-      console.error('Failed to refresh reconnection logs:', err);
-      setError(err.message || 'Failed to refresh reconnection logs. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+    await refreshLogRecords();
   };
 
   const toggleColumn = (columnKey: string) => {
@@ -306,9 +286,13 @@ const ReconnectionLogs: React.FC = () => {
               key={location.id}
               onClick={() => setSelectedLocation(location.id)}
               className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === location.id
-                ? 'bg-orange-500 bg-opacity-20 text-orange-400'
+                ? ''
                 : isDarkMode ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100'
                 }`}
+              style={selectedLocation === location.id ? {
+                backgroundColor: `${colorPalette?.primary || '#ea580c'}33`,
+                color: colorPalette?.primary || '#ea580c'
+              } : {}}
             >
               <div className="flex items-center">
                 <AlertTriangle className="h-4 w-4 mr-2" />
@@ -316,9 +300,13 @@ const ReconnectionLogs: React.FC = () => {
               </div>
               {location.count > 0 && (
                 <span className={`px-2 py-1 rounded-full text-xs ${selectedLocation === location.id
-                  ? 'bg-orange-600 text-white'
+                  ? 'text-white'
                   : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                  }`}>
+                  }`}
+                  style={selectedLocation === location.id ? {
+                    backgroundColor: colorPalette?.primary || '#ea580c'
+                  } : {}}
+                >
                   {location.count}
                 </span>
               )}
@@ -339,10 +327,20 @@ const ReconnectionLogs: React.FC = () => {
                   placeholder="Search reconnection logs..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 ${isDarkMode
+                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${isDarkMode
                     ? 'bg-gray-800 text-white border-gray-700'
                     : 'bg-white text-gray-900 border-gray-300'
                     }`}
+                  onFocus={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.borderColor = colorPalette.primary;
+                      e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 />
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`} />
@@ -415,8 +413,8 @@ const ReconnectionLogs: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredLogRecords.length > 0 ? (
-                        filteredLogRecords.map((record) => (
+                      {paginatedRecords.length > 0 ? (
+                        paginatedRecords.map((record: ReconnectionLogRecord) => (
                           <tr
                             key={record.id}
                             className={`border-b cursor-pointer transition-colors ${isDarkMode
@@ -456,6 +454,41 @@ const ReconnectionLogs: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* Pagination UI */}
+          {!isLoading && !error && filteredLogRecords.length > 0 && (
+            <div className={`p-4 border-t flex items-center justify-between ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-400' : 'bg-white border-gray-200 text-gray-600'
+              }`}>
+              <div className="text-sm">
+                Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredLogRecords.length)}</span> of <span className="font-medium">{filteredLogRecords.length}</span> records
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setCurrentPage((prev: number) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className={`p-2 rounded border transition-colors ${isDarkMode
+                    ? 'border-gray-700 hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent'
+                    : 'border-gray-300 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent'
+                    }`}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <div className="text-sm font-medium px-2">
+                  Page {currentPage} of {totalPages || 1}
+                </div>
+                <button
+                  onClick={() => setCurrentPage((prev: number) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages || totalPages === 0}
+                  className={`p-2 rounded border transition-colors ${isDarkMode
+                    ? 'border-gray-700 hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent'
+                    : 'border-gray-300 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent'
+                    }`}
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

@@ -352,10 +352,15 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
         }
       }
 
-      const matchesSearch = searchQuery === '' ||
-        (transaction.account?.customer?.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (transaction.account?.account_no || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (transaction.reference_no || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => checkValue(v));
+        }
+        return String(val).toLowerCase().includes(searchQuery.toLowerCase());
+      };
+
+      const matchesSearch = searchQuery === '' || checkValue(transaction);
 
       return matchesLocation && matchesSearch;
     });

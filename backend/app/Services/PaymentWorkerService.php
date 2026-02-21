@@ -516,6 +516,8 @@ class PaymentWorkerService
                             $emailData = [
                                 'Full_Name' => $customerName,
                                 'Plan' => $planNameFormatted,
+                                'plan_name' => $planNameFormatted,
+                                'plan_nam' => $planNameFormatted,
                                 'Account_No' => $accountNo,
                                 'account_no' => $accountNo,
                                 'recipient_email' => $emailAddress,
@@ -634,6 +636,8 @@ class PaymentWorkerService
                     'Date' => date('Y-m-d'),
                     'Full_Name' => $customerName,
                     'Plan' => $planNameFormatted,
+                    'plan_name' => $planNameFormatted,
+                    'plan_nam' => $planNameFormatted,
                     'invoice_ids' => $invoiceIds,
                     'recipient_email' => $account->email_address,
                 ];
