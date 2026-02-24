@@ -1124,3 +1124,4 @@ class EnhancedBillingGenerationServiceWithNotifications
         return $results;
     }
 }
+

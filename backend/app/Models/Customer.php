@@ -76,3 +76,4 @@ class Customer extends Model
         return implode(' ', $parts);
     }
 }
+

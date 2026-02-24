@@ -755,7 +755,8 @@ class TransactionController extends Controller
                 'accountNumber' => $accountNo,
                 'username' => $username,
                 'plan' => $plan,
-                'updatedBy' => 'Transaction Approval Auto-Reconnect'
+                'updatedBy' => Auth::user()->email_address ?? 'Transaction Approval Auto-Reconnect',
+                'remarks' => 'Transaction Approval Auto-Reconnect'
             ];
 
             // Step 6: Call ManualRadiusOperationsService reconnectUser
@@ -770,25 +771,6 @@ class TransactionController extends Controller
 
             if ($result['status'] === 'success') {
                 \Log::info('[TRANSACTION RECONNECT SUCCESS] Reconnection and Session Kill completed successfully');
-
-                // Log reconnection in reconnection_logs table
-                try {
-                    DB::table('reconnection_logs')->insert([
-                        'account_id' => $billingAccount->id,
-                        'session_id' => null,
-                        'username' => $username,
-                        'plan_id' => $billingAccount->plan_id,
-                        'reconnection_fee' => 0.00,
-                        'remarks' => 'Auto-reconnect after Transaction Approval',
-                        'created_at' => now(),
-                        'created_by_user_id' => Auth::id(),
-                        'updated_at' => now(),
-                        'updated_by_user_id' => Auth::id()
-                    ]);
-                    \Log::info('[TRANSACTION RECONNECT LOG] Stored data in reconnection_logs for account: ' . $accountNo);
-                } catch (\Exception $e) {
-                    \Log::error('[TRANSACTION RECONNECT LOG ERROR] Failed to store reconnection log: ' . $e->getMessage());
-                }
 
                 // Send SMS Notification
                 try {
@@ -843,32 +825,7 @@ class TransactionController extends Controller
                     \Log::error('[TRANSACTION RECONNECT SMS EXCEPTION] ' . $e->getMessage());
                 }
 
-                // Send Email Notification
-                try {
-                    if (!empty($customerInfo->email_address)) {
-                         $emailService = app(\App\Services\EmailQueueService::class);
-                         
-                         $planNameFormatted = str_replace('₱', 'P', $plan ?? '');
-                         
-                         $emailData = [
-                             'Full_Name' => $customerInfo->full_name,
-                             'Plan' => $planNameFormatted,
-                             'plan_name' => $planNameFormatted,
-                             'plan_nam' => $planNameFormatted,
-                             'Account_No' => $accountNo,
-                             'account_no' => $accountNo,
-                             'recipient_email' => $customerInfo->email_address,
-                         ];
-
-                         $emailService->queueFromTemplate('RECONNECT', $emailData);
-                         
-                         \Log::info('[TRANSACTION RECONNECT EMAIL] Email queued for ' . $customerInfo->email_address);
-                    } else {
-                        \Log::warning('[TRANSACTION RECONNECT EMAIL SKIP] No email address for customer');
-                    }
-                } catch (\Exception $e) {
-                    \Log::error('[TRANSACTION RECONNECT EMAIL EXCEPTION] ' . $e->getMessage());
-                }
+                // Email Notification is now handled by ManualRadiusOperationsService
 
                 return 'success';
             } else {
@@ -980,17 +937,11 @@ class TransactionController extends Controller
                     
                 $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
                 
-                $planNameRaw = $billingAccount->plan ? $billingAccount->plan->plan_name : ($customer->desired_plan ?? 'N/A');
-                $planNameFormatted = str_replace('₱', 'P', $planNameRaw);
-
                 $emailData = [
                     'Amount' => number_format($totalPaidAmount, 2),
                     'Company_Name' => $brandName,
                     'Account_No' => $billingAccount->account_no,
                     'account_no' => $billingAccount->account_no,
-                    'Plan' => $planNameFormatted,
-                    'plan_name' => $planNameFormatted,
-                    'plan_nam' => $planNameFormatted,
                     'Date' => date('Y-m-d'),
                     'Full_Name' => $customer->full_name,
                     'invoice_ids' => $invoiceIds,
@@ -1009,3 +960,5 @@ class TransactionController extends Controller
     }
 
 }
+
+

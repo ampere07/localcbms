@@ -283,7 +283,7 @@ class ServiceOrderController extends Controller
                     Log::info('Triggering auto-reconnect for NEW Service Order with Reconnect concern', [
                         'account_no' => $request->account_no
                     ]);
-                    $reconnectStatus = $this->attemptReconnection($billingAccount);
+                    $reconnectStatus = $this->attemptReconnection($billingAccount, $serviceOrderId);
                 }
             }
 
@@ -724,7 +724,7 @@ class ServiceOrderController extends Controller
                     \Log::info("Triggering auto-reconnect for Service Order with {$currentConcern} concern", [
                         'account_no' => $order->account_no
                     ]);
-                    $reconnectStatus = $this->attemptReconnection($billingAccount);
+                    $reconnectStatus = $this->attemptReconnection($billingAccount, $id);
                 }
             }
 
@@ -818,7 +818,7 @@ class ServiceOrderController extends Controller
         }
     }
 
-    private function attemptReconnection($billingAccount): string
+    private function attemptReconnection($billingAccount, $serviceOrderId = null): string
     {
         try {
             // Reload billing account
@@ -863,7 +863,9 @@ class ServiceOrderController extends Controller
                 'accountNumber' => $accountNo,
                 'username' => $username,
                 'plan' => $plan,
-                'updatedBy' => 'Service Order Auto-Reconnect'
+                'updatedBy' => Auth::user()->email_address ?? 'Service Order Auto-Reconnect',
+                'serviceOrderId' => $serviceOrderId,
+                'remarks' => 'Service Order Auto-Reconnect'
             ];
 
             // Step 6: Call ManualRadiusOperationsService reconnectUser
@@ -918,23 +920,7 @@ class ServiceOrderController extends Controller
                     \Log::error('[SERVICE ORDER RECONNECT SMS EXCEPTION] ' . $e->getMessage());
                 }
 
-                // Send Email Notification
-                try {
-                    $emailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'RECONNECT')->first();
-                    
-                         if (!empty($emailTemplate) && !empty($customerInfo->email_address)) {
-                              $emailService = app(\App\Services\EmailQueueService::class);
-                              $emailData = [
-                                  'customer_name' => $customerInfo->full_name,
-                                  'account_no' => $accountNo,
-                                  'recipient_email' => $customerInfo->email_address,
-                              ];
-                              $emailService->queueFromTemplate('RECONNECT', $emailData);
-                              \Log::info('[SERVICE ORDER RECONNECT EMAIL] Email queued');
-                         }
-                } catch (\Exception $e) {
-                    \Log::error('[SERVICE ORDER RECONNECT EMAIL EXCEPTION] ' . $e->getMessage());
-                }
+                // Email Notification is now handled by ManualRadiusOperationsService
 
                 return 'success';
             } else {
@@ -990,6 +976,22 @@ class ServiceOrderController extends Controller
 
             if ($result['status'] === 'success') {
                 \Log::info('[SERVICE ORDER DISCONNECT SUCCESS] Disconnection completed successfully');
+
+                // Create Disconnected Log
+                try {
+                    DB::table('disconnected_logs')->insert([
+                        'account_id' => $billingAccount->id,
+                        'username' => $username,
+                        'remarks' => 'Service Order Auto-Disconnect',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                        'created_by_user_id' => Auth::id(),
+                        'updated_by_user_id' => Auth::id(),
+                    ]);
+                    \Log::info('[SERVICE ORDER DISCONNECT LOG] Log created successfully');
+                } catch (\Exception $e) {
+                    \Log::error('[SERVICE ORDER DISCONNECT LOG EXCEPTION] ' . $e->getMessage());
+                }
 
                 // Update billing_status_id to 4 (Disconnected) AFTER successful RADIUS disconnect
                 $billingAccount->billing_status_id = 4;
@@ -1146,8 +1148,8 @@ class ServiceOrderController extends Controller
                     ]);
 
                 \Log::info('[SERVICE ORDER PULLOUT DB] Cleared technical details for Account: ' . $accountNo);
-                
-                // Also clear port in job_orders table
+
+                // Clear port in job_orders table using account_id (referencing billing_accounts id)
                 DB::table('job_orders')
                     ->where('account_id', $billingAccount->id)
                     ->update([
@@ -1327,3 +1329,4 @@ class ServiceOrderController extends Controller
         return $ticketId;
     }
 }
+

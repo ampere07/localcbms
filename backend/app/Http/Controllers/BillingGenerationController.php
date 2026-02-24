@@ -706,3 +706,4 @@ class BillingGenerationController extends Controller
         }
     }
 }
+

@@ -210,3 +210,4 @@ class GenerateDailyBillingsCron extends Command
         }
     }
 }
+

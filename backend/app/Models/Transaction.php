@@ -66,3 +66,4 @@ class Transaction extends Model
         return $this->hasMany(Invoice::class, 'transaction_id');
     }
 }
+

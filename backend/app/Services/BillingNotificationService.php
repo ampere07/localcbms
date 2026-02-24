@@ -567,3 +567,4 @@ class BillingNotificationService
         return $message;
     }
 }
+

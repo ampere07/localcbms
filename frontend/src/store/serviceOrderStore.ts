@@ -111,7 +111,7 @@ interface ServiceOrderState {
     searchQuery: string;
     lastUpdated: Date | null;
 
-    fetchServiceOrders: (page?: number, limit?: number, searchQuery?: string, silent?: boolean) => Promise<void>;
+    fetchServiceOrders: (force?: boolean, silent?: boolean) => Promise<void>;
     refreshServiceOrders: () => Promise<void>;
     silentRefresh: () => Promise<void>;
 }
@@ -126,10 +126,19 @@ export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
     searchQuery: '',
     lastUpdated: null,
 
-    fetchServiceOrders: async (page = 1, limit = 50, query = get().searchQuery, silent = false) => {
-        const { serviceOrders } = get();
+    fetchServiceOrders: async (force = false, silent = false) => {
+        const { serviceOrders, isLoading, totalCount } = get();
 
-        if (page === 1 && (!silent || serviceOrders.length === 0)) {
+        // Prevent re-fetching if we already have data and not forced
+        if (!force && serviceOrders.length >= totalCount && totalCount > 0) {
+            return;
+        }
+
+        if (isLoading && !force) return;
+
+        const isInitialFetch = serviceOrders.length === 0;
+
+        if (!silent && isInitialFetch) {
             set({ isLoading: true, error: null });
         }
 
@@ -146,43 +155,83 @@ export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
                 } catch (err) { }
             }
 
-            const response = (await getServiceOrders(assignedEmail, page, limit, query)) as any;
+            const CHUNK_SIZE = 2000;
+            let allFetchedRecords = force ? [] : [...serviceOrders];
+            let currentOffset = allFetchedRecords.length;
+            let currentFetchPage = Math.floor(currentOffset / CHUNK_SIZE) + 1;
 
-            if (response.success && Array.isArray(response.data)) {
-                const orders = response.data.map(transformServiceOrder);
+            console.log(`Fetching ServiceOrder records in chunks... Current offset: ${currentOffset}`);
 
-                set((state) => ({
-                    serviceOrders: page === 1 ? orders : [...state.serviceOrders, ...orders],
-                    totalCount: response.pagination?.total || orders.length,
-                    hasMore: response.pagination?.has_more ?? false,
-                    currentPage: response.pagination?.current_page ?? page,
-                    searchQuery: query,
-                    lastUpdated: new Date(),
-                    isLoading: false,
-                    error: null
-                }));
-            } else {
+            const firstResult = (await getServiceOrders(assignedEmail, currentFetchPage, CHUNK_SIZE, '')) as any;
+
+            if (firstResult && firstResult.success && Array.isArray(firstResult.data)) {
+                const dbTotal = firstResult.pagination?.total || firstResult.data.length;
+                const newTransformed = firstResult.data.map(transformServiceOrder);
+                allFetchedRecords = force ? newTransformed : [...allFetchedRecords, ...newTransformed];
+
                 set({
-                    serviceOrders: page === 1 ? [] : get().serviceOrders,
-                    hasMore: false,
-                    isLoading: false,
-                    error: response.message || 'Failed to fetch service orders'
+                    serviceOrders: allFetchedRecords,
+                    totalCount: dbTotal,
+                    lastUpdated: new Date(),
+                    error: null,
+                    isLoading: false
                 });
+
+                let hasMore = firstResult.pagination?.has_more ?? (allFetchedRecords.length < dbTotal);
+                currentFetchPage++;
+
+                while (hasMore) {
+                    try {
+                        console.log(`Progressive ServiceOrder fetch: ${allFetchedRecords.length} / ${dbTotal}`);
+                        const result = (await getServiceOrders(assignedEmail, currentFetchPage, CHUNK_SIZE, '')) as any;
+
+                        if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
+                            const chunkTransformed = result.data.map(transformServiceOrder);
+                            allFetchedRecords = [...allFetchedRecords, ...chunkTransformed];
+
+                            set({
+                                serviceOrders: [...allFetchedRecords],
+                                totalCount: result.pagination?.total || dbTotal
+                            });
+
+                            hasMore = result.pagination?.has_more ?? (allFetchedRecords.length < (result.pagination?.total || dbTotal));
+                            currentFetchPage++;
+                        } else {
+                            hasMore = false;
+                        }
+                    } catch (chunkErr) {
+                        console.error(`Error fetching ServiceOrder chunk:`, chunkErr);
+                        hasMore = false;
+                    }
+                }
+            } else {
+                if (force || serviceOrders.length === 0) {
+                    set({
+                        serviceOrders: force ? [] : get().serviceOrders,
+                        hasMore: false,
+                        isLoading: false,
+                        error: firstResult.message || 'Failed to fetch service orders'
+                    });
+                }
             }
         } catch (err: any) {
             console.error('Failed to fetch service orders:', err);
-            set({
-                error: err.message || 'Failed to load service orders',
-                isLoading: false
-            });
+            if (!silent || get().serviceOrders.length === 0) {
+                set({
+                    error: err.message || 'Failed to load service orders',
+                    isLoading: false
+                });
+            }
+        } finally {
+            set({ isLoading: false });
         }
     },
 
     refreshServiceOrders: async () => {
-        await get().fetchServiceOrders(1, 10000, '', false);
+        await get().fetchServiceOrders(true, false);
     },
 
     silentRefresh: async () => {
-        await get().fetchServiceOrders(1, 10000, '', true);
+        await get().fetchServiceOrders(true, true);
     }
 }));

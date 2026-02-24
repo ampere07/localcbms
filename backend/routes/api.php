@@ -263,6 +263,13 @@ Route::prefix('transactions')->group(function () {
     Route::get('/{id}', [RelatedDataController::class, 'getTransactionById']);
 });
 
+// Inventory Related Data Routes
+Route::get('/inventory-stock-logs/by-item/{itemId}', [InventoryRelatedDataController::class, 'getInventoryLogsByItem']);
+Route::get('/borrowed-logs/by-item/{itemId}', [InventoryRelatedDataController::class, 'getBorrowedLogsByItem']);
+Route::get('/defective-logs/by-item/{itemId}', [InventoryRelatedDataController::class, 'getDefectiveLogsByItem']);
+Route::get('/job-orders/by-item/{itemId}', [InventoryRelatedDataController::class, 'getJobOrdersByItem']);
+Route::get('/service-orders/by-item/{itemId}', [InventoryRelatedDataController::class, 'getServiceOrdersByItem']);
+
 // Installment Management Routes (Enhanced)
 Route::prefix('installments')->group(function () {
     Route::get('/', function(Request $request) {
@@ -603,13 +610,13 @@ Route::delete('/barangays/{id}', function($id, Request $request) {
     return app(\App\Http\Controllers\Api\LocationApiController::class)->deleteLocation('barangay', $id, $request);
 });
 
-Route::get('/villages', [\App\Http\Controllers\Api\LocationApiController::class, 'getAllDetails']);
-Route::post('/villages', [\App\Http\Controllers\Api\LocationApiController::class, 'addLocation']);
+Route::get('/villages', [\App\Http\Controllers\Api\LocationApiController::class, 'getAllVillages']);
+Route::post('/villages', [\App\Http\Controllers\Api\LocationApiController::class, 'addVillage']);
 Route::put('/villages/{id}', function($id, Request $request) {
-    return app(\App\Http\Controllers\Api\LocationApiController::class)->updateLocation('location', $id, $request);
+    return app(\App\Http\Controllers\Api\LocationApiController::class)->updateLocation('village', $id, $request);
 });
 Route::delete('/villages/{id}', function($id, Request $request) {
-    return app(\App\Http\Controllers\Api\LocationApiController::class)->deleteLocation('location', $id, $request);
+    return app(\App\Http\Controllers\Api\LocationApiController::class)->deleteLocation('village', $id, $request);
 });
 
 // Alternative endpoint formats for maximum compatibility

@@ -38,3 +38,4 @@ class EmailTemplate extends Model
         'Body_HTML' => 'string'
     ];
 }
+

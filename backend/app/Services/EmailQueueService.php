@@ -197,3 +197,4 @@ class EmailQueueService
         return $text;
     }
 }
+

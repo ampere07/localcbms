@@ -300,3 +300,4 @@ class EmailTemplateController extends Controller
         }
     }
 }
+
