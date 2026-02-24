@@ -616,7 +616,7 @@ const EmailTemplates: React.FC = () => {
                       'OVERDUE_DESIGN',
                       'DISCONNECTED',
                       'DCNOTICE_DESIGN',
-                      'APPLY'
+                      'APPLICATION'
                     ]
                       .filter(choice =>
                         isEditing ||

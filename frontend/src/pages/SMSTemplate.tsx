@@ -227,7 +227,7 @@ const SMSTemplate: React.FC = () => {
     'StatementofAccount',
     'Disconnected',
     'Reconnect',
-    'Apply',
+    'Application',
     'Welcome',
     'Paid',
     'Due'
@@ -330,9 +330,14 @@ const SMSTemplate: React.FC = () => {
                   }`}
               >
                 <option value="">Select type</option>
-                {templateTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
+                {templateTypes
+                  .filter(type =>
+                    formData.template_type === type ||
+                    !templates.some(t => t.template_type === type)
+                  )
+                  .map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
               </select>
             </div>
           </div>
