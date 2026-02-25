@@ -260,15 +260,68 @@ const LiveMonitor: React.FC = () => {
       Object.keys(newLayouts).forEach(breakpoint => {
         const layout = newLayouts[breakpoint];
         if (Array.isArray(layout) && !layout.find((item: any) => item.i === widgetId)) {
-          // Add to layout at bottom
+          const cols = breakpoint === 'lg' ? 12 : breakpoint === 'md' ? 10 : breakpoint === 'sm' ? 6 : breakpoint === 'xs' ? 4 : 2;
+          const w = config.w || 4;
+          const h = 6;
+
+          // Create a 2D grid representation to find the first available spot
+          const grid: { [y: number]: boolean[] } = {};
+          let maxY = 0;
+
+          layout.forEach((item: any) => {
+            const itemY = item.y || 0;
+            const itemX = item.x || 0;
+            const itemW = item.w || 1;
+            const itemH = item.h || 1;
+
+            for (let y = itemY; y < itemY + itemH; y++) {
+              if (!grid[y]) grid[y] = Array(cols).fill(false);
+              for (let x = itemX; x < itemX + itemW; x++) {
+                if (x < cols) grid[y][x] = true;
+              }
+            }
+            if (itemY + itemH > maxY) maxY = itemY + itemH;
+          });
+
+          let newX = 0;
+          let newY = maxY;
+
+          for (let y = 0; y <= maxY; y++) {
+            let foundInRow = false;
+            for (let x = 0; x <= cols - w; x++) {
+              // Check if space (x, y) to (x+w, y+h) is free
+              let isFree = true;
+              for (let checkY = y; checkY < y + h; checkY++) {
+                if (grid[checkY]) {
+                  for (let checkX = x; checkX < x + w; checkX++) {
+                    if (grid[checkY][checkX]) {
+                      isFree = false;
+                      break;
+                    }
+                  }
+                }
+                if (!isFree) break;
+              }
+
+              if (isFree) {
+                newX = x;
+                newY = y;
+                foundInRow = true;
+                break;
+              }
+            }
+            if (foundInRow) break;
+          }
+
+          // Add to layout at calculated position
           newLayouts[breakpoint] = [
             ...layout,
             {
               i: widgetId,
-              x: 0,
-              y: Infinity, // compactType 'vertical' will handle this
-              w: config.w || 4,
-              h: 6,
+              x: newX,
+              y: newY,
+              w: w,
+              h: h,
               minW: 2,
               minH: 3
             }
@@ -290,7 +343,7 @@ const LiveMonitor: React.FC = () => {
     updateWidgetState(id, { visible: !isVisible });
   };
 
-  const generateChartData = (widgetData: WidgetData[], widgetId: string) => {
+  const generateChartData = (widgetData: WidgetData[], widgetId: string, viewType: string) => {
     if (!widgetData || widgetData.length === 0) return null;
 
     // Handle multi-series data (e.g., Invoice Yearly Count with Paid/Unpaid statuses per month)
@@ -314,6 +367,24 @@ const LiveMonitor: React.FC = () => {
 
     // Handle simple data (single value per label)
     // Data format: [{label: "Category A", value: 100}, ...]
+
+    // For bar charts, we want each category in the legend, so we create a dataset for each
+    if (viewType === 'bar') {
+      return {
+        labels: widgetData.map(d => d.label),
+        datasets: widgetData.map((d, idx) => {
+          const dataArr = new Array(widgetData.length).fill(null);
+          dataArr[idx] = Number(d.value || 0);
+          return {
+            label: d.label,
+            data: dataArr,
+            backgroundColor: CHART_COLORS[idx % CHART_COLORS.length],
+            borderWidth: 0
+          };
+        })
+      };
+    }
+
     return {
       labels: widgetData.map(d => d.label),
       datasets: [{
@@ -605,7 +676,7 @@ const LiveMonitor: React.FC = () => {
     if (state.viewType === 'grid') return renderGridView(widget.data, id, fontSize);
     if (state.viewType === 'list' || id === 'technician_availability') return renderListView(widget.data, id, fontSize);
 
-    const chartData = generateChartData(widget.data, id);
+    const chartData = generateChartData(widget.data, id, state.viewType);
     if (!chartData) {
       return (
         <div className={`text-center py-8 text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
