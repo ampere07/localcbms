@@ -456,13 +456,13 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const shouldShowApproveButton = () => {
     const onsiteStatus = (jobOrder.Onsite_Status || '').toLowerCase();
     const billingStatus = (jobOrder.billing_status || jobOrder.Billing_Status || '').toLowerCase();
-    const isAdministrator = userRole === 'administrator' || roleId === 1;
+    const isAdministrator = userRole === 'administrator' || roleId === 1 || roleId === 7;
 
     return onsiteStatus === 'done' && billingStatus !== 'done' && isAdministrator;
   };
 
   const shouldShowEditButton = () => {
-    const isAdministrator = userRole === 'administrator' || roleId === 1;
+    const isAdministrator = userRole === 'administrator' || roleId === 1 || roleId === 7;
     const isTechnician = userRole === 'technician' || roleId === 2;
 
     const billingStatus = (jobOrder.billing_status || jobOrder.Billing_Status || '').toLowerCase();

@@ -27,6 +27,7 @@ import BillingListView from './BillingListView';
 import TransactionList from './TransactionList';
 import PaymentPortal from './PaymentPortal';
 import JobOrder from './JobOrder';
+import WorkOrder from './WorkOrder';
 import ServiceOrder from './ServiceOrder';
 // import ApplicationVisit from './ApplicationVisit';
 import LocationList from './LocationList';
@@ -43,6 +44,7 @@ import Invoice from './Invoice';
 import InventoryCategoryList from './InventoryCategoryList';
 import SOAGeneration from './SOAGeneration';
 import UsageTypeList from './UsageTypeList';
+import WorkCategoryList from './WorkCategoryList';
 import Ports from './Ports';
 import StatusRemarksList from './StatusRemarksList';
 import Settings from './Settings';
@@ -87,8 +89,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 if (user.role?.toLowerCase() === 'technician' || String(user.role_id) === '2') {
                     return 'job-order';
                 }
-                if (user.role?.toLowerCase() === 'administrator' || String(user.role_id) === '1') {
+                if (user.role?.toLowerCase() === 'administrator' || String(user.role_id) === '1' || String(user.role_id) === '7') {
                     return 'live-monitor';
+                }
+                if (user.role?.toLowerCase() === 'osp' || String(user.role_id) === '6') {
+                    return 'work-order';
                 }
             }
         } catch (e) {
@@ -230,6 +235,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 return <PaymentPortal />;
             case 'job-order':
                 return <JobOrder />;
+            case 'work-order':
+                return <WorkOrder />;
             case 'service-order':
                 return <ServiceOrder />;
             // case 'application-visit':
@@ -250,6 +257,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 return <LcpNapLocation />;
             case 'usage-type':
                 return <UsageTypeList />;
+            case 'work-category':
+                return <WorkCategoryList />;
             case 'ports':
                 return <Ports />;
             case 'status-remarks-list':

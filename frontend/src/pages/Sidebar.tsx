@@ -121,6 +121,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
     { id: 'application-management', label: 'Application', icon: FileCheck, allowedRoles: ['administrator'] },
     // { id: 'application-visit', label: 'Application Visit', icon: MapPin, allowedRoles: ['administrator', 'technician'] },
     { id: 'job-order', label: 'Job Order', icon: Wrench, allowedRoles: ['administrator', 'technician'] },
+    { id: 'work-order', label: 'Work Order', icon: Wrench, allowedRoles: ['administrator', 'agent', 'Osp'] },
     { id: 'sms-blast', label: 'SMS Blast', icon: MessageSquare, allowedRoles: ['administrator'] },
     { id: 'service-order', label: 'Service Order', icon: Wrench, allowedRoles: ['administrator', 'technician'] },
     {
@@ -137,7 +138,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       id: 'technical',
       label: 'Technical',
       icon: Network,
-      allowedRoles: ['administrator', 'technician'],
+      allowedRoles: ['administrator', 'technician', 'Osp'],
       children: [
         { id: 'promo-list', label: 'Promo', icon: Tag, allowedRoles: ['administrator'] },
         { id: 'plan-list', label: 'Plan', icon: List, allowedRoles: ['administrator'] },
@@ -146,7 +147,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         { id: 'lcp', label: 'LCP', icon: Network, allowedRoles: ['administrator'] },
         { id: 'nap', label: 'NAP', icon: Network, allowedRoles: ['administrator'] },
         { id: 'usage-type', label: 'Usage Type', icon: Activity, allowedRoles: ['administrator'] },
-        { id: 'lcp-nap-location', label: 'LCP/NAP Location', icon: MapPinned, allowedRoles: ['administrator', 'technician'] },
+        { id: 'work-category', label: 'Work Category', icon: Wrench, allowedRoles: ['administrator'] },
+        { id: 'lcp-nap-location', label: 'LCP/NAP Location', icon: MapPinned, allowedRoles: ['administrator', 'technician', 'Osp'] },
         { id: 'radius-config', label: 'Radius Config', icon: MapPin, allowedRoles: ['administrator'] },
         { id: 'smart-olt', label: 'SmartOLT Config', icon: Network, allowedRoles: ['administrator'] },
         { id: 'sms-config', label: 'SMS Config', icon: MessageSquare, allowedRoles: ['administrator'] },
@@ -214,7 +216,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       const hasAccess = item.allowedRoles.some(role => {
         const normalizedRole = role.toLowerCase().trim();
         if (normalizedRole === 'technician') return isTechnician;
-        if (normalizedRole === 'administrator') return normalizedUserRole === 'administrator' || String(roleId) === '1';
+        if (normalizedRole === 'administrator') return normalizedUserRole === 'administrator' || String(roleId) === '1' || String(roleId) === '7';
+        if (normalizedRole === 'osp') return normalizedUserRole === 'Osp'.toLowerCase() || String(roleId) === '6';
         return normalizedRole === normalizedUserRole;
       });
 

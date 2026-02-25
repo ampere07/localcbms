@@ -52,6 +52,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
   const [showEditStatusModal, setShowEditStatusModal] = useState(false);
   const [currentVisitData, setCurrentVisitData] = useState(applicationVisit);
   const [userRole, setUserRole] = useState<string>('');
+  const [roleId, setRoleId] = useState<number | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [showInlineConfirmation, setShowInlineConfirmation] = useState(false);
@@ -150,6 +151,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
       try {
         const user = JSON.parse(authData);
         setUserRole(user.role?.toLowerCase() || '');
+        setRoleId(user.role_id || user.roleId || null);
       } catch (error) {
         // Error parsing user data
       }
@@ -546,12 +548,12 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Visit Status:</div>
             <div className={`flex-1 capitalize ${currentVisitData.visit_status?.toLowerCase() === 'completed' ? 'text-green-400' :
-                currentVisitData.visit_status?.toLowerCase() === 'failed' ? 'text-red-500' :
-                  currentVisitData.visit_status?.toLowerCase() === 'in progress' ? 'text-blue-400' :
-                    currentVisitData.visit_status?.toLowerCase() === 'scheduled' ? 'text-green-400' :
-                      currentVisitData.visit_status?.toLowerCase() === 'pending' ? 'text-orange-400' :
-                        currentVisitData.visit_status?.toLowerCase() === 'cancelled' ? 'text-red-500' :
-                          'text-orange-400'
+              currentVisitData.visit_status?.toLowerCase() === 'failed' ? 'text-red-500' :
+                currentVisitData.visit_status?.toLowerCase() === 'in progress' ? 'text-blue-400' :
+                  currentVisitData.visit_status?.toLowerCase() === 'scheduled' ? 'text-green-400' :
+                    currentVisitData.visit_status?.toLowerCase() === 'pending' ? 'text-orange-400' :
+                      currentVisitData.visit_status?.toLowerCase() === 'cancelled' ? 'text-red-500' :
+                        'text-orange-400'
               }`}>
               {currentVisitData.visit_status || 'Scheduled'}
             </div>
@@ -589,15 +591,15 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Application Status:</div>
             <div className={`flex-1 capitalize ${currentVisitData.application_status?.toLowerCase() === 'approved' ? 'text-green-400' :
-                currentVisitData.application_status?.toLowerCase() === 'schedule' ? 'text-green-400' :
-                  currentVisitData.application_status?.toLowerCase() === 'completed' ? 'text-green-400' :
-                    currentVisitData.application_status?.toLowerCase() === 'pending' ? 'text-orange-400' :
-                      currentVisitData.application_status?.toLowerCase() === 'in progress' ? 'text-blue-400' :
-                        currentVisitData.application_status?.toLowerCase() === 'cancelled' ? 'text-red-500' :
-                          currentVisitData.application_status?.toLowerCase() === 'no facility' ? 'text-red-400' :
-                            currentVisitData.application_status?.toLowerCase() === 'no slot' ? 'text-purple-400' :
-                              currentVisitData.application_status?.toLowerCase() === 'duplicate' ? 'text-pink-400' :
-                                'text-orange-400'
+              currentVisitData.application_status?.toLowerCase() === 'schedule' ? 'text-green-400' :
+                currentVisitData.application_status?.toLowerCase() === 'completed' ? 'text-green-400' :
+                  currentVisitData.application_status?.toLowerCase() === 'pending' ? 'text-orange-400' :
+                    currentVisitData.application_status?.toLowerCase() === 'in progress' ? 'text-blue-400' :
+                      currentVisitData.application_status?.toLowerCase() === 'cancelled' ? 'text-red-500' :
+                        currentVisitData.application_status?.toLowerCase() === 'no facility' ? 'text-red-400' :
+                          currentVisitData.application_status?.toLowerCase() === 'no slot' ? 'text-purple-400' :
+                            currentVisitData.application_status?.toLowerCase() === 'duplicate' ? 'text-pink-400' :
+                              'text-orange-400'
               }`}>
               {currentVisitData.application_status || applicationDetails?.status || 'Pending'}
             </div>
@@ -752,7 +754,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
         </div>
 
         <div className="flex items-center space-x-3">
-          {userRole !== 'technician' && userRole === 'administrator' && (
+          {userRole !== 'technician' && (userRole === 'administrator' || roleId === 1 || roleId === 7) && (
             <button
               className="text-white px-3 py-1 rounded-sm flex items-center transition-colors"
               style={{
@@ -802,8 +804,8 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             </button>
             {showFieldSettings && (
               <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700'
-                  : 'bg-white border-gray-200'
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-gray-200'
                 }`}>
                 <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
                   }`}>
@@ -881,7 +883,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
         </div>
       </div>
 
-      {userRole !== 'technician' && userRole === 'administrator' && (
+      {userRole !== 'technician' && (userRole === 'administrator' || roleId === 1 || roleId === 7) && (
         <div className={`py-3 border-b ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-200'
           }`}>
           <div className="flex items-center justify-center px-4 space-x-4 md:space-x-8">
@@ -947,8 +949,8 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
       {showInlineConfirmation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className={`rounded-lg p-6 max-w-md w-full mx-4 border ${isDarkMode
-              ? 'bg-gray-800 border-gray-700'
-              : 'bg-white border-gray-300'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-white border-gray-300'
             }`}>
             <div className="flex items-center mb-4">
               <div
@@ -977,8 +979,8 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               <button
                 onClick={handleCancelStatusUpdate}
                 className={`px-4 py-2 rounded transition-colors ${isDarkMode
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                   }`}
               >
                 Cancel
@@ -1007,8 +1009,8 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
 
       {error && (
         <div className={`p-3 m-3 rounded ${isDarkMode
-            ? 'bg-red-900 bg-opacity-20 border border-red-700 text-red-400'
-            : 'bg-red-100 border border-red-300 text-red-700'
+          ? 'bg-red-900 bg-opacity-20 border border-red-700 text-red-400'
+          : 'bg-red-100 border border-red-300 text-red-700'
           }`}>
           {error}
         </div>
