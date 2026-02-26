@@ -32,6 +32,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const [showLoadingModal, setShowLoadingModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [shouldCloseOnSuccess, setShouldCloseOnSuccess] = useState(false);
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
@@ -406,18 +407,24 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
 
         setShowLoadingModal(false);
         setSuccessMessage(message);
+        setShouldCloseOnSuccess(true);
         setShowSuccessModal(true);
         if (onRefresh) {
           onRefresh();
         }
-        onClose();
       } else {
         setShowLoadingModal(false);
         let msg = response.message || 'Failed to approve job order';
 
-        // If there's duplicate data, show the table name if provided
-        if (msg.includes('already data') || msg.includes('duplicate')) {
-          if (response.table) {
+        // Map duplicate errors to more specific messages
+        if (msg.includes('already data') || msg.includes('duplicate') || msg.toLowerCase().includes('serial number')) {
+          if (msg.toLowerCase().includes('serial number') || msg.toLowerCase().includes('modem')) {
+            msg = "SN Duplicate, Please check on Customer Details. SN Duplicate Detected.";
+          } else if (msg.includes("already data") || msg.toLowerCase().includes('duplicate')) {
+            msg = "Username Duplicate, Please check on Customer Details. Username Duplicate Detected.";
+          }
+
+          if (response.table && !msg.includes('Customer Details')) {
             msg = `Duplicate Entry Error: ${msg}\nTable: ${response.table}`;
           }
         }
@@ -433,9 +440,17 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
 
       if (err.response?.data) {
         const data = err.response.data;
-        if (data.message === "there's already data in database" || data.message?.toLowerCase().includes('duplicate')) {
+        if (data.message === "there's already data in database" || data.message?.toLowerCase().includes('duplicate') || data.message?.toLowerCase().includes('serial number')) {
           msg = data.message;
-          if (data.table) {
+
+          // Map duplicate errors to more specific messages
+          if (msg.toLowerCase().includes('serial number') || msg.toLowerCase().includes('modem')) {
+            msg = "SN Duplicate, Please check on Customer Details. SN Duplicate Detected.";
+          } else if (msg === "there's already data in database" || msg.toLowerCase().includes('duplicate')) {
+            msg = "Username Duplicate, Please check on Customer Details. Username Duplicate Detected.";
+          }
+
+          if (data.table && !msg.includes('Customer Details')) {
             tableInfo = `\nTable: ${data.table}`;
           }
         } else if (data.message) {
@@ -1250,8 +1265,18 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         message={successMessage}
         confirmText="OK"
         cancelText="Close"
-        onConfirm={() => setShowSuccessModal(false)}
-        onCancel={() => setShowSuccessModal(false)}
+        onConfirm={() => {
+          setShowSuccessModal(false);
+          if (shouldCloseOnSuccess) {
+            onClose();
+          }
+        }}
+        onCancel={() => {
+          setShowSuccessModal(false);
+          if (shouldCloseOnSuccess) {
+            onClose();
+          }
+        }}
       />
 
       {/* Loading Modal */}

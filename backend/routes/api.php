@@ -43,6 +43,7 @@ use App\Http\Controllers\Api\ServiceOrderItemApiController;
 Route::get('/monitor/handle', [MonitorController::class, 'handle']);
 Route::post('/monitor/handle', [MonitorController::class, 'handle']); // Ensure POST is also handled for save_template actions if not using REST
 Route::get('/sms-blast', [SmsBlastController::class, 'index']);
+Route::post('/sms-blast', [SmsBlastController::class, 'store']);
 Route::get('/expenses-logs', [ExpensesLogController::class, 'index']);
 Route::get('/disconnection-logs', [DisconnectionLogsController::class, 'index']);
 Route::get('/smart-olt/validate-sn', [\App\Http\Controllers\SmartOltController::class, 'validateOnuSn']);

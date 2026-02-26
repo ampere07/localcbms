@@ -73,10 +73,11 @@ const UserManagement: React.FC = () => {
 
   const filteredUsers = users.filter(user => {
     const fullName = getFullName(user);
+    const searchLower = searchTerm.toLowerCase();
     return (
-      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email_address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      fullName.toLowerCase().includes(searchTerm.toLowerCase())
+      (user.username && user.username.toLowerCase().includes(searchLower)) ||
+      (user.email_address && user.email_address.toLowerCase().includes(searchLower)) ||
+      (fullName && fullName.toLowerCase().includes(searchLower))
     );
   });
 
@@ -186,8 +187,8 @@ const UserManagement: React.FC = () => {
         { label: 'Users' }
       ]} />
       <div className={`rounded-lg border overflow-hidden text-white ${isDarkMode
-          ? 'bg-gray-800 border-gray-600'
-          : 'bg-white border-gray-300'
+        ? 'bg-gray-800 border-gray-600'
+        : 'bg-white border-gray-300'
         }`}>
         <div className="p-6">
           <div className="mb-8">
@@ -208,8 +209,8 @@ const UserManagement: React.FC = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className={`px-4 py-3 border rounded placeholder-gray-500 focus:outline-none w-full md:w-80 ${isDarkMode
-                  ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-100'
-                  : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-100'
+                : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                 }`}
               onFocus={(e) => {
                 if (colorPalette?.primary) {
@@ -249,40 +250,40 @@ const UserManagement: React.FC = () => {
             <>
               {/* Desktop Table View */}
               <div className={`hidden md:block rounded border overflow-hidden ${isDarkMode
-                  ? 'bg-gray-800 border-gray-600'
-                  : 'bg-white border-gray-300'
+                ? 'bg-gray-800 border-gray-600'
+                : 'bg-white border-gray-300'
                 }`}>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="">
                         <th className={`px-4 py-4 text-left text-sm font-medium border-b ${isDarkMode
-                            ? 'text-gray-300 border-gray-600'
-                            : 'text-gray-700 border-gray-300'
+                          ? 'text-gray-300 border-gray-600'
+                          : 'text-gray-700 border-gray-300'
                           }`}>Name</th>
                         <th className={`px-4 py-4 text-left text-sm font-medium border-b ${isDarkMode
-                            ? 'text-gray-300 border-gray-600'
-                            : 'text-gray-700 border-gray-300'
+                          ? 'text-gray-300 border-gray-600'
+                          : 'text-gray-700 border-gray-300'
                           }`}>Username</th>
                         <th className={`px-4 py-4 text-left text-sm font-medium border-b ${isDarkMode
-                            ? 'text-gray-300 border-gray-600'
-                            : 'text-gray-700 border-gray-300'
+                          ? 'text-gray-300 border-gray-600'
+                          : 'text-gray-700 border-gray-300'
                           }`}>Email</th>
                         <th className={`px-4 py-4 text-left text-sm font-medium border-b ${isDarkMode
-                            ? 'text-gray-300 border-gray-600'
-                            : 'text-gray-700 border-gray-300'
+                          ? 'text-gray-300 border-gray-600'
+                          : 'text-gray-700 border-gray-300'
                           }`}>Contact</th>
                         <th className={`px-4 py-4 text-left text-sm font-medium border-b ${isDarkMode
-                            ? 'text-gray-300 border-gray-600'
-                            : 'text-gray-700 border-gray-300'
+                          ? 'text-gray-300 border-gray-600'
+                          : 'text-gray-700 border-gray-300'
                           }`}>Role</th>
                         <th className={`px-4 py-4 text-left text-sm font-medium border-b ${isDarkMode
-                            ? 'text-gray-300 border-gray-600'
-                            : 'text-gray-700 border-gray-300'
+                          ? 'text-gray-300 border-gray-600'
+                          : 'text-gray-700 border-gray-300'
                           }`}>Created</th>
                         <th className={`px-4 py-4 text-left text-sm font-medium border-b ${isDarkMode
-                            ? 'text-gray-300 border-gray-600'
-                            : 'text-gray-700 border-gray-300'
+                          ? 'text-gray-300 border-gray-600'
+                          : 'text-gray-700 border-gray-300'
                           }`}>Actions</th>
                       </tr>
                     </thead>
@@ -297,8 +298,8 @@ const UserManagement: React.FC = () => {
                       ) : (
                         currentUsers.map((user: User) => (
                           <tr key={user.id} className={`border-b ${isDarkMode
-                              ? 'border-gray-700 hover:bg-gray-750'
-                              : 'border-gray-200 hover:bg-gray-50'
+                            ? 'border-gray-700 hover:bg-gray-750'
+                            : 'border-gray-200 hover:bg-gray-50'
                             }`}>
                             <td className={`px-4 py-4 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
                               }`}>
@@ -329,8 +330,8 @@ const UserManagement: React.FC = () => {
                                 <button
                                   onClick={() => handleEditUser(user)}
                                   className={`p-2 rounded transition-colors ${isDarkMode
-                                      ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900'
-                                      : 'text-blue-600 hover:text-blue-700 hover:bg-blue-100'
+                                    ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900'
+                                    : 'text-blue-600 hover:text-blue-700 hover:bg-blue-100'
                                     }`}
                                   title="Edit user"
                                 >
@@ -341,8 +342,8 @@ const UserManagement: React.FC = () => {
                                 <button
                                   onClick={() => handleDeleteClick(user)}
                                   className={`p-2 rounded transition-colors ${isDarkMode
-                                      ? 'text-red-400 hover:text-red-300 hover:bg-red-900'
-                                      : 'text-red-600 hover:text-red-700 hover:bg-red-100'
+                                    ? 'text-red-400 hover:text-red-300 hover:bg-red-900'
+                                    : 'text-red-600 hover:text-red-700 hover:bg-red-100'
                                     }`}
                                   title="Delete user"
                                 >
@@ -364,16 +365,16 @@ const UserManagement: React.FC = () => {
               <div className="md:hidden space-y-4">
                 {currentUsers.length === 0 ? (
                   <div className={`rounded border p-6 text-center ${isDarkMode
-                      ? 'bg-gray-800 border-gray-600 text-gray-400'
-                      : 'bg-white border-gray-300 text-gray-600'
+                    ? 'bg-gray-800 border-gray-600 text-gray-400'
+                    : 'bg-white border-gray-300 text-gray-600'
                     }`}>
                     No users found
                   </div>
                 ) : (
                   currentUsers.map((user: User) => (
                     <div key={user.id} className={`rounded border p-4 ${isDarkMode
-                        ? 'bg-gray-800 border-gray-600'
-                        : 'bg-white border-gray-300'
+                      ? 'bg-gray-800 border-gray-600'
+                      : 'bg-white border-gray-300'
                       }`}>
                       <div className="mb-3">
                         <div className={`font-medium mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
@@ -420,8 +421,8 @@ const UserManagement: React.FC = () => {
                         <button
                           onClick={() => handleEditUser(user)}
                           className={`flex-1 px-4 py-2 border rounded transition-colors text-sm font-medium ${isDarkMode
-                              ? 'text-blue-400 border-blue-400 hover:bg-blue-900'
-                              : 'text-blue-600 border-blue-600 hover:bg-blue-100'
+                            ? 'text-blue-400 border-blue-400 hover:bg-blue-900'
+                            : 'text-blue-600 border-blue-600 hover:bg-blue-100'
                             }`}
                         >
                           Edit
@@ -429,8 +430,8 @@ const UserManagement: React.FC = () => {
                         <button
                           onClick={() => handleDeleteClick(user)}
                           className={`flex-1 px-4 py-2 border rounded transition-colors text-sm font-medium ${isDarkMode
-                              ? 'text-red-400 border-red-400 hover:bg-red-900'
-                              : 'text-red-600 border-red-600 hover:bg-red-100'
+                            ? 'text-red-400 border-red-400 hover:bg-red-900'
+                            : 'text-red-600 border-red-600 hover:bg-red-100'
                             }`}
                         >
                           Delete
@@ -459,8 +460,8 @@ const UserManagement: React.FC = () => {
                       value={itemsPerPage}
                       onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
                       className={`px-3 py-1 border rounded text-sm focus:outline-none ${isDarkMode
-                          ? 'bg-gray-800 border-gray-600 text-white focus:border-gray-400'
-                          : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                        ? 'bg-gray-800 border-gray-600 text-white focus:border-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                         }`}
                       onFocus={(e) => {
                         if (colorPalette?.primary) {
@@ -488,8 +489,8 @@ const UserManagement: React.FC = () => {
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1 || totalPages === 0}
                     className={`px-3 py-1 text-sm border rounded whitespace-nowrap ${isDarkMode
-                        ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
-                        : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
+                      ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                      : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
                       }`}
                   >
                     Previous
@@ -514,12 +515,12 @@ const UserManagement: React.FC = () => {
                             <button
                               onClick={() => handlePageChange(page)}
                               className={`px-3 py-1 text-sm border rounded ${currentPage === page
-                                  ? isDarkMode
-                                    ? 'bg-blue-600 border-blue-600 text-white'
-                                    : 'bg-blue-500 border-blue-500 text-white'
-                                  : isDarkMode
-                                    ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'
-                                    : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100'
+                                ? isDarkMode
+                                  ? 'bg-blue-600 border-blue-600 text-white'
+                                  : 'bg-blue-500 border-blue-500 text-white'
+                                : isDarkMode
+                                  ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'
+                                  : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100'
                                 }`}
                             >
                               {page}
@@ -538,8 +539,8 @@ const UserManagement: React.FC = () => {
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages || totalPages === 0}
                     className={`px-3 py-1 text-sm border rounded whitespace-nowrap ${isDarkMode
-                        ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
-                        : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
+                      ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                      : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
                       }`}
                   >
                     Next
@@ -554,8 +555,8 @@ const UserManagement: React.FC = () => {
         {deletingUser && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className={`p-6 rounded border max-w-md w-full mx-4 ${isDarkMode
-                ? 'bg-gray-900 border-gray-700'
-                : 'bg-white border-gray-300'
+              ? 'bg-gray-900 border-gray-700'
+              : 'bg-white border-gray-300'
               }`}>
               <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>
@@ -569,8 +570,8 @@ const UserManagement: React.FC = () => {
                 <button
                   onClick={handleCancelDelete}
                   className={`px-4 py-2 border rounded transition-colors text-sm font-medium ${isDarkMode
-                      ? 'border-gray-600 text-white hover:bg-gray-800'
-                      : 'border-gray-300 text-gray-900 hover:bg-gray-100'
+                    ? 'border-gray-600 text-white hover:bg-gray-800'
+                    : 'border-gray-300 text-gray-900 hover:bg-gray-100'
                     }`}
                 >
                   Cancel

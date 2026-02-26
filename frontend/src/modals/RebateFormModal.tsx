@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { X, Minus, Plus, ChevronDown, Search } from 'lucide-react';
-import LoadingModal from '../components/LoadingModal';
+import { X, Minus, Plus, ChevronDown, Search, Loader2 } from 'lucide-react';
 import * as massRebateService from '../services/massRebateService';
 import * as lcpnapService from '../services/lcpnapService';
 import * as lcpService from '../services/lcpService';
 import { barangayService, Barangay } from '../services/barangayService';
 import { userService } from '../services/userService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+
+interface ModalConfig {
+  isOpen: boolean;
+  type: 'success' | 'error' | 'warning' | 'confirm' | 'loading';
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
 
 interface RebateFormModalProps {
   isOpen: boolean;
@@ -56,6 +64,12 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [modal, setModal] = useState<ModalConfig>({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: ''
+  });
   const [lcpnapSearch, setLcpnapSearch] = useState('');
   const [isLcpnapOpen, setIsLcpnapOpen] = useState(false);
   const [lcpSearch, setLcpSearch] = useState('');
@@ -199,7 +213,12 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
 
   const handleSave = async () => {
     if (!validateForm()) {
-      alert('Please fill in all required fields correctly.');
+      setModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'Validation Error',
+        message: 'Please fill in all required fields correctly.'
+      });
       return;
     }
 
@@ -237,12 +256,25 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
       setLoadingPercentage(100);
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      alert('Rebate created successfully!');
-      onSave();
-      onClose();
+      setModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Success',
+        message: 'Rebate created successfully!',
+        onConfirm: () => {
+          onSave();
+          onClose();
+          setModal(prev => ({ ...prev, isOpen: false }));
+        }
+      });
     } catch (error) {
       console.error('Error creating rebate:', error);
-      alert(`Failed to save rebate: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: `Failed to save rebate: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
     } finally {
       setLoading(false);
       setLoadingPercentage(0);
@@ -268,11 +300,103 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
 
   return (
     <>
-      <LoadingModal
-        isOpen={loading}
-        message="Saving rebate..."
-        percentage={loadingPercentage}
-      />
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
+          <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+            <Loader2
+              className="w-20 h-20 animate-spin"
+              style={{ color: colorPalette?.primary || '#ea580c' }}
+            />
+            <div className="text-center">
+              <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{loadingPercentage}%</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
+          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+            {modal.type === 'loading' ? (
+              <div className="text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#ea580c' }}></div>
+                </div>
+                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>{modal.message}</p>
+              </div>
+            ) : (
+              <>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>{modal.message}</p>
+                <div className="flex items-center justify-end gap-3">
+                  {modal.type === 'confirm' ? (
+                    <>
+                      <button
+                        onClick={modal.onCancel}
+                        className={`px-4 py-2 rounded transition-colors ${isDarkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          }`}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={modal.onConfirm}
+                        className="px-4 py-2 text-white rounded transition-colors"
+                        style={{
+                          backgroundColor: colorPalette?.primary || '#ea580c'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                        }}
+                      >
+                        Confirm
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (modal.onConfirm) {
+                          modal.onConfirm();
+                        } else {
+                          setModal({ ...modal, isOpen: false });
+                        }
+                      }}
+                      className="px-4 py-2 text-white rounded transition-colors"
+                      style={{
+                        backgroundColor: colorPalette?.primary || '#ea580c'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                      }}
+                    >
+                      OK
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
         <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'

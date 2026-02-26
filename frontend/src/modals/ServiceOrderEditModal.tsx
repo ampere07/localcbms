@@ -907,7 +907,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         isOpen: true,
         type: 'loading',
         title: 'Uploading Images',
-        message: `Uploading images to Google Drive... 0%`
+        message: 'Uploading images to Google Drive...'
       });
 
       let tempSigFile: File | null = null;
@@ -2576,54 +2576,36 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         </div>
 
         {modal.isOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-            <div className={`border rounded-lg p-6 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
+            <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
               }`}>
               {modal.type === 'loading' ? (
-                <>
-                  <div className="flex flex-col items-center justify-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 mb-4"
-                      style={{ borderColor: colorPalette?.primary || '#ea580c' }}></div>
-                    {modal.title === 'Uploading Images' && uploadProgress > 0 && (
-                      <h3 className="text-4xl font-bold text-white">{uploadProgress}%</h3>
-                    )}
+                <div className="text-center">
+                  <div className="flex justify-center mb-4">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#ea580c' }}></div>
                   </div>
-                </>
+                  <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>{modal.title}</h3>
+                  {uploadProgress > 0 && (
+                    <p className={`text-4xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{uploadProgress}%</p>
+                  )}
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>{modal.message}</p>
+                </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-center mb-4">
-                    {modal.type === 'success' && (
-                      <div className="rounded-full bg-green-500 p-3">
-                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                    )}
-                    {modal.type === 'error' && (
-                      <div className="rounded-full bg-red-500 p-3">
-                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </div>
-                    )}
-                    {modal.type === 'warning' && (
-                      <div className="rounded-full bg-yellow-500 p-3">
-                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  <h3 className={`text-lg font-semibold mb-4 text-center ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
                     }`}>{modal.title}</h3>
-                  <p className={`mb-6 whitespace-pre-line text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                     }`}>{modal.message}</p>
-                  <div className="flex items-center justify-center gap-3">
+                  <div className="flex items-center justify-end gap-3">
                     {modal.type === 'confirm' ? (
                       <>
                         <button
                           onClick={modal.onCancel}
-                          className={`px-4 py-2 rounded transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-300 hover:bg-gray-400 text-gray-900'
+                          className={`px-4 py-2 rounded transition-colors ${isDarkMode
+                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                             }`}
                         >
                           Cancel
@@ -2631,9 +2613,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         <button
                           onClick={modal.onConfirm}
                           className="px-4 py-2 text-white rounded transition-colors"
-                          style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                          style={{
+                            backgroundColor: colorPalette?.primary || '#ea580c'
+                          }}
                           onMouseEnter={(e) => {
-                            if (colorPalette?.accent) e.currentTarget.style.backgroundColor = colorPalette.accent;
+                            if (colorPalette?.accent) {
+                              e.currentTarget.style.backgroundColor = colorPalette.accent;
+                            }
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
@@ -2651,10 +2637,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                             setModal({ ...modal, isOpen: false });
                           }
                         }}
-                        className="px-6 py-2 text-white rounded transition-colors"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        className="px-4 py-2 text-white rounded transition-colors"
+                        style={{
+                          backgroundColor: colorPalette?.primary || '#ea580c'
+                        }}
                         onMouseEnter={(e) => {
-                          if (colorPalette?.accent) e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          if (colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';

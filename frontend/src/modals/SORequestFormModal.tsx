@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown, CheckCircle } from 'lucide-react';
-import LoadingModal from '../components/LoadingModal';
+import { X, ChevronDown, CheckCircle, Loader2 } from 'lucide-react';
 import * as serviceOrderService from '../services/serviceOrderService';
 import * as concernService from '../services/concernService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+
+interface ModalConfig {
+  isOpen: boolean;
+  type: 'success' | 'error' | 'warning' | 'confirm' | 'loading';
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
 
 interface SORequestFormModalProps {
   isOpen: boolean;
@@ -15,7 +23,6 @@ interface SORequestFormModalProps {
     fullName: string;
     contactNumber: string;
     plan: string;
-
     username: string;
     emailAddress?: string;
   };
@@ -68,7 +75,12 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [modal, setModal] = useState<ModalConfig>({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: ''
+  });
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -173,7 +185,12 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
 
   const handleSave = async () => {
     if (!validateForm()) {
-      alert('Please fill in all required fields.');
+      setModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'Validation Error',
+        message: 'Please fill in all required fields before saving.'
+      });
       return;
     }
 
@@ -203,10 +220,25 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
       setLoadingPercentage(100);
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      setShowSuccess(true);
+      setModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Success',
+        message: 'SO Request created successfully!',
+        onConfirm: () => {
+          onSave();
+          handleCancel();
+          setModal({ ...modal, isOpen: false });
+        }
+      });
     } catch (error) {
       console.error('Error creating SO request:', error);
-      alert(`Failed to save SO request: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Failed to Save',
+        message: `Failed to save SO request: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
     } finally {
       setLoading(false);
       setLoadingPercentage(0);
@@ -232,51 +264,104 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
     onClose();
   };
 
-  const handleSuccessClose = () => {
-    setShowSuccess(false);
-    onSave();
-    handleCancel();
-  };
-
   if (!isOpen) return null;
 
   return (
     <>
-      <LoadingModal
-        isOpen={loading}
-        message="Saving SO request..."
-        percentage={loadingPercentage}
-      />
-
-      {showSuccess && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
-          <div className={`rounded-lg p-6 max-w-sm w-full mx-4 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
+          <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'
             }`}>
-            <div className="flex flex-col items-center">
-              <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
-              <p className={`text-center mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>SO Request created successfully!</p>
-
-              <button
-                onClick={handleSuccessClose}
-                className="px-6 py-2 text-white rounded transition-colors"
-                style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
-                }}
-                onMouseEnter={(e) => {
-                  if (colorPalette?.accent) {
-                    e.currentTarget.style.backgroundColor = colorPalette.accent;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (colorPalette?.primary) {
-                    e.currentTarget.style.backgroundColor = colorPalette.primary;
-                  }
-                }}
-              >
-                OK
-              </button>
+            <Loader2
+              className="w-20 h-20 animate-spin"
+              style={{ color: colorPalette?.primary || '#ea580c' }}
+            />
+            <div className="text-center">
+              <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{loadingPercentage}%</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {modal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
+          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+            {modal.type === 'loading' ? (
+              <div className="text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#ea580c' }}></div>
+                </div>
+                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>{modal.message}</p>
+              </div>
+            ) : (
+              <>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>{modal.message}</p>
+                <div className="flex items-center justify-end gap-3">
+                  {modal.type === 'confirm' ? (
+                    <>
+                      <button
+                        onClick={modal.onCancel}
+                        className={`px-4 py-2 rounded transition-colors ${isDarkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          }`}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={modal.onConfirm}
+                        className="px-4 py-2 text-white rounded transition-colors"
+                        style={{
+                          backgroundColor: colorPalette?.primary || '#ea580c'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                        }}
+                      >
+                        Confirm
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (modal.onConfirm) {
+                          modal.onConfirm();
+                        } else {
+                          setModal({ ...modal, isOpen: false });
+                        }
+                      }}
+                      className="px-4 py-2 text-white rounded transition-colors"
+                      style={{
+                        backgroundColor: colorPalette?.primary || '#ea580c'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                      }}
+                    >
+                      OK
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

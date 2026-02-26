@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, ChevronDown, Minus, Plus, Camera } from 'lucide-react';
+import { Calendar, ChevronDown, Minus, Plus, Camera, Loader2 } from 'lucide-react';
 import { transactionService } from '../services/transactionService';
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { userService } from '../services/userService';
 import { User } from '../types/api';
+
+interface ModalConfig {
+  isOpen: boolean;
+  type: 'success' | 'error' | 'warning' | 'confirm' | 'loading';
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
 
 interface TransactionFormModalProps {
   isOpen: boolean;
@@ -66,9 +75,13 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [showStatusModal, setShowStatusModal] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [modal, setModal] = useState<ModalConfig>({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: ''
+  });
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -257,10 +270,12 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     console.log('Transaction form validation result:', isValid);
 
     if (!isValid) {
-      console.log('Transaction form validation failed. Errors:', errors);
-      setStatusMessage('Please fill in all required fields before saving.');
-      setIsSuccess(false);
-      setShowStatusModal(true);
+      setModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'Validation Error',
+        message: 'Please fill in all required fields before saving.'
+      });
       return;
     }
 
@@ -271,27 +286,29 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       let imageUrl = undefined;
 
       if (formData.image) {
+        setUploadProgress(10);
         try {
           const imageFormData = new FormData();
           const folderName = `transactionform - ${formData.fullName}`;
           imageFormData.append('folder_name', folderName);
           imageFormData.append('payment_proof_image', formData.image, formData.image.name);
 
-          console.log(`[UPLOAD] Uploading image to Google Drive folder: ${folderName}`);
-
           const uploadResponse = await transactionService.uploadTransactionImage(imageFormData);
 
           if (uploadResponse.success && uploadResponse.data?.payment_proof_image_url) {
             imageUrl = uploadResponse.data.payment_proof_image_url;
-            console.log('[UPLOAD SUCCESS] Image uploaded to:', imageUrl);
-          } else {
-            console.warn('[UPLOAD WARNING] Image upload did not return URL');
+            setUploadProgress(60);
           }
         } catch (uploadError: any) {
           console.error('[UPLOAD ERROR]:', uploadError);
-          setStatusMessage(`Warning: Failed to upload image: ${uploadError.message}`);
-          setIsSuccess(false);
-          setShowStatusModal(true);
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Upload Failed',
+            message: `Failed to upload image: ${uploadError.message}`
+          });
+          setLoading(false);
+          return;
         }
       }
 
@@ -310,37 +327,46 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
         image_url: imageUrl
       };
 
+      setUploadProgress(80);
       const result = await transactionService.createTransaction(payload);
+      setUploadProgress(100);
 
       if (result.success) {
-        setStatusMessage('Transaction created successfully!');
-        setIsSuccess(true);
-        setShowStatusModal(true);
+        setModal({
+          isOpen: true,
+          type: 'success',
+          title: 'Success',
+          message: 'Transaction created successfully!',
+          onConfirm: () => {
+            onSave(formData);
+            onClose();
+            setModal(prev => ({ ...prev, isOpen: false }));
+          }
+        });
       } else {
-        setStatusMessage(`Failed to create transaction: ${result.message}`);
-        setIsSuccess(false);
-        setShowStatusModal(true);
+        setModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Error',
+          message: `Failed to create transaction: ${result.message}`
+        });
       }
     } catch (error) {
       console.error('Error creating transaction:', error);
-      setStatusMessage(`Failed to save transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      setIsSuccess(false);
-      setShowStatusModal(true);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: `Failed to save transaction: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
     } finally {
       setLoading(false);
+      setUploadProgress(0);
     }
   };
 
   const handleCancel = () => {
     onClose();
-  };
-
-  const handleStatusModalClose = () => {
-    setShowStatusModal(false);
-    if (isSuccess) {
-      onSave(formData);
-      onClose();
-    }
   };
 
   if (!isOpen) return null;
@@ -723,42 +749,100 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
         </div>
       </div>
 
-      {/* Status Modal */}
-      {showStatusModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className={`rounded shadow-lg p-6 max-w-sm w-full mx-4 transform transition-all duration-300 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
+          <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'
             }`}>
-            <div className="mb-4">
-              <h3 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>
-                {isSuccess ? 'Success' : 'Error'}
-              </h3>
+            <Loader2
+              className="w-20 h-20 animate-spin"
+              style={{ color: colorPalette?.primary || '#ea580c' }}
+            />
+            <div className="text-center">
+              <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{uploadProgress}%</p>
             </div>
-            <div className={`mb-6 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-              {statusMessage}
-            </div>
-            <div className="flex justify-end">
-              <button
-                onClick={handleStatusModalClose}
-                className="px-6 py-2 rounded text-white font-medium transition-all duration-200 active:scale-95"
-                style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
-                }}
-                onMouseEnter={(e) => {
-                  if (colorPalette?.accent) {
-                    e.currentTarget.style.backgroundColor = colorPalette.accent;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (colorPalette?.primary) {
-                    e.currentTarget.style.backgroundColor = colorPalette.primary;
-                  }
-                }}
-              >
-                OK
-              </button>
-            </div>
+          </div>
+        </div>
+      )}
+
+      {modal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
+          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+            {modal.type === 'loading' ? (
+              <div className="text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#ea580c' }}></div>
+                </div>
+                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>{modal.message}</p>
+              </div>
+            ) : (
+              <>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>{modal.message}</p>
+                <div className="flex items-center justify-end gap-3">
+                  {modal.type === 'confirm' ? (
+                    <>
+                      <button
+                        onClick={modal.onCancel}
+                        className={`px-4 py-2 rounded transition-colors ${isDarkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          }`}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={modal.onConfirm}
+                        className="px-4 py-2 text-white rounded transition-colors"
+                        style={{
+                          backgroundColor: colorPalette?.primary || '#ea580c'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                        }}
+                      >
+                        Confirm
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (modal.onConfirm) {
+                          modal.onConfirm();
+                        } else {
+                          setModal({ ...modal, isOpen: false });
+                        }
+                      }}
+                      className="px-4 py-2 text-white rounded transition-colors"
+                      style={{
+                        backgroundColor: colorPalette?.primary || '#ea580c'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                      }}
+                    >
+                      OK
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
