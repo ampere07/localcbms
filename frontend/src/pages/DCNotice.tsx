@@ -241,7 +241,7 @@ const DCNoticePage: React.FC = () => {
                       : 'bg-white text-gray-900 border border-gray-300'
                       }`}
                     style={{
-                      '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                      '--tw-ring-color': colorPalette?.primary || '#7c3aed'
                     } as React.CSSProperties}
                     onFocus={(e) => {
                       if (colorPalette?.primary) {
@@ -260,7 +260,7 @@ const DCNoticePage: React.FC = () => {
                   disabled={isLoading}
                   className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
                   style={{
-                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!isLoading && colorPalette?.accent) {

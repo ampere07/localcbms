@@ -62,7 +62,6 @@ const TransactConfirmationModal: React.FC<TransactConfirmationModalProps> = ({
         <div className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
           }`}>
           <p className="whitespace-pre-line">Are you sure you want to proceed with this transaction?</p>
-          {amount && <p className="mt-2 font-semibold">Amount: ₱{amount}</p>}
           {description && <p className="mt-1 text-sm opacity-75">{description}</p>}
         </div>
         <div className="flex items-center justify-end gap-3">
@@ -79,7 +78,7 @@ const TransactConfirmationModal: React.FC<TransactConfirmationModalProps> = ({
             className="text-white px-4 py-2 rounded transition-colors"
             onClick={onConfirm}
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {
@@ -87,7 +86,7 @@ const TransactConfirmationModal: React.FC<TransactConfirmationModalProps> = ({
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
             }}
           >
             Confirm Transaction

@@ -455,7 +455,7 @@ const LocationList: React.FC = () => {
         <div className="flex flex-col items-center">
           <div
             className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 mb-3"
-            style={{ borderTopColor: colorPalette?.primary || '#ea580c', borderBottomColor: colorPalette?.primary || '#ea580c' }}
+            style={{ borderTopColor: colorPalette?.primary || '#7c3aed', borderBottomColor: colorPalette?.primary || '#7c3aed' }}
           ></div>
           <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Loading locations...</p>
         </div>
@@ -476,7 +476,7 @@ const LocationList: React.FC = () => {
             onClick={() => fetchLocationData()}
             className="text-white py-2 px-4 rounded transition-colors"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {
@@ -518,7 +518,7 @@ const LocationList: React.FC = () => {
                 }`}
               style={sidebarFilter.type === 'all' ? {
                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
+                color: colorPalette?.primary || '#7c3aed'
               } : {
                 color: isDarkMode ? '#d1d5db' : '#374151'
               }}
@@ -531,7 +531,7 @@ const LocationList: React.FC = () => {
                 <span
                   className="px-2 py-1 rounded-full text-xs mt-1 md:mt-0"
                   style={sidebarFilter.type === 'all' ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c',
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
                     color: 'white'
                   } : {
                     backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
@@ -569,7 +569,7 @@ const LocationList: React.FC = () => {
                         }`}
                       style={isSelected ? {
                         backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                        color: colorPalette?.primary || '#fb923c'
+                        color: colorPalette?.primary || '#7c3aed'
                       } : {
                         color: isDarkMode ? '#d1d5db' : '#374151'
                       }}
@@ -579,7 +579,7 @@ const LocationList: React.FC = () => {
                         <span
                           className="px-2 py-1 rounded-full text-xs mt-1 md:mt-0"
                           style={isSelected ? {
-                            backgroundColor: colorPalette?.primary || '#ea580c',
+                            backgroundColor: colorPalette?.primary || '#7c3aed',
                             color: 'white'
                           } : {
                             backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
@@ -618,7 +618,7 @@ const LocationList: React.FC = () => {
                               }`}
                             style={isCitySelected ? {
                               backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                              color: colorPalette?.primary || '#fb923c'
+                              color: colorPalette?.primary || '#7c3aed'
                             } : {
                               color: isDarkMode ? '#d1d5db' : '#374151'
                             }}
@@ -628,7 +628,7 @@ const LocationList: React.FC = () => {
                               <span
                                 className="px-2 py-0.5 rounded-full text-xs"
                                 style={isCitySelected ? {
-                                  backgroundColor: colorPalette?.primary || '#ea580c',
+                                  backgroundColor: colorPalette?.primary || '#7c3aed',
                                   color: 'white'
                                 } : {
                                   backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
@@ -654,7 +654,7 @@ const LocationList: React.FC = () => {
                                 }`}
                               style={isBarangaySelected ? {
                                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                                color: colorPalette?.primary || '#fb923c'
+                                color: colorPalette?.primary || '#7c3aed'
                               } : {
                                 color: isDarkMode ? '#d1d5db' : '#374151'
                               }}
@@ -664,7 +664,7 @@ const LocationList: React.FC = () => {
                                 <span
                                   className="px-2 py-0.5 rounded-full text-xs"
                                   style={isBarangaySelected ? {
-                                    backgroundColor: colorPalette?.primary || '#ea580c',
+                                    backgroundColor: colorPalette?.primary || '#7c3aed',
                                     color: 'white'
                                   } : {
                                     backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
@@ -722,7 +722,7 @@ const LocationList: React.FC = () => {
                 onClick={() => setIsAddModalOpen(true)}
                 className="text-white px-4 py-2 rounded text-sm transition-colors flex items-center space-x-1"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -903,8 +903,8 @@ const LocationList: React.FC = () => {
                 type="button"
                 className="px-5 py-2 text-sm font-semibold text-white rounded-lg transition-all shadow-lg active:scale-95"
                 style={{
-                  backgroundColor: alertConfig.type === 'error' ? '#ef4444' : (colorPalette?.primary || '#ea580c'),
-                  boxShadow: `0 4px 14px 0 ${(alertConfig.type === 'error' ? '#ef4444' : (colorPalette?.primary || '#ea580c'))}40`
+                  backgroundColor: alertConfig.type === 'error' ? '#ef4444' : (colorPalette?.primary || '#7c3aed'),
+                  boxShadow: `0 4px 14px 0 ${(alertConfig.type === 'error' ? '#ef4444' : (colorPalette?.primary || '#7c3aed'))}40`
                 }}
                 onClick={alertConfig.onConfirm}
               >

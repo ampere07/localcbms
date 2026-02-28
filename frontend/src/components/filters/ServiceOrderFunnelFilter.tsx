@@ -208,9 +208,8 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
       return (
         <div className="space-y-4">
           <div>
-            <label className={`text-sm font-medium mb-2 block ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               From
             </label>
             <input
@@ -218,17 +217,15 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
               value={currentValue?.from || ''}
               onChange={(e) => handleRangeChange(selectedColumn.key, 'from', e.target.value)}
               placeholder="Minimum value"
-              className={`w-full px-3 py-2 rounded border ${
-                isDarkMode 
-                  ? 'bg-gray-800 border-gray-700 text-white' 
+              className={`w-full px-3 py-2 rounded border ${isDarkMode
+                  ? 'bg-gray-800 border-gray-700 text-white'
                   : 'bg-white border-gray-300 text-gray-900'
-              }`}
+                }`}
             />
           </div>
           <div>
-            <label className={`text-sm font-medium mb-2 block ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               To
             </label>
             <input
@@ -236,11 +233,10 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
               value={currentValue?.to || ''}
               onChange={(e) => handleRangeChange(selectedColumn.key, 'to', e.target.value)}
               placeholder="Maximum value"
-              className={`w-full px-3 py-2 rounded border ${
-                isDarkMode 
-                  ? 'bg-gray-800 border-gray-700 text-white' 
+              className={`w-full px-3 py-2 rounded border ${isDarkMode
+                  ? 'bg-gray-800 border-gray-700 text-white'
                   : 'bg-white border-gray-300 text-gray-900'
-              }`}
+                }`}
             />
           </div>
         </div>
@@ -251,37 +247,33 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
       return (
         <div className="space-y-4">
           <div>
-            <label className={`text-sm font-medium mb-2 block ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               From
             </label>
             <input
               type={selectedColumn.dataType === 'datetime' ? 'datetime-local' : 'date'}
               value={currentValue?.from || ''}
               onChange={(e) => handleDateChange(selectedColumn.key, 'from', e.target.value)}
-              className={`w-full px-3 py-2 rounded border ${
-                isDarkMode 
-                  ? 'bg-gray-800 border-gray-700 text-white' 
+              className={`w-full px-3 py-2 rounded border ${isDarkMode
+                  ? 'bg-gray-800 border-gray-700 text-white'
                   : 'bg-white border-gray-300 text-gray-900'
-              }`}
+                }`}
             />
           </div>
           <div>
-            <label className={`text-sm font-medium mb-2 block ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               To
             </label>
             <input
               type={selectedColumn.dataType === 'datetime' ? 'datetime-local' : 'date'}
               value={currentValue?.to || ''}
               onChange={(e) => handleDateChange(selectedColumn.key, 'to', e.target.value)}
-              className={`w-full px-3 py-2 rounded border ${
-                isDarkMode 
-                  ? 'bg-gray-800 border-gray-700 text-white' 
+              className={`w-full px-3 py-2 rounded border ${isDarkMode
+                  ? 'bg-gray-800 border-gray-700 text-white'
                   : 'bg-white border-gray-300 text-gray-900'
-              }`}
+                }`}
             />
           </div>
         </div>
@@ -290,9 +282,8 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
 
     return (
       <div>
-        <label className={`text-sm font-medium mb-2 block ${
-          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-        }`}>
+        <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>
           Search Value
         </label>
         <input
@@ -300,11 +291,10 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
           value={typeof currentValue?.value === 'string' ? currentValue.value : ''}
           onChange={(e) => handleTextChange(selectedColumn.key, e.target.value)}
           placeholder={`Enter ${selectedColumn.label.toLowerCase()}`}
-          className={`w-full px-3 py-2 rounded border ${
-            isDarkMode 
-              ? 'bg-gray-800 border-gray-700 text-white' 
+          className={`w-full px-3 py-2 rounded border ${isDarkMode
+              ? 'bg-gray-800 border-gray-700 text-white'
               : 'bg-white border-gray-300 text-gray-900'
-          }`}
+            }`}
         />
       </div>
     );
@@ -317,43 +307,38 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       <div className="absolute inset-0 overflow-hidden">
-        <div 
+        <div
           className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
           onClick={onClose}
         />
-        
+
         <div className="fixed inset-y-0 right-0 max-w-full flex">
-          <div className={`w-screen max-w-md transform transition-transform ${
-            isDarkMode ? 'bg-gray-900' : 'bg-white'
-          }`}>
+          <div className={`w-screen max-w-md transform transition-transform ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+            }`}>
             <div className="h-full flex flex-col">
-              <div className={`px-6 py-4 border-b ${
-                isDarkMode ? 'border-gray-700' : 'border-gray-200'
-              }`}>
+              <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     {selectedColumn && (
                       <button
                         onClick={handleBack}
-                        className={`p-2 rounded-lg transition-colors ${
-                          isDarkMode 
-                            ? 'hover:bg-gray-800 text-gray-400' 
+                        className={`p-2 rounded-lg transition-colors ${isDarkMode
+                            ? 'hover:bg-gray-800 text-gray-400'
                             : 'hover:bg-gray-100 text-gray-600'
-                        }`}
+                          }`}
                       >
                         <ChevronLeft className="h-5 w-5" />
                       </button>
                     )}
                     <div>
-                      <h2 className={`text-lg font-semibold ${
-                        isDarkMode ? 'text-white' : 'text-gray-900'
-                      }`}>
+                      <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
                         {selectedColumn ? selectedColumn.label : 'Filter'}
                       </h2>
                       {!selectedColumn && activeFilterCount > 0 && (
-                        <p className={`text-xs mt-1 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
+                        <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
                           {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} active
                         </p>
                       )}
@@ -361,11 +346,10 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
                   </div>
                   <button
                     onClick={onClose}
-                    className={`p-2 rounded-lg transition-colors ${
-                      isDarkMode 
-                        ? 'hover:bg-gray-800 text-gray-400' 
+                    className={`p-2 rounded-lg transition-colors ${isDarkMode
+                        ? 'hover:bg-gray-800 text-gray-400'
                         : 'hover:bg-gray-100 text-gray-600'
-                    }`}
+                      }`}
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -378,16 +362,15 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
                 ) : (
                   <div className="space-y-6">
                     <div>
-                      <h3 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
+                      <h3 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
                         Service Order Details
                       </h3>
                       <div className="flex flex-col gap-2 w-full">
                         {groupedColumns.service_orders.map(column => {
                           const hasFilter = filterValues[column.key] && (
-                            filterValues[column.key].value || 
-                            filterValues[column.key].from !== undefined || 
+                            filterValues[column.key].value ||
+                            filterValues[column.key].from !== undefined ||
                             filterValues[column.key].to !== undefined
                           );
 
@@ -395,26 +378,23 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
                             <div
                               key={column.key}
                               onClick={() => handleColumnClick(column)}
-                              className={`w-full p-3 cursor-pointer transition-all flex items-center justify-between border-b ${
-                                isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                              }`}
+                              className={`w-full p-3 cursor-pointer transition-all flex items-center justify-between border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                                }`}
                             >
                               <div className="flex items-center space-x-2">
-                                <span className={`text-sm font-medium ${
-                                  isDarkMode ? 'text-white' : 'text-gray-900'
-                                }`}>
+                                <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                  }`}>
                                   {column.label}
                                 </span>
                                 {hasFilter && (
-                                  <span 
+                                  <span
                                     className="w-2 h-2 rounded-full"
-                                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                                   />
                                 )}
                               </div>
-                              <ChevronRight className={`h-4 w-4 ${
-                                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} />
+                              <ChevronRight className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                }`} />
                             </div>
                           );
                         })}
@@ -424,31 +404,29 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
                 )}
               </div>
 
-              <div className={`px-6 py-4 border-t ${
-                isDarkMode ? 'border-gray-700' : 'border-gray-200'
-              }`}>
+              <div className={`px-6 py-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
                 <div className="flex space-x-3">
                   <button
                     onClick={handleReset}
-                    className={`flex-1 px-4 py-2 rounded transition-colors ${
-                      isDarkMode 
-                        ? 'bg-gray-800 hover:bg-gray-700 text-white' 
+                    className={`flex-1 px-4 py-2 rounded transition-colors ${isDarkMode
+                        ? 'bg-gray-800 hover:bg-gray-700 text-white'
                         : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                    }`}
+                      }`}
                   >
                     Clear All
                   </button>
                   <button
                     onClick={handleApply}
                     className="flex-1 px-4 py-2 text-white rounded transition-colors"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                     onMouseEnter={(e) => {
                       if (colorPalette?.accent) {
                         e.currentTarget.style.backgroundColor = colorPalette.accent;
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                     }}
                   >
                     Apply Filters

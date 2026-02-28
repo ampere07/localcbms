@@ -228,8 +228,8 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
       />
 
       <div className={`flex flex-col overflow-hidden border-l relative ${isDarkMode
-          ? 'bg-gray-950 border-white border-opacity-30'
-          : 'bg-white border-gray-300'
+        ? 'bg-gray-950 border-white border-opacity-30'
+        : 'bg-white border-gray-300'
         }`} style={{ width: `${detailsWidth}px`, height: '100%' }}>
         <div
           className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
@@ -249,8 +249,8 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
           }}
         />
         <div className={`p-3 flex items-center justify-between border-b ${isDarkMode
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-gray-100 border-gray-200'
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-200'
           }`}>
           <div className="flex items-center min-w-0 flex-1">
             <h2 className={`font-medium truncate pr-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
@@ -267,7 +267,7 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
                   disabled={loading}
                   className="flex items-center space-x-2 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded text-sm transition-colors"
                   style={{
-                    backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!loading && colorPalette?.accent) {
@@ -296,8 +296,8 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
 
         {error && (
           <div className={`border p-3 m-3 rounded ${isDarkMode
-              ? 'bg-red-900 bg-opacity-20 border-red-700 text-red-400'
-              : 'bg-red-100 border-red-300 text-red-900'
+            ? 'bg-red-900 bg-opacity-20 border-red-700 text-red-400'
+            : 'bg-red-100 border-red-300 text-red-900'
             }`}>
             {error}
           </div>
@@ -426,9 +426,9 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
                   }`}>Status</div>
                 <div className="flex-1">
                   <div className={`capitalize ${staggered.status.toLowerCase() === 'active' ? 'text-green-500' :
-                      staggered.status.toLowerCase() === 'pending' ? 'text-yellow-500' :
-                        staggered.status.toLowerCase() === 'completed' ? 'text-blue-500' :
-                          'text-gray-400'
+                    staggered.status.toLowerCase() === 'pending' ? 'text-yellow-500' :
+                      staggered.status.toLowerCase() === 'completed' ? 'text-blue-500' :
+                        'text-gray-400'
                     }`}>
                     {staggered.status}
                   </div>
@@ -536,8 +536,8 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className={`rounded-lg p-6 max-w-md w-full mx-4 border ${isDarkMode
-              ? 'bg-gray-800 border-gray-700'
-              : 'bg-white border-gray-300'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-white border-gray-300'
             }`}>
             <h3 className={`text-xl font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>Success</h3>
@@ -553,7 +553,7 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
                 }}
                 className="text-white px-6 py-2 rounded transition-colors"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {

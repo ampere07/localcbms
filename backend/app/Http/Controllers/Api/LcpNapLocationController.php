@@ -508,6 +508,59 @@ class LcpNapLocationController extends Controller
         }
     }
 
+    public function getRelatedCustomers($id)
+    {
+        try {
+            $lcpnap = LCPNAPLocation::find($id);
+            if (!$lcpnap) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'LCPNAP location not found'
+                ], 404);
+            }
+
+            $lcpnapName = $lcpnap->lcpnap_name;
+
+            $customers = \DB::table('technical_details')
+                ->join('billing_accounts', 'technical_details.account_id', '=', 'billing_accounts.id')
+                ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                ->leftJoin('online_status', 'billing_accounts.id', '=', 'online_status.account_id')
+                ->where('technical_details.lcpnap', $lcpnapName)
+                ->select([
+                    'billing_accounts.account_no',
+                    'customers.first_name',
+                    'customers.middle_initial',
+                    'customers.last_name',
+                    'customers.desired_plan as plan',
+                    'technical_details.port',
+                    'online_status.session_status as status'
+                ])
+                ->get()
+                ->map(function($item) {
+                    $item->full_name = trim(($item->first_name ?? '') . ' ' . ($item->middle_initial ?? '') . ' ' . ($item->last_name ?? ''));
+                    return $item;
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $customers,
+                'count' => $customers->count()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching related customers for LCPNAP: ' . $id, [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch related customers',
+                'error' => $e->getMessage(),
+                'data' => [],
+                'count' => 0
+            ], 500);
+        }
+    }
+
     private function uploadImageToDrive($file, $folderId, $filePrefix)
     {
         try {

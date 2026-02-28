@@ -41,6 +41,8 @@ import { Responsive } from 'react-grid-layout';
 import { WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+
 import {
   WidgetConfig,
   WidgetData,
@@ -79,8 +81,10 @@ const LiveMonitor: React.FC = () => {
   const [currentTemplateName, setCurrentTemplateName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isDraggable, setIsDraggable] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   // React Grid Layout state
+
   const [layouts, setLayouts] = useState<any>({ lg: [] });
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -103,6 +107,16 @@ const LiveMonitor: React.FC = () => {
   };
 
   useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
+
     const theme = localStorage.getItem('theme');
     setIsDarkMode(theme === 'dark' || theme === null);
 
@@ -488,7 +502,7 @@ const LiveMonitor: React.FC = () => {
                 {Object.entries(row.series || {}).map(([key, value]) => (
                   <div key={key} className={`text-center p-2 rounded ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
                     <div className="text-xs opacity-70">{key}</div>
-                    <div className="text-sm font-bold text-blue-600">
+                    <div className="text-sm font-bold" style={{ color: colorPalette?.primary || '#7c3aed' }}>
                       {isCurrency
                         ? `₱${Number(value).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
                         : Number(value).toLocaleString()}
@@ -512,7 +526,7 @@ const LiveMonitor: React.FC = () => {
             <div className="text-xs opacity-70 truncate" title={row.label}>
               {row.label}
             </div>
-            <div className="font-bold text-blue-600" style={{ fontSize: `${fontSize * 1.5}px` }}>
+            <div className="font-bold" style={{ fontSize: `${fontSize * 1.5}px`, color: colorPalette?.primary || '#7c3aed' }}>
               {isCurrency
                 ? `₱${Number(row.value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
                 : Number(row.value || 0).toLocaleString()}
@@ -916,7 +930,7 @@ const LiveMonitor: React.FC = () => {
         <div className="container mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2">
-              <Activity size={24} className="text-blue-600" />
+              <Activity size={24} style={{ color: colorPalette?.primary || '#7c3aed' }} />
               Live Monitor
             </h1>
             <span className="text-xs uppercase tracking-wider text-gray-500">
@@ -949,7 +963,8 @@ const LiveMonitor: React.FC = () => {
 
             <button
               onClick={() => fetchAllWidgets()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white text-sm flex items-center gap-2"
+              className="px-4 py-2 rounded text-white text-sm flex items-center gap-2 transition-opacity hover:opacity-90"
+              style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
               title="Refresh All Widgets"
             >
               <RefreshCw size={16} />
@@ -993,7 +1008,8 @@ const LiveMonitor: React.FC = () => {
               <button
                 onClick={saveTemplate}
                 disabled={isLoading || !currentTemplateName.trim()}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded text-white text-sm flex items-center gap-2"
+                className="px-4 py-2 disabled:bg-gray-600 rounded text-white text-sm flex items-center gap-2 transition-opacity hover:opacity-90"
+                style={{ backgroundColor: (isLoading || !currentTemplateName.trim()) ? undefined : (colorPalette?.primary || '#7c3aed') }}
               >
                 <Save size={16} />
                 Save Current Layout
@@ -1014,7 +1030,8 @@ const LiveMonitor: React.FC = () => {
                     <button
                       onClick={() => loadTemplate(template.id)}
                       disabled={isLoading}
-                      className="p-2 rounded hover:bg-blue-600 hover:text-white transition-colors"
+                      className="p-2 rounded hover:text-white transition-colors"
+                      style={{ hover: { backgroundColor: colorPalette?.primary || '#7c3aed' } } as any}
                       title="Load Template"
                     >
                       <Upload size={14} />
@@ -1107,7 +1124,11 @@ const LiveMonitor: React.FC = () => {
             return (
               <div
                 key={id}
-                className={`rounded-lg border-l-4 border-blue-600 shadow-lg flex flex-col ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} ${isDraggable ? 'ring-2 ring-blue-500/50' : ''}`}
+                className={`rounded-lg border-l-4 shadow-lg flex flex-col ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} ${isDraggable ? 'ring-2 ring-opacity-50' : ''}`}
+                style={{
+                  borderLeftColor: colorPalette?.primary || '#7c3aed',
+                  ...((isDraggable && colorPalette?.primary) ? { '--tw-ring-color': colorPalette.primary } as React.CSSProperties : {})
+                }}
               >
                 <div className="p-4 flex-1 flex flex-col overflow-hidden">
                   <div className="flex items-center justify-between mb-4 flex-wrap gap-2 slide-header">
@@ -1118,8 +1139,8 @@ const LiveMonitor: React.FC = () => {
                         </div>
                       )}
                       <h3
-                        className="font-bold text-blue-600 uppercase tracking-wide truncate"
-                        style={{ fontSize: `${(widgetStates[id]?.fontSize || 12) + 2}px` }}
+                        className="font-bold uppercase tracking-wide truncate"
+                        style={{ fontSize: `${(widgetStates[id]?.fontSize || 12) + 2}px`, color: colorPalette?.primary || '#7c3aed' }}
                       >
                         {config.title}
                       </h3>
@@ -1154,11 +1175,12 @@ const LiveMonitor: React.FC = () => {
                     <button
                       onClick={() => updateWidgetState(id, { viewType: 'bar' })}
                       className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'bar'
-                        ? 'bg-blue-600 text-white'
+                        ? 'text-white'
                         : isDarkMode
                           ? 'bg-gray-800 hover:bg-gray-700'
                           : 'bg-gray-100 hover:bg-gray-200'
                         }`}
+                      style={widgetStates[id]?.viewType === 'bar' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
                       title="Bar Chart"
                     >
                       <BarChart3 size={14} />
@@ -1167,11 +1189,12 @@ const LiveMonitor: React.FC = () => {
                     <button
                       onClick={() => updateWidgetState(id, { viewType: 'line' })}
                       className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'line'
-                        ? 'bg-blue-600 text-white'
+                        ? 'text-white'
                         : isDarkMode
                           ? 'bg-gray-800 hover:bg-gray-700'
                           : 'bg-gray-100 hover:bg-gray-200'
                         }`}
+                      style={widgetStates[id]?.viewType === 'line' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
                       title="Line Chart"
                     >
                       <LineChart size={14} />
@@ -1180,11 +1203,12 @@ const LiveMonitor: React.FC = () => {
                     <button
                       onClick={() => updateWidgetState(id, { viewType: 'pie' })}
                       className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'pie'
-                        ? 'bg-blue-600 text-white'
+                        ? 'text-white'
                         : isDarkMode
                           ? 'bg-gray-800 hover:bg-gray-700'
                           : 'bg-gray-100 hover:bg-gray-200'
                         }`}
+                      style={widgetStates[id]?.viewType === 'pie' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
                       title="Pie Chart"
                     >
                       <PieChart size={14} />
@@ -1193,11 +1217,12 @@ const LiveMonitor: React.FC = () => {
                     <button
                       onClick={() => updateWidgetState(id, { viewType: 'list' })}
                       className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'list'
-                        ? 'bg-blue-600 text-white'
+                        ? 'text-white'
                         : isDarkMode
                           ? 'bg-gray-800 hover:bg-gray-700'
                           : 'bg-gray-100 hover:bg-gray-200'
                         }`}
+                      style={widgetStates[id]?.viewType === 'list' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
                       title="List View"
                     >
                       <List size={14} />
@@ -1206,11 +1231,12 @@ const LiveMonitor: React.FC = () => {
                     <button
                       onClick={() => updateWidgetState(id, { viewType: 'table' })}
                       className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'table'
-                        ? 'bg-blue-600 text-white'
+                        ? 'text-white'
                         : isDarkMode
                           ? 'bg-gray-800 hover:bg-gray-700'
                           : 'bg-gray-100 hover:bg-gray-200'
                         }`}
+                      style={widgetStates[id]?.viewType === 'table' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
                       title="Table View"
                     >
                       <Table size={14} />
@@ -1219,11 +1245,12 @@ const LiveMonitor: React.FC = () => {
                     <button
                       onClick={() => updateWidgetState(id, { viewType: 'grid' })}
                       className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'grid'
-                        ? 'bg-blue-600 text-white'
+                        ? 'text-white'
                         : isDarkMode
                           ? 'bg-gray-800 hover:bg-gray-700'
                           : 'bg-gray-100 hover:bg-gray-200'
                         }`}
+                      style={widgetStates[id]?.viewType === 'grid' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
                       title="Grid View"
                     >
                       <LayoutGrid size={14} />
@@ -1244,7 +1271,8 @@ const LiveMonitor: React.FC = () => {
             <p className="text-gray-500 mb-4">Enable some widgets to start monitoring your system</p>
             <button
               onClick={() => setShowWidgetMenu(true)}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded text-white font-semibold"
+              className="px-6 py-3 rounded text-white font-semibold transition-opacity hover:opacity-90"
+              style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
             >
               Open Widget Settings
             </button>

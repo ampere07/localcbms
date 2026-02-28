@@ -328,7 +328,7 @@ const Rebate: React.FC = () => {
                 className="flex items-center space-x-1 text-white px-3 py-1 rounded text-sm transition-colors"
                 onClick={() => setIsModalOpen(true)}
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -359,7 +359,7 @@ const Rebate: React.FC = () => {
                 }`}
               style={selectedDate === item.date ? {
                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
+                color: colorPalette?.primary || '#7c3aed'
               } : {}}
             >
               <span className="text-sm font-medium flex items-center">
@@ -378,7 +378,7 @@ const Rebate: React.FC = () => {
           className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
           onMouseDown={handleMouseDownSidebarResize}
           style={{
-            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#f97316') : 'transparent'
+            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#7c3aed') : 'transparent'
           }}
           onMouseEnter={(e) => {
             if (!isResizingSidebar && colorPalette?.primary) {
@@ -411,7 +411,7 @@ const Rebate: React.FC = () => {
                       : 'bg-white text-gray-900 border border-gray-300'
                       }`}
                     style={{
-                      '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                      '--tw-ring-color': colorPalette?.primary || '#7c3aed'
                     } as React.CSSProperties}
                     onFocus={(e) => {
                       if (colorPalette?.primary) {
@@ -430,7 +430,7 @@ const Rebate: React.FC = () => {
                   disabled={isLoading}
                   className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
                   style={{
-                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!isLoading && colorPalette?.accent) {
@@ -531,7 +531,7 @@ const Rebate: React.FC = () => {
               ) : (
                 <div className={`h-full flex flex-col items-center justify-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
                   }`}>
-                  <h1 className="text-2xl mb-4" style={{ color: colorPalette?.primary || '#f97316' }}>Rebate Component</h1>
+                  <h1 className="text-2xl mb-4" style={{ color: colorPalette?.primary || '#7c3aed' }}>Rebate Component</h1>
                   <p className="text-lg">No Rebate records found</p>
                 </div>
               )}
@@ -564,7 +564,7 @@ const Rebate: React.FC = () => {
               <div className="text-center">
                 <div
                   className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-                  style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
+                  style={{ borderBottomColor: colorPalette?.primary || '#7c3aed' }}
                 ></div>
                 <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
               </div>

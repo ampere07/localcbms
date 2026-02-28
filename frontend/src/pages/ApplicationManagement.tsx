@@ -685,7 +685,7 @@ const ApplicationManagement: React.FC = () => {
                 : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                 }`}
               style={selectedLocation === 'all' ? {
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               } : {}}
             >
               {statusItems.total}
@@ -725,7 +725,7 @@ const ApplicationManagement: React.FC = () => {
                 {status.count > 0 && (
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isSelected ? '' : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'}`}
                     style={isSelected ? {
-                      backgroundColor: colorPalette?.primary || '#ea580c',
+                      backgroundColor: colorPalette?.primary || '#7c3aed',
                       color: 'white'
                     } : {}}>
                     {status.count}
@@ -826,7 +826,7 @@ const ApplicationManagement: React.FC = () => {
                     {status.count > 0 && (
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isSelected ? '' : 'bg-gray-700 text-gray-500'}`}
                         style={isSelected ? {
-                          backgroundColor: colorPalette?.primary || '#ea580c',
+                          backgroundColor: colorPalette?.primary || '#7c3aed',
                           color: 'white'
                         } : {}}>
                         {status.count}
@@ -1024,7 +1024,7 @@ const ApplicationManagement: React.FC = () => {
                   disabled={isLoading}
                   className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
                   style={{
-                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!isLoading && colorPalette?.accent) {
@@ -1302,7 +1302,7 @@ const ApplicationManagement: React.FC = () => {
                 {status.count > 0 && (
                   <span className="mt-1 px-2 py-0.5 rounded-full text-[10px]"
                     style={selectedLocation === status.id ? {
-                      backgroundColor: colorPalette?.primary || '#ea580c',
+                      backgroundColor: colorPalette?.primary || '#7c3aed',
                       color: 'white'
                     } : {
                       backgroundColor: '#374151',

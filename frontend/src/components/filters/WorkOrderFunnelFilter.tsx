@@ -399,7 +399,7 @@ const WorkOrderFunnelFilter: React.FC<WorkOrderFunnelFilterProps> = ({
                                 {hasFilter && (
                                   <span
                                     className="w-2 h-2 rounded-full"
-                                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                                   />
                                 )}
                               </div>
@@ -429,14 +429,14 @@ const WorkOrderFunnelFilter: React.FC<WorkOrderFunnelFilterProps> = ({
                   <button
                     onClick={handleApply}
                     className="flex-1 px-4 py-2 text-white rounded transition-colors"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                     onMouseEnter={(e) => {
                       if (colorPalette?.accent) {
                         e.currentTarget.style.backgroundColor = colorPalette.accent;
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                     }}
                   >
                     Apply Filters

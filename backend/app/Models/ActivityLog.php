@@ -34,13 +34,13 @@ class ActivityLog extends Model
     // Relationship with user who performed the action
     public function user()
     {
-        return $this->belongsTo(User::class, 'user_id', 'user_id');
+        return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
     // Relationship with target user (for user management actions)
     public function targetUser()
     {
-        return $this->belongsTo(User::class, 'target_user_id', 'user_id');
+        return $this->belongsTo(User::class, 'target_user_id', 'id');
     }
 
     // Scopes for filtering

@@ -864,7 +864,7 @@ const ServiceOrderPage: React.FC = () => {
                 }`}
               style={selectedLocation === 'all' ? {
                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c',
+                color: colorPalette?.primary || '#7c3aed',
                 fontWeight: 500
               } : {
                 color: isDarkMode ? '#d1d5db' : '#374151'
@@ -880,7 +880,7 @@ const ServiceOrderPage: React.FC = () => {
                   : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                   }`}
                 style={selectedLocation === 'all' ? {
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
                 {locationItems.total}
@@ -910,7 +910,7 @@ const ServiceOrderPage: React.FC = () => {
                       }`}
                     style={selectedLocation === category.id ? {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                      color: colorPalette?.primary || '#fb923c',
+                      color: colorPalette?.primary || '#7c3aed',
                       fontWeight: 500
                     } : {
                       color: isDarkMode ? '#d1d5db' : '#374151'
@@ -924,7 +924,7 @@ const ServiceOrderPage: React.FC = () => {
                       {category.count > 0 && (
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${selectedLocation === category.id ? '' : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'}`}
                           style={selectedLocation === category.id ? {
-                            backgroundColor: colorPalette?.primary || '#ea580c',
+                            backgroundColor: colorPalette?.primary || '#7c3aed',
                             color: 'white'
                           } : {}}>
                           {category.count}
@@ -956,7 +956,7 @@ const ServiceOrderPage: React.FC = () => {
                             }`}
                           style={selectedLocation === visit.id ? {
                             backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                            color: colorPalette?.primary || '#fb923c'
+                            color: colorPalette?.primary || '#7c3aed'
                           } : {
                             color: isDarkMode ? '#9ca3af' : '#4b5563'
                           }}
@@ -965,7 +965,7 @@ const ServiceOrderPage: React.FC = () => {
                           <div className="flex items-center space-x-2">
                             <span className={`px-1.5 py-0.5 rounded text-[10px] ${selectedLocation === visit.id ? '' : 'bg-gray-800 text-gray-500'}`}
                               style={selectedLocation === visit.id ? {
-                                backgroundColor: colorPalette?.primary || '#ea580c',
+                                backgroundColor: colorPalette?.primary || '#7c3aed',
                                 color: 'white'
                               } : {}}>
                               {visit.count}
@@ -993,7 +993,7 @@ const ServiceOrderPage: React.FC = () => {
                                 }`}
                               style={selectedLocation === brgy.id ? {
                                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                                color: colorPalette?.primary || '#fb923c',
+                                color: colorPalette?.primary || '#7c3aed',
                                 fontWeight: 'bold'
                               } : {
                                 color: isDarkMode ? '#6b7280' : '#4b5563'
@@ -1002,7 +1002,7 @@ const ServiceOrderPage: React.FC = () => {
                               <span className="truncate flex-1 text-left">{brgy.name}</span>
                               <span className={`px-1.5 py-0.5 rounded text-[9px] ${selectedLocation === brgy.id ? '' : 'bg-gray-800 text-gray-600'}`}
                                 style={selectedLocation === brgy.id ? {
-                                  backgroundColor: colorPalette?.primary || '#ea580c',
+                                  backgroundColor: colorPalette?.primary || '#7c3aed',
                                   color: 'white'
                                 } : {}}>
                                 {brgy.count}
@@ -1044,7 +1044,7 @@ const ServiceOrderPage: React.FC = () => {
               className={`w-full flex items-center justify-between px-4 py-4 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
               style={selectedLocation === 'all' ? {
                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
+                color: colorPalette?.primary || '#7c3aed'
               } : {
                 color: isDarkMode ? '#d1d5db' : '#374151'
               }}
@@ -1055,7 +1055,7 @@ const ServiceOrderPage: React.FC = () => {
               </div>
               <span className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300"
                 style={selectedLocation === 'all' ? {
-                  backgroundColor: colorPalette?.primary || '#ea580c',
+                  backgroundColor: colorPalette?.primary || '#7c3aed',
                   color: 'white'
                 } : {}}>
                 {locationItems.total}
@@ -1087,7 +1087,7 @@ const ServiceOrderPage: React.FC = () => {
                     className={`w-full flex items-center justify-between px-4 py-4 text-sm transition-colors ${selectedLocation === category.id ? '' : 'text-gray-300'}`}
                     style={selectedLocation === category.id ? {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                      color: colorPalette?.primary || '#fb923c'
+                      color: colorPalette?.primary || '#7c3aed'
                     } : {}}
                   >
                     <div className="flex items-center flex-1">
@@ -1107,7 +1107,7 @@ const ServiceOrderPage: React.FC = () => {
                     {category.count > 0 && (
                       <span className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300"
                         style={selectedLocation === category.id ? {
-                          backgroundColor: colorPalette?.primary || '#ea580c',
+                          backgroundColor: colorPalette?.primary || '#7c3aed',
                           color: 'white'
                         } : {}}>
                         {category.count}
@@ -1129,7 +1129,7 @@ const ServiceOrderPage: React.FC = () => {
                           className={`w-full flex items-center justify-between pl-12 pr-4 py-3 text-sm transition-colors ${selectedLocation === visit.id ? '' : 'text-gray-400'}`}
                           style={selectedLocation === visit.id ? {
                             backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
-                            color: colorPalette?.primary || '#fb923c'
+                            color: colorPalette?.primary || '#7c3aed'
                           } : {}}
                         >
                           <div className="flex items-center flex-1">
@@ -1148,7 +1148,7 @@ const ServiceOrderPage: React.FC = () => {
                           {visit.count > 0 && (
                             <span className="text-xs opacity-60"
                               style={selectedLocation === visit.id ? {
-                                backgroundColor: colorPalette?.primary || '#ea580c',
+                                backgroundColor: colorPalette?.primary || '#7c3aed',
                                 color: 'white',
                                 padding: '2px 6px',
                                 borderRadius: '9999px'
@@ -1171,7 +1171,7 @@ const ServiceOrderPage: React.FC = () => {
                             }}
                             className={`w-full flex items-center justify-between pl-20 pr-4 py-2 text-sm transition-colors ${selectedLocation === brgy.id ? '' : 'text-gray-500'}`}
                             style={selectedLocation === brgy.id ? {
-                              color: colorPalette?.primary || '#fb923c',
+                              color: colorPalette?.primary || '#7c3aed',
                               fontWeight: 'bold'
                             } : {}}
                           >
@@ -1182,7 +1182,7 @@ const ServiceOrderPage: React.FC = () => {
                             {brgy.count > 0 && (
                               <span className="text-xs opacity-50"
                                 style={selectedLocation === brgy.id ? {
-                                  backgroundColor: colorPalette?.primary || '#ea580c',
+                                  backgroundColor: colorPalette?.primary || '#7c3aed',
                                   color: 'white',
                                   padding: '2px 6px',
                                   borderRadius: '9999px'
@@ -1232,7 +1232,7 @@ const ServiceOrderPage: React.FC = () => {
                 className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === 'all' ? '' : 'text-gray-300'}`}
                 style={selectedLocation === 'all' ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c',
+                  color: colorPalette?.primary || '#7c3aed',
                   fontWeight: 500
                 } : {}}
               >
@@ -1242,7 +1242,7 @@ const ServiceOrderPage: React.FC = () => {
                 </div>
                 <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300"
                   style={selectedLocation === 'all' ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c',
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
                     color: 'white'
                   } : {}}>
                   {locationItems.total}
@@ -1274,7 +1274,7 @@ const ServiceOrderPage: React.FC = () => {
                       className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === category.id ? '' : 'text-gray-300'}`}
                       style={selectedLocation === category.id ? {
                         backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                        color: colorPalette?.primary || '#fb923c',
+                        color: colorPalette?.primary || '#7c3aed',
                         fontWeight: 500
                       } : {}}
                     >
@@ -1295,7 +1295,7 @@ const ServiceOrderPage: React.FC = () => {
                       {category.count > 0 && (
                         <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300"
                           style={selectedLocation === category.id ? {
-                            backgroundColor: colorPalette?.primary || '#ea580c',
+                            backgroundColor: colorPalette?.primary || '#7c3aed',
                             color: 'white'
                           } : {}}>
                           {category.count}
@@ -1316,7 +1316,7 @@ const ServiceOrderPage: React.FC = () => {
                             className={`w-full flex items-center justify-between pl-10 pr-4 py-2 text-sm transition-colors ${selectedLocation === visit.id ? '' : 'text-gray-400'}`}
                             style={selectedLocation === visit.id ? {
                               backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
-                              color: colorPalette?.primary || '#fb923c'
+                              color: colorPalette?.primary || '#7c3aed'
                             } : {}}
                           >
                             <div className="flex items-center flex-1">
@@ -1335,7 +1335,7 @@ const ServiceOrderPage: React.FC = () => {
                             {visit.count > 0 && (
                               <span className="text-xs opacity-60"
                                 style={selectedLocation === visit.id ? {
-                                  backgroundColor: colorPalette?.primary || '#ea580c',
+                                  backgroundColor: colorPalette?.primary || '#7c3aed',
                                   color: 'white',
                                   padding: '2px 6px',
                                   borderRadius: '9999px'
@@ -1358,7 +1358,7 @@ const ServiceOrderPage: React.FC = () => {
                               }}
                               className={`w-full flex items-center justify-between pl-16 pr-4 py-1.5 text-xs transition-colors ${selectedLocation === brgy.id ? '' : 'text-gray-500'}`}
                               style={selectedLocation === brgy.id ? {
-                                color: colorPalette?.primary || '#fb923c',
+                                color: colorPalette?.primary || '#7c3aed',
                                 fontWeight: 'bold'
                               } : {}}
                             >
@@ -1369,7 +1369,7 @@ const ServiceOrderPage: React.FC = () => {
                               {brgy.count > 0 && (
                                 <span className="text-[10px] opacity-50"
                                   style={selectedLocation === brgy.id ? {
-                                    backgroundColor: colorPalette?.primary || '#ea580c',
+                                    backgroundColor: colorPalette?.primary || '#7c3aed',
                                     color: 'white',
                                     padding: '2px 6px',
                                     borderRadius: '9999px'
@@ -1466,7 +1466,7 @@ const ServiceOrderPage: React.FC = () => {
                               onClick={handleSelectAllColumns}
                               className="text-xs transition-colors"
                               style={{
-                                color: colorPalette?.primary || '#f97316'
+                                color: colorPalette?.primary || '#7c3aed'
                               }}
                               onMouseEnter={(e) => {
                                 if (colorPalette?.accent) {
@@ -1486,7 +1486,7 @@ const ServiceOrderPage: React.FC = () => {
                               onClick={handleDeselectAllColumns}
                               className="text-xs transition-colors"
                               style={{
-                                color: colorPalette?.primary || '#f97316'
+                                color: colorPalette?.primary || '#7c3aed'
                               }}
                               onMouseEnter={(e) => {
                                 if (colorPalette?.accent) {
@@ -1553,7 +1553,7 @@ const ServiceOrderPage: React.FC = () => {
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                           }`}
                         style={displayMode === 'card' ? {
-                          color: colorPalette?.primary || '#f97316'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {
                           color: isDarkMode ? '#ffffff' : '#111827'
                         }}
@@ -1568,7 +1568,7 @@ const ServiceOrderPage: React.FC = () => {
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                           }`}
                         style={displayMode === 'table' ? {
-                          color: colorPalette?.primary || '#f97316'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {
                           color: isDarkMode ? '#ffffff' : '#111827'
                         }}
@@ -1583,7 +1583,7 @@ const ServiceOrderPage: React.FC = () => {
                   disabled={isLoading}
                   className="text-white px-3 py-2 rounded text-sm flex items-center transition-colors disabled:bg-gray-600"
                   style={{
-                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!isLoading && colorPalette?.accent) {

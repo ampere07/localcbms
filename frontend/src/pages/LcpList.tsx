@@ -224,7 +224,7 @@ const LcpList: React.FC = () => {
                 onClick={handleAddNew}
                 className="text-white px-4 py-2 rounded text-sm transition-colors flex items-center space-x-1"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -265,7 +265,7 @@ const LcpList: React.FC = () => {
                     onClick={() => fetchLcpItems(1, itemsPerPage, searchQuery)}
                     className="mt-4 px-4 py-2 rounded text-white transition-colors"
                     style={{
-                      backgroundColor: colorPalette?.primary || '#ea580c'
+                      backgroundColor: colorPalette?.primary || '#7c3aed'
                     }}>
                     Retry
                   </button>

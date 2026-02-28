@@ -249,7 +249,7 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose, onViewCu
                 disabled={loading}
                 className="flex items-center space-x-2 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded text-sm transition-colors"
                 style={{
-                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                 }}
                 onMouseEnter={(e) => {
                   if (!loading && colorPalette?.accent) {
@@ -474,7 +474,7 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose, onViewCu
                 }}
                 className="text-white px-6 py-2 rounded transition-colors"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {

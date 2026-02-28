@@ -953,7 +953,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                 disabled={loading}
                 className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent && !loading) {
@@ -961,7 +961,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                 }}
               >
                 {loading ? (
@@ -1520,7 +1520,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                         onClick={modal.onConfirm}
                         className="px-4 py-2 text-white rounded transition-colors"
                         style={{
-                          backgroundColor: colorPalette?.primary || '#ea580c'
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
                         }}
                         onMouseEnter={(e) => {
                           if (colorPalette?.accent) {
@@ -1528,7 +1528,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                           }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                         }}
                       >
                         Confirm
@@ -1545,7 +1545,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                       }}
                       className="px-4 py-2 text-white rounded transition-colors"
                       style={{
-                        backgroundColor: colorPalette?.primary || '#ea580c'
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
                       }}
                       onMouseEnter={(e) => {
                         if (colorPalette?.accent) {
@@ -1553,7 +1553,7 @@ const ApplicationVisitStatusModal: React.FC<ApplicationVisitStatusModalProps> = 
                         }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                       }}
                     >
                       OK

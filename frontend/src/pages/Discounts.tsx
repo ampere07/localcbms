@@ -394,7 +394,7 @@ const Discounts: React.FC = () => {
                 className="flex items-center space-x-1 text-white px-3 py-1 rounded text-sm transition-colors"
                 onClick={handleOpenDiscountFormModal}
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -404,6 +404,8 @@ const Discounts: React.FC = () => {
                 onMouseLeave={(e) => {
                   if (colorPalette?.primary) {
                     e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  } else {
+                    e.currentTarget.style.backgroundColor = '#7c3aed';
                   }
                 }}
               >
@@ -425,8 +427,8 @@ const Discounts: React.FC = () => {
                     : isDarkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}
                 style={selectedLocation === location.id ? {
-                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c'
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(124, 58, 237, 0.2)',
+                  color: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
                 {location.id === 'all' ? (
@@ -435,7 +437,7 @@ const Discounts: React.FC = () => {
                     {location.count > 0 && (
                       <span className={`px-2 py-1 rounded-full text-xs mt-1 md:mt-0`}
                         style={selectedLocation === location.id ? {
-                          backgroundColor: colorPalette?.primary || '#ea580c',
+                          backgroundColor: colorPalette?.primary || '#7c3aed',
                           color: 'white'
                         } : {
                           backgroundColor: isDarkMode ? '#374151' : '#d1d5db',
@@ -454,7 +456,7 @@ const Discounts: React.FC = () => {
                     {location.count > 0 && (
                       <span className={`px-2 py-1 rounded-full text-xs mt-1 md:mt-0`}
                         style={selectedLocation === location.id ? {
-                          backgroundColor: colorPalette?.primary || '#ea580c',
+                          backgroundColor: colorPalette?.primary || '#7c3aed',
                           color: 'white'
                         } : {
                           backgroundColor: isDarkMode ? '#374151' : '#d1d5db',
@@ -474,7 +476,7 @@ const Discounts: React.FC = () => {
           className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10 hidden md:block"
           onMouseDown={handleMouseDownSidebarResize}
           style={{
-            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#f97316') : 'transparent'
+            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#7c3aed') : 'transparent'
           }}
           onMouseEnter={(e) => {
             if (!isResizingSidebar && colorPalette?.primary) {
@@ -581,7 +583,7 @@ const Discounts: React.FC = () => {
               <div className="text-center">
                 <div
                   className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-                  style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
+                  style={{ borderBottomColor: colorPalette?.primary || '#7c3aed' }}
                 ></div>
                 <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
               </div>

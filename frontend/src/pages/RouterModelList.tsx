@@ -274,7 +274,7 @@ const RouterModelList: React.FC = () => {
                 onClick={handleAddNew}
                 className="px-4 py-2 text-white rounded-lg flex items-center gap-2 transition-colors"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#dc2626'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -282,7 +282,7 @@ const RouterModelList: React.FC = () => {
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#dc2626';
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                 }}
               >
                 <Plus className="h-4 w-4" />

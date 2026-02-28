@@ -797,7 +797,7 @@ const ApplicationVisitPage: React.FC = () => {
                       : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                       }`}
                     style={selectedLocation === location.id ? {
-                      backgroundColor: colorPalette?.primary || '#ea580c'
+                      backgroundColor: colorPalette?.primary || '#7c3aed'
                     } : {}}
                   >
                     {location.count}
@@ -812,7 +812,7 @@ const ApplicationVisitPage: React.FC = () => {
             className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
             onMouseDown={handleMouseDownSidebarResize}
             style={{
-              backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#ea580c') : 'transparent'
+              backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#7c3aed') : 'transparent'
             }}
             onMouseEnter={(e) => {
               if (!isResizingSidebar && colorPalette?.primary) {
@@ -858,7 +858,7 @@ const ApplicationVisitPage: React.FC = () => {
                   <span
                     className="px-3 py-1 rounded-full text-sm"
                     style={selectedLocation === location.id ? {
-                      backgroundColor: colorPalette?.primary || '#ea580c',
+                      backgroundColor: colorPalette?.primary || '#7c3aed',
                       color: 'white'
                     } : {
                       backgroundColor: isDarkMode ? '#374151' : '#d1d5db',
@@ -913,7 +913,7 @@ const ApplicationVisitPage: React.FC = () => {
                         : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                         }`}
                       style={selectedLocation === location.id ? {
-                        backgroundColor: colorPalette?.primary || '#ea580c'
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
                       } : {}}
                     >
                       {location.count}
@@ -1170,7 +1170,7 @@ const ApplicationVisitPage: React.FC = () => {
                   disabled={isRefreshing}
                   className="text-white px-3 py-2 rounded text-sm flex items-center transition-colors"
                   style={{
-                    backgroundColor: isRefreshing ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: isRefreshing ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!isRefreshing && colorPalette?.accent) {

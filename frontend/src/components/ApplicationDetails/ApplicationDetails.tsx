@@ -819,7 +819,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           <button
             className="px-3 py-1 rounded-sm flex items-center text-white"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {
@@ -839,7 +839,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           {/* <button
             className="px-3 py-1 rounded-sm flex items-center text-white"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {
@@ -957,7 +957,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           <div
             className="p-2 rounded-full"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
           >
             <div className="text-white">
@@ -977,7 +977,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           <div
             className="p-2 rounded-full"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
           >
             <div className="text-white">
@@ -997,7 +997,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           <div
             className="p-2 rounded-full"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
           >
             <div className="text-white">
@@ -1017,7 +1017,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           <div
             className="p-2 rounded-full"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
           >
             <div className="text-white">
@@ -1037,7 +1037,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           <div
             className="p-2 rounded-full"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
           >
             <div className="text-white">

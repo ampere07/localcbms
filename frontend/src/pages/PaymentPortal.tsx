@@ -504,7 +504,7 @@ const PaymentPortal: React.FC = () => {
               }`}
             style={selectedLocation === 'all' ? {
               backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-              color: colorPalette?.primary || '#fb923c'
+              color: colorPalette?.primary || '#7c3aed'
             } : {}}
           >
             <div className="flex items-center">
@@ -517,7 +517,7 @@ const PaymentPortal: React.FC = () => {
                 : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                 }`}
               style={selectedLocation === 'all' ? {
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               } : {}}
             >
               {locationItems.total}
@@ -536,7 +536,7 @@ const PaymentPortal: React.FC = () => {
                   }`}
                 style={selectedLocation === region.id ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c'
+                  color: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
                 <div className="flex items-center flex-1">
@@ -560,7 +560,7 @@ const PaymentPortal: React.FC = () => {
                       : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                       }`}
                     style={selectedLocation === region.id ? {
-                      backgroundColor: colorPalette?.primary || '#ea580c'
+                      backgroundColor: colorPalette?.primary || '#7c3aed'
                     } : {}}
                   >
                     {region.count}
@@ -580,7 +580,7 @@ const PaymentPortal: React.FC = () => {
                       }`}
                     style={selectedLocation === city.id ? {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
-                      color: colorPalette?.primary || '#fb923c'
+                      color: colorPalette?.primary || '#7c3aed'
                     } : {}}
                   >
                     <div className="flex items-center flex-1">
@@ -612,7 +612,7 @@ const PaymentPortal: React.FC = () => {
                           : isDarkMode ? 'text-gray-500' : 'text-gray-500'
                         }`}
                       style={selectedLocation === barangay.id ? {
-                        color: colorPalette?.primary || '#fb923c',
+                        color: colorPalette?.primary || '#7c3aed',
                         fontWeight: 'bold'
                       } : {}}
                     >
@@ -658,7 +658,7 @@ const PaymentPortal: React.FC = () => {
                     : 'bg-white text-gray-900 border border-gray-300'
                     }`}
                   style={{
-                    '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                    '--tw-ring-color': colorPalette?.primary || '#7c3aed'
                   } as React.CSSProperties}
                   onFocus={(e) => {
                     if (colorPalette?.primary) {
@@ -868,7 +868,7 @@ const PaymentPortal: React.FC = () => {
                 className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
                 style={selectedLocation === 'all' ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c',
+                  color: colorPalette?.primary || '#7c3aed',
                   fontWeight: 500
                 } : {
                   color: isDarkMode ? '#d1d5db' : '#374151'
@@ -894,7 +894,7 @@ const PaymentPortal: React.FC = () => {
                     className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === region.id ? '' : 'text-gray-300'}`}
                     style={selectedLocation === region.id ? {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                      color: colorPalette?.primary || '#fb923c',
+                      color: colorPalette?.primary || '#7c3aed',
                       fontWeight: 500
                     } : {}}
                   >
@@ -930,7 +930,7 @@ const PaymentPortal: React.FC = () => {
                         className={`w-full flex items-center justify-between pl-10 pr-4 py-2 text-sm transition-colors ${selectedLocation === city.id ? '' : 'text-gray-400'}`}
                         style={selectedLocation === city.id ? {
                           backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
-                          color: colorPalette?.primary || '#fb923c'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {}}
                       >
                         <div className="flex items-center flex-1">
@@ -961,7 +961,7 @@ const PaymentPortal: React.FC = () => {
                           }}
                           className={`w-full flex items-center justify-between pl-16 pr-4 py-1.5 text-xs transition-colors ${selectedLocation === barangay.id ? '' : 'text-gray-500'}`}
                           style={selectedLocation === barangay.id ? {
-                            color: colorPalette?.primary || '#fb923c',
+                            color: colorPalette?.primary || '#7c3aed',
                             fontWeight: 'bold'
                           } : {}}
                         >
@@ -1004,7 +1004,7 @@ const PaymentPortal: React.FC = () => {
               <div className="text-center">
                 <div
                   className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-                  style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
+                  style={{ borderBottomColor: colorPalette?.primary || '#7c3aed' }}
                 ></div>
                 <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
               </div>

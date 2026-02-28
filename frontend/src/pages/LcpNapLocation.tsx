@@ -590,8 +590,8 @@ const LcpNapLocation: React.FC = () => {
                   : isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}
               style={(item.id === 0 && selectedLcpNapId === 'all') || (item.id !== 0 && selectedLcpNapId === item.id) ? {
-                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : isDarkMode ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.1)',
-                color: colorPalette?.primary || (isDarkMode ? '#fb923c' : '#ea580c')
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(124, 58, 237, 0.2)',
+                color: colorPalette?.primary || '#7c3aed'
               } : {}}
             >
               <div className="flex items-center">
@@ -604,7 +604,7 @@ const LcpNapLocation: React.FC = () => {
                   : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                   }`}
                   style={(item.id === 0 && selectedLcpNapId === 'all') || (item.id !== 0 && selectedLcpNapId === item.id) ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c'
+                    backgroundColor: colorPalette?.primary || '#7c3aed'
                   } : {}}
                 >
                   {item.count}
@@ -620,7 +620,7 @@ const LcpNapLocation: React.FC = () => {
             backgroundColor: 'transparent'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
@@ -668,8 +668,8 @@ const LcpNapLocation: React.FC = () => {
                       <button
                         key={result.id}
                         className={`w-full text-left px-4 py-2 text-sm transition-colors border-b last:border-0 ${isDarkMode
-                            ? 'border-gray-700 hover:bg-gray-700 text-gray-200'
-                            : 'border-gray-100 hover:bg-gray-50 text-gray-800'
+                          ? 'border-gray-700 hover:bg-gray-700 text-gray-200'
+                          : 'border-gray-100 hover:bg-gray-50 text-gray-800'
                           }`}
                         onClick={() => {
                           setSearchQuery(result.lcpnap_name);
@@ -693,8 +693,8 @@ const LcpNapLocation: React.FC = () => {
                       <button
                         key={suggestion.place_id}
                         className={`w-full text-left px-4 py-2 text-sm transition-colors border-b last:border-0 ${isDarkMode
-                            ? 'border-gray-700 hover:bg-gray-700 text-gray-200'
-                            : 'border-gray-100 hover:bg-gray-50 text-gray-800'
+                          ? 'border-gray-700 hover:bg-gray-700 text-gray-200'
+                          : 'border-gray-100 hover:bg-gray-50 text-gray-800'
                           }`}
                         onClick={() => handleAddressSelect(suggestion.place_id, suggestion.description)}
                       >
@@ -712,7 +712,7 @@ const LcpNapLocation: React.FC = () => {
                 onClick={() => setShowAddModal(true)}
                 className="px-4 py-2 text-white rounded flex items-center gap-2 text-sm transition-colors"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -720,7 +720,7 @@ const LcpNapLocation: React.FC = () => {
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                 }}
               >
                 <MapPin className="h-4 w-4" />
@@ -741,7 +741,7 @@ const LcpNapLocation: React.FC = () => {
                 <div className="flex flex-col items-center gap-3">
                   <Loader2
                     className="h-8 w-8 animate-spin"
-                    style={{ color: colorPalette?.primary || '#ea580c' }}
+                    style={{ color: colorPalette?.primary || '#7c3aed' }}
                   />
                   <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
                     }`}>Loading map...</p>

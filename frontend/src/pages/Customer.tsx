@@ -373,15 +373,30 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       return cityMap.get(cityId) || `City ${cityId}`;
     };
   }, [cities]);
+
+  const getStatusInfo = (record: any) => {
+    const accessStatus = record.status || 'inactive';
+    const lowerStatus = accessStatus.toLowerCase();
+    const lowerOnlineStatus = (record.onlineStatus || '').toLowerCase();
+
+    let bucket = 'offline';
+    if (lowerStatus.includes('block') || lowerOnlineStatus.includes('block')) bucket = 'Blocked';
+    else if (lowerStatus === 'not found' || lowerOnlineStatus === 'not found') bucket = 'not found';
+    else if (lowerStatus === 'inactive' || lowerOnlineStatus === 'inactive') bucket = 'inactive';
+    else if (['online', 'active', 'connected'].includes(lowerOnlineStatus)) bucket = 'online';
+    else if (lowerOnlineStatus && lowerOnlineStatus !== 'offline') bucket = lowerOnlineStatus;
+
+    const lower = bucket.toLowerCase();
+    if (lower === 'online') return { label: 'ONLINE', color: 'text-green-500', hex: '#22c55e', fillColor: 'bg-green-500', hollow: false };
+    if (lower === 'offline') return { label: 'OFFLINE', color: 'text-yellow-400', hex: '#facc15', hollow: true };
+    if (lower === 'not found') return { label: 'NOT FOUND', color: 'text-red-600', hex: '#dc2626', fillColor: 'bg-red-600', hollow: false };
+    if (lower === 'blocked') return { label: 'BLOCKED', color: 'text-orange-500', hex: '#f97316', hollow: true };
+    if (lower === 'inactive') return { label: 'INACTIVE', color: 'text-gray-400', hex: '#9ca3af', fillColor: 'bg-gray-400', hollow: false };
+    return { label: bucket.toUpperCase(), color: 'text-blue-500', hex: '#3b82f6', fillColor: 'bg-blue-500', hollow: false };
+  };
   // Memoize status tree (Status > Billing Status > Barangay)
   const statusTree = useMemo(() => {
-    const tree: Record<string, { count: number, bStatuses: Record<string, { count: number, barangays: Record<string, number> }> }> = {
-      'Blocked': { count: 0, bStatuses: {} },
-      'inactive': { count: 0, bStatuses: {} },
-      'not found': { count: 0, bStatuses: {} },
-      'offline': { count: 0, bStatuses: {} },
-      'online': { count: 0, bStatuses: {} }
-    };
+    const tree: Record<string, { count: number, bStatuses: Record<string, { count: number, barangays: Record<string, number> }> }> = {};
 
     billingRecords.forEach(record => {
       const accessStatus = record.status || 'inactive';
@@ -390,22 +405,25 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       const lowerStatus = accessStatus.toLowerCase();
       const lowerOnlineStatus = (record.onlineStatus || '').toLowerCase();
 
-      if (lowerStatus === 'blocked' || lowerStatus === 'block' || lowerOnlineStatus === 'blocked' || lowerOnlineStatus === 'block') bucket = 'Blocked';
+      if (lowerStatus.includes('block') || lowerOnlineStatus.includes('block')) bucket = 'Blocked';
       else if (lowerStatus === 'not found' || lowerOnlineStatus === 'not found') bucket = 'not found';
-      else if (lowerStatus === 'inactive') bucket = 'inactive';
-      else if (lowerOnlineStatus === 'online') bucket = 'online';
+      else if (lowerStatus === 'inactive' || lowerOnlineStatus === 'inactive') bucket = 'inactive';
+      else if (['online', 'active', 'connected'].includes(lowerOnlineStatus)) bucket = 'online';
+      else if (lowerOnlineStatus && lowerOnlineStatus !== 'offline') bucket = lowerOnlineStatus;
 
-      if (tree[bucket]) {
-        tree[bucket].count++;
-        const bStatus = record.billingStatus || 'Regular';
-        const brgy = record.barangay || 'No Barangay';
-
-        if (!tree[bucket].bStatuses[bStatus]) {
-          tree[bucket].bStatuses[bStatus] = { count: 0, barangays: {} };
-        }
-        tree[bucket].bStatuses[bStatus].count++;
-        tree[bucket].bStatuses[bStatus].barangays[brgy] = (tree[bucket].bStatuses[bStatus].barangays[brgy] || 0) + 1;
+      if (!tree[bucket]) {
+        tree[bucket] = { count: 0, bStatuses: {} };
       }
+
+      tree[bucket].count++;
+      const bStatus = record.billingStatus || 'Regular';
+      const brgy = record.barangay || 'No Barangay';
+
+      if (!tree[bucket].bStatuses[bStatus]) {
+        tree[bucket].bStatuses[bStatus] = { count: 0, barangays: {} };
+      }
+      tree[bucket].bStatuses[bStatus].count++;
+      tree[bucket].bStatuses[bStatus].barangays[brgy] = (tree[bucket].bStatuses[bStatus].barangays[brgy] || 0) + 1;
     });
 
     return {
@@ -477,10 +495,11 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
           const lowerStatus = accessStatus.toLowerCase();
           const lowerOnlineStatus = (record.onlineStatus || '').toLowerCase();
 
-          if (lowerStatus === 'blocked' || lowerStatus === 'block' || lowerOnlineStatus === 'blocked' || lowerOnlineStatus === 'block') recordBucket = 'Blocked';
+          if (lowerStatus.includes('block') || lowerOnlineStatus.includes('block')) recordBucket = 'Blocked';
           else if (lowerStatus === 'not found' || lowerOnlineStatus === 'not found') recordBucket = 'not found';
-          else if (lowerStatus === 'inactive') recordBucket = 'inactive';
-          else if (lowerOnlineStatus === 'online') recordBucket = 'online';
+          else if (lowerStatus === 'inactive' || lowerOnlineStatus === 'inactive') recordBucket = 'inactive';
+          else if (['online', 'active', 'connected'].includes(lowerOnlineStatus)) recordBucket = 'online';
+          else if (lowerOnlineStatus && lowerOnlineStatus !== 'offline') recordBucket = lowerOnlineStatus;
 
           if (recordBucket !== statusName) return false;
 
@@ -783,20 +802,16 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     switch (columnKey) {
       // Basic fields
       case 'status':
-        const isOnline = ['Online', 'online', 'Active', 'active', 'Connected', 'connected'].includes(record.onlineStatus);
+        const statusInfo = getStatusInfo(record);
         return (
           <div className="flex items-center space-x-2">
-            <Circle
-              className={`h-3 w-3 ${isOnline
-                ? 'text-green-400 fill-green-400'
-                : 'text-gray-400 fill-gray-400'
-                }`}
-            />
-            <span className={`text-xs ${isOnline
-              ? 'text-green-400'
-              : 'text-gray-400'
-              }`}>
-              {record.onlineStatus}
+            {statusInfo.hollow ? (
+              <Circle className={`h-3 w-3 ${statusInfo.color}`} strokeWidth={3} />
+            ) : (
+              <div className={`h-3 w-3 rounded-full ${statusInfo.fillColor}`} />
+            )}
+            <span className={`text-[10px] font-bold tracking-tight ${statusInfo.color}`}>
+              {statusInfo.label}
             </span>
           </div>
         );
@@ -1289,7 +1304,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                 : isDarkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-500'
                 }`}
               style={selectedLocation === 'all' ? {
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               } : {}}
             >
               {statusTree.total}
@@ -1298,16 +1313,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
 
           {/* Status Level (Flat with expansion) */}
           {statusTree.items.map((status) => {
-            const getStatusStyle = (name: string) => {
-              const lower = name.toLowerCase();
-              if (lower === 'online') return { color: 'text-green-500', hex: '#22c55e', fillColor: 'bg-green-500', hollow: false };
-              if (lower === 'offline') return { color: 'text-yellow-400', hex: '#facc15', hollow: true };
-              if (lower === 'not found') return { color: 'text-red-600', hex: '#dc2626', fillColor: 'bg-red-600', hollow: false };
-              if (lower === 'blocked') return { color: 'text-orange-500', hex: '#f97316', hollow: true };
-              if (lower === 'inactive') return { color: 'text-gray-400', hex: '#9ca3af', fillColor: 'bg-gray-400', hollow: false };
-              return { color: 'text-blue-500', hex: '#3b82f6', fillColor: 'bg-blue-500', hollow: false };
-            };
-            const style = getStatusStyle(status.name);
+            const style = getStatusInfo({ status: status.name, onlineStatus: status.name });
             const isSelected = selectedLocation === status.id;
             const isExpanded = expandedLocations.has(status.id);
 
@@ -1460,7 +1466,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                     : 'bg-white text-gray-900 border border-gray-300'
                     }`}
                   style={{
-                    '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                    '--tw-ring-color': colorPalette?.primary || '#7c3aed'
                   } as React.CSSProperties}
                   onFocus={(e) => {
                     if (colorPalette?.primary) {
@@ -1558,7 +1564,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                                   : 'border-gray-300 bg-white focus:ring-offset-white'
                                   }`}
                                 style={{
-                                  accentColor: colorPalette?.primary || '#ea580c'
+                                  accentColor: colorPalette?.primary || '#7c3aed'
                                 }}
                               />
                               <span>{column.label}</span>
@@ -1636,7 +1642,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                   disabled={isLoading}
                   className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600 flex items-center"
                   style={{
-                    backgroundColor: colorPalette?.primary || '#ea580c',
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
                   }}
                   onMouseEnter={(e) => {
                     if (!isLoading && colorPalette?.accent) {
@@ -1706,12 +1712,21 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                                   </div>
                                 </div>
                                 <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
-                                  <Circle
-                                    className={`h-3 w-3 ${['Online', 'online', 'Active', 'active', 'Connected', 'connected'].includes(record.onlineStatus) ? 'text-green-400 fill-green-400' : 'text-gray-400 fill-gray-400'}`}
-                                  />
-                                  <span className={`text-sm ${['Online', 'online', 'Active', 'active', 'Connected', 'connected'].includes(record.onlineStatus) ? 'text-green-400' : 'text-gray-400'}`}>
-                                    {record.onlineStatus}
-                                  </span>
+                                  {(() => {
+                                    const statusInfo = getStatusInfo(record);
+                                    return (
+                                      <>
+                                        {statusInfo.hollow ? (
+                                          <Circle className={`h-3 w-3 ${statusInfo.color}`} strokeWidth={3} />
+                                        ) : (
+                                          <div className={`h-3 w-3 rounded-full ${statusInfo.fillColor}`} />
+                                        )}
+                                        <span className={`text-[10px] font-bold tracking-tight ${statusInfo.color}`}>
+                                          {statusInfo.label}
+                                        </span>
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             </div>
@@ -1779,7 +1794,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                                       className={`absolute right-0 top-0 bottom-0 w-1 cursor-col-resize ${isDarkMode ? 'group-hover:bg-gray-600' : 'group-hover:bg-gray-300'
                                         }`}
                                       style={{
-                                        '--hover-bg': colorPalette?.primary || '#ea580c'
+                                        '--hover-bg': colorPalette?.primary || '#7c3aed'
                                       } as React.CSSProperties}
                                       onMouseEnter={(e) => {
                                         if (colorPalette?.primary) {
@@ -1862,7 +1877,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                 <div className="text-center">
                   <div
                     className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-                    style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
+                    style={{ borderBottomColor: colorPalette?.primary || '#7c3aed' }}
                   ></div>
                   <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
                 </div>

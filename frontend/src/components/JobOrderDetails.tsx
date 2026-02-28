@@ -239,6 +239,15 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     }
   };
 
+  const formatOnlyDate = (dateStr?: string | null): string => {
+    if (!dateStr) return 'Not scheduled';
+    try {
+      return new Date(dateStr).toLocaleDateString();
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   const formatPrice = (price?: string | number | null): string => {
     if (price === null || price === undefined) return '₱0.00';
     const numPrice = typeof price === 'string' ? parseFloat(price) : price;
@@ -825,7 +834,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             <div className={labelClass}>Date Installed:</div>
             <div className={valueClass}>
               {(jobOrder.Date_Installed || jobOrder.date_installed)
-                ? formatDate(jobOrder.Date_Installed || jobOrder.date_installed)
+                ? formatOnlyDate(jobOrder.Date_Installed || jobOrder.date_installed)
                 : 'Not installed yet'}
             </div>
           </div>
@@ -1103,7 +1112,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             <button
               className="text-white px-3 py-1 rounded-sm flex items-center transition-colors text-sm md:text-base font-medium"
               style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent) {
@@ -1111,7 +1120,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
               }}
               onClick={handleDoneClick}
               disabled={loading}
@@ -1286,7 +1295,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             }`}>
             <div className="flex flex-col items-center">
               <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-t-2 mb-4"
-                style={{ borderColor: colorPalette?.primary || '#ea580c' }}
+                style={{ borderColor: colorPalette?.primary || '#7c3aed' }}
               ></div>
               <h2 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>Processing Approval</h2>

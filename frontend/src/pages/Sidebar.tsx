@@ -114,8 +114,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         { id: 'dc-notice', label: 'DC Notice', icon: AlertTriangle, allowedRoles: ['administrator'] },
         { id: 'mass-rebate', label: 'Rebates', icon: DollarSign, allowedRoles: ['administrator'] },
         { id: 'staggered-payment', label: 'Staggered', icon: Calendar, allowedRoles: ['administrator'] },
-        { id: 'discounts', label: 'Discounts', icon: Tag, allowedRoles: ['administrator'] },
-        { id: 'billing-config', label: 'Billing Configurations', icon: Receipt, allowedRoles: ['administrator'] }
+        { id: 'discounts', label: 'Discounts', icon: Tag, allowedRoles: ['administrator'] }
       ]
     },
     { id: 'application-management', label: 'Application', icon: FileCheck, allowedRoles: ['administrator'] },
@@ -137,7 +136,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
     },
     {
       id: 'technical',
-      label: 'Technical',
+      label: 'Configurations',
       icon: Network,
       allowedRoles: ['administrator', 'technician', 'Osp'],
       children: [
@@ -155,7 +154,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         { id: 'sms-template', label: 'SMS Template', icon: MessageSquare, allowedRoles: ['administrator'] },
         { id: 'email-templates', label: 'Email Templates', icon: FileText, allowedRoles: ['administrator'] },
         { id: 'pppoe-setup', label: 'PPPoE Setup', icon: Router, allowedRoles: ['administrator'] },
-        { id: 'concern-config', label: 'Concern Config', icon: AlertCircle, allowedRoles: ['administrator'] }
+        { id: 'concern-config', label: 'Concern Config', icon: AlertCircle, allowedRoles: ['administrator'] },
+        { id: 'billing-config', label: 'Billing Configurations', icon: Receipt, allowedRoles: ['administrator'] }
       ]
     },
     {
@@ -164,18 +164,18 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       icon: Users,
       allowedRoles: ['administrator'],
       children: [
-        { id: 'user-management', label: 'Users Management', icon: User, allowedRoles: ['administrator'] },
-        { id: 'organization-management', label: 'Organization Management', icon: Building2, allowedRoles: ['administrator'] },
-        { id: 'group-management', label: 'Affiliate', icon: Shield, allowedRoles: ['administrator'] }
+        { id: 'user-management', label: 'Users Management', icon: User, allowedRoles: ['administrator'] }
+        // { id: 'organization-management', label: 'Organization Management', icon: Building2, allowedRoles: ['administrator'] },
+        // { id: 'group-management', label: 'Affiliate', icon: Shield, allowedRoles: ['administrator'] }
       ]
     },
     {
       id: 'logs',
-      label: 'logs',
+      label: 'Logs',
       icon: Users,
       allowedRoles: ['administrator'],
       children: [
-        { id: 'expenses-log', label: 'Expenses Log', icon: FileBarChart, allowedRoles: ['administrator'] },
+        // { id: 'expenses-log', label: 'Expenses Log', icon: FileBarChart, allowedRoles: ['administrator'] },
         { id: 'disconnected-logs', label: 'Disconnected Logs', icon: AlertTriangle, allowedRoles: ['administrator'] },
         { id: 'reconnection-logs', label: 'Reconnection Logs', icon: FileBarChart, allowedRoles: ['administrator'] },
         { id: 'logs', label: 'System Logs', icon: FileText, allowedRoles: ['administrator'] }
@@ -269,10 +269,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
             }`}
           style={isCurrentItemActive ? {
             backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : isDarkMode ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.1)',
-            color: colorPalette?.primary || (isDarkMode ? '#fb923c' : '#ea580c'),
+            color: colorPalette?.primary || (isDarkMode ? '#fb923c' : '#7c3aed'),
             borderRightWidth: '2px',
             borderRightStyle: 'solid',
-            borderRightColor: colorPalette?.primary || '#ea580c'
+            borderRightColor: colorPalette?.primary || '#7c3aed'
           } : {}}
         >
           <div className="flex items-center">

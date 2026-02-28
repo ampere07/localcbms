@@ -1,288 +1,433 @@
-import React, { useState, useEffect } from 'react';
-import { X, Loader2 } from 'lucide-react';
-import { API_BASE_URL } from '../config/api';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  X, ExternalLink, Edit, Settings
+} from 'lucide-react';
 import { WorkOrder, WorkOrderDetailsProps } from '../types/workOrder';
 import { ColorPalette } from '../services/settingsColorPaletteService';
 import AssignWorkOrderModal from '../modals/AssignWorkOrderModal';
-interface SuccessModalProps {
-  isOpen: boolean;
-  message: string;
-  onClose: () => void;
-  isDarkMode: boolean;
+
+interface WorkOrderDetailsComponentProps extends WorkOrderDetailsProps {
+  isDarkMode?: boolean;
+  colorPalette?: ColorPalette | null;
 }
 
-const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, message, onClose, isDarkMode }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-      <div className={`p-6 rounded-lg shadow-xl max-w-sm w-full mx-4 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-        <div className="text-center">
-          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-            <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h3 className={`text-lg font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Success!</h3>
-          <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>{message}</p>
-          <button
-            onClick={onClose}
-            className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none sm:text-sm"
-          >
-            OK
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const WorkOrderDetails: React.FC<WorkOrderDetailsProps & { isDarkMode?: boolean; colorPalette?: ColorPalette | null }> = ({
+const WorkOrderDetails: React.FC<WorkOrderDetailsComponentProps> = ({
   workOrder,
   onClose,
+  onRefresh,
+  isMobile = false,
   isDarkMode = true,
   colorPalette
 }) => {
-  const [formData, setFormData] = useState<Partial<WorkOrder>>({
-    instructions: '',
-    report_to: '',
-    assign_to: '',
-    remarks: '',
-    work_status: 'Pending'
+  const [userRole, setUserRole] = useState<string>('');
+  const [roleId, setRoleId] = useState<number | null>(null);
+  const [detailsWidth, setDetailsWidth] = useState<number>(600);
+  const [isResizing, setIsResizing] = useState<boolean>(false);
+  const startXRef = useRef<number>(0);
+  const startWidthRef = useRef<number>(0);
+  const [showFieldSettings, setShowFieldSettings] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  const FIELD_VISIBILITY_KEY = 'workOrderDetailsFieldVisibility';
+  const FIELD_ORDER_KEY = 'workOrderDetailsFieldOrder';
+
+  const defaultFields = [
+    'id',
+    'workStatus',
+    'instructions',
+    'reportTo',
+    'assignTo',
+    'remarks',
+    'requestedBy',
+    'requestedDate',
+    'updatedBy',
+    'updatedDate',
+  ];
+
+  const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem(FIELD_VISIBILITY_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
   });
 
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [successModalConfig, setSuccessModalConfig] = useState({ isOpen: false, message: '' });
-  const [userRole, setUserRole] = useState<number | null>(null);
-  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [fieldOrder, setFieldOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem(FIELD_ORDER_KEY);
+    return saved ? JSON.parse(saved) : defaultFields;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(FIELD_VISIBILITY_KEY, JSON.stringify(fieldVisibility));
+  }, [fieldVisibility]);
+
+  useEffect(() => {
+    localStorage.setItem(FIELD_ORDER_KEY, JSON.stringify(fieldOrder));
+  }, [fieldOrder]);
 
   useEffect(() => {
     const authData = localStorage.getItem('authData');
     if (authData) {
       try {
-        const parsed = JSON.parse(authData);
-        setUserRole(parsed.role_id || parsed.roleId || null);
-      } catch (e) { }
+        const userData = JSON.parse(authData);
+        setUserRole(userData.role?.toLowerCase() || '');
+        setRoleId(userData.role_id || null);
+      } catch (error) {
+        console.error('Error parsing auth data:', error);
+      }
     }
   }, []);
+
   useEffect(() => {
-    if (workOrder) {
-      setFormData({
-        instructions: workOrder.instructions || '',
-        report_to: workOrder.report_to || '',
-        assign_to: workOrder.assign_to || '',
-        remarks: workOrder.remarks || '',
-        work_status: workOrder.work_status || 'Pending'
-      });
-    }
-  }, [workOrder]);
+    if (!isResizing) return;
 
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    if (!formData.instructions?.trim()) newErrors.instructions = 'Instructions are required';
-    if (!formData.report_to?.trim()) newErrors.report_to = 'Report To is required';
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+      const diff = startXRef.current - e.clientX;
+      const newWidth = Math.max(600, Math.min(1200, startWidthRef.current + diff));
+
+      setDetailsWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const handleMouseDownResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = detailsWidth;
   };
 
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
-    setLoading(true);
-
+  const formatDate = (dateStr?: string | null): string => {
+    if (!dateStr) return 'N/A';
     try {
-      const authData = localStorage.getItem('authData');
-      const currentUserEmail = authData ? JSON.parse(authData)?.email : 'system';
-
-      const payload = {
-        ...formData,
-        [workOrder ? 'updated_by' : 'requested_by']: currentUserEmail
-      };
-
-      const url = workOrder
-        ? `${API_BASE_URL}/work-orders/${workOrder.id}`
-        : `${API_BASE_URL}/work-orders`;
-
-      const method = workOrder ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        setSuccessModalConfig({
-          isOpen: true,
-          message: data.message || `Work order ${workOrder ? 'updated' : 'added'} successfully`
-        });
-      } else {
-        if (data.errors) {
-          const errorMessages = Object.values(data.errors).flat().join('\n');
-          alert('Validation errors:\n' + errorMessages);
-        } else {
-          alert(data.message || `Failed to ${workOrder ? 'update' : 'add'} work order`);
-        }
-      }
-    } catch (error: any) {
-      alert(`Error saving work order: ${error.message}`);
-    } finally {
-      setLoading(false);
+      return new Date(dateStr).toLocaleString();
+    } catch (e) {
+      return dateStr;
     }
   };
 
-  const handleSuccessClose = () => {
-    setSuccessModalConfig({ isOpen: false, message: '' });
-    onClose();
+  const getStatusColor = (status?: string): string => {
+    if (!status) return 'text-gray-500 bg-gray-500/10 border-gray-500/20';
+    switch (status.toLowerCase()) {
+      case 'completed': return 'text-green-500 bg-green-500/10 border-green-500/20';
+      case 'in progress': return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
+      case 'failed':
+      case 'cancelled': return 'text-red-500 bg-red-500/10 border-red-500/20';
+      case 'pending': return 'text-orange-500 bg-orange-500/10 border-orange-500/20';
+      default: return 'text-gray-500 bg-gray-500/10 border-gray-500/20';
+    }
   };
 
-  return (
-    <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50 p-4 sm:p-0" onClick={onClose}>
-        <div
-          className={`h-full w-full sm:w-3/4 md:w-full md:max-w-3xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900 border-l border-gray-800' : 'bg-white'}`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-300'}`}>
-            <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {workOrder ? 'Edit Work Order' : 'Add New Work Order'}
-            </h2>
-            <div className="flex items-center space-x-3">
-              {workOrder && userRole !== 1 && userRole !== 7 && (
-                <button
-                  onClick={() => setShowAssignModal(true)}
-                  className={`px-4 py-2 rounded text-sm font-medium transition-colors ${isDarkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
-                >
-                  Edit Location Details
-                </button>
-              )}
-              <button
-                onClick={onClose}
-                className={`px-4 py-2 rounded text-sm font-medium ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'}`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm font-medium flex items-center"
-                style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-              >
-                {loading ? <><Loader2 className="animate-spin h-4 w-4 mr-2" /> Saving...</> : 'Save Order'}
-              </button>
-              <button onClick={onClose} className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}>
-                <X size={24} />
-              </button>
+  const getFieldLabel = (fieldKey: string): string => {
+    const labels: Record<string, string> = {
+      id: 'Work Order ID',
+      workStatus: 'Work Status',
+      instructions: 'Instructions',
+      reportTo: 'Report To',
+      assignTo: 'Assign To',
+      remarks: 'Remarks',
+      requestedBy: 'Requested By',
+      requestedDate: 'Requested Date',
+      updatedBy: 'Updated By',
+      updatedDate: 'Updated Date'
+    };
+    return labels[fieldKey] || fieldKey;
+  };
+
+  const toggleFieldVisibility = (field: string) => {
+    setFieldVisibility((prev: Record<string, boolean>) => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  const selectAllFields = () => {
+    const allVisible: Record<string, boolean> = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
+    setFieldVisibility(allVisible);
+  };
+
+  const deselectAllFields = () => {
+    const allHidden: Record<string, boolean> = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: false }), {});
+    setFieldVisibility(allHidden);
+  };
+
+  const resetFieldSettings = () => {
+    const defaultVisibility: Record<string, boolean> = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
+    setFieldVisibility(defaultVisibility);
+    setFieldOrder(defaultFields);
+  };
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (index: number) => {
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    const newOrder = [...fieldOrder];
+    const draggedItem = newOrder[draggedIndex];
+    newOrder.splice(draggedIndex, 1);
+    newOrder.splice(index, 0, draggedItem);
+
+    setFieldOrder(newOrder);
+    setDraggedIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  const renderFieldContent = (fieldKey: string) => {
+    if (!fieldVisibility[fieldKey] || !workOrder) return null;
+
+    const baseFieldClass = `flex flex-col sm:flex-row border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`;
+    const labelClass = `w-full sm:w-1/3 text-sm mb-1 sm:mb-0 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`;
+    const valueClass = `flex-1 sm:pl-4 font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`;
+
+    switch (fieldKey) {
+      case 'id':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Work Order ID:</div>
+            <div className={valueClass}>#{workOrder.id}</div>
+          </div>
+        );
+
+      case 'workStatus':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Work Status:</div>
+            <div className={`flex-1 sm:pl-4`}>
+              <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${getStatusColor(workOrder.work_status)}`}>
+                {workOrder.work_status || 'Pending'}
+              </span>
             </div>
           </div>
+        );
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="md:col-span-2">
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Instructions / Brief Description <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={formData.instructions}
-                  onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                  rows={3}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none ${errors.instructions ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'} ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
-                  placeholder="Enter detailed instructions here..."
-                />
-                {errors.instructions && <p className="text-red-500 text-xs mt-1">{errors.instructions}</p>}
-              </div>
+      case 'instructions':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Instructions:</div>
+            <div
+              className={`${valueClass} truncate`}
+              title={workOrder.instructions || undefined}
+            >
+              {workOrder.instructions || 'N/A'}
+            </div>
+          </div>
+        );
 
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Report To <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.report_to}
-                  onChange={(e) => setFormData({ ...formData, report_to: e.target.value })}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none ${errors.report_to ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'} ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
-                  placeholder="e.g. John Doe"
-                />
-                {errors.report_to && <p className="text-red-500 text-xs mt-1">{errors.report_to}</p>}
-              </div>
+      case 'reportTo':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Report To:</div>
+            <div className={valueClass}>{workOrder.report_to || 'N/A'}</div>
+          </div>
+        );
 
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Assign To
-                </label>
-                <input
-                  type="text"
-                  value={formData.assign_to}
-                  onChange={(e) => setFormData({ ...formData, assign_to: e.target.value })}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none ${isDarkMode ? 'border-gray-700' : 'border-gray-300'} ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
-                  placeholder="e.g. Jane Smith"
-                />
-              </div>
+      case 'assignTo':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Assign To:</div>
+            <div className={valueClass}>{workOrder.assign_to || 'Unassigned'}</div>
+          </div>
+        );
 
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Status
-                </label>
-                <select
-                  value={formData.work_status}
-                  onChange={(e) => setFormData({ ...formData, work_status: e.target.value })}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none ${isDarkMode ? 'border-gray-700 bg-gray-800 text-white' : 'border-gray-300 bg-white text-gray-900'}`}
-                >
-                  <option value="Pending">Pending</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Failed">Failed</option>
-                  <option value="Cancelled">Cancelled</option>
-                  <option value="On Hold">On Hold</option>
-                </select>
-              </div>
+      case 'remarks':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Remarks:</div>
+            <div className={valueClass}>{workOrder.remarks || 'None'}</div>
+          </div>
+        );
 
-              <div className="md:col-span-2">
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Internal Remarks
-                </label>
-                <textarea
-                  value={formData.remarks}
-                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                  rows={2}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none ${isDarkMode ? 'border-gray-700 bg-gray-800 text-white' : 'border-gray-300 bg-white text-gray-900'}`}
-                  placeholder="Additional context or notes if any..."
-                />
-              </div>
+      case 'requestedBy':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Requested By:</div>
+            <div className={valueClass}>{workOrder.requested_by || 'N/A'}</div>
+          </div>
+        );
+
+      case 'requestedDate':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Requested Date:</div>
+            <div className={valueClass}>{formatDate(workOrder.requested_date)}</div>
+          </div>
+        );
+
+      case 'updatedBy':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Updated By:</div>
+            <div className={valueClass}>{workOrder.updated_by || 'N/A'}</div>
+          </div>
+        );
+
+      case 'updatedDate':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Updated Date:</div>
+            <div className={valueClass}>{formatDate(workOrder.updated_date)}</div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  if (!workOrder) return null;
+
+  return (
+    <div className={`flex flex-col h-full ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'}`}>
+      <div
+        className={`h-full flex flex-col relative transition-all duration-300 ${isDarkMode ? 'bg-gray-900 border-l border-gray-800' : 'bg-white border-l border-gray-200'}`}
+        style={{ width: isMobile ? '100%' : `${detailsWidth}px` }}
+      >
+        {!isMobile && (
+          <div
+            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 hover:w-1.5 transition-all z-50"
+            onMouseDown={handleMouseDownResize}
+            style={{ backgroundColor: isResizing ? '#7c3aed' : 'transparent' }}
+          />
+        )}
+
+        {/* Header */}
+        <div className={`px-4 sm:px-6 py-4 flex items-center justify-between border-b flex-shrink-0 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+          <div className="flex-1 min-w-0 pr-4">
+            <h2 className={`text-lg sm:text-xl font-semibold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Work Order #{workOrder.id}
+            </h2>
+            <p
+              className={`text-xs sm:text-sm truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              title={workOrder.instructions || undefined}
+            >
+              {workOrder.instructions}
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <button
+              className="text-white px-3 py-1 rounded-sm flex items-center transition-colors text-sm md:text-base font-medium"
+              style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent) e.currentTarget.style.backgroundColor = colorPalette.accent;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+              }}
+              onClick={() => setIsEditModalOpen(true)}
+            >
+              <span>Edit</span>
+            </button>
+
+            <div className="relative">
+              <button
+                onClick={() => setShowFieldSettings(!showFieldSettings)}
+                className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
+                title="Field Settings"
+              >
+                <Settings size={16} />
+              </button>
+              {showFieldSettings && (
+                <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                  <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Field Visibility & Order</h3>
+                    <div className="flex items-center space-x-2">
+                      <button onClick={selectAllFields} className="text-blue-600 hover:text-blue-700 text-xs">Show All</button>
+                      <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
+                      <button onClick={deselectAllFields} className="text-blue-600 hover:text-blue-700 text-xs">Hide All</button>
+                      <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
+                      <button onClick={resetFieldSettings} className="text-blue-600 hover:text-blue-700 text-xs">Reset</button>
+                    </div>
+                  </div>
+                  <div className="p-2">
+                    <div className={`text-xs mb-2 px-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Drag to reorder fields</div>
+                    {fieldOrder.map((fieldKey, index) => (
+                      <div
+                        key={fieldKey}
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={handleDragOver}
+                        onDrop={() => handleDrop(index)}
+                        onDragEnd={handleDragEnd}
+                        className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-move transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} ${draggedIndex === index ? isDarkMode ? 'bg-gray-600' : 'bg-gray-200' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={fieldVisibility[fieldKey]}
+                          onChange={() => toggleFieldVisibility(fieldKey)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>☰</span>
+                        <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{getFieldLabel(fieldKey)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={onClose}
+              className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className={`max-w-2xl mx-auto py-6 px-4 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'}`}>
+            <div className="space-y-4">
+              {fieldOrder.map((fieldKey) => (
+                <React.Fragment key={fieldKey}>
+                  {renderFieldContent(fieldKey)}
+                </React.Fragment>
+              ))}
             </div>
           </div>
         </div>
       </div>
 
-      <SuccessModal
-        isOpen={successModalConfig.isOpen}
-        message={successModalConfig.message}
-        onClose={handleSuccessClose}
-        isDarkMode={isDarkMode}
-      />
-
-      {showAssignModal && (
+      {isEditModalOpen && (
         <AssignWorkOrderModal
-          isOpen={showAssignModal}
+          isOpen={isEditModalOpen}
           isEditMode={true}
           workOrder={workOrder}
-          onClose={() => setShowAssignModal(false)}
+          onClose={() => setIsEditModalOpen(false)}
           onSave={() => {
-            setShowAssignModal(false);
-            onClose();
+            setIsEditModalOpen(false);
+            if (onRefresh) onRefresh();
           }}
           onRefresh={() => {
-            setShowAssignModal(false);
-            onClose();
+            setIsEditModalOpen(false);
+            if (onRefresh) onRefresh();
           }}
         />
       )}
-    </>
+    </div>
   );
 };
 

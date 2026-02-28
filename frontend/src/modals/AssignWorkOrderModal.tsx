@@ -33,6 +33,7 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
   const [assignees, setAssignees] = useState<User[]>([]);
   const [categories, setCategories] = useState<{ id: number, category: string }[]>([]);
   const [userRole, setUserRole] = useState<number | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
 
   const sigCanvas = useRef<SignatureCanvas>(null);
 
@@ -78,6 +79,7 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
       try {
         const parsed = JSON.parse(authData);
         setUserRole(parsed.role_id || parsed.roleId || null);
+        setCurrentUserEmail(parsed.email_address || parsed.email || '');
       } catch (e) { }
     }
   }, []);
@@ -314,7 +316,7 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
                 onClick={handleSave}
                 disabled={loading}
                 className="px-4 py-2 text-white rounded disabled:opacity-50"
-                style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
               >
                 Save
               </button>
@@ -322,129 +324,138 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Instructions<span className="text-red-500">*</span></label>
-              <input type="text" value={formData.instructions} onChange={(e) => handleInputChange('instructions', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none ${errors.instructions ? 'border-red-500' : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`} />
-            </div>
+            {(() => {
+              const isAssignedToCurrentUser = Boolean(isEditMode && formData.assign_to && currentUserEmail && formData.assign_to.toLowerCase() === currentUserEmail.toLowerCase());
+              const disabledClass = isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed opacity-70' : 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed opacity-70';
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Work Category<span className="text-red-500">*</span></label>
-              <select value={formData.work_category} onChange={(e) => handleInputChange('work_category', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none ${errors.work_category ? 'border-red-500' : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
-                <option value="">Select Category</option>
-                {categories.map(c => <option key={c.id} value={c.category}>{c.category}</option>)}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Report To<span className="text-red-500">*</span></label>
-                <input type="text" value={formData.report_to} onChange={(e) => handleInputChange('report_to', e.target.value)}
-                  placeholder="Enter Report To"
-                  className={`w-full px-3 py-2 border rounded focus:outline-none ${errors.report_to ? 'border-red-500' : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`} />
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Assign To<span className="text-red-500">*</span></label>
-                <select value={formData.assign_to} onChange={(e) => handleInputChange('assign_to', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none ${errors.assign_to ? 'border-red-500' : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
-                  <option value="">Select Assigned User</option>
-                  {assignees.map(t => <option key={t.email} value={t.email}>{t.email}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {((userRole !== 1 && userRole !== 7) || isEditMode) && (
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Work Status</label>
-                <select value={formData.work_status} onChange={(e) => handleInputChange('work_status', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
-                  <option value="Pending">Pending</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Failed">Failed</option>
-                  <option value="Cancelled">Cancelled</option>
-                </select>
-              </div>
-            )}
-
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Remarks</label>
-              <textarea value={formData.remarks} onChange={(e) => handleInputChange('remarks', e.target.value)} rows={4}
-                className={`w-full px-3 py-2 border rounded focus:outline-none resize-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`} />
-            </div>
-
-            {isEditMode && (
-              <>
-                <ImageUploadPreview field="image_1" label="Image 1" />
-                <ImageUploadPreview field="image_2" label="Image 2" />
-                <ImageUploadPreview field="image_3" label="Image 3" />
-
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Client Signature
-                  </label>
-                  <div className={`border rounded overflow-hidden relative w-full h-48 bg-white`}>
-                    {imagePreviews.signature ? (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <img src={imagePreviews.signature} alt="Signature Preview" className="max-h-full max-w-full" />
-                        <button
-                          onClick={() => {
-                            setImagePreviews(prev => ({ ...prev, signature: '' }));
-                            setImages(prev => ({ ...prev, signature: null }));
-                          }}
-                          className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <SignatureCanvas
-                          ref={sigCanvas}
-                          penColor="black"
-                          onEnd={() => {
-                            if (errors.signature) setErrors(prev => ({ ...prev, signature: '' }));
-                          }}
-                          canvasProps={{ className: 'w-full h-full cursor-crosshair' }}
-                        />
-                        <div className="absolute top-2 right-2 flex space-x-2">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleImageUpload('signature', file);
-                            }}
-                            className="hidden"
-                            id="sigUploadInput"
-                          />
-                          <label
-                            htmlFor="sigUploadInput"
-                            className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow transition-colors cursor-pointer"
-                            title="Upload Image"
-                          >
-                            <Camera size={16} />
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              sigCanvas.current?.clear();
-                            }}
-                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded-full shadow transition-colors"
-                            title="Clear Canvas"
-                          >
-                            <Eraser size={16} />
-                          </button>
-                        </div>
-                      </>
-                    )}
+              return (
+                <>
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Instructions<span className="text-red-500">*</span></label>
+                    <textarea value={formData.instructions} onChange={(e) => handleInputChange('instructions', e.target.value)} rows={4} disabled={isAssignedToCurrentUser}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none resize-none ${errors.instructions ? 'border-red-500' : isAssignedToCurrentUser ? disabledClass : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`} />
                   </div>
-                </div>
-              </>
-            )}
 
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Work Category<span className="text-red-500">*</span></label>
+                    <select value={formData.work_category} onChange={(e) => handleInputChange('work_category', e.target.value)} disabled={isAssignedToCurrentUser}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none ${errors.work_category ? 'border-red-500' : isAssignedToCurrentUser ? disabledClass : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
+                      <option value="">Select Category</option>
+                      {categories.map(c => <option key={c.id} value={c.category}>{c.category}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Report To<span className="text-red-500">*</span></label>
+                      <input type="text" value={formData.report_to} onChange={(e) => handleInputChange('report_to', e.target.value)} disabled={isAssignedToCurrentUser}
+                        placeholder="Enter Report To"
+                        className={`w-full px-3 py-2 border rounded focus:outline-none ${errors.report_to ? 'border-red-500' : isAssignedToCurrentUser ? disabledClass : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`} />
+                    </div>
+
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Assign To<span className="text-red-500">*</span></label>
+                      <select value={formData.assign_to} onChange={(e) => handleInputChange('assign_to', e.target.value)} disabled={isAssignedToCurrentUser}
+                        className={`w-full px-3 py-2 border rounded focus:outline-none ${errors.assign_to ? 'border-red-500' : isAssignedToCurrentUser ? disabledClass : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
+                        <option value="">Select Assigned User</option>
+                        {assignees.map(t => <option key={t.email} value={t.email}>{t.email}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  {((userRole !== 1 && userRole !== 7) || isEditMode) && (
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Work Status</label>
+                      <select value={formData.work_status} onChange={(e) => handleInputChange('work_status', e.target.value)}
+                        className={`w-full px-3 py-2 border rounded focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
+                        <option value="Pending">Pending</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Failed">Failed</option>
+                        <option value="Cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Remarks</label>
+                    <textarea value={formData.remarks} onChange={(e) => handleInputChange('remarks', e.target.value)} rows={4}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none resize-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`} />
+                  </div>
+
+                  {isEditMode && (
+                    <>
+                      <ImageUploadPreview field="image_1" label="Image 1" />
+                      <ImageUploadPreview field="image_2" label="Image 2" />
+                      <ImageUploadPreview field="image_3" label="Image 3" />
+
+                      <div>
+                        <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Client Signature
+                        </label>
+                        <div className={`border rounded overflow-hidden relative w-full h-48 bg-white`}>
+                          {imagePreviews.signature ? (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <img src={imagePreviews.signature} alt="Signature Preview" className="max-h-full max-w-full" />
+                              <button
+                                onClick={() => {
+                                  setImagePreviews(prev => ({ ...prev, signature: '' }));
+                                  setImages(prev => ({ ...prev, signature: null }));
+                                }}
+                                className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <SignatureCanvas
+                                ref={sigCanvas}
+                                penColor="black"
+                                onEnd={() => {
+                                  if (errors.signature) setErrors(prev => ({ ...prev, signature: '' }));
+                                }}
+                                canvasProps={{ className: 'w-full h-full cursor-crosshair' }}
+                              />
+                              <div className="absolute top-2 right-2 flex space-x-2">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleImageUpload('signature', file);
+                                  }}
+                                  className="hidden"
+                                  id="sigUploadInput"
+                                />
+                                <label
+                                  htmlFor="sigUploadInput"
+                                  className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow transition-colors cursor-pointer"
+                                  title="Upload Image"
+                                >
+                                  <Camera size={16} />
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    sigCanvas.current?.clear();
+                                  }}
+                                  className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded-full shadow transition-colors"
+                                  title="Clear Canvas"
+                                >
+                                  <Eraser size={16} />
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>

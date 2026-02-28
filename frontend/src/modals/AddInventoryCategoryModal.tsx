@@ -140,8 +140,8 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
                 onClick={handleClose}
                 disabled={loading}
                 className={`transition-colors disabled:cursor-not-allowed ${isDarkMode
-                    ? 'text-gray-400 hover:text-white disabled:text-gray-600'
-                    : 'text-gray-600 hover:text-gray-900 disabled:text-gray-400'
+                  ? 'text-gray-400 hover:text-white disabled:text-gray-600'
+                  : 'text-gray-600 hover:text-gray-900 disabled:text-gray-400'
                   }`}
               >
                 <X size={24} />
@@ -154,8 +154,8 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
                 onClick={handleClose}
                 disabled={loading}
                 className={`px-6 py-2 border rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
-                    ? 'border-red-600 text-red-600 hover:bg-red-600 hover:text-white'
-                    : 'border-red-500 text-red-500 hover:bg-red-500 hover:text-white'
+                  ? 'border-red-600 text-red-600 hover:bg-red-600 hover:text-white'
+                  : 'border-red-500 text-red-500 hover:bg-red-500 hover:text-white'
                   }`}
               >
                 Cancel
@@ -165,7 +165,7 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
                 disabled={loading}
                 className="px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent && !loading) {
@@ -173,7 +173,7 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                 }}
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
@@ -215,8 +215,8 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
                 Modified By
               </label>
               <div className={`inline-block px-4 py-2 border rounded-full text-sm ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-gray-100 border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-gray-100 border-gray-300 text-gray-900'
                 }`}>
                 {modifiedBy}
               </div>
@@ -233,8 +233,8 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
                   value={modifiedDate}
                   readOnly
                   className={`w-full px-4 py-3 border rounded focus:outline-none cursor-default ${isDarkMode
-                      ? 'bg-gray-900 border-gray-700 text-gray-400'
-                      : 'bg-gray-50 border-gray-300 text-gray-600'
+                    ? 'bg-gray-900 border-gray-700 text-gray-400'
+                    : 'bg-gray-50 border-gray-300 text-gray-600'
                     }`}
                 />
                 <Calendar className={`absolute right-4 top-3.5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
@@ -252,7 +252,7 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
             <Loader2
               className="h-16 w-16 animate-spin"
               style={{
-                color: colorPalette?.primary || '#ea580c'
+                color: colorPalette?.primary || '#7c3aed'
               }}
             />
             <p className={`font-bold text-4xl ${isDarkMode ? 'text-white' : 'text-gray-900'

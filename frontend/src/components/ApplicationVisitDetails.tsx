@@ -758,7 +758,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             <button
               className="text-white px-3 py-1 rounded-sm flex items-center transition-colors"
               style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent) {
@@ -766,7 +766,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
               }}
               onClick={handleMoveToJO}
               title="Move to Job Order"
@@ -777,7 +777,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
           <button
             className="text-white px-3 py-1 rounded-sm flex items-center transition-colors"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {
@@ -785,7 +785,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
             }}
             onClick={handleEditVisit}
             title="Edit Visit Details"
@@ -896,7 +896,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               <div
                 className="p-2 rounded-full transition-colors"
                 style={{
-                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                 }}
                 onMouseEnter={(e) => {
                   if (!loading && colorPalette?.accent) {
@@ -905,7 +905,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
                 }}
                 onMouseLeave={(e) => {
                   if (!loading) {
-                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                   }
                 }}
               >
@@ -924,7 +924,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               <div
                 className="p-2 rounded-full transition-colors"
                 style={{
-                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                 }}
                 onMouseEnter={(e) => {
                   if (!loading && colorPalette?.accent) {
@@ -933,7 +933,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
                 }}
                 onMouseLeave={(e) => {
                   if (!loading) {
-                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                   }
                 }}
               >
@@ -956,7 +956,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
               <div
                 className="p-2 rounded-full mr-3"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
               >
                 {pendingStatusUpdate === 'Failed' ? (
@@ -989,7 +989,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
                 onClick={handleConfirmStatusUpdate}
                 className="px-4 py-2 text-white rounded transition-colors"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -997,7 +997,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                 }}
               >
                 Confirm

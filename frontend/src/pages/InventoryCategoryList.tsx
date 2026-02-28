@@ -174,7 +174,7 @@ const InventoryCategoryList: React.FC = () => {
       <div className={`h-full flex items-center justify-center ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
         }`}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mb-4" style={{ borderColor: 'transparent', borderBottomColor: colorPalette?.primary || '#7c3aed' }}></div>
           <div className={`text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>Loading categories...</div>
         </div>
@@ -195,7 +195,7 @@ const InventoryCategoryList: React.FC = () => {
             onClick={() => fetchCategories()}
             className="text-white px-4 py-2 rounded transition-colors"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {
@@ -272,7 +272,7 @@ const InventoryCategoryList: React.FC = () => {
             onClick={() => setIsAddModalOpen(true)}
             className="text-white px-4 py-2 rounded text-sm flex items-center space-x-2 transition-colors ml-4"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {

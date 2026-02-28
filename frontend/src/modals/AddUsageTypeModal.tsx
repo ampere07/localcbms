@@ -94,10 +94,10 @@ const AddUsageTypeModal: React.FC<AddUsageTypeModalProps> = ({
         usage_name: formData.usage_name.trim()
       };
 
-      const url = editingUsageType 
+      const url = editingUsageType
         ? `${API_BASE_URL}/usage-types/${editingUsageType.id}`
         : `${API_BASE_URL}/usage-types`;
-      
+
       const method = editingUsageType ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -110,7 +110,7 @@ const AddUsageTypeModal: React.FC<AddUsageTypeModalProps> = ({
       });
 
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         alert(data.message || `Usage type ${editingUsageType ? 'updated' : 'added'} successfully`);
         onSave();
@@ -140,28 +140,24 @@ const AddUsageTypeModal: React.FC<AddUsageTypeModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50" onClick={handleClose}>
-      <div 
-        className={`h-full w-3/4 md:w-full md:max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${
-          isDarkMode ? 'bg-gray-900' : 'bg-white'
-        }`}
+      <div
+        className={`h-full w-3/4 md:w-full md:max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+          }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className={`px-6 py-4 flex items-center justify-between border-b ${
-          isDarkMode
+        <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
             ? 'bg-gray-800 border-gray-700'
             : 'bg-gray-100 border-gray-300'
-        }`}>
-          <h2 className={`text-xl font-semibold ${
-            isDarkMode ? 'text-white' : 'text-gray-900'
-          }`}>{editingUsageType ? 'Edit Usage Type' : 'Add Usage Type'}</h2>
+          }`}>
+          <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{editingUsageType ? 'Edit Usage Type' : 'Add Usage Type'}</h2>
           <div className="flex items-center space-x-3">
             <button
               onClick={handleClose}
-              className={`px-4 py-2 rounded text-sm ${
-                isDarkMode
+              className={`px-4 py-2 rounded text-sm ${isDarkMode
                   ? 'bg-gray-700 hover:bg-gray-600 text-white'
                   : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-              }`}
+                }`}
             >
               Cancel
             </button>
@@ -170,7 +166,7 @@ const AddUsageTypeModal: React.FC<AddUsageTypeModalProps> = ({
               disabled={loading}
               className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
               style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent && !loading) {
@@ -178,7 +174,7 @@ const AddUsageTypeModal: React.FC<AddUsageTypeModalProps> = ({
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
               }}
             >
               {loading ? (
@@ -201,34 +197,29 @@ const AddUsageTypeModal: React.FC<AddUsageTypeModalProps> = ({
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               Usage Type Name<span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={formData.usage_name}
               onChange={(e) => setFormData({ ...formData, usage_name: e.target.value })}
-              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                errors.usage_name ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-              } ${
-                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-              }`}
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.usage_name ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                }`}
               placeholder="Enter usage type name"
             />
             {errors.usage_name && <p className="text-red-500 text-xs mt-1">{errors.usage_name}</p>}
           </div>
 
           <div>
-            <div className={`p-4 border rounded-lg ${
-              isDarkMode
+            <div className={`p-4 border rounded-lg ${isDarkMode
                 ? 'bg-blue-900/20 border-blue-700/30'
                 : 'bg-blue-50 border-blue-200'
-            }`}>
-              <p className={`text-sm ${
-                isDarkMode ? 'text-blue-300' : 'text-blue-700'
               }`}>
+              <p className={`text-sm ${isDarkMode ? 'text-blue-300' : 'text-blue-700'
+                }`}>
                 <strong>Note:</strong> Usage types are used to categorize different types of usage in the system. Created and updated date information will be set automatically.
               </p>
             </div>

@@ -1586,6 +1586,7 @@ Route::prefix('lcpnap')->group(function () {
     Route::get('/{id}', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'show']);
     Route::put('/{id}', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'update']);
     Route::delete('/{id}', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'destroy']);
+    Route::get('/{id}/related-customers', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'getRelatedCustomers']);
 });
 
 // LCPNAP Locations endpoint (for distinct locations)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronRight, Plus, Trash2, Wrench, Edit, ChevronLeft, ChevronRight as ChevronRightNav, Maximize2, X, ExternalLink, Settings } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2, Wrench, Edit, ChevronLeft, ChevronRight as ChevronRightNav, Maximize2, X, ExternalLink, Settings, Circle } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -358,6 +358,27 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   useEffect(() => {
     localStorage.setItem(FIELD_ORDER_KEY, JSON.stringify(fieldOrder));
   }, [fieldOrder]);
+
+  const getStatusInfo = (record: any) => {
+    const accessStatus = record.status || 'inactive';
+    const lowerStatus = accessStatus.toLowerCase();
+    const lowerOnlineStatus = (record.onlineStatus || '').toLowerCase();
+
+    let bucket = 'offline';
+    if (lowerStatus.includes('block') || lowerOnlineStatus.includes('block')) bucket = 'Blocked';
+    else if (lowerStatus === 'not found' || lowerOnlineStatus === 'not found') bucket = 'not found';
+    else if (lowerStatus === 'inactive' || lowerOnlineStatus === 'inactive') bucket = 'inactive';
+    else if (['online', 'active', 'connected'].includes(lowerOnlineStatus)) bucket = 'online';
+    else if (lowerOnlineStatus && lowerOnlineStatus !== 'offline') bucket = lowerOnlineStatus;
+
+    const lower = bucket.toLowerCase();
+    if (lower === 'online') return { label: 'ONLINE', color: 'text-green-500', hex: '#22c55e', fillColor: 'bg-green-500', hollow: false };
+    if (lower === 'offline') return { label: 'OFFLINE', color: 'text-yellow-400', hex: '#facc15', hollow: true };
+    if (lower === 'not found') return { label: 'NOT FOUND', color: 'text-red-600', hex: '#dc2626', fillColor: 'bg-red-600', hollow: false };
+    if (lower === 'blocked') return { label: 'BLOCKED', color: 'text-orange-500', hex: '#f97316', hollow: true };
+    if (lower === 'inactive') return { label: 'INACTIVE', color: 'text-gray-400', hex: '#9ca3af', fillColor: 'bg-gray-400', hollow: false };
+    return { label: bucket.toUpperCase(), color: 'text-blue-500', hex: '#3b82f6', fillColor: 'bg-blue-500', hollow: false };
+  };
 
   const fetchRelatedData = async () => {
     if (!billingRecord.applicationId) {
@@ -747,18 +768,24 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             }`}>{billingRecord.routerModemSN || '-'}</span>
         </div>
       ),
-      onlineStatus: () => (
-        <div className="flex justify-between items-center">
-          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Online Status</span>
-          <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${billingRecord.onlineStatus === 'Online' ? 'bg-green-400' : 'bg-red-400'
-              }`}></div>
-            <span className={`font-medium ${billingRecord.onlineStatus === 'Online' ? 'text-green-400' : 'text-red-400'
-              }`}>{billingRecord.onlineStatus || '-'}</span>
+      onlineStatus: () => {
+        const statusInfo = getStatusInfo(billingRecord);
+        return (
+          <div className="flex justify-between items-center">
+            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Online Status</span>
+            <div className="flex items-center space-x-2">
+              {statusInfo.hollow ? (
+                <Circle className={`h-3.5 w-3.5 ${statusInfo.color}`} strokeWidth={3} />
+              ) : (
+                <div className={`h-3.5 w-3.5 rounded-full ${statusInfo.fillColor}`} />
+              )}
+              <span className={`font-bold text-xs tracking-tight ${statusInfo.color}`}>
+                {statusInfo.label}
+              </span>
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
       mikrotikId: () => (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -1175,11 +1202,11 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       <div
         className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
         style={{
-          backgroundColor: isResizing ? (colorPalette?.primary || '#ea580c') : 'transparent'
+          backgroundColor: isResizing ? (colorPalette?.primary || '#7c3aed') : 'transparent'
         }}
         onMouseEnter={(e) => {
           if (!isResizing) {
-            e.currentTarget.style.backgroundColor = colorPalette?.accent || '#ea580c';
+            e.currentTarget.style.backgroundColor = colorPalette?.accent || '#7c3aed';
           }
         }}
         onMouseLeave={(e) => {
@@ -1220,7 +1247,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             onClick={handleTransactClick}
             className="px-3 py-1 rounded text-sm transition-colors text-white"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {
@@ -1843,7 +1870,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 onClick={handleSORequestConfirm}
                 className="px-4 py-2 rounded transition-colors text-white"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {

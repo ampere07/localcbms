@@ -59,7 +59,7 @@ export const getAllLCPNAPs = async (search?: string, page: number = 1, limit: nu
     if (search) {
       params.search = search;
     }
-    
+
     const response = await apiClient.get<ApiResponse<LCPNAP[]>>('/lcpnap', { params });
     return response.data;
   } catch (error: any) {
@@ -161,5 +161,18 @@ export const getLCPNAPLookupData = async (): Promise<ApiResponse<Array<{ id: num
   } catch (error: any) {
     console.error('Error fetching LCPNAP lookup data:', error);
     throw error;
+  }
+};
+export const getRelatedCustomers = async (id: number): Promise<ApiResponse<any[]>> => {
+  try {
+    const response = await apiClient.get<ApiResponse<any[]>>(`/lcpnap/${id}/related-customers`);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching related customers:', error);
+    return {
+      success: false,
+      data: [],
+      message: error.message || 'Failed to fetch related customers'
+    };
   }
 };

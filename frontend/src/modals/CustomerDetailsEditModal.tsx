@@ -727,7 +727,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
               disabled={loading}
               className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
               style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent && !loading) {
@@ -735,7 +735,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
               }}
             >
               {loading ? (
@@ -1235,8 +1235,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
                         }`}
                       style={{
-                        backgroundColor: formData.connectionType === 'Antenna' ? (colorPalette?.primary || '#ea580c') : undefined,
-                        borderColor: formData.connectionType === 'Antenna' ? (colorPalette?.primary || '#ea580c') : undefined
+                        backgroundColor: formData.connectionType === 'Antenna' ? (colorPalette?.primary || '#7c3aed') : undefined,
+                        borderColor: formData.connectionType === 'Antenna' ? (colorPalette?.primary || '#7c3aed') : undefined
                       }}
                     >
                       Antenna
@@ -1249,8 +1249,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
                         }`}
                       style={{
-                        backgroundColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#ea580c') : undefined,
-                        borderColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#ea580c') : undefined
+                        backgroundColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#7c3aed') : undefined,
+                        borderColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#7c3aed') : undefined
                       }}
                     >
                       Fiber
@@ -1263,8 +1263,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
                         }`}
                       style={{
-                        backgroundColor: formData.connectionType === 'Local' ? (colorPalette?.primary || '#ea580c') : undefined,
-                        borderColor: formData.connectionType === 'Local' ? (colorPalette?.primary || '#ea580c') : undefined
+                        backgroundColor: formData.connectionType === 'Local' ? (colorPalette?.primary || '#7c3aed') : undefined,
+                        borderColor: formData.connectionType === 'Local' ? (colorPalette?.primary || '#7c3aed') : undefined
                       }}
                     >
                       Local
@@ -1599,7 +1599,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                           onClick={modal.onConfirm}
                           className="px-4 py-2 text-white rounded transition-colors"
                           style={{
-                            backgroundColor: colorPalette?.primary || '#ea580c'
+                            backgroundColor: colorPalette?.primary || '#7c3aed'
                           }}
                           onMouseEnter={(e) => {
                             if (colorPalette?.accent) {
@@ -1607,7 +1607,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                             }
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                           }}
                         >
                           Confirm
@@ -1624,7 +1624,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         }}
                         className="px-4 py-2 text-white rounded transition-colors"
                         style={{
-                          backgroundColor: colorPalette?.primary || '#ea580c'
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
                         }}
                         onMouseEnter={(e) => {
                           if (colorPalette?.accent) {
@@ -1632,7 +1632,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                           }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                         }}
                       >
                         OK

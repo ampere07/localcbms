@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, ExternalLink } from 'lucide-react';
+import { X, ExternalLink, ChevronRight, ChevronDown, User } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { getRelatedCustomers } from '../services/lcpnapService';
 
 // Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -64,6 +65,9 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
   const startWidthRef = useRef<number>(0);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [relatedCustomers, setRelatedCustomers] = useState<any[]>([]);
+  const [isRelatedExpanded, setIsRelatedExpanded] = useState(false);
+  const [isLoadingRelated, setIsLoadingRelated] = useState(false);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -93,6 +97,25 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
     };
     fetchColorPalette();
   }, []);
+
+  useEffect(() => {
+    const fetchRelated = async () => {
+      setIsLoadingRelated(true);
+      try {
+        const response = await getRelatedCustomers(location.id);
+        if (response.success) {
+          setRelatedCustomers(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch related customers:', err);
+      } finally {
+        setIsLoadingRelated(false);
+      }
+    };
+    if (location.id) {
+      fetchRelated();
+    }
+  }, [location.id]);
 
   useEffect(() => {
     if (!isResizing) return;
@@ -176,7 +199,7 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
           className="hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
           style={{ backgroundColor: 'transparent' }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
@@ -365,6 +388,83 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
               <div className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                 long and lat : {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
               </div>
+            </div>
+
+            {/* Related Customers Dropdown */}
+            <div className={`border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+              <button
+                onClick={() => setIsRelatedExpanded(!isRelatedExpanded)}
+                className={`w-full py-4 flex items-center justify-between hover:opacity-80 transition-opacity`}
+              >
+                <div className="flex items-center space-x-2">
+                  <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Related Customers
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-200 text-gray-700'
+                    }`}>
+                    {relatedCustomers.length}
+                  </span>
+                </div>
+                {isRelatedExpanded ? (
+                  <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+                ) : (
+                  <ChevronRight size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+                )}
+              </button>
+
+              {isRelatedExpanded && (
+                <div className="pb-4 space-y-3">
+                  {isLoadingRelated ? (
+                    <div className="flex justify-center py-4">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-500"></div>
+                    </div>
+                  ) : relatedCustomers.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className={isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-gray-100 text-gray-600'}>
+                          <tr>
+                            <th className="px-3 py-2 font-medium">Account No</th>
+                            <th className="px-3 py-2 font-medium">Full Name</th>
+                            <th className="px-3 py-2 font-medium text-center">Port</th>
+                            <th className="px-3 py-2 font-medium text-right">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className={`divide-y ${isDarkMode ? 'divide-gray-800' : 'divide-gray-200'}`}>
+                          {relatedCustomers.map((customer, idx) => (
+                            <tr key={idx} className={isDarkMode ? 'hover:bg-gray-900' : 'hover:bg-gray-50'}>
+                              <td className={`px-3 py-2 font-mono ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                {customer.account_no}
+                              </td>
+                              <td className={`px-3 py-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                {customer.full_name}
+                              </td>
+                              <td className={`px-3 py-2 text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                {customer.port}
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${customer.status?.toLowerCase() === 'online' || customer.status?.toLowerCase() === 'active'
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                  : customer.status?.toLowerCase() === 'offline'
+                                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                                    : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                                  }`}>
+                                  {customer.status || 'Unknown'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className={`text-center py-6 border-2 border-dashed rounded-lg ${isDarkMode ? 'border-gray-800 text-gray-500' : 'border-gray-200 text-gray-400'
+                      }`}>
+                      <User size={24} className="mx-auto mb-2 opacity-20" />
+                      <p className="text-sm">No customers related to this LCPNAP</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Reading Image */}

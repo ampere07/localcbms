@@ -351,7 +351,7 @@ const Inventory: React.FC = () => {
       <div className={`h-full flex items-center justify-center ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
         }`}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mb-4" style={{ borderColor: 'transparent', borderBottomColor: colorPalette?.primary || '#7c3aed' }}></div>
           <div className={`text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>Loading inventory...</div>
         </div>
@@ -373,7 +373,7 @@ const Inventory: React.FC = () => {
             onClick={() => fetchInventoryData()}
             className="text-white px-4 py-2 rounded transition-colors"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {
@@ -417,11 +417,11 @@ const Inventory: React.FC = () => {
                 className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
                   }`}
                 style={selectedCategory === category.id ? {
-                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c',
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(124, 58, 237, 0.2)',
+                  color: colorPalette?.primary || '#7c3aed',
                   fontWeight: 500,
                   borderRight: '2px solid',
-                  borderRightColor: colorPalette?.primary || '#ea580c'
+                  borderRightColor: colorPalette?.primary || '#7c3aed'
                 } : {
                   color: isDarkMode ? '#d1d5db' : '#374151'
                 }}
@@ -430,7 +430,7 @@ const Inventory: React.FC = () => {
                 <span
                   className="px-2 py-1 rounded-full text-xs"
                   style={selectedCategory === category.id ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c',
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
                     color: 'white'
                   } : {
                     backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
@@ -481,7 +481,7 @@ const Inventory: React.FC = () => {
                 className="text-white px-4 py-2 rounded text-sm flex items-center space-x-2 transition-colors"
                 onClick={handleAddItem}
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -509,9 +509,10 @@ const Inventory: React.FC = () => {
                     key={item.item_name + index}
                     className={`px-6 py-4 flex items-center justify-between transition-colors cursor-pointer group ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
                       } ${selectedItem?.item_name === item.item_name
-                        ? isDarkMode ? 'bg-gray-800 border-r-2 border-orange-500' : 'bg-gray-100 border-r-2 border-orange-500'
+                        ? isDarkMode ? 'bg-gray-800 border-r-2' : 'bg-gray-100 border-r-2'
                         : ''
                       }`}
+                    style={selectedItem?.item_name === item.item_name ? { borderRightColor: colorPalette?.primary || '#7c3aed' } : {}}
                     onClick={() => handleItemClick(item)}
                   >
                     <div className="flex items-center">
@@ -606,8 +607,8 @@ const Inventory: React.FC = () => {
                 : 'text-gray-300'
                 }`}
               style={selectedCategory === category.id ? {
-                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(124, 58, 237, 0.2)',
+                color: colorPalette?.primary || '#7c3aed'
               } : {}}
             >
               <Package className="h-5 w-5 mb-1" />
@@ -615,7 +616,7 @@ const Inventory: React.FC = () => {
               {category.count > 0 && (
                 <span className="mt-1 px-2 py-0.5 rounded-full text-xs"
                   style={selectedCategory === category.id ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c',
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
                     color: 'white'
                   } : {
                     backgroundColor: '#374151',

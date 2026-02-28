@@ -244,7 +244,7 @@ const SmartOltConfig: React.FC = () => {
                             onClick={handleStartCreate}
                             className="px-4 py-2 text-white font-medium rounded-lg transition-all shadow-lg hover:scale-105 active:scale-95"
                             style={{
-                                backgroundColor: colorPalette?.primary || '#ea580c'
+                                backgroundColor: colorPalette?.primary || '#7c3aed'
                             }}
                             onMouseEnter={(e) => {
                                 if (colorPalette?.accent) {
@@ -252,7 +252,7 @@ const SmartOltConfig: React.FC = () => {
                                 }
                             }}
                             onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                             }}
                         >
                             Configure SmartOLT
@@ -264,7 +264,7 @@ const SmartOltConfig: React.FC = () => {
             <div className="max-w-4xl space-y-4">
                 {loading && configs.length === 0 && !isCreating ? (
                     <div className="flex flex-col items-center justify-center py-12">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-t-2 mb-4" style={{ borderColor: colorPalette?.primary || '#ea580c' }}></div>
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-t-2 mb-4" style={{ borderColor: colorPalette?.primary || '#7c3aed' }}></div>
                         <p className="text-sm animate-pulse">Loading configurations...</p>
                     </div>
                 ) : (
@@ -297,11 +297,11 @@ const SmartOltConfig: React.FC = () => {
                                                             : 'bg-white border-gray-300 text-gray-900'
                                                             }`}
                                                         style={{
-                                                            borderColor: (editingId === config.id) ? (colorPalette?.primary || '#ea580c') : undefined
+                                                            borderColor: (editingId === config.id) ? (colorPalette?.primary || '#7c3aed') : undefined
                                                         }}
                                                         onFocus={(e) => {
-                                                            e.target.style.boxShadow = `0 0 0 2px ${(colorPalette?.primary || '#ea580c')}80`;
-                                                            e.target.style.borderColor = colorPalette?.primary || '#ea580c';
+                                                            e.target.style.boxShadow = `0 0 0 2px ${(colorPalette?.primary || '#7c3aed')}80`;
+                                                            e.target.style.borderColor = colorPalette?.primary || '#7c3aed';
                                                         }}
                                                         onBlur={(e) => {
                                                             e.target.style.boxShadow = 'none';
@@ -329,8 +329,8 @@ const SmartOltConfig: React.FC = () => {
                                                             : 'bg-white border-gray-300 text-gray-900'
                                                             }`}
                                                         onFocus={(e) => {
-                                                            e.target.style.boxShadow = `0 0 0 2px ${(colorPalette?.primary || '#ea580c')}80`;
-                                                            e.target.style.borderColor = colorPalette?.primary || '#ea580c';
+                                                            e.target.style.boxShadow = `0 0 0 2px ${(colorPalette?.primary || '#7c3aed')}80`;
+                                                            e.target.style.borderColor = colorPalette?.primary || '#7c3aed';
                                                         }}
                                                         onBlur={(e) => {
                                                             e.target.style.boxShadow = 'none';
@@ -363,7 +363,7 @@ const SmartOltConfig: React.FC = () => {
                                                 disabled={loading}
                                                 className="px-6 py-2 rounded-lg font-medium text-white shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50"
                                                 style={{
-                                                    backgroundColor: colorPalette?.primary || '#ea580c'
+                                                    backgroundColor: colorPalette?.primary || '#7c3aed'
                                                 }}
                                                 onMouseEnter={(e) => {
                                                     if (!loading && colorPalette?.accent) {
@@ -372,7 +372,7 @@ const SmartOltConfig: React.FC = () => {
                                                 }}
                                                 onMouseLeave={(e) => {
                                                     if (!loading) {
-                                                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                                                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                                                     }
                                                 }}
                                             >
@@ -384,8 +384,8 @@ const SmartOltConfig: React.FC = () => {
                                     <div className="space-y-6">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <div className="p-2 rounded-lg" style={{ backgroundColor: (colorPalette?.primary || '#ea580c') + '1a' }}>
-                                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colorPalette?.primary || '#ea580c' }}>
+                                                <div className="p-2 rounded-lg" style={{ backgroundColor: (colorPalette?.primary || '#7c3aed') + '1a' }}>
+                                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colorPalette?.primary || '#7c3aed' }}>
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                                                     </svg>
                                                 </div>
@@ -432,7 +432,7 @@ const SmartOltConfig: React.FC = () => {
                                                     <button
                                                         onClick={() => toggleTokenVisibility(config.id)}
                                                         className="text-[10px] font-bold uppercase tracking-tighter hover:underline"
-                                                        style={{ color: colorPalette?.primary || '#ea580c' }}
+                                                        style={{ color: colorPalette?.primary || '#7c3aed' }}
                                                     >
                                                         {showToken[config.id] ? 'Hide' : 'Show'}
                                                     </button>
@@ -461,11 +461,11 @@ const SmartOltConfig: React.FC = () => {
                                 ? 'bg-gray-800 border-gray-700 shadow-2xl'
                                 : 'bg-white border-gray-200 shadow-xl'
                                 }`}
-                                style={isDarkMode ? { boxShadow: `0 25px 50px -12px ${(colorPalette?.primary || '#ea580c')}1a` } : {}}
+                                style={isDarkMode ? { boxShadow: `0 25px 50px -12px ${(colorPalette?.primary || '#7c3aed')}1a` } : {}}
                             >
                                 <div className="mb-6 text-center">
-                                    <div className="inline-flex p-3 rounded-2xl mb-4" style={{ backgroundColor: (colorPalette?.primary || '#ea580c') + '1a' }}>
-                                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colorPalette?.primary || '#ea580c' }}>
+                                    <div className="inline-flex p-3 rounded-2xl mb-4" style={{ backgroundColor: (colorPalette?.primary || '#7c3aed') + '1a' }}>
+                                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colorPalette?.primary || '#7c3aed' }}>
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                                         </svg>
                                     </div>
@@ -487,8 +487,8 @@ const SmartOltConfig: React.FC = () => {
                                                     : 'bg-white border-gray-300 text-gray-900'
                                                     }`}
                                                 onFocus={(e) => {
-                                                    e.target.style.boxShadow = `0 0 0 2px ${(colorPalette?.primary || '#ea580c')}80`;
-                                                    e.target.style.borderColor = colorPalette?.primary || '#ea580c';
+                                                    e.target.style.boxShadow = `0 0 0 2px ${(colorPalette?.primary || '#7c3aed')}80`;
+                                                    e.target.style.borderColor = colorPalette?.primary || '#7c3aed';
                                                 }}
                                                 onBlur={(e) => {
                                                     e.target.style.boxShadow = 'none';
@@ -513,8 +513,8 @@ const SmartOltConfig: React.FC = () => {
                                                 : 'bg-white border-gray-300 text-gray-900'
                                                 }`}
                                             onFocus={(e) => {
-                                                e.target.style.boxShadow = `0 0 0 2px ${(colorPalette?.primary || '#ea580c')}80`;
-                                                e.target.style.borderColor = colorPalette?.primary || '#ea580c';
+                                                e.target.style.boxShadow = `0 0 0 2px ${(colorPalette?.primary || '#7c3aed')}80`;
+                                                e.target.style.borderColor = colorPalette?.primary || '#7c3aed';
                                             }}
                                             onBlur={(e) => {
                                                 e.target.style.boxShadow = 'none';
@@ -529,7 +529,7 @@ const SmartOltConfig: React.FC = () => {
                                             disabled={loading}
                                             className="flex-1 py-3 rounded-xl font-bold text-white shadow-lg transition-all transform hover:scale-[1.02] active:scale-95 disabled:opacity-50"
                                             style={{
-                                                backgroundColor: colorPalette?.primary || '#ea580c'
+                                                backgroundColor: colorPalette?.primary || '#7c3aed'
                                             }}
                                             onMouseEnter={(e) => {
                                                 if (!loading && colorPalette?.accent) {
@@ -538,7 +538,7 @@ const SmartOltConfig: React.FC = () => {
                                             }}
                                             onMouseLeave={(e) => {
                                                 if (!loading) {
-                                                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                                                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                                                 }
                                             }}
                                         >
@@ -559,8 +559,8 @@ const SmartOltConfig: React.FC = () => {
                         {configs.length === 0 && !isCreating && (
                             <div className={`text-center py-24 rounded-3xl border-2 border-dashed ${isDarkMode ? 'border-gray-700 bg-gray-900/40' : 'border-gray-200 bg-gray-50'
                                 }`}>
-                                <div className="p-4 rounded-full inline-flex mb-4" style={{ backgroundColor: (colorPalette?.primary || '#ea580c') + '1a' }}>
-                                    <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colorPalette?.primary || '#ea580c' }}>
+                                <div className="p-4 rounded-full inline-flex mb-4" style={{ backgroundColor: (colorPalette?.primary || '#7c3aed') + '1a' }}>
+                                    <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colorPalette?.primary || '#7c3aed' }}>
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                     </svg>
                                 </div>
@@ -572,7 +572,7 @@ const SmartOltConfig: React.FC = () => {
                                     onClick={handleStartCreate}
                                     className="px-8 py-3 rounded-xl text-white font-bold transition-all shadow-xl hover:scale-105 active:scale-95"
                                     style={{
-                                        backgroundColor: colorPalette?.primary || '#ea580c'
+                                        backgroundColor: colorPalette?.primary || '#7c3aed'
                                     }}
                                     onMouseEnter={(e) => {
                                         if (colorPalette?.accent) {
@@ -580,7 +580,7 @@ const SmartOltConfig: React.FC = () => {
                                         }
                                     }}
                                     onMouseLeave={(e) => {
-                                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                                     }}
                                 >
                                     Start Integration
@@ -631,7 +631,7 @@ const SmartOltConfig: React.FC = () => {
                                 }}
                                 className="flex-1 py-3 rounded-xl text-white font-bold transition-all hover:brightness-110 active:scale-95 shadow-lg"
                                 style={{
-                                    backgroundColor: modal.type === 'confirm' ? '#ef4444' : (colorPalette?.primary || '#ea580c')
+                                    backgroundColor: modal.type === 'confirm' ? '#ef4444' : (colorPalette?.primary || '#7c3aed')
                                 }}
                             >
                                 {modal.type === 'confirm' ? 'Delete' : 'Understand'}

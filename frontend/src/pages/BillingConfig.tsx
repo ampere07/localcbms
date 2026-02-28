@@ -478,7 +478,7 @@ const BillingConfig: React.FC = () => {
                     disabled={loadingAccountNumber}
                     className="flex items-center gap-2 px-4 py-2 disabled:opacity-50 text-white rounded transition-colors"
                     style={{
-                      backgroundColor: loadingAccountNumber ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                      backgroundColor: loadingAccountNumber ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                     }}
                     onMouseEnter={(e) => {
                       if (!loadingAccountNumber && colorPalette?.accent) {
@@ -747,7 +747,7 @@ const BillingConfig: React.FC = () => {
                     disabled={loadingBillingConfig}
                     className="flex items-center gap-2 px-4 py-2 disabled:opacity-50 text-white rounded transition-colors"
                     style={{
-                      backgroundColor: loadingBillingConfig ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                      backgroundColor: loadingBillingConfig ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                     }}
                     onMouseEnter={(e) => {
                       if (!loadingBillingConfig && colorPalette?.accent) {
@@ -810,7 +810,7 @@ const BillingConfig: React.FC = () => {
                     onClick={modal.onConfirm}
                     className="px-4 py-2 text-white rounded transition-colors"
                     style={{
-                      backgroundColor: colorPalette?.primary || '#ea580c'
+                      backgroundColor: colorPalette?.primary || '#7c3aed'
                     }}
                     onMouseEnter={(e) => {
                       if (colorPalette?.accent) {
@@ -831,7 +831,7 @@ const BillingConfig: React.FC = () => {
                   onClick={() => setModal({ ...modal, isOpen: false })}
                   className="px-4 py-2 text-white rounded transition-colors"
                   style={{
-                    backgroundColor: colorPalette?.primary || '#ea580c'
+                    backgroundColor: colorPalette?.primary || '#7c3aed'
                   }}
                   onMouseEnter={(e) => {
                     if (colorPalette?.accent) {

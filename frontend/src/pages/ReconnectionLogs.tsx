@@ -290,8 +290,8 @@ const ReconnectionLogs: React.FC = () => {
                 : isDarkMode ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100'
                 }`}
               style={selectedLocation === location.id ? {
-                backgroundColor: `${colorPalette?.primary || '#ea580c'}33`,
-                color: colorPalette?.primary || '#ea580c'
+                backgroundColor: `${colorPalette?.primary || '#7c3aed'}33`,
+                color: colorPalette?.primary || '#7c3aed'
               } : {}}
             >
               <div className="flex items-center">
@@ -304,7 +304,7 @@ const ReconnectionLogs: React.FC = () => {
                   : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                   }`}
                   style={selectedLocation === location.id ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c'
+                    backgroundColor: colorPalette?.primary || '#7c3aed'
                   } : {}}
                 >
                   {location.count}
@@ -350,7 +350,7 @@ const ReconnectionLogs: React.FC = () => {
                 disabled={isLoading}
                 className="text-white px-4 py-2 rounded text-sm transition-colors"
                 style={{
-                  backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                  backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                 }}
                 onMouseEnter={(e) => {
                   if (!isLoading && colorPalette?.accent) {
@@ -359,7 +359,7 @@ const ReconnectionLogs: React.FC = () => {
                 }}
                 onMouseLeave={(e) => {
                   if (!isLoading) {
-                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                   }
                 }}
               >

@@ -272,7 +272,7 @@ const UserManagement: React.FC = () => {
               onClick={handleAddNewUser}
               className="px-6 py-3 rounded transition-colors text-sm font-medium whitespace-nowrap text-white"
               style={{
-                backgroundColor: colorPalette?.primary || '#3b82f6'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent) {
@@ -280,7 +280,7 @@ const UserManagement: React.FC = () => {
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#3b82f6';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
               }}
             >
               Add New User

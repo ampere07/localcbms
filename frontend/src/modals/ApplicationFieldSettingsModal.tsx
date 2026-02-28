@@ -68,8 +68,8 @@ const ApplicationFieldSettingsModal: React.FC<ApplicationFieldSettingsModalProps
                   <button
                     onClick={onClose}
                     className={`p-2 rounded-lg transition-colors ${isDarkMode
-                        ? 'hover:bg-gray-800 text-gray-400'
-                        : 'hover:bg-gray-100 text-gray-600'
+                      ? 'hover:bg-gray-800 text-gray-400'
+                      : 'hover:bg-gray-100 text-gray-600'
                       }`}
                   >
                     <X className="h-5 w-5" />
@@ -80,8 +80,8 @@ const ApplicationFieldSettingsModal: React.FC<ApplicationFieldSettingsModalProps
                   <button
                     onClick={onSelectAll}
                     className={`flex-1 px-3 py-2 rounded text-sm transition-colors ${isDarkMode
-                        ? 'bg-gray-800 hover:bg-gray-700 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      ? 'bg-gray-800 hover:bg-gray-700 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                       }`}
                   >
                     Select All
@@ -89,8 +89,8 @@ const ApplicationFieldSettingsModal: React.FC<ApplicationFieldSettingsModalProps
                   <button
                     onClick={onDeselectAll}
                     className={`flex-1 px-3 py-2 rounded text-sm transition-colors ${isDarkMode
-                        ? 'bg-gray-800 hover:bg-gray-700 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      ? 'bg-gray-800 hover:bg-gray-700 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                       }`}
                   >
                     Deselect All
@@ -108,8 +108,8 @@ const ApplicationFieldSettingsModal: React.FC<ApplicationFieldSettingsModalProps
                       onDragOver={onDragOver}
                       onDrop={() => onDrop(index)}
                       className={`flex items-center gap-2 p-3 rounded-lg border cursor-move transition-colors ${isDarkMode
-                          ? 'border-gray-700 hover:bg-gray-800 bg-gray-850'
-                          : 'border-gray-200 hover:bg-gray-50 bg-white'
+                        ? 'border-gray-700 hover:bg-gray-800 bg-gray-850'
+                        : 'border-gray-200 hover:bg-gray-50 bg-white'
                         }`}
                     >
                       <GripVertical
@@ -130,8 +130,8 @@ const ApplicationFieldSettingsModal: React.FC<ApplicationFieldSettingsModalProps
                       </button>
 
                       <span className={`flex-1 text-sm ${fieldVisibility[fieldKey]
-                          ? isDarkMode ? 'text-white' : 'text-gray-900'
-                          : isDarkMode ? 'text-gray-600' : 'text-gray-400'
+                        ? isDarkMode ? 'text-white' : 'text-gray-900'
+                        : isDarkMode ? 'text-gray-600' : 'text-gray-400'
                         }`}>
                         {getFieldLabel(fieldKey)}
                       </span>
@@ -146,8 +146,8 @@ const ApplicationFieldSettingsModal: React.FC<ApplicationFieldSettingsModalProps
                   <button
                     onClick={onReset}
                     className={`flex-1 px-4 py-2 rounded transition-colors ${isDarkMode
-                        ? 'bg-gray-800 hover:bg-gray-700 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      ? 'bg-gray-800 hover:bg-gray-700 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                       }`}
                   >
                     Reset
@@ -155,14 +155,14 @@ const ApplicationFieldSettingsModal: React.FC<ApplicationFieldSettingsModalProps
                   <button
                     onClick={onClose}
                     className="flex-1 px-4 py-2 text-white rounded transition-colors"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                     onMouseEnter={(e) => {
                       if (colorPalette?.accent) {
                         e.currentTarget.style.backgroundColor = colorPalette.accent;
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                     }}
                   >
                     Done

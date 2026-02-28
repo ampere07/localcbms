@@ -218,7 +218,7 @@ const SMSTemplate: React.FC = () => {
   };
 
   const getPrimaryColor = () => {
-    return colorPalette?.primary || '#6d28d9';
+    return colorPalette?.primary || '#7c3aed';
   };
 
   const templateTypes = [

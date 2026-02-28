@@ -274,7 +274,7 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
             }`}>
             <Loader2
               className="w-20 h-20 animate-spin"
-              style={{ color: colorPalette?.primary || '#ea580c' }}
+              style={{ color: colorPalette?.primary || '#7c3aed' }}
             />
             <div className="text-center">
               <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
@@ -291,7 +291,7 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
             {modal.type === 'loading' ? (
               <div className="text-center">
                 <div className="flex justify-center mb-4">
-                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#ea580c' }}></div>
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#7c3aed' }}></div>
                 </div>
                 <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}>{modal.title}</h3>
@@ -320,7 +320,7 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
                         onClick={modal.onConfirm}
                         className="px-4 py-2 text-white rounded transition-colors"
                         style={{
-                          backgroundColor: colorPalette?.primary || '#ea580c'
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
                         }}
                         onMouseEnter={(e) => {
                           if (colorPalette?.accent) {
@@ -328,7 +328,7 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
                           }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                         }}
                       >
                         Confirm
@@ -345,7 +345,7 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
                       }}
                       className="px-4 py-2 text-white rounded transition-colors"
                       style={{
-                        backgroundColor: colorPalette?.primary || '#ea580c'
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
                       }}
                       onMouseEnter={(e) => {
                         if (colorPalette?.accent) {
@@ -353,7 +353,7 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
                         }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                       }}
                     >
                       OK
@@ -386,7 +386,7 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
                 disabled={loading}
                 className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent && !loading) {

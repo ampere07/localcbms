@@ -377,7 +377,7 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
               disabled={loading}
               className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
               style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent && !loading) {
@@ -385,7 +385,7 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
               }}
             >
               {loading ? (
@@ -611,8 +611,8 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
                 type="button"
                 className="px-5 py-2 text-sm font-semibold text-white rounded-lg transition-all shadow-lg active:scale-95"
                 style={{
-                  backgroundColor: alertConfig.type === 'error' ? '#ef4444' : (colorPalette?.primary || '#ea580c'),
-                  boxShadow: `0 4px 14px 0 ${(alertConfig.type === 'error' ? '#ef4444' : (colorPalette?.primary || '#ea580c'))}40`
+                  backgroundColor: alertConfig.type === 'error' ? '#ef4444' : (colorPalette?.primary || '#7c3aed'),
+                  boxShadow: `0 4px 14px 0 ${(alertConfig.type === 'error' ? '#ef4444' : (colorPalette?.primary || '#7c3aed'))}40`
                 }}
                 onClick={alertConfig.onConfirm}
               >

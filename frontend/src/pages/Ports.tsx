@@ -36,9 +36,9 @@ const Ports: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await getAllPorts(searchQuery, currentPage, 10);
-      
+
       if (response.success) {
         setPorts(response.data);
         if (response.pagination) {
@@ -130,11 +130,11 @@ const Ports: React.FC = () => {
         <div className="text-center">
           <div className="text-white text-lg mb-2">Error Loading Ports</div>
           <div className="text-gray-400 mb-4">{error}</div>
-          <button 
+          <button
             onClick={fetchPorts}
             className="text-white px-4 py-2 rounded transition-colors"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {
@@ -142,7 +142,7 @@ const Ports: React.FC = () => {
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
             }}
           >
             Retry
@@ -182,11 +182,11 @@ const Ports: React.FC = () => {
             />
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
           </div>
-          <button 
+          <button
             onClick={handleAddClick}
             className="text-white px-4 py-2 rounded text-sm flex items-center space-x-2 transition-colors ml-4"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {
@@ -194,7 +194,7 @@ const Ports: React.FC = () => {
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
             }}
           >
             <Plus size={16} />
@@ -255,8 +255,8 @@ const Ports: React.FC = () => {
           <div className="p-12 text-center text-gray-400">
             <div className="text-lg mb-2">No ports found</div>
             <div className="text-sm">
-              {searchQuery 
-                ? 'Try adjusting your search filter' 
+              {searchQuery
+                ? 'Try adjusting your search filter'
                 : 'Start by adding some ports'
               }
             </div>

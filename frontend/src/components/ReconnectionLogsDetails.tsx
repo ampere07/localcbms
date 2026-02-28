@@ -141,7 +141,7 @@ const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ recon
             <h3 className={`text-sm uppercase mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
               }`}>Username</h3>
             <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-              {reconnectionRecord.username || 'santosg0701251450'}
+              {reconnectionRecord.username || '-'}
             </p>
           </div>
 
@@ -149,7 +149,7 @@ const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ recon
             <h3 className={`text-sm uppercase mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
               }`}>Date</h3>
             <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-              {reconnectionRecord.date || '9/18/2025 4:17:22 PM'}
+              {reconnectionRecord.date || '-'}
             </p>
           </div>
 
@@ -158,7 +158,7 @@ const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ recon
               }`}>Plan</h3>
             <div className="flex items-center">
               <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                {reconnectionRecord.plan || 'SwitchLite - P699'}
+                {reconnectionRecord.plan || '-'}
               </p>
               <Info size={16} className={`ml-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
                 }`} />
@@ -177,7 +177,7 @@ const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ recon
             <h3 className={`text-sm uppercase mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
               }`}>Remarks</h3>
             <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-              {reconnectionRecord.remarks || 'Transaction'}
+              {reconnectionRecord.remarks || '-'}
             </p>
           </div>
 
@@ -186,7 +186,7 @@ const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ recon
               }`}>Barangay</h3>
             <div className="flex items-center">
               <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                {reconnectionRecord.barangay || 'Tatala'}
+                {reconnectionRecord.barangay || '-'}
               </p>
               <Info size={16} className={`ml-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
                 }`} />
@@ -198,7 +198,7 @@ const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ recon
               }`}>City</h3>
             <div className="flex items-center">
               <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                {reconnectionRecord.city || 'Binangonan'}
+                {reconnectionRecord.city || '-'}
               </p>
               <Info size={16} className={`ml-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
                 }`} />
@@ -209,7 +209,7 @@ const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ recon
             <h3 className={`text-sm uppercase mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
               }`}>Date Format</h3>
             <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-              {reconnectionRecord.dateFormat || '9/18/2025'}
+              {reconnectionRecord.dateFormat || '-'}
             </p>
           </div>
         </div>

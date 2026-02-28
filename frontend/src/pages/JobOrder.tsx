@@ -20,8 +20,10 @@ const allColumns = [
   { key: 'billingStatus', label: 'Billing Status', width: 'min-w-32' },
   { key: 'onsiteStatus', label: 'Onsite Status', width: 'min-w-32' },
   { key: 'dateInstalled', label: 'Date Installed', width: 'min-w-36' },
-  { key: 'installationFee', label: 'Installation Fee', width: 'min-w-32' },
+  { key: 'fullName', label: 'Full Name of Client', width: 'min-w-48' },
+  { key: 'address', label: 'Full Address of Client', width: 'min-w-56' },
   { key: 'billingDay', label: 'Billing Day', width: 'min-w-28' },
+  { key: 'installationFee', label: 'Installation Fee', width: 'min-w-32' },
   { key: 'modemRouterSN', label: 'Modem/Router SN', width: 'min-w-36' },
   { key: 'routerModel', label: 'Router Model', width: 'min-w-32' },
   { key: 'groupName', label: 'Group Name', width: 'min-w-32' },
@@ -55,8 +57,6 @@ const allColumns = [
   { key: 'assignedEmail', label: 'Assigned Email', width: 'min-w-48' },
   { key: 'pppoeUsername', label: 'PPPoE Username', width: 'min-w-36' },
   { key: 'pppoePassword', label: 'PPPoE Password', width: 'min-w-36' },
-  { key: 'fullName', label: 'Full Name of Client', width: 'min-w-48' },
-  { key: 'address', label: 'Full Address of Client', width: 'min-w-56' },
   { key: 'location', label: 'Location', width: 'min-w-40' },
   { key: 'contractTemplate', label: 'Contract Template', width: 'min-w-36' },
   { key: 'modifiedBy', label: 'Modified By', width: 'min-w-32' },
@@ -167,6 +167,15 @@ const JobOrderPage: React.FC = () => {
     if (!dateStr) return '-';
     try {
       return new Date(dateStr).toLocaleString();
+    } catch (e) {
+      return '-';
+    }
+  };
+
+  const formatOnlyDate = (dateStr?: string | null): string => {
+    if (!dateStr) return '-';
+    try {
+      return new Date(dateStr).toLocaleDateString();
     } catch (e) {
       return '-';
     }
@@ -818,7 +827,7 @@ const JobOrderPage: React.FC = () => {
       case 'timestamp':
         return formatDate(jobOrder.Timestamp || jobOrder.timestamp);
       case 'dateInstalled':
-        return formatDate(jobOrder.Date_Installed || jobOrder.date_installed);
+        return formatOnlyDate(jobOrder.Date_Installed || jobOrder.date_installed);
       case 'installationFee':
         return formatPrice(jobOrder.Installation_Fee || jobOrder.installation_fee);
       case 'billingDay':
@@ -1006,7 +1015,7 @@ const JobOrderPage: React.FC = () => {
               className={`w-full flex items-center justify-between px-4 py-4 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
               style={selectedLocation === 'all' ? {
                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
+                color: colorPalette?.primary || '#7c3aed'
               } : {
                 color: isDarkMode ? '#d1d5db' : '#374151'
               }}
@@ -1045,7 +1054,7 @@ const JobOrderPage: React.FC = () => {
                     className={`w-full flex items-center justify-between px-4 py-4 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
                     style={selectedLocation === status.id ? {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                      color: colorPalette?.primary || '#fb923c'
+                      color: colorPalette?.primary || '#7c3aed'
                     } : {
                       color: isDarkMode ? '#d1d5db' : '#374151'
                     }}
@@ -1058,7 +1067,7 @@ const JobOrderPage: React.FC = () => {
                       {status.count > 0 && (
                         <span className={`px-3 py-1 rounded-full text-sm ${selectedLocation === status.id ? '' : 'bg-gray-700 text-gray-300'}`}
                           style={selectedLocation === status.id ? {
-                            backgroundColor: colorPalette?.primary || '#ea580c',
+                            backgroundColor: colorPalette?.primary || '#7c3aed',
                             color: 'white'
                           } : {}}>
                           {status.count}
@@ -1099,7 +1108,7 @@ const JobOrderPage: React.FC = () => {
                           className={`w-full flex items-center justify-between pl-12 pr-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
                           style={selectedLocation === billing.id ? {
                             backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                            color: colorPalette?.primary || '#fb923c'
+                            color: colorPalette?.primary || '#7c3aed'
                           } : {
                             color: isDarkMode ? '#9ca3af' : '#4b5563'
                           }}
@@ -1108,7 +1117,7 @@ const JobOrderPage: React.FC = () => {
                           <div className="flex items-center space-x-3">
                             <span className={`text-xs px-2 py-0.5 rounded-full ${selectedLocation === billing.id ? '' : 'bg-gray-800 text-gray-500'}`}
                               style={selectedLocation === billing.id ? {
-                                backgroundColor: colorPalette?.primary || '#ea580c',
+                                backgroundColor: colorPalette?.primary || '#7c3aed',
                                 color: 'white'
                               } : {}}>
                               {billing.count}
@@ -1147,7 +1156,7 @@ const JobOrderPage: React.FC = () => {
                               className={`w-full flex items-center justify-between pl-20 pr-4 py-2 text-xs transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
                               style={selectedLocation === brgy.id ? {
                                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                                color: colorPalette?.primary || '#fb923c',
+                                color: colorPalette?.primary || '#7c3aed',
                                 fontWeight: 'bold'
                               } : {
                                 color: isDarkMode ? '#6b7280' : '#4b5563'
@@ -1156,7 +1165,7 @@ const JobOrderPage: React.FC = () => {
                               <span className="truncate flex-1 text-left">{brgy.name}</span>
                               <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedLocation === brgy.id ? '' : 'bg-gray-800 text-gray-600'}`}
                                 style={selectedLocation === brgy.id ? {
-                                  backgroundColor: colorPalette?.primary || '#ea580c',
+                                  backgroundColor: colorPalette?.primary || '#7c3aed',
                                   color: 'white'
                                 } : {}}>
                                 {brgy.count}
@@ -1203,7 +1212,7 @@ const JobOrderPage: React.FC = () => {
                 className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === 'all' ? '' : 'text-gray-300'}`}
                 style={selectedLocation === 'all' ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c',
+                  color: colorPalette?.primary || '#7c3aed',
                   fontWeight: 500
                 } : {}}
               >
@@ -1240,7 +1249,7 @@ const JobOrderPage: React.FC = () => {
                     className={`flex-shrink-0 flex flex-col items-center justify-center px-4 py-2 text-xs transition-colors ${selectedLocation === status.id ? '' : 'text-gray-300'}`}
                     style={selectedLocation === status.id ? {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                      color: colorPalette?.primary || '#fb923c'
+                      color: colorPalette?.primary || '#7c3aed'
                     } : {}}
                   >
                     <div className={`h-2.5 w-2.5 rounded-full mb-1 ${getStatusColor(statusValue).replace('text-', 'bg-')}`} />
@@ -1248,7 +1257,7 @@ const JobOrderPage: React.FC = () => {
                     {status.count > 0 && (
                       <span className="mt-1 px-2 py-0.5 rounded-full text-[10px]"
                         style={selectedLocation === status.id ? {
-                          backgroundColor: colorPalette?.primary || '#ea580c',
+                          backgroundColor: colorPalette?.primary || '#7c3aed',
                           color: 'white'
                         } : {
                           backgroundColor: '#374151',
@@ -1286,7 +1295,7 @@ const JobOrderPage: React.FC = () => {
                 }`}
               style={selectedLocation === 'all' ? {
                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c',
+                color: colorPalette?.primary || '#7c3aed',
                 fontWeight: 500
               } : {
                 color: isDarkMode ? '#d1d5db' : '#374151'
@@ -1302,7 +1311,7 @@ const JobOrderPage: React.FC = () => {
                   : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                   }`}
                 style={selectedLocation === 'all' ? {
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
                 {statusItems.total}
@@ -1333,7 +1342,7 @@ const JobOrderPage: React.FC = () => {
                       }`}
                     style={selectedLocation === status.id ? {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                      color: colorPalette?.primary || '#fb923c'
+                      color: colorPalette?.primary || '#7c3aed'
                     } : {}}
                   >
                     <div className="flex items-center flex-1">
@@ -1344,7 +1353,7 @@ const JobOrderPage: React.FC = () => {
                       {status.count > 0 && (
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${selectedLocation === status.id ? '' : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'}`}
                           style={selectedLocation === status.id ? {
-                            backgroundColor: colorPalette?.primary || '#ea580c',
+                            backgroundColor: colorPalette?.primary || '#7c3aed',
                             color: 'white'
                           } : {}}>
                           {status.count}
@@ -1383,7 +1392,7 @@ const JobOrderPage: React.FC = () => {
                             }`}
                           style={selectedLocation === billing.id ? {
                             backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                            color: colorPalette?.primary || '#fb923c'
+                            color: colorPalette?.primary || '#7c3aed'
                           } : {
                             color: isDarkMode ? '#9ca3af' : '#4b5563'
                           }}
@@ -1392,7 +1401,7 @@ const JobOrderPage: React.FC = () => {
                           <div className="flex items-center space-x-2">
                             <span className={`px-1.5 py-0.5 rounded text-[10px] ${selectedLocation === billing.id ? '' : 'bg-gray-800 text-gray-500'}`}
                               style={selectedLocation === billing.id ? {
-                                backgroundColor: colorPalette?.primary || '#ea580c',
+                                backgroundColor: colorPalette?.primary || '#7c3aed',
                                 color: 'white'
                               } : {}}>
                               {billing.count}
@@ -1429,7 +1438,7 @@ const JobOrderPage: React.FC = () => {
                                 }`}
                               style={selectedLocation === brgy.id ? {
                                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                                color: colorPalette?.primary || '#fb923c',
+                                color: colorPalette?.primary || '#7c3aed',
                                 fontWeight: 'bold'
                               } : {
                                 color: isDarkMode ? '#6b7280' : '#4b5563'
@@ -1438,7 +1447,7 @@ const JobOrderPage: React.FC = () => {
                               <span className="truncate flex-1 text-left">{brgy.name}</span>
                               <span className={`px-1.5 py-0.5 rounded text-[9px] ${selectedLocation === brgy.id ? '' : 'bg-gray-800 text-gray-600'}`}
                                 style={selectedLocation === brgy.id ? {
-                                  backgroundColor: colorPalette?.primary || '#ea580c',
+                                  backgroundColor: colorPalette?.primary || '#7c3aed',
                                   color: 'white'
                                 } : {}}>
                                 {brgy.count}
@@ -1459,7 +1468,7 @@ const JobOrderPage: React.FC = () => {
             className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
             onMouseDown={handleMouseDownSidebarResize}
             style={{
-              backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#ea580c') : 'transparent'
+              backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#7c3aed') : 'transparent'
             }}
             onMouseEnter={(e) => {
               if (!isResizingSidebar && colorPalette?.primary) {
@@ -1558,7 +1567,7 @@ const JobOrderPage: React.FC = () => {
                                 onClick={handleSelectAllColumns}
                                 className="text-sm px-3 py-1 rounded transition-colors"
                                 style={{
-                                  color: colorPalette?.primary || '#f97316',
+                                  color: colorPalette?.primary || '#7c3aed',
                                   backgroundColor: isDarkMode ? '#374151' : '#e5e7eb'
                                 }}
                               >
@@ -1568,7 +1577,7 @@ const JobOrderPage: React.FC = () => {
                                 onClick={handleDeselectAllColumns}
                                 className="text-sm px-3 py-1 rounded transition-colors"
                                 style={{
-                                  color: colorPalette?.primary || '#f97316',
+                                  color: colorPalette?.primary || '#7c3aed',
                                   backgroundColor: isDarkMode ? '#374151' : '#e5e7eb'
                                 }}
                               >
@@ -1588,10 +1597,11 @@ const JobOrderPage: React.FC = () => {
                                     type="checkbox"
                                     checked={visibleColumns.includes(column.key)}
                                     onChange={() => handleToggleColumn(column.key)}
-                                    className={`mr-3 h-4 w-4 rounded text-orange-600 focus:ring-orange-500 ${isDarkMode
+                                    className={`mr-3 h-4 w-4 rounded ${isDarkMode
                                       ? 'border-gray-600 bg-gray-700 focus:ring-offset-gray-800'
                                       : 'border-gray-300 bg-white focus:ring-offset-white'
                                       }`}
+                                    style={{ accentColor: colorPalette?.primary || '#7c3aed' }}
                                   />
                                   <span>{column.label}</span>
                                 </label>
@@ -1614,7 +1624,7 @@ const JobOrderPage: React.FC = () => {
                                 onClick={handleSelectAllColumns}
                                 className="text-xs transition-colors"
                                 style={{
-                                  color: colorPalette?.primary || '#f97316'
+                                  color: colorPalette?.primary || '#7c3aed'
                                 }}
                                 onMouseEnter={(e) => {
                                   if (colorPalette?.accent) {
@@ -1634,7 +1644,7 @@ const JobOrderPage: React.FC = () => {
                                 onClick={handleDeselectAllColumns}
                                 className="text-xs transition-colors"
                                 style={{
-                                  color: colorPalette?.primary || '#f97316'
+                                  color: colorPalette?.primary || '#7c3aed'
                                 }}
                                 onMouseEnter={(e) => {
                                   if (colorPalette?.accent) {
@@ -1664,7 +1674,8 @@ const JobOrderPage: React.FC = () => {
                                   type="checkbox"
                                   checked={visibleColumns.includes(column.key)}
                                   onChange={() => handleToggleColumn(column.key)}
-                                  className="mr-3 h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-600 focus:ring-orange-500 focus:ring-offset-gray-800"
+                                  className={`mr-3 h-4 w-4 rounded ${isDarkMode ? 'border-gray-600 bg-gray-700 focus:ring-offset-gray-800' : 'border-gray-300 bg-white focus:ring-offset-white'}`}
+                                  style={{ accentColor: colorPalette?.primary || '#7c3aed' }}
                                 />
                                 <span>{column.label}</span>
                               </label>
@@ -1696,7 +1707,7 @@ const JobOrderPage: React.FC = () => {
                         }}
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                         style={displayMode === 'card' ? {
-                          color: colorPalette?.primary || '#f97316'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {
                           color: isDarkMode ? '#ffffff' : '#111827'
                         }}
@@ -1710,7 +1721,7 @@ const JobOrderPage: React.FC = () => {
                         }}
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                         style={displayMode === 'table' ? {
-                          color: colorPalette?.primary || '#f97316'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {
                           color: isDarkMode ? '#ffffff' : '#111827'
                         }}
@@ -1725,7 +1736,7 @@ const JobOrderPage: React.FC = () => {
                   disabled={isRefreshing}
                   className="text-white px-3 py-2 rounded text-sm flex items-center transition-colors disabled:bg-gray-600"
                   style={{
-                    backgroundColor: isRefreshing ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: isRefreshing ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!isRefreshing && colorPalette?.accent) {
@@ -1847,14 +1858,14 @@ const JobOrderPage: React.FC = () => {
                                       <ArrowDown
                                         className="h-4 w-4"
                                         style={{
-                                          color: colorPalette?.primary || '#fb923c'
+                                          color: colorPalette?.primary || '#7c3aed'
                                         }}
                                       />
                                     ) : (
                                       <ArrowUp
                                         className="h-4 w-4 text-gray-400 transition-colors"
                                         style={{
-                                          color: hoveredColumn === column.key ? (colorPalette?.primary || '#fb923c') : undefined
+                                          color: hoveredColumn === column.key ? (colorPalette?.primary || '#7c3aed') : undefined
                                         }}
                                       />
                                     )}
@@ -1865,7 +1876,7 @@ const JobOrderPage: React.FC = () => {
                                 <div
                                   className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize group-hover:bg-gray-600"
                                   style={{
-                                    backgroundColor: hoveredColumn === column.key ? (colorPalette?.primary || '#f97316') : undefined
+                                    backgroundColor: hoveredColumn === column.key ? (colorPalette?.primary || '#7c3aed') : undefined
                                   }}
                                   onMouseDown={(e) => handleMouseDownResize(e, column.key)}
                                 />

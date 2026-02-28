@@ -250,7 +250,7 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
                     : 'bg-white text-gray-900 border-gray-300'
                     }`}
                   style={{
-                    '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                    '--tw-ring-color': colorPalette?.primary || '#7c3aed'
                   } as React.CSSProperties}
                 >
                   {concernOptions.map((option) => (
@@ -275,7 +275,7 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
                     : 'bg-white text-gray-900 border-gray-300 placeholder-gray-400'
                     }`}
                   style={{
-                    '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                    '--tw-ring-color': colorPalette?.primary || '#7c3aed'
                   } as React.CSSProperties}
                 />
               </div>

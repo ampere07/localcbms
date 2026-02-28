@@ -131,7 +131,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             marginBottom: '30px'
           }}>
             <h2 style={{
-              color: colorPalette?.primary || '#6d28d9',
+              color: colorPalette?.primary || '#7c3aed',
               fontSize: '24px',
               marginBottom: '10px',
               fontWeight: '600'
@@ -163,7 +163,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 style={{
                   width: '100%',
                   padding: '14px',
-                  backgroundColor: colorPalette?.primary || '#6d28d9',
+                  backgroundColor: colorPalette?.primary || '#7c3aed',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '30px',
@@ -235,8 +235,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   width: '100%',
                   padding: '14px',
                   backgroundColor: 'transparent',
-                  color: colorPalette?.primary || '#6d28d9',
-                  border: `1px solid ${colorPalette?.primary || '#6d28d9'}`,
+                  color: colorPalette?.primary || '#7c3aed',
+                  border: `1px solid ${colorPalette?.primary || '#7c3aed'}`,
                   borderRadius: '8px',
                   fontSize: '16px',
                   cursor: 'pointer',
@@ -292,7 +292,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         }} className="login-container">
           <div style={{
             flex: 1,
-            background: `linear-gradient(135deg, ${colorPalette?.primary || '#6d28d9'} 0%, ${colorPalette?.secondary || '#7c3aed'} 100%)`,
+            background: `linear-gradient(135deg, ${colorPalette?.primary || '#7c3aed'} 0%, ${colorPalette?.secondary || '#7c3aed'} 100%)`,
             padding: '60px 50px',
             display: 'flex',
             flexDirection: 'column',
@@ -381,7 +381,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   width: '100%',
                   padding: '16px',
                   backgroundColor: isLoading ? '#6b7280' : '#ffffff',
-                  color: isLoading ? '#ffffff' : (colorPalette?.primary || '#6d28d9'),
+                  color: isLoading ? '#ffffff' : (colorPalette?.primary || '#7c3aed'),
                   border: 'none',
                   borderRadius: '30px',
                   fontSize: '16px',
@@ -491,7 +491,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 fontSize: '36px',
                 fontWeight: '700',
                 marginBottom: '15px',
-                color: colorPalette?.primary || '#6d28d9'
+                color: colorPalette?.primary || '#7c3aed'
               }}>
                 New Here?
               </h2>
@@ -510,7 +510,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               }}
               style={{
                 padding: '16px 48px',
-                backgroundColor: colorPalette?.primary || '#6d28d9',
+                backgroundColor: colorPalette?.primary || '#7c3aed',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '30px',
@@ -530,7 +530,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#6d28d9';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
               }}
             >
               APPLY NOW

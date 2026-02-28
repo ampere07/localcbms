@@ -297,7 +297,8 @@ export const logsService = {
     action?: string;
     days?: number;
   }): Promise<any> => {
-    const response = await apiClient.get('/logs/export', { params });
+    const responseType = params?.format === 'csv' ? 'blob' : 'json';
+    const response = await apiClient.get('/logs/export', { params, responseType });
     return response.data;
   },
 

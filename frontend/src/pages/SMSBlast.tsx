@@ -139,7 +139,7 @@ const SMSBlast: React.FC = () => {
                 className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors duration-200 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
                 style={{
                   color: (searchQuery || isSearchFocused)
-                    ? (colorPalette?.primary || '#ea580c')
+                    ? (colorPalette?.primary || '#7c3aed')
                     : undefined
                 }}
               >
@@ -155,13 +155,13 @@ const SMSBlast: React.FC = () => {
                   : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
                   }`}
                 style={{
-                  borderColor: searchQuery ? (colorPalette?.primary || '#ea580c') : undefined,
-                  boxShadow: searchQuery ? `0 0 0 2px ${(colorPalette?.primary || '#ea580c')}33` : undefined
+                  borderColor: searchQuery ? (colorPalette?.primary || '#7c3aed') : undefined,
+                  boxShadow: searchQuery ? `0 0 0 2px ${(colorPalette?.primary || '#7c3aed')}33` : undefined
                 }}
                 onFocus={(e) => {
                   setIsSearchFocused(true);
-                  e.currentTarget.style.borderColor = colorPalette?.primary || '#ea580c';
-                  e.currentTarget.style.boxShadow = `0 0 0 2px ${(colorPalette?.primary || '#ea580c')}33`;
+                  e.currentTarget.style.borderColor = colorPalette?.primary || '#7c3aed';
+                  e.currentTarget.style.boxShadow = `0 0 0 2px ${(colorPalette?.primary || '#7c3aed')}33`;
                 }}
                 onBlur={(e) => {
                   setIsSearchFocused(false);
@@ -186,7 +186,7 @@ const SMSBlast: React.FC = () => {
               onClick={handleAddNew}
               className="flex items-center space-x-1 text-white px-4 py-2 rounded transition-colors"
               style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent) {
@@ -238,7 +238,7 @@ const SMSBlast: React.FC = () => {
                         <div className="flex-1 min-w-0">
                           <div
                             className="font-bold text-sm mb-1"
-                            style={{ color: colorPalette?.primary || '#ea580c' }}
+                            style={{ color: colorPalette?.primary || '#7c3aed' }}
                           >
                             {record.target_name && record.target_name !== 'N/A'
                               ? (record.target_type && record.target_type !== 'N/A'
@@ -256,7 +256,7 @@ const SMSBlast: React.FC = () => {
                         <div className="flex flex-col items-end space-y-0.5 ml-4 flex-shrink-0">
                           <div
                             className="text-sm font-bold"
-                            style={{ color: colorPalette?.primary || '#ea580c' }}
+                            style={{ color: colorPalette?.primary || '#7c3aed' }}
                           >
                             {record.message_count || 0} Sent
                           </div>

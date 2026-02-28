@@ -270,8 +270,8 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-gray-100 border-gray-300'
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-300'
           }`}>
           <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>{editingApplication ? 'Edit Application' : 'New Application'}</h2>
@@ -279,8 +279,8 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
             <button
               onClick={handleClose}
               className={`px-4 py-2 rounded text-sm ${isDarkMode
-                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                 }`}
             >
               Cancel
@@ -290,7 +290,7 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
               disabled={loading}
               className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
               style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent && !loading) {
@@ -298,7 +298,7 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
               }}
             >
               {loading ? (
@@ -329,8 +329,8 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value })}
               className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             >
               {statusOptions.map(option => (
@@ -370,8 +370,8 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
                 value={formData.middle_initial}
                 onChange={(e) => setFormData({ ...formData, middle_initial: e.target.value })}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
                   }`}
                 placeholder="M.I."
               />
@@ -475,8 +475,8 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
               value={formData.landmark}
               onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
               className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
               placeholder="Nearby landmark"
             />
@@ -493,8 +493,8 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
                 value={formData.region}
                 onChange={(e) => setFormData({ ...formData, region: e.target.value })}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
                   }`}
                 placeholder="Region"
               />
@@ -510,8 +510,8 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
                   }`}
                 placeholder="City"
               />
@@ -529,8 +529,8 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
                 value={formData.barangay}
                 onChange={(e) => setFormData({ ...formData, barangay: e.target.value })}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
                   }`}
                 placeholder="Barangay"
               />
@@ -546,8 +546,8 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
                   }`}
                 placeholder="Specific location"
               />
@@ -581,8 +581,8 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
               value={formData.promo}
               onChange={(e) => setFormData({ ...formData, promo: e.target.value })}
               className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
               placeholder="Promo code (if any)"
             />
@@ -598,8 +598,8 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
               value={formData.referred_by}
               onChange={(e) => setFormData({ ...formData, referred_by: e.target.value })}
               className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
               placeholder="Name of referrer (if any)"
             />
@@ -615,8 +615,8 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
               value={formData.government_valid_id}
               onChange={(e) => setFormData({ ...formData, government_valid_id: e.target.value })}
               className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
               placeholder="Google Drive link or ID number"
             />
@@ -631,10 +631,10 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
                 checked={formData.terms_and_conditions}
                 onChange={(e) => setFormData({ ...formData, terms_and_conditions: e.target.checked })}
                 className={`mt-1 h-4 w-4 rounded border text-orange-600 focus:ring-orange-500 ${errors.terms_and_conditions
-                    ? 'border-red-500'
-                    : isDarkMode
-                      ? 'border-gray-600 bg-gray-700 focus:ring-offset-gray-800'
-                      : 'border-gray-300 bg-white focus:ring-offset-white'
+                  ? 'border-red-500'
+                  : isDarkMode
+                    ? 'border-gray-600 bg-gray-700 focus:ring-offset-gray-800'
+                    : 'border-gray-300 bg-white focus:ring-offset-white'
                   }`}
               />
               <div className="flex-1">
@@ -652,8 +652,8 @@ const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
           </div>
 
           <div className={`p-4 border rounded-lg ${isDarkMode
-              ? 'bg-blue-900/20 border-blue-700/30'
-              : 'bg-blue-50 border-blue-200'
+            ? 'bg-blue-900/20 border-blue-700/30'
+            : 'bg-blue-50 border-blue-200'
             }`}>
             <p className={`text-sm ${isDarkMode ? 'text-blue-300' : 'text-blue-700'
               }`}>

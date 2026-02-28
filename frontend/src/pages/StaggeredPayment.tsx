@@ -367,7 +367,7 @@ const StaggeredPayment: React.FC = () => {
                 className="flex items-center space-x-1 text-white px-3 py-1 rounded text-sm transition-colors"
                 onClick={handleOpenStaggeredFormModal}
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -449,7 +449,7 @@ const StaggeredPayment: React.FC = () => {
                       : 'bg-white text-gray-900 border border-gray-300'
                       }`}
                     style={{
-                      '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                      '--tw-ring-color': colorPalette?.primary || '#7c3aed'
                     } as React.CSSProperties}
                     onFocus={(e) => {
                       if (colorPalette?.primary) {
@@ -468,7 +468,7 @@ const StaggeredPayment: React.FC = () => {
                   disabled={isLoading}
                   className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
                   style={{
-                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!isLoading && colorPalette?.accent) {
@@ -604,7 +604,7 @@ const StaggeredPayment: React.FC = () => {
               <div className="text-center">
                 <div
                   className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-                  style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
+                  style={{ borderBottomColor: colorPalette?.primary || '#7c3aed' }}
                 ></div>
                 <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
               </div>

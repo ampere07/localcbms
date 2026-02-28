@@ -419,11 +419,11 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
         <div
           className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
           style={{
-            backgroundColor: isResizing ? (colorPalette?.primary || '#ea580c') : 'transparent'
+            backgroundColor: isResizing ? (colorPalette?.primary || '#7c3aed') : 'transparent'
           }}
           onMouseEnter={(e) => {
             if (!isResizing) {
-              e.currentTarget.style.backgroundColor = colorPalette?.accent || '#ea580c';
+              e.currentTarget.style.backgroundColor = colorPalette?.accent || '#7c3aed';
             }
           }}
           onMouseLeave={(e) => {
@@ -708,7 +708,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                 }}
                 className="text-white px-8 py-2.5 rounded font-medium transition-all active:scale-95"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -752,7 +752,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                 onClick={confirmApprove}
                 className="text-white px-6 py-2.5 rounded font-medium transition-all active:scale-95"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {

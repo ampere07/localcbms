@@ -575,9 +575,9 @@ const WorkOrderDoneFormModal: React.FC<WorkOrderDoneFormModalProps> = ({
               <button
                 onClick={() => setShowModal(false)}
                 className="px-4 py-2 text-white rounded transition-colors"
-                style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                 onMouseEnter={(e) => { if (colorPalette?.accent) e.currentTarget.style.backgroundColor = colorPalette.accent; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed'; }}
               >
                 Close
               </button>
@@ -596,7 +596,7 @@ const WorkOrderDoneFormModal: React.FC<WorkOrderDoneFormModalProps> = ({
               <button
                 onClick={onClose}
                 className="px-4 py-2 border rounded text-sm"
-                style={{ borderColor: colorPalette?.primary || '#ea580c', color: colorPalette?.primary || '#ea580c' }}
+                style={{ borderColor: colorPalette?.primary || '#7c3aed', color: colorPalette?.primary || '#7c3aed' }}
               >
                 Cancel
               </button>
@@ -604,9 +604,9 @@ const WorkOrderDoneFormModal: React.FC<WorkOrderDoneFormModalProps> = ({
                 onClick={handleSave}
                 disabled={loading}
                 className="px-4 py-2 disabled:opacity-50 text-white rounded text-sm"
-                style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                 onMouseEnter={(e) => { if (colorPalette?.accent) e.currentTarget.style.backgroundColor = colorPalette.accent; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed'; }}
               >
                 {loading ? 'Saving...' : 'Save'}
               </button>

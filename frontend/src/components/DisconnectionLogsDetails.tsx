@@ -155,7 +155,7 @@ const DisconnectionLogsDetails: React.FC<DisconnectionLogsDetailsProps> = ({ dis
             <h3 className={`text-sm uppercase mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
               }`}>Username</h3>
             <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-              {disconnectionRecord.username || 'manucaye0220251214'}
+              {disconnectionRecord.username || '-'}
             </p>
           </div>
 
@@ -164,7 +164,7 @@ const DisconnectionLogsDetails: React.FC<DisconnectionLogsDetailsProps> = ({ dis
             <h3 className={`text-sm uppercase mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
               }`}>Date</h3>
             <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-              {disconnectionRecord.date || '9/18/2025 3:47:54 PM'}
+              {disconnectionRecord.date || '-'}
             </p>
           </div>
 
@@ -173,7 +173,7 @@ const DisconnectionLogsDetails: React.FC<DisconnectionLogsDetailsProps> = ({ dis
             <h3 className={`text-sm uppercase mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
               }`}>Remarks</h3>
             <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-              {disconnectionRecord.remarks || 'Pullout'}
+              {disconnectionRecord.remarks || '-'}
             </p>
           </div>
 
@@ -183,7 +183,7 @@ const DisconnectionLogsDetails: React.FC<DisconnectionLogsDetailsProps> = ({ dis
               }`}>Barangay</h3>
             <div className="flex items-center">
               <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                {disconnectionRecord.barangay || 'Tatala'}
+                {disconnectionRecord.barangay || '-'}
               </p>
               <Info size={16} className={`ml-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
                 }`} />
@@ -195,7 +195,7 @@ const DisconnectionLogsDetails: React.FC<DisconnectionLogsDetailsProps> = ({ dis
             <h3 className={`text-sm uppercase mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
               }`}>City</h3>
             <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-              {disconnectionRecord.city || 'Binangonan'}
+              {disconnectionRecord.city || '-'}
             </p>
           </div>
 
@@ -204,7 +204,7 @@ const DisconnectionLogsDetails: React.FC<DisconnectionLogsDetailsProps> = ({ dis
             <h3 className={`text-sm uppercase mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
               }`}>Date Format</h3>
             <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-              {disconnectionRecord.dateFormat || disconnectionRecord.date?.split(' ')[0] || '9/18/2025'}
+              {disconnectionRecord.dateFormat || disconnectionRecord.date?.split(' ')[0] || '-'}
             </p>
           </div>
         </div>

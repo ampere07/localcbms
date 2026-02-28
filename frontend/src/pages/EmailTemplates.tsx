@@ -370,7 +370,7 @@ const EmailTemplates: React.FC = () => {
               onClick={handleStartCreate}
               className="px-3 py-1.5 text-white text-sm rounded transition-colors"
               style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent) {
@@ -378,7 +378,7 @@ const EmailTemplates: React.FC = () => {
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
               }}
               disabled={isCreating}
             >
@@ -391,7 +391,7 @@ const EmailTemplates: React.FC = () => {
         <div className="p-2">
           {loading ? (
             <div className="flex justify-center py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: colorPalette?.primary || '#7c3aed' }}></div>
             </div>
           ) : (
             templates.map((template) => (
@@ -400,12 +400,16 @@ const EmailTemplates: React.FC = () => {
                 onClick={() => handleTemplateSelect(template)}
                 className={`p-3 mb-2 rounded cursor-pointer transition-colors ${selectedTemplate?.Template_Code === template.Template_Code
                   ? isDarkMode
-                    ? 'bg-orange-600 bg-opacity-20 border-l-2 border-orange-500'
-                    : 'bg-orange-100 border-l-2 border-orange-500'
+                    ? 'bg-opacity-20 border-l-2'
+                    : 'border-l-2'
                   : isDarkMode
                     ? 'bg-gray-700 hover:bg-gray-600'
                     : 'bg-gray-100 hover:bg-gray-200'
                   }`}
+                style={selectedTemplate?.Template_Code === template.Template_Code ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(124, 58, 237, 0.2)',
+                  borderColor: colorPalette?.primary || '#7c3aed'
+                } : {}}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
@@ -436,19 +440,21 @@ const EmailTemplates: React.FC = () => {
                 }`}>Design Elements</h3>
               <button
                 onClick={insertHeader}
-                className={`w-full text-left px-2 py-1 mb-1 text-xs rounded ${isDarkMode
-                  ? 'text-orange-400 bg-gray-700 hover:bg-gray-600'
-                  : 'text-orange-600 bg-gray-100 hover:bg-gray-200'
+                className={`w-full text-left px-2 py-1 mb-1 text-xs rounded transition-colors ${isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600'
+                  : 'bg-gray-100 hover:bg-gray-200'
                   }`}
+                style={{ color: colorPalette?.primary || '#7c3aed' }}
               >
                 [+] Header (Full Bleed)
               </button>
               <button
                 onClick={insertFooter}
-                className={`w-full text-left px-2 py-1 mb-3 text-xs rounded ${isDarkMode
-                  ? 'text-orange-400 bg-gray-700 hover:bg-gray-600'
-                  : 'text-orange-600 bg-gray-100 hover:bg-gray-200'
+                className={`w-full text-left px-2 py-1 mb-3 text-xs rounded transition-colors ${isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600'
+                  : 'bg-gray-100 hover:bg-gray-200'
                   }`}
+                style={{ color: colorPalette?.primary || '#7c3aed' }}
               >
                 [+] Footer (Full Bleed)
               </button>
@@ -539,10 +545,14 @@ const EmailTemplates: React.FC = () => {
             <button
               key={tag}
               onClick={() => insertTag(`{{${tag}}}`)}
-              className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-blue-500 ${isDarkMode
-                ? 'text-blue-400 bg-gray-700 hover:bg-gray-600'
-                : 'text-blue-600 bg-gray-100 hover:bg-gray-200'
+              className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 transition-colors ${isDarkMode
+                ? 'bg-gray-700 hover:bg-gray-600'
+                : 'bg-gray-100 hover:bg-gray-200'
                 }`}
+              style={{
+                color: colorPalette?.primary || '#7c3aed',
+                borderColor: colorPalette?.primary || '#7c3aed'
+              }}
             >
               {`{{${tag}}}`}
             </button>
@@ -554,10 +564,14 @@ const EmailTemplates: React.FC = () => {
             <button
               key={tag}
               onClick={() => insertTag(`{{${tag}}}`)}
-              className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-blue-500 ${isDarkMode
-                ? 'text-blue-400 bg-gray-700 hover:bg-gray-600'
-                : 'text-blue-600 bg-gray-100 hover:bg-gray-200'
+              className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 transition-colors ${isDarkMode
+                ? 'bg-gray-700 hover:bg-gray-600'
+                : 'bg-gray-100 hover:bg-gray-200'
                 }`}
+              style={{
+                color: colorPalette?.primary || '#7c3aed',
+                borderColor: colorPalette?.primary || '#7c3aed'
+              }}
             >
               {`{{${tag}}}`}
             </button>
@@ -567,19 +581,27 @@ const EmailTemplates: React.FC = () => {
             }`}>Global Variables</h3>
           <button
             onClick={() => insertTag('{{portal_url}}')}
-            className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-orange-500 ${isDarkMode
-              ? 'text-orange-400 bg-gray-700 hover:bg-gray-600'
-              : 'text-orange-600 bg-gray-100 hover:bg-gray-200'
+            className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 transition-colors ${isDarkMode
+              ? 'bg-gray-700 hover:bg-gray-600'
+              : 'bg-gray-100 hover:bg-gray-200'
               }`}
+            style={{
+              color: colorPalette?.primary || '#7c3aed',
+              borderColor: colorPalette?.primary || '#7c3aed'
+            }}
           >
             {'{{portal_url}}'}
           </button>
           <button
             onClick={() => insertTag('{{company_name}}')}
-            className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 border-orange-500 ${isDarkMode
-              ? 'text-orange-400 bg-gray-700 hover:bg-gray-600'
-              : 'text-orange-600 bg-gray-100 hover:bg-gray-200'
+            className={`w-full text-left px-2 py-1 mb-1 text-xs font-mono rounded border-l-2 transition-colors ${isDarkMode
+              ? 'bg-gray-700 hover:bg-gray-600'
+              : 'bg-gray-100 hover:bg-gray-200'
               }`}
+            style={{
+              color: colorPalette?.primary || '#7c3aed',
+              borderColor: colorPalette?.primary || '#7c3aed'
+            }}
           >
             {'{{company_name}}'}
           </button>
@@ -785,7 +807,7 @@ const EmailTemplates: React.FC = () => {
                     onClick={handleSave}
                     className="px-4 py-2 text-white text-sm rounded transition-colors"
                     style={{
-                      backgroundColor: colorPalette?.primary || '#ea580c'
+                      backgroundColor: colorPalette?.primary || '#7c3aed'
                     }}
                     onMouseEnter={(e) => {
                       if (colorPalette?.accent) {
@@ -793,7 +815,7 @@ const EmailTemplates: React.FC = () => {
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                     }}
                   >
                     Save
@@ -929,7 +951,7 @@ const EmailTemplates: React.FC = () => {
                     onClick={modal.onConfirm}
                     className="px-3 py-1.5 text-sm text-white rounded transition-colors"
                     style={{
-                      backgroundColor: colorPalette?.primary || '#ea580c'
+                      backgroundColor: colorPalette?.primary || '#7c3aed'
                     }}
                     onMouseEnter={(e) => {
                       if (colorPalette?.accent) {
@@ -937,7 +959,7 @@ const EmailTemplates: React.FC = () => {
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                     }}
                   >
                     Confirm
@@ -948,7 +970,7 @@ const EmailTemplates: React.FC = () => {
                   onClick={() => setModal({ ...modal, isOpen: false })}
                   className="px-3 py-1.5 text-sm text-white rounded transition-colors"
                   style={{
-                    backgroundColor: colorPalette?.primary || '#ea580c'
+                    backgroundColor: colorPalette?.primary || '#7c3aed'
                   }}
                   onMouseEnter={(e) => {
                     if (colorPalette?.accent) {
@@ -956,7 +978,7 @@ const EmailTemplates: React.FC = () => {
                     }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                   }}
                 >
                   OK

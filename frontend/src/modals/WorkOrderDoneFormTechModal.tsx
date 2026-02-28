@@ -314,7 +314,7 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm font-medium hover:underline z-20"
-                    style={{ color: colorPalette?.primary || '#ea580c' }}
+                    style={{ color: colorPalette?.primary || '#7c3aed' }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     View in {isGDrive ? 'Drive' : 'Source'}
@@ -342,9 +342,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
           <div className="flex items-center mt-1">
             <div
               className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2 shadow-sm"
-              style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+              style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
             >!</div>
-            <p className="text-xs font-medium" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+            <p className="text-xs font-medium" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
           </div>
         )}
       </div>
@@ -1654,7 +1654,7 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
             }`}>
             <Loader2
               className="w-20 h-20 animate-spin"
-              style={{ color: colorPalette?.primary || '#ea580c' }}
+              style={{ color: colorPalette?.primary || '#7c3aed' }}
             />
             <div className="text-center">
               <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
@@ -1720,7 +1720,7 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                 onClick={() => setShowModal(false)}
                 className="px-4 py-2 text-white rounded transition-colors"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -1754,8 +1754,8 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                 onClick={onClose}
                 className="px-4 py-2 border rounded text-sm transition-colors"
                 style={{
-                  borderColor: colorPalette?.primary || '#ea580c',
-                  color: colorPalette?.primary || '#ea580c'
+                  borderColor: colorPalette?.primary || '#7c3aed',
+                  color: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.primary) {
@@ -1777,7 +1777,7 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                 disabled={loading}
                 className="px-4 py-2 disabled:opacity-50 text-white rounded text-sm transition-colors"
                 style={{
-                  backgroundColor: loading ? (isDarkMode ? '#6b7280' : '#9ca3af') : (colorPalette?.primary || '#ea580c')
+                  backgroundColor: loading ? (isDarkMode ? '#6b7280' : '#9ca3af') : (colorPalette?.primary || '#7c3aed')
                 }}
                 onMouseEnter={(e) => {
                   if (!loading && colorPalette?.accent) {
@@ -1825,9 +1825,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                 <div className="flex items-center mt-1">
                   <div
                     className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                   >!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.choosePlan}</p>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>{errors.choosePlan}</p>
                 </div>
               )}
             </div>
@@ -1850,9 +1850,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                 <div className="flex items-center mt-1">
                   <div
                     className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                   >!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.onsiteStatus}</p>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>{errors.onsiteStatus}</p>
                 </div>
               )}
             </div>
@@ -1917,9 +1917,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     <div className="flex items-center mt-1">
                       <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                       >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -1997,9 +1997,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     <div className="flex items-center mt-1">
                       <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                       >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -2016,7 +2016,7 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                         : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
                         }`}
                       style={formData.connectionType === 'Antenna' ? {
-                        backgroundColor: colorPalette?.primary || '#ea580c',
+                        backgroundColor: colorPalette?.primary || '#7c3aed',
                         borderColor: colorPalette?.accent || '#dc2626'
                       } : {}}
                     >Antenna</button>
@@ -2028,7 +2028,7 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                         : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
                         }`}
                       style={formData.connectionType === 'Fiber' ? {
-                        backgroundColor: colorPalette?.primary || '#ea580c',
+                        backgroundColor: colorPalette?.primary || '#7c3aed',
                         borderColor: colorPalette?.accent || '#dc2626'
                       } : {}}
                     >Fiber</button>
@@ -2040,7 +2040,7 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                         : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
                         }`}
                       style={formData.connectionType === 'Local' ? {
-                        backgroundColor: colorPalette?.primary || '#ea580c',
+                        backgroundColor: colorPalette?.primary || '#7c3aed',
                         borderColor: colorPalette?.accent || '#dc2626'
                       } : {}}
                     >Local</button>
@@ -2049,9 +2049,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     <div className="flex items-center mt-1">
                       <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                       >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -2078,9 +2078,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     <div className="flex items-center mt-1">
                       <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                       >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -2094,9 +2094,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     <div className="flex items-center mt-1">
                       <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                       >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -2122,9 +2122,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                       <div className="flex items-center mt-1">
                         <div
                           className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                          style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                          style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                         >!</div>
-                        <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.techInput}</p>
+                        <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>{errors.techInput}</p>
                       </div>
                     )}
                     {!techInputValue.trim() && !errors.techInput && (
@@ -2144,9 +2144,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                       <div className="flex items-center mt-1">
                         <div
                           className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                          style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                          style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                         >!</div>
-                        <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                        <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                       </div>
                     )}
                   </div>
@@ -2249,9 +2249,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                         <div className="flex items-center mt-1">
                           <div
                             className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                            style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                            style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                           >!</div>
-                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -2296,9 +2296,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                         <div className="flex items-center mt-1">
                           <div
                             className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                            style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                            style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                           >!</div>
-                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -2327,9 +2327,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                         <div className="flex items-center mt-1">
                           <div
                             className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                            style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                            style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                           >!</div>
-                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -2358,9 +2358,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     <div className="flex items-center mt-1">
                       <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                       >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -2387,9 +2387,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     <div className="flex items-center mt-1">
                       <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                       >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -2416,9 +2416,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     <div className="flex items-center mt-1">
                       <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                       >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -2432,9 +2432,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     <div className="flex items-center mt-1">
                       <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                       >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -2553,8 +2553,8 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                   </div>
                   {errors.clientSignatureImage && (
                     <div className="flex items-center mt-1">
-                      <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -2685,7 +2685,7 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                             )}
                           </div>
                           {errors[`item_${index}`] && (
-                            <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors[`item_${index}`]}</p>
+                            <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#7c3aed' }}>{errors[`item_${index}`]}</p>
                           )}
                         </div>
 
@@ -2701,7 +2701,7 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                                 }`}
                             />
                             {errors[`quantity_${index}`] && (
-                              <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors[`quantity_${index}`]}</p>
+                              <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#7c3aed' }}>{errors[`quantity_${index}`]}</p>
                             )}
                           </div>
                         )}
@@ -2722,9 +2722,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     <div className="flex items-center mt-1">
                       <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                       >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.items}</p>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>{errors.items}</p>
                     </div>
                   )}
                 </div>
@@ -2764,9 +2764,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     <div className="flex items-center mt-1">
                       <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                       >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -2793,9 +2793,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     <div className="flex items-center mt-1">
                       <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                       >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -2822,9 +2822,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     <div className="flex items-center mt-1">
                       <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                       >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -2838,9 +2838,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     <div className="flex items-center mt-1">
                       <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                       >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -2865,9 +2865,9 @@ const WorkOrderDoneFormTechModal: React.FC<WorkOrderDoneFormTechModalProps> = ({
                     <div className="flex items-center mt-1">
                       <div
                         className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                       >!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>

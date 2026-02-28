@@ -306,7 +306,7 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
             }`}>
             <Loader2
               className="w-20 h-20 animate-spin"
-              style={{ color: colorPalette?.primary || '#ea580c' }}
+              style={{ color: colorPalette?.primary || '#7c3aed' }}
             />
             <div className="text-center">
               <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
@@ -323,7 +323,7 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
             {modal.type === 'loading' ? (
               <div className="text-center">
                 <div className="flex justify-center mb-4">
-                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#ea580c' }}></div>
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#7c3aed' }}></div>
                 </div>
                 <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}>{modal.title}</h3>
@@ -352,7 +352,7 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                         onClick={modal.onConfirm}
                         className="px-4 py-2 text-white rounded transition-colors"
                         style={{
-                          backgroundColor: colorPalette?.primary || '#ea580c'
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
                         }}
                         onMouseEnter={(e) => {
                           if (colorPalette?.accent) {
@@ -360,7 +360,7 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                           }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                         }}
                       >
                         Confirm
@@ -377,7 +377,7 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                       }}
                       className="px-4 py-2 text-white rounded transition-colors"
                       style={{
-                        backgroundColor: colorPalette?.primary || '#ea580c'
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
                       }}
                       onMouseEnter={(e) => {
                         if (colorPalette?.accent) {
@@ -385,7 +385,7 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                         }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                       }}
                     >
                       OK
@@ -418,7 +418,7 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                 disabled={loading}
                 className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center transition-colors"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent && !loading) {
@@ -426,7 +426,7 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                 }}
               >
                 {loading ? (
@@ -503,8 +503,8 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                       : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
                     }`}
                   style={formData.rebateType === 'lcpnap' ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c',
-                    borderColor: colorPalette?.primary || '#ea580c'
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
+                    borderColor: colorPalette?.primary || '#7c3aed'
                   } : {}}
                 >
                   LCPNAP
@@ -519,8 +519,8 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                       : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
                     }`}
                   style={formData.rebateType === 'lcp' ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c',
-                    borderColor: colorPalette?.primary || '#ea580c'
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
+                    borderColor: colorPalette?.primary || '#7c3aed'
                   } : {}}
                 >
                   LCP
@@ -535,8 +535,8 @@ const RebateFormModal: React.FC<RebateFormModalProps> = ({
                       : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400'
                     }`}
                   style={formData.rebateType === 'barangay' ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c',
-                    borderColor: colorPalette?.primary || '#ea580c'
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
+                    borderColor: colorPalette?.primary || '#7c3aed'
                   } : {}}
                 >
                   Barangay
