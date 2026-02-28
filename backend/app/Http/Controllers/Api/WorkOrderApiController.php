@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\WorkOrder;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -127,6 +128,23 @@ class WorkOrderApiController extends Controller
 
             $workOrder->save();
             
+            // Create Activity Log
+            ActivityLog::log(
+                'Work Order Created',
+                "New Work Order created for category: {$workOrder->work_category}. Assigned to: {$workOrder->assign_to}",
+                'info',
+                [
+                    'resource_type' => 'WorkOrder',
+                    'resource_id' => $workOrder->id,
+                    'additional_data' => [
+                        'instructions' => $workOrder->instructions,
+                        'assign_to' => $workOrder->assign_to,
+                        'work_category' => $workOrder->work_category,
+                        'requested_by' => $workOrder->requested_by
+                    ]
+                ]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Work order created successfully',
@@ -236,6 +254,23 @@ class WorkOrderApiController extends Controller
 
             $workOrder->save();
             
+            // Create Activity Log
+            ActivityLog::log(
+                'Work Order Updated',
+                "Work Order #{$workOrder->id} updated. Status: {$workOrder->work_status}",
+                'info',
+                [
+                    'resource_type' => 'WorkOrder',
+                    'resource_id' => $workOrder->id,
+                    'additional_data' => [
+                        'work_status' => $workOrder->work_status,
+                        'assign_to' => $workOrder->assign_to,
+                        'remarks' => $workOrder->remarks,
+                        'updated_by' => $request->input('updated_by')
+                    ]
+                ]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Work order updated successfully',
@@ -261,8 +296,23 @@ class WorkOrderApiController extends Controller
                 ], 404);
             }
             
+            $workOrderData = $workOrder->toArray();
             $workOrder->delete();
-            
+
+            // Create Activity Log
+            ActivityLog::log(
+                'Work Order Deleted',
+                "Work Order #{$id} deleted by " . (auth()->user()->email ?? 'System'),
+                'warning',
+                [
+                    'resource_type' => 'WorkOrder',
+                    'resource_id' => $id,
+                    'additional_data' => [
+                        'work_order_data' => $workOrderData
+                    ]
+                ]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Work order permanently deleted from database'

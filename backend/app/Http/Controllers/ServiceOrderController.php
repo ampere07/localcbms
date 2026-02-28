@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Models\BillingAccount;
+use App\Models\ActivityLog;
 use App\Services\ManualRadiusOperationsService;
 use App\Services\PppoeUsernameService;
 use Illuminate\Support\Facades\Auth;
@@ -286,6 +287,24 @@ class ServiceOrderController extends Controller
                     $reconnectStatus = $this->attemptReconnection($billingAccount, $serviceOrderId);
                 }
             }
+
+            // Create Activity Log
+            ActivityLog::log(
+                'Service Order Created',
+                "New Service Order created for Account #{$request->account_no}. Ticket ID: {$ticketId}",
+                'info',
+                [
+                    'resource_type' => 'ServiceOrder',
+                    'resource_id' => $serviceOrderId,
+                    'additional_data' => [
+                        'ticket_id' => $ticketId,
+                        'account_no' => $request->account_no,
+                        'concern' => $request->concern,
+                        'support_status' => $request->support_status,
+                        'requested_by' => $request->requested_by
+                    ]
+                ]
+            );
 
             return response()->json([
                 'success' => true,
@@ -779,6 +798,27 @@ class ServiceOrderController extends Controller
                 }
             }
 
+            // Create Activity Log
+            ActivityLog::log(
+                'Service Order Updated',
+                "Service Order #{$id} updated. Ticket: {$order->ticket_id}. Status: {$request->input('support_status', $order->support_status)}",
+                'info',
+                [
+                    'resource_type' => 'ServiceOrder',
+                    'resource_id' => $id,
+                    'additional_data' => [
+                        'ticket_id' => $order->ticket_id,
+                        'support_status' => $request->input('support_status'),
+                        'visit_status' => $request->input('visit_status'),
+                        'assigned_email' => $request->input('assigned_email'),
+                        'reconnect_status' => $reconnectStatus,
+                        'disconnect_status' => $disconnectStatus,
+                        'pullout_status' => $pulloutStatus,
+                        'migration_status' => $migrationStatus
+                    ]
+                ]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Service order updated successfully',
@@ -803,7 +843,24 @@ class ServiceOrderController extends Controller
     {
         try {
             $serviceOrder = ServiceOrder::findOrFail($id);
+            $ticketId = $serviceOrder->ticket_id;
+            $accountNo = $serviceOrder->account_no;
             $serviceOrder->delete();
+
+            // Create Activity Log
+            ActivityLog::log(
+                'Service Order Deleted',
+                "Service Order #{$id} deleted. Ticket: {$ticketId}, Account: {$accountNo}",
+                'warning',
+                [
+                    'resource_type' => 'ServiceOrder',
+                    'resource_id' => $id,
+                    'additional_data' => [
+                        'ticket_id' => $ticketId,
+                        'account_no' => $accountNo
+                    ]
+                ]
+            );
 
             return response()->json([
                 'success' => true,

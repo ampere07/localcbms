@@ -2126,7 +2126,9 @@ Route::prefix('transactions')->group(function () {
     Route::post('/upload-images', [\App\Http\Controllers\TransactionController::class, 'uploadImages']);
     Route::post('/batch-approve', [\App\Http\Controllers\TransactionController::class, 'batchApprove']);
     Route::get('/{id}', [\App\Http\Controllers\TransactionController::class, 'show']);
+    Route::delete('/{id}', [\App\Http\Controllers\TransactionController::class, 'destroy']);
     Route::post('/{id}/approve', [\App\Http\Controllers\TransactionController::class, 'approve']);
+    Route::post('/{id}/revert', [\App\Http\Controllers\TransactionController::class, 'revert']);
     Route::put('/{id}/status', [\App\Http\Controllers\TransactionController::class, 'updateStatus']);
 });
 

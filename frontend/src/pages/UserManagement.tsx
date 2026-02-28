@@ -17,6 +17,7 @@ const UserManagement: React.FC = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [userTypeFilter, setUserTypeFilter] = useState<'All' | 'Operations' | 'Customer'>('All');
 
   useEffect(() => {
     loadUsers();
@@ -74,11 +75,26 @@ const UserManagement: React.FC = () => {
   const filteredUsers = users.filter(user => {
     const fullName = getFullName(user);
     const searchLower = searchTerm.toLowerCase();
-    return (
+
+    // Search filter
+    const matchesSearch = (
       (user.username && user.username.toLowerCase().includes(searchLower)) ||
       (user.email_address && user.email_address.toLowerCase().includes(searchLower)) ||
       (fullName && fullName.toLowerCase().includes(searchLower))
     );
+
+    // Role filter
+    // 3 is usually the Customer role_id
+    const isCustomer = user.role_id === 3 || user.role?.id === 3;
+    let matchesRole = true;
+
+    if (userTypeFilter === 'Operations') {
+      matchesRole = !isCustomer;
+    } else if (userTypeFilter === 'Customer') {
+      matchesRole = isCustomer;
+    }
+
+    return matchesSearch && matchesRole;
   });
 
   // Pagination calculations
@@ -90,10 +106,10 @@ const UserManagement: React.FC = () => {
   const showingStart = totalItems === 0 ? 0 : startIndex + 1;
   const showingEnd = Math.min(endIndex, totalItems);
 
-  // Reset to first page when search changes
+  // Reset to first page when search or filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, userTypeFilter]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -203,26 +219,55 @@ const UserManagement: React.FC = () => {
           </div>
 
           <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 mb-8">
-            <input
-              type="text"
-              placeholder="Search users by name, username, or email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className={`px-4 py-3 border rounded placeholder-gray-500 focus:outline-none w-full md:w-80 ${isDarkMode
-                ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-100'
-                : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
-                }`}
-              onFocus={(e) => {
-                if (colorPalette?.primary) {
-                  e.currentTarget.style.borderColor = colorPalette.primary;
-                  e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
-                }
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = isDarkMode ? '#4b5563' : '#d1d5db';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            />
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 flex-1">
+              <input
+                type="text"
+                placeholder="Search users by name, username, or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`px-4 py-3 border rounded placeholder-gray-500 focus:outline-none flex-1 ${isDarkMode
+                  ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-100'
+                  : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                  }`}
+                onFocus={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.borderColor = colorPalette.primary;
+                    e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                  }
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = isDarkMode ? '#4b5563' : '#d1d5db';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+              <div className="flex items-center gap-2">
+                <span className={`text-sm font-medium whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Filter by:
+                </span>
+                <select
+                  value={userTypeFilter}
+                  onChange={(e) => setUserTypeFilter(e.target.value as any)}
+                  className={`px-4 py-3 border rounded focus:outline-none min-w-[140px] ${isDarkMode
+                    ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-100'
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                    }`}
+                  onFocus={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.borderColor = colorPalette.primary;
+                      e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = isDarkMode ? '#4b5563' : '#d1d5db';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <option value="All">All Users</option>
+                  <option value="Operations">Operations</option>
+                  <option value="Customer">Customer</option>
+                </select>
+              </div>
+            </div>
             <button
               onClick={handleAddNewUser}
               className="px-6 py-3 rounded transition-colors text-sm font-medium whitespace-nowrap text-white"

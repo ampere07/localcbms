@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\LCPNAPLocation;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -90,6 +91,18 @@ class LCPNAPApiController extends Controller
             ]);
 
             $location = LCPNAPLocation::create($validated);
+            
+            // Log Activity
+            ActivityLog::log(
+                'LCP/NAP Created',
+                "New LCP/NAP record created: {$location->lcpnap_name}",
+                'info',
+                [
+                    'resource_type' => 'LCPNAPLocation',
+                    'resource_id' => $location->id,
+                    'additional_data' => $location->toArray()
+                ]
+            );
 
             return response()->json([
                 'success' => true,
@@ -120,6 +133,18 @@ class LCPNAPApiController extends Controller
             ]);
 
             $location->update($validated);
+            
+            // Log Activity
+            ActivityLog::log(
+                'LCP/NAP Updated',
+                "LCP/NAP record updated: {$location->lcpnap_name} (ID: {$id})",
+                'info',
+                [
+                    'resource_type' => 'LCPNAPLocation',
+                    'resource_id' => $location->id,
+                    'additional_data' => $location->toArray()
+                ]
+            );
 
             return response()->json([
                 'success' => true,
@@ -145,7 +170,21 @@ class LCPNAPApiController extends Controller
     {
         try {
             $location = LCPNAPLocation::findOrFail($id);
+            $locationData = $location->toArray();
+            $locationName = $location->lcpnap_name;
             $location->delete();
+            
+            // Log Activity
+            ActivityLog::log(
+                'LCP/NAP Deleted',
+                "LCP/NAP record deleted: {$locationName} (ID: {$id})",
+                'warning',
+                [
+                    'resource_type' => 'LCPNAPLocation',
+                    'resource_id' => $id,
+                    'additional_data' => $locationData
+                ]
+            );
 
             return response()->json([
                 'success' => true,

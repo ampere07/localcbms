@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\SmsBlastLog;
 use App\Models\SmsConfig;
+use App\Models\ActivityLog;
 
 class SmsBlastController extends Controller
 {
@@ -151,6 +152,22 @@ class SmsBlastController extends Controller
             $smsLog->created_by_user_id = $request->user()->id ?? 1;
             $smsLog->updated_by_user_id = $request->user()->id ?? 1;
             $smsLog->save();
+
+            // Create Activity Log
+            ActivityLog::log(
+                'SMS Blast Created',
+                "New SMS Blast created with {$recipientCount} recipients. Message: " . substr($validated['message'], 0, 100) . (strlen($validated['message']) > 100 ? '...' : ''),
+                'info',
+                [
+                    'resource_type' => 'SmsBlast',
+                    'resource_id' => $smsLog->id,
+                    'additional_data' => [
+                        'message_count' => $recipientCount,
+                        'target_type' => !empty($validated['barangay_id']) ? 'Barangay' : (!empty($validated['lcp_id']) ? 'LCP' : (!empty($validated['lcpnap_id']) ? 'LCPNAP' : (!empty($validated['billing_day']) ? 'Billing Day' : 'Unknown'))),
+                        'target_id' => $validated['barangay_id'] ?? $validated['lcp_id'] ?? $validated['lcpnap_id'] ?? $validated['billing_day'] ?? null
+                    ]
+                ]
+            );
 
             // Send actual SMS via Itexmo
             if ($recipientCount > 0) {

@@ -8,6 +8,7 @@ use App\Services\GoogleDriveService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use App\Models\ActivityLog;
 
 class LcpNapLocationController extends Controller
 {
@@ -271,6 +272,18 @@ class LcpNapLocationController extends Controller
                 'name' => $lcpnap->lcpnap_name
             ]);
             
+            // Log Activity
+            ActivityLog::log(
+                'LCP/NAP Location Created',
+                "New LCP/NAP location added: {$lcpnap->lcpnap_name}",
+                'info',
+                [
+                    'resource_type' => 'LCPNAPLocationDetail',
+                    'resource_id' => $lcpnap->id,
+                    'additional_data' => $lcpnap->toArray()
+                ]
+            );
+            
             return response()->json([
                 'success' => true,
                 'message' => 'LCPNAP location added successfully',
@@ -402,6 +415,18 @@ class LcpNapLocationController extends Controller
             $lcpnap->coordinates = $request->coordinates;
             $lcpnap->save();
             
+            // Log Activity
+            ActivityLog::log(
+                'LCP/NAP Location Updated',
+                "LCP/NAP location updated: {$lcpnap->lcpnap_name} (ID: {$id})",
+                'info',
+                [
+                    'resource_type' => 'LCPNAPLocationDetail',
+                    'resource_id' => $lcpnap->id,
+                    'additional_data' => $lcpnap->toArray()
+                ]
+            );
+            
             return response()->json([
                 'success' => true,
                 'message' => 'LCPNAP location updated successfully',
@@ -431,7 +456,21 @@ class LcpNapLocationController extends Controller
                 ], 404);
             }
             
+            $lcpnapData = $lcpnap->toArray();
+            $lcpnapName = $lcpnap->lcpnap_name;
             $lcpnap->delete();
+            
+            // Log Activity
+            ActivityLog::log(
+                'LCP/NAP Location Deleted',
+                "LCP/NAP location permanently deleted: {$lcpnapName} (ID: {$id})",
+                'warning',
+                [
+                    'resource_type' => 'LCPNAPLocationDetail',
+                    'resource_id' => $id,
+                    'additional_data' => $lcpnapData
+                ]
+            );
             
             return response()->json([
                 'success' => true,

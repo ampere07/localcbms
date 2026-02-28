@@ -70,6 +70,8 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   const [error, setError] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showRevertModal, setShowRevertModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
@@ -83,6 +85,22 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   const [fullRelatedInvoices, setFullRelatedInvoices] = useState<any[]>([]);
   const [invoicesCount, setInvoicesCount] = useState(0);
   const [expandedModalSection, setExpandedModalSection] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<{ role: string, role_id: string | number } | null>(null);
+
+  useEffect(() => {
+    try {
+      const authData = localStorage.getItem('authData');
+      if (authData) {
+        const parsed = JSON.parse(authData);
+        setUserRole({
+          role: parsed.role || '',
+          role_id: parsed.role_id || ''
+        });
+      }
+    } catch (err) {
+      console.error('Error getting user role:', err);
+    }
+  }, []);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -194,6 +212,14 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
     setShowConfirmModal(true);
   };
 
+  const handleRevertTransaction = () => {
+    setShowRevertModal(true);
+  };
+
+  const handleDeleteTransaction = () => {
+    setShowDeleteModal(true);
+  };
+
   const { refreshBillingRecords } = useBillingStore();
 
   const confirmApprove = async () => {
@@ -249,6 +275,92 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
     } catch (err: any) {
       setError(`Failed to approve transaction: ${err.message}`);
       console.error('Approve transaction error:', err);
+    } finally {
+      setLoading(false);
+      setLoadingPercentage(0);
+    }
+  };
+
+  const confirmRevert = async () => {
+    setShowRevertModal(false);
+
+    try {
+      setLoading(true);
+      setLoadingPercentage(0);
+      setError(null);
+
+      setLoadingPercentage(20);
+
+      let currentUserEmail = '';
+      try {
+        const authData = localStorage.getItem('authData');
+        if (authData) {
+          const parsed = JSON.parse(authData);
+          currentUserEmail = parsed.email || parsed.user?.email || '';
+        }
+      } catch (err) {
+        console.error('Error getting current user email:', err);
+      }
+
+      const result = await transactionService.revertTransaction(transaction.id, currentUserEmail);
+
+      setLoadingPercentage(60);
+
+      if (result.success) {
+        setLoadingPercentage(100);
+
+        const status = result.data?.status || 'Pending';
+        transaction.status = status;
+
+        // Auto-refresh customer data
+        try {
+          await refreshBillingRecords();
+          console.log('Customer data refreshed after transaction revert');
+        } catch (refreshErr) {
+          console.error('Failed to auto-refresh customer data:', refreshErr);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        setSuccessMessage(`Transaction reverted successfully. Status: ${status}`);
+        setShowSuccessModal(true);
+        if (onApprovalSuccess) {
+          onApprovalSuccess(); // Re-use the same callback to refresh lists
+        }
+      } else {
+        setError(result.message || 'Failed to revert transaction');
+      }
+    } catch (err: any) {
+      setError(`Failed to revert transaction: ${err.message}`);
+      console.error('Revert transaction error:', err);
+    } finally {
+      setLoading(false);
+      setLoadingPercentage(0);
+    }
+  };
+
+  const confirmDelete = async () => {
+    setShowDeleteModal(false);
+
+    try {
+      setLoading(true);
+      setLoadingPercentage(0);
+      setError(null);
+
+      const result = await transactionService.deleteTransaction(transaction.id);
+
+      if (result.success) {
+        setSuccessMessage('Transaction deleted successfully');
+        setShowSuccessModal(true);
+        if (onApprovalSuccess) {
+          onApprovalSuccess(); // Refresh the parent list
+        }
+      } else {
+        setError(result.message || 'Failed to delete transaction');
+      }
+    } catch (err: any) {
+      setError(`Failed to delete transaction: ${err.message || err}`);
+      console.error('Delete transaction error:', err);
     } finally {
       setLoading(false);
       setLoadingPercentage(0);
@@ -355,6 +467,31 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                 <span>{loading ? 'Approving...' : 'Approve'}</span>
               </button>
             )}
+            {(transaction.status || '').toLowerCase() === 'done' &&
+              (String(userRole?.role_id) === '7' || userRole?.role === 'SuperAdmin') && (
+                <button
+                  onClick={handleRevertTransaction}
+                  disabled={loading}
+                  className="flex items-center space-x-2 text-white px-3 py-1.5 rounded text-sm transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: loading ? '#4b5563' : '#ef4444' // Red for revert
+                  }}
+                >
+                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                  <span>{loading ? 'Reverting...' : 'Revert'}</span>
+                </button>
+              )}
+            {(transaction.status || '').toLowerCase() === 'pending' &&
+              (String(userRole?.role_id) === '7' || userRole?.role === 'SuperAdmin') && (
+                <button
+                  onClick={handleDeleteTransaction}
+                  disabled={loading}
+                  className="p-1.5 rounded text-red-500 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Delete Transaction"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
             <button
               onClick={onClose}
               className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
@@ -629,6 +766,68 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                 }}
               >
                 Confirm Approve
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRevertModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border transform transition-all duration-300 ${isDarkMode
+            ? 'bg-gray-800 border-gray-700 shadow-2xl'
+            : 'bg-white border-gray-300 shadow-xl'
+            }`}>
+            <h3 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Confirm Reversion</h3>
+            <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Are you sure you want to revert this transaction? This will add the payment amount back to the account balance and mark paid invoices as unpaid.</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowRevertModal(false)}
+                className={`px-6 py-2.5 rounded font-medium transition-colors ${isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRevert}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded font-medium transition-all active:scale-95"
+              >
+                Confirm Revert
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border transform transition-all duration-300 ${isDarkMode
+            ? 'bg-gray-800 border-gray-700 shadow-2xl'
+            : 'bg-white border-gray-300 shadow-xl'
+            }`}>
+            <h3 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Confirm Deletion</h3>
+            <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Are you sure you want to delete this transaction? This action cannot be undone. Only pending or reverted transactions can be deleted.</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className={`px-6 py-2.5 rounded font-medium transition-colors ${isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded font-medium transition-all active:scale-95"
+              >
+                Confirm Delete
               </button>
             </div>
           </div>

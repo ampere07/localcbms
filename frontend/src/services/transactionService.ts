@@ -1,6 +1,7 @@
 import apiClient from '../config/api';
 
 interface ApiResponse<T = any> {
+  success?: boolean;
   data?: T;
   message?: string;
   error?: string;
@@ -54,6 +55,35 @@ export const transactionService = {
         success: false,
         message: error.response?.data?.message || error.message || 'Failed to approve transaction'
       };
+    }
+  },
+
+  revertTransaction: async (transactionId: string, revertedBy?: string): Promise<ApproveTransactionResponse> => {
+    try {
+      const response = await apiClient.post<ApiResponse>(`/transactions/${transactionId}/revert`, {
+        reverted_by: revertedBy
+      });
+      return {
+        success: true,
+        message: response.data.message || 'Transaction reverted successfully',
+        data: response.data
+      };
+    } catch (error: any) {
+      console.error('Error reverting transaction:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to revert transaction'
+      };
+    }
+  },
+
+  deleteTransaction: async (transactionId: string): Promise<ApiResponse> => {
+    try {
+      const response = await apiClient.delete<ApiResponse>(`/transactions/${transactionId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error deleting transaction:', error);
+      throw error.response?.data || error;
     }
   },
 
