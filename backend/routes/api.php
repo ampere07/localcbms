@@ -1566,6 +1566,7 @@ Route::prefix('work-orders')->group(function () {
     Route::get('/{id}', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'show']);
     Route::put('/{id}', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'update']);
     Route::delete('/{id}', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'destroy']);
+    Route::post('/{id}/upload-images', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'uploadImages']);
 });
 
 // VLANs (plural) for frontend compatibility

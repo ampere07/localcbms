@@ -19,6 +19,15 @@ interface User {
   name: string;
 }
 
+interface ModalConfig {
+  isOpen: boolean;
+  type: 'success' | 'error' | 'warning' | 'confirm' | 'loading';
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
+
 const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
   isOpen,
   onClose,
@@ -63,6 +72,13 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const [modal, setModal] = useState<ModalConfig>({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: ''
+  });
 
   useEffect(() => {
     const theme = localStorage.getItem('theme');
@@ -188,8 +204,13 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
     setLoadingPercentage(0);
 
     const progressInterval = setInterval(() => {
-      setLoadingPercentage(prev => prev >= 90 ? prev : prev + 5);
-    }, 200);
+      setLoadingPercentage(prev => {
+        if (prev >= 99) return 99;
+        if (prev >= 90) return prev + 1;
+        if (prev >= 70) return prev + 2;
+        return prev + 5;
+      });
+    }, 300);
 
     try {
       const authData = localStorage.getItem('authData');
@@ -207,6 +228,7 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
 
       const submitData = new FormData();
       submitData.append('instructions', formData.instructions);
+      submitData.append('work_category', formData.work_category);
       submitData.append('report_to', formData.report_to);
       submitData.append('assign_to', formData.assign_to);
       submitData.append('remarks', formData.remarks);
@@ -247,13 +269,28 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
       setLoadingPercentage(100);
 
       setTimeout(() => {
-        onSave();
-        if (onRefresh) onRefresh();
+        setModal({
+          isOpen: true,
+          type: 'success',
+          title: 'Success',
+          message: isEditMode ? 'Work Order updated successfully!' : 'Work Order created successfully!',
+          onConfirm: () => {
+            onSave();
+            if (onRefresh) onRefresh();
+            onClose();
+            setModal(prev => ({ ...prev, isOpen: false }));
+          }
+        });
       }, 500);
 
     } catch (error: any) {
       clearInterval(progressInterval);
-      alert(error.message || 'An error occurred');
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: isEditMode ? 'Failed to Update Work Order' : 'Failed to Create Work Order',
+        message: error.message || 'An error occurred'
+      });
     } finally {
       setTimeout(() => {
         setLoading(false);
@@ -299,9 +336,16 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
     <>
       {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
-          <div className={`p-8 rounded flex flex-col items-center ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            <Loader2 className="w-16 h-16 animate-spin text-orange-500" />
-            <h2 className={`mt-4 text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{loadingPercentage}%</h2>
+          <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+            <Loader2
+              className="w-20 h-20 animate-spin"
+              style={{ color: colorPalette?.primary || '#7c3aed' }}
+            />
+            <div className="text-center">
+              <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{loadingPercentage}%</p>
+            </div>
           </div>
         </div>
       )}
@@ -459,6 +503,88 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
           </div>
         </div>
       </div>
+
+      {modal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[10000]">
+          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+            {modal.type === 'loading' ? (
+              <div className="text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#7c3aed' }}></div>
+                </div>
+                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>{modal.message}</p>
+              </div>
+            ) : (
+              <>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>{modal.message}</p>
+                <div className="flex items-center justify-end gap-3">
+                  {modal.type === 'confirm' ? (
+                    <>
+                      <button
+                        onClick={modal.onCancel}
+                        className={`px-4 py-2 rounded transition-colors ${isDarkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          }`}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={modal.onConfirm}
+                        className="px-4 py-2 text-white rounded transition-colors"
+                        style={{
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                        }}
+                      >
+                        Confirm
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (modal.onConfirm) {
+                          modal.onConfirm();
+                        } else {
+                          setModal(prev => ({ ...prev, isOpen: false }));
+                        }
+                      }}
+                      className="px-4 py-2 text-white rounded transition-colors"
+                      style={{
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                      }}
+                    >
+                      OK
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 };
