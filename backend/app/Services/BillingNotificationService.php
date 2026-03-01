@@ -342,6 +342,7 @@ class BillingNotificationService
                     
                     $soaDateStr = $soa && $soa->statement_date ? $soa->statement_date->format('M d, Y') : date('M d, Y');
                     $message = str_replace('{{soa_date}}', $soaDateStr, $message);
+                    $message = str_replace('{{soa_data}}', $soaDateStr, $message);
                     
                     $message = $this->replaceGlobalVariables($message);
                     
@@ -513,7 +514,9 @@ class BillingNotificationService
             'DC_Date' => $dcDate->format('F d, Y'),
             'Total_Due' => number_format($amount ?? 0, 2),
             'Amount_Due' => number_format($amount ?? 0, 2),
-            // Legacy mapping used by some simple templates
+            'amount' => number_format($amount ?? 0, 2),
+            'amount_due' => number_format($amount ?? 0, 2),
+            'balance' => number_format($amount ?? 0, 2),
             'account_no' => $account->account_no,
             'customer_name' => $customerName,
             'total_amount' => number_format($amount ?? 0, 2),
@@ -541,6 +544,9 @@ class BillingNotificationService
             $data['Period_Start'] = '';
             $data['Period_End'] = '';
         }
+
+        $data['soa_date'] = $data['Statement_Date'] ?? '';
+        $data['soa_data'] = $data['Statement_Date'] ?? '';
 
         return $data;
     }

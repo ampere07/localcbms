@@ -423,53 +423,53 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         }
       } else {
         setShowLoadingModal(false);
-        let msg = response.message || 'Failed to approve job order';
+        const backendMsg = response.error || response.message || 'Failed to approve job order';
+        let displayMsg = backendMsg;
 
         // Map duplicate errors to more specific messages
-        if (msg.includes('already data') || msg.includes('duplicate') || msg.toLowerCase().includes('serial number')) {
-          if (msg.toLowerCase().includes('serial number') || msg.toLowerCase().includes('modem')) {
-            msg = "SN Duplicate, Please check on Customer Details. SN Duplicate Detected.";
-          } else if (msg.includes("already data") || msg.toLowerCase().includes('duplicate')) {
-            msg = "Username Duplicate, Please check on Customer Details. Username Duplicate Detected.";
+        if (backendMsg.includes('already data') || backendMsg.includes('duplicate') || backendMsg.toLowerCase().includes('serial number')) {
+          if (backendMsg.toLowerCase().includes('serial number') || backendMsg.toLowerCase().includes('modem')) {
+            displayMsg = "SN Duplicate, Please check on Customer Details. SN Duplicate Detected.";
+          } else if (backendMsg.includes("already data") || backendMsg.toLowerCase().includes('duplicate')) {
+            displayMsg = "Username Duplicate, Please check on Customer Details. Username Duplicate Detected.";
           }
 
-          if (response.table && !msg.includes('Customer Details')) {
-            msg = `Duplicate Entry Error: ${msg}\nTable: ${response.table}`;
+          if (response.table && !displayMsg.includes('Customer Details')) {
+            displayMsg = `Duplicate Entry Error: ${displayMsg}\nTable: ${response.table}`;
           }
         }
 
-        setErrorMessage(msg);
+        setErrorMessage(displayMsg);
         setShowErrorModal(true);
       }
     } catch (err: any) {
       setShowLoadingModal(false);
 
-      let msg = 'Failed to approve job order';
+      let displayMsg = 'Failed to approve job order';
       let tableInfo = '';
 
       if (err.response?.data) {
         const data = err.response.data;
-        if (data.message === "there's already data in database" || data.message?.toLowerCase().includes('duplicate') || data.message?.toLowerCase().includes('serial number')) {
-          msg = data.message;
+        const rawMsg = data.error || data.message || 'Failed to approve job order';
+        displayMsg = rawMsg;
 
-          // Map duplicate errors to more specific messages
-          if (msg.toLowerCase().includes('serial number') || msg.toLowerCase().includes('modem')) {
-            msg = "SN Duplicate, Please check on Customer Details. SN Duplicate Detected.";
-          } else if (msg === "there's already data in database" || msg.toLowerCase().includes('duplicate')) {
-            msg = "Username Duplicate, Please check on Customer Details. Username Duplicate Detected.";
+        // Map duplicate errors to more specific messages
+        if (rawMsg.includes('already data') || rawMsg.includes('duplicate') || rawMsg.toLowerCase().includes('serial number') || rawMsg.includes('already been approved')) {
+          if (rawMsg.toLowerCase().includes('serial number') || rawMsg.toLowerCase().includes('modem')) {
+            displayMsg = "SN Duplicate, Please check on Customer Details. SN Duplicate Detected.";
+          } else if (rawMsg.includes("already data") || rawMsg.toLowerCase().includes('duplicate')) {
+            displayMsg = "Username Duplicate, Please check on Customer Details. Username Duplicate Detected.";
           }
 
-          if (data.table && !msg.includes('Customer Details')) {
+          if (data.table && !displayMsg.includes('Customer Details')) {
             tableInfo = `\nTable: ${data.table}`;
           }
-        } else if (data.message) {
-          msg = data.message;
         }
       } else if (err.message) {
-        msg = err.message;
+        displayMsg = err.message;
       }
 
-      setErrorMessage(`${msg}${tableInfo}`);
+      setErrorMessage(`${displayMsg}${tableInfo}`);
       setShowErrorModal(true);
       console.error('Approve error:', err);
     } finally {

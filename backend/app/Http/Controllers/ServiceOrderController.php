@@ -744,6 +744,34 @@ class ServiceOrderController extends Controller
                         'account_no' => $order->account_no
                     ]);
                     $reconnectStatus = $this->attemptReconnection($billingAccount, $id);
+
+                    if ($reconnectStatus === 'success' && $normalizedConcern === 'upgrade/downgrade plan') {
+                        try {
+                            $oldPlanString = $updateData['old_plan'] ?? $order->old_plan ?? null;
+                            $newPlanString = $updateData['new_plan'] ?? $order->new_plan ?? null;
+                            
+                            $oldPlanName = trim(explode(' - ', (string)$oldPlanString)[0] ?: (string)$oldPlanString);
+                            $newPlanName = trim(explode(' - ', (string)$newPlanString)[0] ?: (string)$newPlanString);
+
+                            $oldPlanId = DB::table('plan_list')->where('plan_name', 'LIKE', $oldPlanName)->value('id');
+                            $newPlanId = DB::table('plan_list')->where('plan_name', 'LIKE', $newPlanName)->value('id');
+
+                            \App\Models\PlanChangeLog::create([
+                                'account_id' => $billingAccount->id,
+                                'old_plan_id' => $oldPlanId,
+                                'new_plan_id' => $newPlanId,
+                                'status' => 'success',
+                                'date_changed' => now(),
+                                'date_used' => now(),
+                                'remarks' => $updateData['concern_remarks'] ?? $order->concern_remarks ?? 'Upgraded/Downgraded via Service Order',
+                                'created_by_user' => Auth::user()->name ?? Auth::user()->email ?? 'System',
+                                'updated_by_user' => Auth::user()->name ?? Auth::user()->email ?? 'System',
+                            ]);
+                            \Log::info("PlanChangeLog created successfully for account {$billingAccount->account_no}");
+                        } catch (\Exception $e) {
+                            \Log::error("Failed to create PlanChangeLog: " . $e->getMessage());
+                        }
+                    }
                 }
             }
 

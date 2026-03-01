@@ -1108,7 +1108,8 @@ class JobOrderController extends Controller
                 'Duplicate entry',
                 'Integrity constraint violation',
                 'Billing account already exists',
-                'Technical details already exist'
+                'Technical details already exist',
+                'already been approved'
             ];
             
             $isDuplicate = false;
@@ -1129,7 +1130,7 @@ class JobOrderController extends Controller
             
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to approve job order',
+                'message' => $e->getMessage() ?: 'Failed to approve job order',
                 'error' => $e->getMessage(),
             ], 500);
         }

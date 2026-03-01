@@ -105,9 +105,11 @@ class SmsBlastController extends Controller
                 $barangay = DB::table('barangay')->where('id', $validated['barangay_id'])->first();
                 if ($barangay) {
                     $recipients = DB::table('customers')
-                        ->where('barangay', $barangay->barangay)
-                        ->whereNotNull('contact_number_primary')
-                        ->select('contact_number_primary as contact_no', 'id as customer_id')
+                        ->join('billing_accounts', 'customers.id', '=', 'billing_accounts.customer_id')
+                        ->where('customers.barangay', $barangay->barangay)
+                        ->where('billing_accounts.billing_status_id', 1)
+                        ->whereNotNull('customers.contact_number_primary')
+                        ->select('customers.contact_number_primary as contact_no', 'customers.id as customer_id')
                         ->get();
                 }
             } elseif (!empty($validated['lcp_id'])) {
@@ -117,6 +119,7 @@ class SmsBlastController extends Controller
                         ->join('billing_accounts', 'technical_details.account_no', '=', 'billing_accounts.account_no')
                         ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
                         ->where('technical_details.lcp', $lcp->lcp_name)
+                        ->where('billing_accounts.billing_status_id', 1)
                         ->whereNotNull('customers.contact_number_primary')
                         ->select('customers.contact_number_primary as contact_no', 'customers.id as customer_id')
                         ->get();
@@ -128,6 +131,7 @@ class SmsBlastController extends Controller
                         ->join('billing_accounts', 'technical_details.account_no', '=', 'billing_accounts.account_no')
                         ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
                         ->where('technical_details.lcpnap', $lcpnap->lcpnap_name)
+                        ->where('billing_accounts.billing_status_id', 1)
                         ->whereNotNull('customers.contact_number_primary')
                         ->select('customers.contact_number_primary as contact_no', 'customers.id as customer_id')
                         ->get();
@@ -136,7 +140,7 @@ class SmsBlastController extends Controller
                 $recipients = DB::table('billing_accounts')
                     ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
                     ->where('billing_accounts.billing_day', $validated['billing_day'])
-                    ->where('billing_accounts.billing_status_id', 2) // Active
+                    ->where('billing_accounts.billing_status_id', 1) // Active
                     ->whereNotNull('customers.contact_number_primary')
                     ->select('customers.contact_number_primary as contact_no', 'customers.id as customer_id')
                     ->get();

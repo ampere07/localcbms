@@ -140,8 +140,8 @@ class TransactionController extends Controller
 
                     // Send Approval Notifications
                     if ($billingAccount) {
-                        $this->sendApprovalSms($billingAccount, $appliedData['invoices_updated']['invoices_paid'] ?? [], $transaction->received_payment);
-                        $this->sendApprovalEmail($billingAccount, $appliedData['invoices_updated']['invoices_paid'] ?? [], $transaction->received_payment);
+                        $this->sendApprovalSms($billingAccount, $appliedData['invoices_updated']['invoices_paid'] ?? [], $transaction->received_payment, $transaction->payment_date);
+                        $this->sendApprovalEmail($billingAccount, $appliedData['invoices_updated']['invoices_paid'] ?? [], $transaction->received_payment, $transaction->payment_date);
                     }
 
                 } else {
@@ -313,8 +313,8 @@ class TransactionController extends Controller
             ]);
 
             // Send Approval Notifications (previously only on Paid status)
-            $this->sendApprovalSms($billingAccount, $invoiceUpdateResult['invoices_paid'] ?? [], $paymentReceived);
-            $this->sendApprovalEmail($billingAccount, $invoiceUpdateResult['invoices_paid'] ?? [], $paymentReceived);
+            $this->sendApprovalSms($billingAccount, $invoiceUpdateResult['invoices_paid'] ?? [], $paymentReceived, $transaction->payment_date);
+            $this->sendApprovalEmail($billingAccount, $invoiceUpdateResult['invoices_paid'] ?? [], $paymentReceived, $transaction->payment_date);
 
 
             // Attempt reconnection after successful approval
@@ -737,7 +737,8 @@ class TransactionController extends Controller
                         $accountPayments[$accountNo] = [
                             'account' => $billingAccount,
                             'invoices' => [],
-                            'total' => 0
+                            'total' => 0,
+                            'payment_date' => $transaction->payment_date
                         ];
                     }
                     if (!empty($invoiceUpdateResult['invoices_paid'])) {
@@ -778,8 +779,8 @@ class TransactionController extends Controller
 
             // Send consolidated notifications for each account (Successfully approved)
             foreach ($accountPayments as $accountNo => $data) {
-                $this->sendApprovalSms($data['account'], $data['invoices'], $data['total']);
-                $this->sendApprovalEmail($data['account'], $data['invoices'], $data['total']);
+                $this->sendApprovalSms($data['account'], $data['invoices'], $data['total'], $data['payment_date'] ?? null);
+                $this->sendApprovalEmail($data['account'], $data['invoices'], $data['total'], $data['payment_date'] ?? null);
             }
 
 
@@ -1012,7 +1013,7 @@ class TransactionController extends Controller
     /**
      * Send Transaction Approval SMS notification
      */
-    private function sendApprovalSms($billingAccount, $invoicesPaid, $totalPaidAmount)
+    private function sendApprovalSms($billingAccount, $invoicesPaid, $totalPaidAmount, $paymentDate = null)
     {
         try {
             $billingAccount->load('customer');
@@ -1020,7 +1021,7 @@ class TransactionController extends Controller
             
             if ($customer && !empty($customer->contact_number_primary)) {
                 $paidTemplate = DB::table('sms_templates')
-                    ->where('template_name', 'Paid')
+                    ->where('template_type', 'Paid')
                     ->where('is_active', 1)
                     ->first();
                     
@@ -1047,12 +1048,12 @@ class TransactionController extends Controller
                     
                     // Support multiple variations of placeholders
                     $formattedAmount = number_format($totalPaidAmount, 2);
-                    $currentDate = date('Y-m-d');
+                    $txDate = $paymentDate ? date('Y-m-d', strtotime($paymentDate)) : date('Y-m-d');
                     
                     $message = str_replace('{{amount_paid}}', $formattedAmount, $message);
                     $message = str_replace('{{amount}}', $formattedAmount, $message);
-                    $message = str_replace('{{date}}', $currentDate, $message);
-                    $message = str_replace('{{payment_date}}', $currentDate, $message);
+                    $message = str_replace('{{date}}', $txDate, $message);
+                    $message = str_replace('{{payment_date}}', $txDate, $message);
                     
                     $message = $this->replaceGlobalVariables($message);
                     
@@ -1079,7 +1080,7 @@ class TransactionController extends Controller
     /**
      * Send Transaction Approval Email notification
      */
-    private function sendApprovalEmail($billingAccount, $invoicesPaid, $totalPaidAmount)
+    private function sendApprovalEmail($billingAccount, $invoicesPaid, $totalPaidAmount, $paymentDate = null)
     {
         try {
             $billingAccount->load('customer');
@@ -1094,13 +1095,19 @@ class TransactionController extends Controller
                     : 'N/A';
                     
                 $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
+                $txDate = $paymentDate ? date('Y-m-d', strtotime($paymentDate)) : date('Y-m-d');
+                $formattedAmount = number_format($totalPaidAmount, 2);
                 
                 $emailData = [
-                    'Amount' => number_format($totalPaidAmount, 2),
+                    'Amount' => $formattedAmount,
+                    'amount' => $formattedAmount,
+                    'amount_paid' => $formattedAmount,
                     'Company_Name' => $brandName,
                     'Account_No' => $billingAccount->account_no,
                     'account_no' => $billingAccount->account_no,
-                    'Date' => date('Y-m-d'),
+                    'Date' => $txDate,
+                    'payment_date' => $txDate,
+                    'date' => $txDate,
                     'Full_Name' => $customer->full_name,
                     'invoice_ids' => $invoiceIds,
                     'recipient_email' => $customer->email_address,
