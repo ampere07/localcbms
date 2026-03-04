@@ -41,6 +41,7 @@ const EmailTemplates: React.FC = () => {
   const [isCreating, setIsCreating] = useState<boolean>(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState<boolean>(false);
 
   const editorRef = useRef<any>(null);
 
@@ -612,252 +613,280 @@ const EmailTemplates: React.FC = () => {
       <div className={`flex-1 flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'
         }`}>
         {/* Header */}
-        <div className={`p-4 border-b ${isDarkMode
+        <div className={`border-b ${isDarkMode
           ? 'bg-gray-800 border-gray-700'
           : 'bg-white border-gray-300'
           }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              {isCreating || isEditing ? (
-                <div className="space-y-2">
-                  <select
-                    value={formData.Template_Code}
-                    onChange={(e) => handleInputChange('Template_Code', e.target.value)}
-                    className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
-                      ? 'bg-gray-700 border-gray-600 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
-                      }`}
-                    disabled={!isCreating}
-                  >
-                    <option value="">Select Template Code</option>
-                    {[
-                      'WELCOME',
-                      'SOA_TEMPLATE',
-                      'RECONNECT',
-                      'PAID',
-                      'OVERDUE_DESIGN',
-                      'DISCONNECTED',
-                      'DCNOTICE_DESIGN',
-                      'APPLICATION'
-                    ]
-                      .filter(choice =>
-                        isEditing ||
-                        selectedTemplate?.Template_Code === choice ||
-                        !templates.some(t => t.Template_Code === choice)
-                      )
-                      .map(choice => (
-                        <option key={choice} value={choice}>{choice}</option>
-                      ))
-                    }
-                  </select>
-                  {/* Warning: Template Code cannot be changed after creation */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      value={formData.Subject_Line}
-                      onChange={(e) => handleInputChange('Subject_Line', e.target.value)}
-                      placeholder="Subject Line"
-                      className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
-                        }`}
-                    />
-                    <input
-                      type="text"
-                      value={formData.sender_name}
-                      onChange={(e) => handleInputChange('sender_name', e.target.value)}
-                      placeholder="Sender Name"
-                      className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
-                        }`}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      value={formData.email_sender}
-                      onChange={(e) => handleInputChange('email_sender', e.target.value)}
-                      placeholder="Email Sender"
-                      className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
-                        }`}
-                    />
-                    <input
-                      type="text"
-                      value={formData.reply_to}
-                      onChange={(e) => handleInputChange('reply_to', e.target.value)}
-                      placeholder="Reply To"
-                      className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
-                        }`}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      value={formData.cc}
-                      onChange={(e) => handleInputChange('cc', e.target.value)}
-                      placeholder="CC (Comma separated)"
-                      className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
-                        }`}
-                    />
-                    <input
-                      type="text"
-                      value={formData.bcc}
-                      onChange={(e) => handleInputChange('bcc', e.target.value)}
-                      placeholder="BCC (Comma separated)"
-                      className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
-                        }`}
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    value={formData.Description}
-                    onChange={(e) => handleInputChange('Description', e.target.value)}
-                    placeholder="Description"
-                    className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
-                      ? 'bg-gray-700 border-gray-600 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
-                      }`}
-                  />
-                  <div className="mb-4">
-                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Available Variables
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {availableVariables.map(variable => (
-                        <button
-                          key={variable}
-                          type="button"
-                          onClick={() => insertVariableToBody(variable)}
-                          className={`px-3 py-1 rounded text-xs font-mono transition-colors ${isDarkMode
-                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                            }`}
-                        >
-                          {variable}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <textarea
-                    value={formData.email_body}
-                    onChange={(e) => handleInputChange('email_body', e.target.value)}
-                    placeholder="Email Body. Click variables above to insert them."
-                    rows={6}
-                    className={`w-full px-3 py-2 text-sm border rounded resize-none ${isDarkMode
-                      ? 'bg-gray-700 border-gray-600 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
-                      }`}
-                  />
-
-                </div>
-              ) : selectedTemplate ? (
-                <div>
-                  <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}>{selectedTemplate.Template_Code}</h2>
-                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>{selectedTemplate.Subject_Line}</p>
-                  {selectedTemplate.Description && (
-                    <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'
-                      }`}>{selectedTemplate.Description}</p>
-                  )}
-                  <div className="flex flex-wrap gap-4 mt-1">
-                    {(selectedTemplate.email_sender || selectedTemplate.sender_name) && (
-                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        <span className="font-semibold">From:</span> {selectedTemplate.sender_name ? `${selectedTemplate.sender_name} <${selectedTemplate.email_sender}>` : selectedTemplate.email_sender}
-                      </p>
-                    )}
-                    {selectedTemplate.reply_to && (
-                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        <span className="font-semibold">Reply To:</span> {selectedTemplate.reply_to}
-                      </p>
-                    )}
-                    {selectedTemplate.cc && (
-                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        <span className="font-semibold">CC:</span> {selectedTemplate.cc}
-                      </p>
-                    )}
-                    {selectedTemplate.bcc && (
-                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        <span className="font-semibold">BCC:</span> {selectedTemplate.bcc}
-                      </p>
-                    )}
-                  </div>
-                  {selectedTemplate.email_body && (
-                    <p className={`text-xs mt-1 italic ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Preview: {selectedTemplate.email_body}</p>
-                  )}
-                </div>
-              ) : (
-                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Select a template or create a new one</p>
-              )}
+          {/* Collapse toggle bar — only shown for SOA_TEMPLATE */}
+          {(formData.Template_Code === 'SOA_TEMPLATE' || selectedTemplate?.Template_Code === 'SOA_TEMPLATE') && (
+            <div className={`flex items-center justify-between px-4 py-2 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <span className={`text-xs font-semibold uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                SOA_TEMPLATE — Header
+              </span>
+              <button
+                onClick={() => setIsHeaderCollapsed(prev => !prev)}
+                className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
+                title={isHeaderCollapsed ? 'Expand header' : 'Collapse header'}
+              >
+                {isHeaderCollapsed ? (
+                  /* ChevronDown */
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                ) : (
+                  /* ChevronUp */
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="18 15 12 9 6 15" />
+                  </svg>
+                )}
+              </button>
             </div>
-            <div className="flex items-center gap-2">
-              {canSave && (
-                <>
-                  <button
-                    onClick={handleSave}
-                    className="px-4 py-2 text-white text-sm rounded transition-colors"
-                    style={{
-                      backgroundColor: colorPalette?.primary || '#7c3aed'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (colorPalette?.accent) {
-                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+          )}
+          {/* Main header content — hidden when collapsed for SOA_TEMPLATE */}
+          {!(isHeaderCollapsed && (formData.Template_Code === 'SOA_TEMPLATE' || selectedTemplate?.Template_Code === 'SOA_TEMPLATE')) && (
+            <div className="flex items-center justify-between p-4">
+              <div className="flex-1">
+                {isCreating || isEditing ? (
+                  <div className="space-y-2">
+                    <select
+                      value={formData.Template_Code}
+                      onChange={(e) => handleInputChange('Template_Code', e.target.value)}
+                      className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      disabled={!isCreating}
+                    >
+                      <option value="">Select Template Code</option>
+                      {[
+                        'WELCOME',
+                        'SOA_TEMPLATE',
+                        'RECONNECT',
+                        'PAID',
+                        'OVERDUE_DESIGN',
+                        'DISCONNECTED',
+                        'DCNOTICE_DESIGN',
+                        'APPLICATION'
+                      ]
+                        .filter(choice =>
+                          isEditing ||
+                          selectedTemplate?.Template_Code === choice ||
+                          !templates.some(t => t.Template_Code === choice)
+                        )
+                        .map(choice => (
+                          <option key={choice} value={choice}>{choice}</option>
+                        ))
                       }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
-                    }}
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={handleCancel}
-                    className={`px-4 py-2 text-white text-sm rounded transition-colors ${isDarkMode
-                      ? 'bg-gray-700 hover:bg-gray-600'
-                      : 'bg-gray-300 hover:bg-gray-400'
-                      }`}
-                  >
-                    Cancel
-                  </button>
-                </>
-              )}
-              {canEdit && !isEditing && (
-                <>
-                  <button
-                    onClick={handleStartEdit}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => selectedTemplate && handleToggleActive(selectedTemplate)}
-                    className={`px-4 py-2 text-white text-sm rounded transition-colors ${selectedTemplate?.Is_Active
-                      ? 'bg-yellow-600 hover:bg-yellow-700'
-                      : 'bg-green-600 hover:bg-green-700'
-                      }`}
-                  >
-                    {selectedTemplate?.Is_Active ? 'Deactivate' : 'Activate'}
-                  </button>
-                  <button
-                    onClick={() => selectedTemplate && handleDelete(selectedTemplate.Template_Code)}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors"
-                  >
-                    Delete
-                  </button>
-                </>
-              )}
+                    </select>
+                    {/* Warning: Template Code cannot be changed after creation */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={formData.Subject_Line}
+                        onChange={(e) => handleInputChange('Subject_Line', e.target.value)}
+                        placeholder="Subject Line"
+                        className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                      />
+                      <input
+                        type="text"
+                        value={formData.sender_name}
+                        onChange={(e) => handleInputChange('sender_name', e.target.value)}
+                        placeholder="Sender Name"
+                        className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={formData.email_sender}
+                        onChange={(e) => handleInputChange('email_sender', e.target.value)}
+                        placeholder="Email Sender"
+                        className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                      />
+                      <input
+                        type="text"
+                        value={formData.reply_to}
+                        onChange={(e) => handleInputChange('reply_to', e.target.value)}
+                        placeholder="Reply To"
+                        className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={formData.cc}
+                        onChange={(e) => handleInputChange('cc', e.target.value)}
+                        placeholder="CC (Comma separated)"
+                        className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                      />
+                      <input
+                        type="text"
+                        value={formData.bcc}
+                        onChange={(e) => handleInputChange('bcc', e.target.value)}
+                        placeholder="BCC (Comma separated)"
+                        className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      value={formData.Description}
+                      onChange={(e) => handleInputChange('Description', e.target.value)}
+                      placeholder="Description"
+                      className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                    />
+                    <div className="mb-4">
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Available Variables
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {availableVariables.map(variable => (
+                          <button
+                            key={variable}
+                            type="button"
+                            onClick={() => insertVariableToBody(variable)}
+                            className={`px-3 py-1 rounded text-xs font-mono transition-colors ${isDarkMode
+                              ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                              }`}
+                          >
+                            {variable}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <textarea
+                      value={formData.email_body}
+                      onChange={(e) => handleInputChange('email_body', e.target.value)}
+                      placeholder="Email Body. Click variables above to insert them."
+                      rows={6}
+                      className={`w-full px-3 py-2 text-sm border rounded resize-none ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                    />
+
+                  </div>
+                ) : selectedTemplate ? (
+                  <div>
+                    <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>{selectedTemplate.Template_Code}</h2>
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>{selectedTemplate.Subject_Line}</p>
+                    {selectedTemplate.Description && (
+                      <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'
+                        }`}>{selectedTemplate.Description}</p>
+                    )}
+                    <div className="flex flex-wrap gap-4 mt-1">
+                      {(selectedTemplate.email_sender || selectedTemplate.sender_name) && (
+                        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <span className="font-semibold">From:</span> {selectedTemplate.sender_name ? `${selectedTemplate.sender_name} <${selectedTemplate.email_sender}>` : selectedTemplate.email_sender}
+                        </p>
+                      )}
+                      {selectedTemplate.reply_to && (
+                        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <span className="font-semibold">Reply To:</span> {selectedTemplate.reply_to}
+                        </p>
+                      )}
+                      {selectedTemplate.cc && (
+                        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <span className="font-semibold">CC:</span> {selectedTemplate.cc}
+                        </p>
+                      )}
+                      {selectedTemplate.bcc && (
+                        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <span className="font-semibold">BCC:</span> {selectedTemplate.bcc}
+                        </p>
+                      )}
+                    </div>
+                    {selectedTemplate.email_body && (
+                      <p className={`text-xs mt-1 italic ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Preview: {selectedTemplate.email_body}</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Select a template or create a new one</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {canSave && (
+                  <>
+                    <button
+                      onClick={handleSave}
+                      className="px-4 py-2 text-white text-sm rounded transition-colors"
+                      style={{
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                      }}
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={handleCancel}
+                      className={`px-4 py-2 text-white text-sm rounded transition-colors ${isDarkMode
+                        ? 'bg-gray-700 hover:bg-gray-600'
+                        : 'bg-gray-300 hover:bg-gray-400'
+                        }`}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                )}
+                {canEdit && !isEditing && (
+                  <>
+                    <button
+                      onClick={handleStartEdit}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => selectedTemplate && handleToggleActive(selectedTemplate)}
+                      className={`px-4 py-2 text-white text-sm rounded transition-colors ${selectedTemplate?.Is_Active
+                        ? 'bg-yellow-600 hover:bg-yellow-700'
+                        : 'bg-green-600 hover:bg-green-700'
+                        }`}
+                    >
+                      {selectedTemplate?.Is_Active ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button
+                      onClick={() => selectedTemplate && handleDelete(selectedTemplate.Template_Code)}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Editor */}

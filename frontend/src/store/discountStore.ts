@@ -25,6 +25,7 @@ export interface DiscountRecord {
     cityId?: number;
     barangay?: string;
     city?: string;
+    region?: string;
     completeAddress?: string;
     onlineStatus?: string;
 }
@@ -67,6 +68,7 @@ const transformDiscountData = (data: any[]): DiscountRecord[] => {
             cityId: undefined,
             barangay: customer?.barangay,
             city: customer?.city,
+            region: customer?.region,
             onlineStatus: undefined
         };
     });

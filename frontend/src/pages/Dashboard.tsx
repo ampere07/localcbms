@@ -61,6 +61,7 @@ import LiveMonitor from './LiveMonitor';
 import ConcernConfig from './ConcernConfig';
 import DashboardCustomer from './DashboardCustomer';
 import Bills from './Bills';
+import Reports from './Reports';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface DashboardProps {
@@ -239,6 +240,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 return <WorkOrder />;
             case 'service-order':
                 return <ServiceOrder />;
+            case 'reports':
+                return <Reports />;
             // case 'application-visit':
             //     return <ApplicationVisit />;
             case 'location-list':

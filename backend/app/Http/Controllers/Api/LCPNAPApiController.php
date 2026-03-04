@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\LCPNAPLocation;
-use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -91,18 +90,6 @@ class LCPNAPApiController extends Controller
             ]);
 
             $location = LCPNAPLocation::create($validated);
-            
-            // Log Activity
-            ActivityLog::log(
-                'LCP/NAP Created',
-                "New LCP/NAP record created: {$location->lcpnap_name}",
-                'info',
-                [
-                    'resource_type' => 'LCPNAPLocation',
-                    'resource_id' => $location->id,
-                    'additional_data' => $location->toArray()
-                ]
-            );
 
             return response()->json([
                 'success' => true,
@@ -133,18 +120,6 @@ class LCPNAPApiController extends Controller
             ]);
 
             $location->update($validated);
-            
-            // Log Activity
-            ActivityLog::log(
-                'LCP/NAP Updated',
-                "LCP/NAP record updated: {$location->lcpnap_name} (ID: {$id})",
-                'info',
-                [
-                    'resource_type' => 'LCPNAPLocation',
-                    'resource_id' => $location->id,
-                    'additional_data' => $location->toArray()
-                ]
-            );
 
             return response()->json([
                 'success' => true,
@@ -170,21 +145,7 @@ class LCPNAPApiController extends Controller
     {
         try {
             $location = LCPNAPLocation::findOrFail($id);
-            $locationData = $location->toArray();
-            $locationName = $location->lcpnap_name;
             $location->delete();
-            
-            // Log Activity
-            ActivityLog::log(
-                'LCP/NAP Deleted',
-                "LCP/NAP record deleted: {$locationName} (ID: {$id})",
-                'warning',
-                [
-                    'resource_type' => 'LCPNAPLocation',
-                    'resource_id' => $id,
-                    'additional_data' => $locationData
-                ]
-            );
 
             return response()->json([
                 'success' => true,
@@ -248,6 +209,43 @@ class LCPNAPApiController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch lookup data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    public function getMostUsedLCPNAPs()
+    {
+        try {
+            $mostUsed = \Illuminate\Support\Facades\DB::table('job_orders')
+                ->select('lcpnap', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+                ->whereNotNull('lcpnap')
+                ->where('lcpnap', '!=', '')
+                ->groupBy('lcpnap')
+                ->orderBy('count', 'desc')
+                ->take(5)
+                ->get();
+
+            $names = $mostUsed->pluck('lcpnap')->toArray();
+            
+            $locations = LCPNAPLocation::whereIn('lcpnap_name', $names)
+                ->get()
+                ->sortBy(function($location) use ($names) {
+                    return array_search($location->lcpnap_name, $names);
+                })
+                ->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => $locations
+            ]);
+        } catch (Exception $e) {
+            Log::error('Most used LCP/NAP error', [
+                'message' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch most used LCP/NAP records',
                 'error' => $e->getMessage()
             ], 500);
         }

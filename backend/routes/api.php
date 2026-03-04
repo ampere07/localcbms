@@ -39,6 +39,10 @@ use App\Http\Controllers\Api\DisconnectionLogsController;
 use App\Http\Controllers\Api\ReconnectionLogsController;
 use App\Http\Controllers\ConsolidatedNotificationController;
 use App\Http\Controllers\Api\ServiceOrderItemApiController;
+use App\Http\Controllers\ReportController;
+
+Route::get('/reports', [ReportController::class, 'index']);
+Route::post('/reports', [ReportController::class, 'store']);
 
 Route::get('/monitor/handle', [MonitorController::class, 'handle']);
 Route::post('/monitor/handle', [MonitorController::class, 'handle']); // Ensure POST is also handled for save_template actions if not using REST
@@ -877,6 +881,26 @@ Route::post('/fix-customer-password', function (Request $request) {
     }
 });
 
+// Work Order Category Management Routes
+Route::prefix('work-categories')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'store']);
+    Route::get('/statistics', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'getStatistics']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'show']);
+    Route::put('/{id}', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'update']);
+    Route::delete('/{id}', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'destroy']);
+});
+
+// Work Order Management Routes
+Route::prefix('work-orders')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'store']);
+    Route::get('/statistics', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'getStatistics']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'show']);
+    Route::put('/{id}', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'update']);
+    Route::delete('/{id}', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'destroy']);
+});
+
 // Authentication endpoints
 Route::post('/login-debug', function (Request $request) {
     try {
@@ -1581,13 +1605,13 @@ Route::prefix('vlans')->group(function () {
 
 // LCPNAP Location Management Routes - Using lcpnap table
 Route::prefix('lcpnap')->group(function () {
+    Route::get('/get-most-used', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'getMostUsedLCPNAPs']);
     Route::get('/', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'index']);
     Route::post('/', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'store']);
     Route::get('/statistics', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'getStatistics']);
     Route::get('/{id}', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'show']);
     Route::put('/{id}', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'update']);
     Route::delete('/{id}', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'destroy']);
-    Route::get('/{id}/related-customers', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'getRelatedCustomers']);
 });
 
 // LCPNAP Locations endpoint (for distinct locations)
@@ -2128,9 +2152,7 @@ Route::prefix('transactions')->group(function () {
     Route::post('/upload-images', [\App\Http\Controllers\TransactionController::class, 'uploadImages']);
     Route::post('/batch-approve', [\App\Http\Controllers\TransactionController::class, 'batchApprove']);
     Route::get('/{id}', [\App\Http\Controllers\TransactionController::class, 'show']);
-    Route::delete('/{id}', [\App\Http\Controllers\TransactionController::class, 'destroy']);
     Route::post('/{id}/approve', [\App\Http\Controllers\TransactionController::class, 'approve']);
-    Route::post('/{id}/revert', [\App\Http\Controllers\TransactionController::class, 'revert']);
     Route::put('/{id}/status', [\App\Http\Controllers\TransactionController::class, 'updateStatus']);
 });
 

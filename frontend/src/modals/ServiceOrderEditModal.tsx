@@ -675,7 +675,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       if (file) {
         const url = await uploadImageToGoogleDrive(file);
         urls[key as keyof typeof urls] = url;
-        setUploadProgress(Math.round(((i + 1) / totalFiles) * 100));
+        // Occupy 0-70% of the total progress
+        setUploadProgress(Math.round(((i + 1) / totalFiles) * 70));
       }
     }
 
@@ -829,8 +830,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
           setModal({
             isOpen: true,
             type: 'loading',
-            title: 'Validating',
-            message: 'Validating New Router Modem SN...'
+            title: '',
+            message: ''
           });
 
           const smartOltResponse = await apiClient.get('/smart-olt/validate-sn', {
@@ -893,8 +894,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     setModal({
       isOpen: true,
       type: 'loading',
-      title: 'Saving',
-      message: 'Please wait while we save your changes...'
+      title: '',
+      message: ''
     });
 
     setLoading(true);
@@ -906,8 +907,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       setModal({
         isOpen: true,
         type: 'loading',
-        title: 'Uploading Images',
-        message: 'Uploading images to Google Drive...'
+        title: '',
+        message: ''
       });
 
       let tempSigFile: File | null = null;
@@ -937,13 +938,15 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         }
       }
 
+      setUploadProgress(75);
       const imageUrls = await uploadAllImages(tempSigFile);
+      setUploadProgress(80);
 
       setModal({
         isOpen: true,
         type: 'loading',
-        title: 'Saving Service Order',
-        message: 'Saving service order details...'
+        title: '',
+        message: ''
       });
 
       const serviceOrderUpdateData: any = {
@@ -989,17 +992,33 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         new_plan: updatedFormData.newPlan
       };
 
-      const response = await apiClient.put<{
-        success: boolean;
-        message?: string;
-        data?: any;
-        reconnect_status?: string | null;
-        migration_status?: string | null;
-        pullout_status?: string | null;
-      }>(
-        `/service-orders/${serviceOrderId}`,
-        serviceOrderUpdateData
-      );
+      setUploadProgress(85);
+
+      // Animate progress 85→95 while API call is in flight
+      let simulatedProgress = 85;
+      const progressTicker = setInterval(() => {
+        simulatedProgress = Math.min(simulatedProgress + 1, 95);
+        setUploadProgress(simulatedProgress);
+      }, 120);
+
+      let response;
+      try {
+        response = await apiClient.put<{
+          success: boolean;
+          message?: string;
+          data?: any;
+          reconnect_status?: string | null;
+          migration_status?: string | null;
+          pullout_status?: string | null;
+        }>(
+          `/service-orders/${serviceOrderId}`,
+          serviceOrderUpdateData
+        );
+      } finally {
+        clearInterval(progressTicker);
+      }
+
+      setUploadProgress(96);
 
       if (!response.data.success) {
         throw new Error(response.data.message || 'Service order update failed');
@@ -1018,14 +1037,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
           if (existingItemsResponse.data.success && existingItemsResponse.data.data.length > 0) {
             const existingItems = existingItemsResponse.data.data;
-
-            for (const item of existingItems) {
-              try {
-                await apiClient.delete(`/service-order-items/${item.id}`);
-              } catch (deleteErr) {
-                console.error('Error deleting existing item:', deleteErr);
-              }
-            }
+            // Delete all existing items in parallel for speed
+            await Promise.all(
+              existingItems.map(item =>
+                apiClient.delete(`/service-order-items/${item.id}`).catch(err => {
+                  console.error('Error deleting existing item:', err);
+                })
+              )
+            );
           }
         } catch (deleteError: any) {
           console.error('Error fetching/deleting existing items:', deleteError);
@@ -1062,6 +1081,10 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         }
       }
 
+      // Animate to 100% then show success
+      setUploadProgress(100);
+      await new Promise(resolve => setTimeout(resolve, 400));
+
       let successMessage = 'Service Order updated successfully!';
 
       // Reconnection Messages
@@ -1096,6 +1119,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         message: successMessage,
         onConfirm: () => {
           setErrors({});
+          setUploadProgress(0);
           onSave(updatedFormData);
           onClose();
           setModal({ ...modal, isOpen: false });
@@ -1104,6 +1128,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     } catch (error: any) {
       console.error('Error updating service order:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Unknown error occurred';
+      setUploadProgress(0);
       setModal({
         isOpen: true,
         type: 'error',
@@ -1115,7 +1140,6 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       });
     } finally {
       setLoading(false);
-      setUploadProgress(0);
     }
   };
 
@@ -2581,16 +2605,24 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               }`}>
               {modal.type === 'loading' ? (
                 <div className="text-center">
-                  <div className="flex justify-center mb-4">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#7c3aed' }}></div>
+                  <div className="flex justify-center mb-6">
+                    <div className="relative">
+                      <div className="animate-spin rounded-full h-20 w-20 border-b-4 border-t-4" style={{ borderColor: colorPalette?.primary || '#7c3aed', borderTopColor: 'transparent' }}></div>
+                    </div>
                   </div>
-                  <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}>{modal.title}</h3>
-                  {uploadProgress > 0 && (
-                    <p className={`text-4xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{uploadProgress}%</p>
-                  )}
-                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>{modal.message}</p>
+                  <div className="mb-6">
+                    <p className={`text-5xl font-extrabold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{uploadProgress}%</p>
+                  </div>
+                  <div className={`w-full h-3 bg-gray-200 rounded-full overflow-hidden mb-2 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'}`}>
+                    <div
+                      className="h-full transition-all duration-500 ease-out rounded-full"
+                      style={{
+                        width: `${uploadProgress}%`,
+                        backgroundColor: colorPalette?.primary || '#7c3aed',
+                        boxShadow: `0 0 15px ${colorPalette?.primary || '#7c3aed'}40`
+                      }}
+                    ></div>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -2657,9 +2689,9 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 </>
               )}
             </div>
-          </div>
+          </div >
         )}
-      </div>
+      </div >
     </>
   );
 };

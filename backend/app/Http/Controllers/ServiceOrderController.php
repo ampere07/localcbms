@@ -1398,4 +1398,3 @@ class ServiceOrderController extends Controller
         return $ticketId;
     }
 }
-
