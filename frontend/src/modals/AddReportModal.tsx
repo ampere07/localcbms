@@ -39,6 +39,8 @@ const REPORT_SCHEDULES = [
     'Every Year',
 ];
 
+const DATE_RANGES = []; // Removed dropdown options
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const AddReportModal: React.FC<AddReportModalProps> = ({ isOpen, onClose, onSaved }) => {
@@ -54,6 +56,8 @@ const AddReportModal: React.FC<AddReportModalProps> = ({ isOpen, onClose, onSave
         day: '',
         report_time: '',
         send_to: '',
+        date_from: '',
+        date_to: '',
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -76,7 +80,7 @@ const AddReportModal: React.FC<AddReportModalProps> = ({ isOpen, onClose, onSave
 
     useEffect(() => {
         if (isOpen) {
-            setFormData({ report_name: '', report_type: '', report_schedule: '', day: '', report_time: '', send_to: '' });
+            setFormData({ report_name: '', report_type: '', report_schedule: '', day: '', report_time: '', send_to: '', date_from: '', date_to: '' });
             setErrors({});
         }
     }, [isOpen]);
@@ -116,6 +120,8 @@ const AddReportModal: React.FC<AddReportModalProps> = ({ isOpen, onClose, onSave
         if (!formData.day.trim()) e.day = 'Day is required.';
         if (!formData.report_time) e.report_time = 'Please pick a time.';
         if (!formData.send_to.trim()) e.send_to = 'Send To is required.';
+        if (!formData.date_from) e.date_from = 'Start date is required.';
+        if (!formData.date_to) e.date_to = 'End date is required.';
         setErrors(e);
         return Object.keys(e).length === 0;
     };
@@ -148,6 +154,7 @@ const AddReportModal: React.FC<AddReportModalProps> = ({ isOpen, onClose, onSave
                 day: formData.day,
                 report_time: formData.report_time,
                 send_to: formData.send_to.trim(),
+                date_range: `${formData.date_from} to ${formData.date_to}`,
                 created_by: createdBy,
             };
 
@@ -314,6 +321,36 @@ const AddReportModal: React.FC<AddReportModalProps> = ({ isOpen, onClose, onSave
                             {errors.report_schedule && <p className="mt-1 text-xs text-red-400">{errors.report_schedule}</p>}
                         </div>
 
+                        {/* Date Range Selection */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className={labelCls}>
+                                    Date From <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="date"
+                                    value={formData.date_from}
+                                    onChange={e => handleChange('date_from', e.target.value)}
+                                    className={inputCls('date_from')}
+                                    style={isDarkMode ? { colorScheme: 'dark' } : {}}
+                                />
+                                {errors.date_from && <p className="mt-1 text-xs text-red-400">{errors.date_from}</p>}
+                            </div>
+                            <div>
+                                <label className={labelCls}>
+                                    Date To <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="date"
+                                    value={formData.date_to}
+                                    onChange={e => handleChange('date_to', e.target.value)}
+                                    className={inputCls('date_to')}
+                                    style={isDarkMode ? { colorScheme: 'dark' } : {}}
+                                />
+                                {errors.date_to && <p className="mt-1 text-xs text-red-400">{errors.date_to}</p>}
+                            </div>
+                        </div>
+
                         {/* Day */}
                         <div>
                             <label className={labelCls}>
@@ -418,6 +455,12 @@ const AddReportModal: React.FC<AddReportModalProps> = ({ isOpen, onClose, onSave
                                         <div className="flex items-start gap-2">
                                             <span className={`text-xs w-28 flex-shrink-0 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Send To</span>
                                             <span className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formData.send_to}</span>
+                                        </div>
+                                    )}
+                                    {formData.date_from && formData.date_to && (
+                                        <div className="flex items-start gap-2">
+                                            <span className={`text-xs w-28 flex-shrink-0 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Date Range</span>
+                                            <span className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formData.date_from} to {formData.date_to}</span>
                                         </div>
                                     )}
                                 </div>

@@ -43,6 +43,10 @@ const WorkOrderDetails: React.FC<WorkOrderDetailsComponentProps> = ({
     'requestedDate',
     'updatedBy',
     'updatedDate',
+    'image_1',
+    'image_2',
+    'image_3',
+    'signature'
   ];
 
   const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>(() => {
@@ -111,6 +115,18 @@ const WorkOrderDetails: React.FC<WorkOrderDetailsComponentProps> = ({
     startWidthRef.current = detailsWidth;
   };
 
+  const convertGDriveUrl = (url?: string | null): string => {
+    if (!url) return '';
+    if (url.includes('drive.google.com/file/d/')) {
+      const parts = url.split('/d/');
+      if (parts.length > 1) {
+        const fileId = parts[1].split('/')[0];
+        return `https://drive.google.com/uc?export=view&id=${fileId}`;
+      }
+    }
+    return url;
+  };
+
   const formatDate = (dateStr?: string | null): string => {
     if (!dateStr) return 'N/A';
     try {
@@ -143,7 +159,11 @@ const WorkOrderDetails: React.FC<WorkOrderDetailsComponentProps> = ({
       requestedBy: 'Requested By',
       requestedDate: 'Requested Date',
       updatedBy: 'Updated By',
-      updatedDate: 'Updated Date'
+      updatedDate: 'Updated Date',
+      image_1: 'Image 1',
+      image_2: 'Image 2',
+      image_3: 'Image 3',
+      signature: 'Signature'
     };
     return labels[fieldKey] || fieldKey;
   };
@@ -288,6 +308,46 @@ const WorkOrderDetails: React.FC<WorkOrderDetailsComponentProps> = ({
             <div className={valueClass}>{formatDate(workOrder.updated_date)}</div>
           </div>
         );
+
+      case 'image_1':
+      case 'image_2':
+      case 'image_3':
+      case 'signature':
+        {
+          const imageUrl = convertGDriveUrl(workOrder[fieldKey]);
+          if (!workOrder[fieldKey]) return null;
+          return (
+            <div className={baseFieldClass}>
+              <div className={labelClass}>{getFieldLabel(fieldKey)}:</div>
+              <div className={valueClass}>
+                <div className={`mt-2 rounded-lg border overflow-hidden max-w-sm ${isDarkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-gray-100'}`}>
+                  <img
+                    src={imageUrl}
+                    alt={getFieldLabel(fieldKey)}
+                    className="w-full h-auto object-contain cursor-pointer transition-transform hover:scale-105"
+                    onClick={() => window.open(workOrder[fieldKey], '_blank')}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Found';
+                    }}
+                  />
+                  <div className={`px-3 py-2 text-xs flex items-center justify-between ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-200/50'}`}>
+                    <span className="truncate flex-1 mr-2 opacity-60">View on Google Drive</span>
+                    <a
+                      href={workOrder[fieldKey]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:text-blue-400 flex items-center"
+                    >
+                      <ExternalLink size={12} className="mr-1" />
+                      Link
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
 
       default:
         return null;

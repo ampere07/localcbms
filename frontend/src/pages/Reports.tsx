@@ -17,6 +17,7 @@ interface ReportData {
     report_time: string;
     day: string;
     send_to: string;
+    date_range: string;
     created_by: string;
     created_at: string;
     file_url?: string;
@@ -30,12 +31,13 @@ const ALL_COLUMNS = [
     { key: 'report_time', label: 'Time' },
     { key: 'day', label: 'Day' },
     { key: 'send_to', label: 'Send To' },
+    { key: 'date_range', label: 'Date Range' },
     { key: 'created_by', label: 'Created By' },
     { key: 'created_at', label: 'Created At (GMT+8)' },
 ];
 
 const DEFAULT_VISIBLE = [
-    'id', 'report_name', 'report_type', 'report_schedule', 'day', 'report_time', 'send_to', 'created_by', 'created_at'
+    'id', 'report_name', 'report_type', 'report_schedule', 'day', 'report_time', 'send_to', 'date_range', 'created_by', 'created_at'
 ];
 
 const ITEMS_PER_PAGE = 50;

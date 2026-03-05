@@ -688,6 +688,11 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                 );
               })}
             </div>
+            {formData.transactionType === 'Security Deposit' && (
+              <p className="text-orange-500 text-xs mt-2">
+                Note: Security deposits do not affect the account balance or invoices.
+              </p>
+            )}
             {errors.transactionType && <p className="text-red-500 text-xs mt-1">{errors.transactionType}</p>}
           </div>
 

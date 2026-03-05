@@ -666,7 +666,6 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
     const totalFiles = filesToUpload.length;
     if (totalFiles === 0) {
-      setUploadProgress(100);
       return urls;
     }
 
@@ -675,8 +674,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       if (file) {
         const url = await uploadImageToGoogleDrive(file);
         urls[key as keyof typeof urls] = url;
-        // Occupy 0-70% of the total progress
-        setUploadProgress(Math.round(((i + 1) / totalFiles) * 70));
+        // Map 10% to 75% for image uploads phase
+        setUploadProgress(10 + Math.round(((i + 1) / totalFiles) * 65));
       }
     }
 
@@ -938,9 +937,9 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         }
       }
 
-      setUploadProgress(75);
+      setUploadProgress(10);
       const imageUrls = await uploadAllImages(tempSigFile);
-      setUploadProgress(80);
+      setUploadProgress(78);
 
       setModal({
         isOpen: true,
@@ -994,12 +993,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
       setUploadProgress(85);
 
-      // Animate progress 85→95 while API call is in flight
-      let simulatedProgress = 85;
+      // Increment steadily 85 -> 98 while waiting for API
       const progressTicker = setInterval(() => {
-        simulatedProgress = Math.min(simulatedProgress + 1, 95);
-        setUploadProgress(simulatedProgress);
-      }, 120);
+        setUploadProgress(prev => {
+          const next = Math.floor(prev) + 1;
+          return next >= 98 ? 98 : next;
+        });
+      }, 300);
 
       let response;
       try {
@@ -2611,7 +2611,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     </div>
                   </div>
                   <div className="mb-6">
-                    <p className={`text-5xl font-extrabold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{uploadProgress}%</p>
+                    <p className={`text-5xl font-extrabold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{Math.round(uploadProgress)}%</p>
                   </div>
                   <div className={`w-full h-3 bg-gray-200 rounded-full overflow-hidden mb-2 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'}`}>
                     <div

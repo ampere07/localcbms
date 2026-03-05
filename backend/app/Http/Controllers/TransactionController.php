@@ -112,7 +112,7 @@ class TransactionController extends Controller
                 'account_no' => $transaction->account_no
             ]);
 
-            if ($autoApplyPayment && $transaction->account_no) {
+            if ($autoApplyPayment && $transaction->account_no && $transaction->transaction_type !== 'Security Deposit') {
                 \Log::info('Auto-applying payment', [
                     'transaction_id' => $transaction->id,
                     'account_no' => $transaction->account_no
@@ -260,22 +260,32 @@ class TransactionController extends Controller
             ]);
 
             $currentBalance = floatval($billingAccount->account_balance ?? 0);
-            $newBalance = $currentBalance - $paymentReceived;
+            $newBalance = $currentBalance;
+            $invoiceUpdateResult = ['invoices_paid' => [], 'invoices_partial' => [], 'distribution' => []];
 
-            $billingAccount->account_balance = round($newBalance, 2);
-            $billingAccount->balance_update_date = $currentTime;
-            $billingAccount->updated_by = $userId;
-            $billingAccount->save();
+            if ($transaction->transaction_type !== 'Security Deposit') {
+                $newBalance = $currentBalance - $paymentReceived;
 
-            \Log::info('Account balance updated', [
-                'account_no' => $accountNo,
-                'account_id' => $billingAccount->id,
-                'old_balance' => $currentBalance,
-                'new_balance' => $newBalance,
-                'payment_applied' => $paymentReceived
-            ]);
+                $billingAccount->account_balance = round($newBalance, 2);
+                $billingAccount->balance_update_date = $currentTime;
+                $billingAccount->updated_by = $userId;
+                $billingAccount->save();
 
-            $invoiceUpdateResult = $this->updateInvoiceDetails($accountNo, $paymentReceived, $transactionId, $userId, $currentTime);
+                \Log::info('Account balance updated', [
+                    'account_no' => $accountNo,
+                    'account_id' => $billingAccount->id,
+                    'old_balance' => $currentBalance,
+                    'new_balance' => $newBalance,
+                    'payment_applied' => $paymentReceived
+                ]);
+
+                $invoiceUpdateResult = $this->updateInvoiceDetails($accountNo, $paymentReceived, $transactionId, $userId, $currentTime);
+            } else {
+                \Log::info('Transaction is Security Deposit, skipping balance and invoice updates', [
+                    'transaction_id' => $transactionId,
+                    'account_no' => $accountNo
+                ]);
+            }
 
             $transaction->status = 'Done';
             $transaction->date_processed = $currentTime;
@@ -714,14 +724,19 @@ class TransactionController extends Controller
                     }
 
                     $currentBalance = floatval($billingAccount->account_balance ?? 0);
-                    $newBalance = $currentBalance - $paymentReceived;
+                    $newBalance = $currentBalance;
+                    $invoiceUpdateResult = ['invoices_paid' => [], 'invoices_partial' => [], 'distribution' => []];
 
-                    $billingAccount->account_balance = round($newBalance, 2);
-                    $billingAccount->balance_update_date = $currentTime;
-                    $billingAccount->updated_by = $userId;
-                    $billingAccount->save();
+                    if ($transaction->transaction_type !== 'Security Deposit') {
+                        $newBalance = $currentBalance - $paymentReceived;
 
-                    $invoiceUpdateResult = $this->updateInvoiceDetails($accountNo, $paymentReceived, $transaction->id, $userId, $currentTime);
+                        $billingAccount->account_balance = round($newBalance, 2);
+                        $billingAccount->balance_update_date = $currentTime;
+                        $billingAccount->updated_by = $userId;
+                        $billingAccount->save();
+
+                        $invoiceUpdateResult = $this->updateInvoiceDetails($accountNo, $paymentReceived, $transaction->id, $userId, $currentTime);
+                    }
 
                     $transaction->status = 'Done';
                     $transaction->date_processed = $currentTime;

@@ -118,7 +118,7 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
         setTechnicians([]);
       }
       try {
-        const response = await userService.getUsersByRoleId([1, 4, 5, 6]);
+        const response = await userService.getUsersByRoleId([1, 2, 4, 5, 6]);
         if (response.success && response.data) {
           const list = response.data
             .map((user: any) => ({
@@ -147,6 +147,19 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
     fetchTechnicians();
     fetchCategories();
 
+    const convertGDriveUrl = (url?: string | null): string => {
+      if (!url) return '';
+      if (typeof url !== 'string') return '';
+      if (url.includes('drive.google.com/file/d/')) {
+        const parts = url.split('/d/');
+        if (parts.length > 1) {
+          const fileId = parts[1].split('/')[0];
+          return `https://drive.google.com/uc?export=view&id=${fileId}`;
+        }
+      }
+      return url;
+    };
+
     if (isOpen) {
       if (isEditMode && workOrder) {
         setFormData({
@@ -157,6 +170,12 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
           remarks: workOrder.remarks || '',
           work_status: workOrder.work_status || 'Pending'
         });
+        setImagePreviews({
+          image_1: convertGDriveUrl(workOrder.image_1),
+          image_2: convertGDriveUrl(workOrder.image_2),
+          image_3: convertGDriveUrl(workOrder.image_3),
+          signature: convertGDriveUrl(workOrder.signature)
+        });
       } else {
         setFormData({
           instructions: '',
@@ -165,6 +184,12 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
           assign_to: '',
           remarks: '',
           work_status: 'Pending'
+        });
+        setImagePreviews({
+          image_1: '',
+          image_2: '',
+          image_3: '',
+          signature: ''
         });
       }
     }
@@ -402,7 +427,7 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
                       <select value={formData.assign_to} onChange={(e) => handleInputChange('assign_to', e.target.value)} disabled={isAssignedToCurrentUser}
                         className={`w-full px-3 py-2 border rounded focus:outline-none ${errors.assign_to ? 'border-red-500' : isAssignedToCurrentUser ? disabledClass : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
                         <option value="">Select Assigned User</option>
-                        {assignees.map(t => <option key={t.email} value={t.email}>{t.email}</option>)}
+                        {assignees.map(t => <option key={t.email} value={t.email}>{t.name} ({t.email})</option>)}
                       </select>
                     </div>
                   </div>

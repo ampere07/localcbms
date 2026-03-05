@@ -879,7 +879,7 @@ class EnhancedBillingGenerationServiceWithNotifications
         $transactions = DB::table('transactions')
             ->where('account_no', $account->account_no)
             ->where('status', 'Done')
-            ->where('transaction_type', 'Recurring Fee')
+            ->whereNotIn('transaction_type', ['Security Deposit', 'Installation Fee'])
             ->whereMonth('payment_date', $lastMonth->month)
             ->whereYear('payment_date', $lastMonth->year)
             ->sum('received_payment');
@@ -948,7 +948,7 @@ class EnhancedBillingGenerationServiceWithNotifications
                 'status' => 'Used',
                 'date_used' => now(),
                 'remarks' => DB::raw("CONCAT(IFNULL(remarks, ''), ' [Applied to Invoice: ', '$invoiceId', ']')"),
-                'updated_by_user_id' => $userId,
+                'updated_by_user' => (string) $userId,
                 'updated_at' => now()
             ]);
     }
