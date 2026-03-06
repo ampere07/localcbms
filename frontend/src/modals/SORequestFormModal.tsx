@@ -42,12 +42,16 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
       const authData = localStorage.getItem('authData');
       if (authData) {
         const userData = JSON.parse(authData);
-        return userData.email || userData.user?.email || 'unknown@example.com';
+        const email = userData.email || userData.user?.email;
+        if (email) return email;
       }
-      return 'unknown@example.com';
+      throw new Error('User email not found. Please log in again.');
     } catch (error) {
       console.error('Error getting user email:', error);
-      return 'unknown@example.com';
+      if (error instanceof Error && error.message.includes('User email not found')) {
+        throw error;
+      }
+      throw new Error('Failed to resolve user email.');
     }
   };
 
