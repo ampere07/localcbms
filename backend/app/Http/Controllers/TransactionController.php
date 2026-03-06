@@ -392,10 +392,13 @@ class TransactionController extends Controller
                 ], 404);
             }
 
+            $currentBalance = floatval($billingAccount->account_balance ?? 0);
+
             \Log::info('Transaction revert started', [
                 'transaction_id' => $transactionId,
                 'account_no' => $accountNo,
-                'payment_to_revert' => $paymentToRevert
+                'payment_to_revert' => $paymentToRevert,
+                'current_balance' => $currentBalance
             ]);
 
             $revertedInvoices = [];

@@ -524,7 +524,7 @@ class ServiceOrderController extends Controller
                     $newSN = $request->input('new_router_modem_sn') ?? $request->input('router_modem_sn') ?? $technicalDetails->router_modem_sn;
                     
                     // Calculate LCPNAP
-                    $newLcpNap = trim(($newLcp ?? '') . ' - ' . ($newNap ?? ''), ' - ');
+                    $newLcpNap = trim(($newLcp ?? '') . ' ' . ($newNap ?? ''), ' ');
 
                     // Store new values in service_orders
                     $updateData['new_lcp'] = $newLcp;

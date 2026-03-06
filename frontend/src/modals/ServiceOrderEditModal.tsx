@@ -696,21 +696,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.accountNo.trim()) newErrors.accountNo = 'Account No is required';
-    if (!formData.fullName.trim()) newErrors.fullName = 'Full Name is required';
-    if (!formData.contactNumber.trim()) newErrors.contactNumber = 'Contact Number is required';
-
-    if (!formData.emailAddress.trim()) {
-      newErrors.emailAddress = 'Email Address is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.emailAddress.trim())) {
-      newErrors.emailAddress = 'Please enter a valid email address';
-    }
-
-    if (!formData.plan.trim()) newErrors.plan = 'Plan is required';
-    if (!formData.username.trim()) newErrors.username = 'Username is required';
-    if (!formData.connectionType.trim()) newErrors.connectionType = 'Connection Type is required';
     if (!formData.supportStatus.trim()) newErrors.supportStatus = 'Support Status is required';
-    if (!formData.concern.trim()) newErrors.concern = 'Concern is required';
+    if (!formData.concern.trim() && !isTechnician) newErrors.concern = 'Concern is required';
 
     // Only validate newPlan if the concern is 'Upgrade/Downgrade Plan' (when the field is visible)
     if (formData.concern === 'Upgrade/Downgrade Plan' && !formData.newPlan.trim()) {
@@ -1216,7 +1203,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Account No<span className="text-red-500">*</span></label>
+                }`}>Account No</label>
               <input
                 type="text"
                 value={formData.accountNo}
@@ -1225,18 +1212,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                   } ${errors.accountNo ? 'border-red-500' : ''}`}
                 placeholder="Account No"
               />
-              {errors.accountNo && (
-                <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
-                </div>
-              )}
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Date Installed<span className="text-red-500">*</span></label>
+                }`}>Date Installed</label>
               <div className="relative">
                 <input
                   type="date"
@@ -1248,18 +1228,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 <Calendar className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`} size={20} />
               </div>
-              {errors.dateInstalled && (
-                <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
-                </div>
-              )}
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Full Name<span className="text-red-500">*</span></label>
+                }`}>Full Name</label>
               <input
                 type="text"
                 value={formData.fullName}
@@ -1267,12 +1240,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   } ${errors.fullName ? 'border-red-500' : ''}`}
               />
-              {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Contact Number<span className="text-red-500">*</span></label>
+                }`}>Contact Number</label>
               <input
                 type="text"
                 value={formData.contactNumber}
@@ -1280,12 +1252,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   } ${errors.contactNumber ? 'border-red-500' : ''}`}
               />
-              {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Email Address<span className="text-red-500">*</span></label>
+                }`}>Email Address</label>
               <input
                 type="text"
                 value={formData.emailAddress}
@@ -1293,12 +1264,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   } ${errors.emailAddress ? 'border-red-500' : ''}`}
               />
-              {errors.emailAddress && <p className="text-red-500 text-xs mt-1">{errors.emailAddress}</p>}
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Plan<span className="text-red-500">*</span></label>
+                }`}>Plan</label>
               <input
                 type="text"
                 value={formData.plan}
@@ -1306,14 +1276,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   } ${errors.plan ? 'border-red-500' : ''}`}
               />
-              {errors.plan && <p className="text-red-500 text-xs mt-1">{errors.plan}</p>}
             </div>
 
 
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Username<span className="text-red-500">*</span></label>
+                }`}>Username</label>
               <input
                 type="text"
                 value={formData.username}
@@ -1321,38 +1290,23 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   } ${errors.username ? 'border-red-500' : ''}`}
               />
-              {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Connection Type<span className="text-red-500">*</span></label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleInputChange('connectionType', 'Fiber')}
-                  className={`py-2 px-4 rounded border transition-colors duration-200 text-white`}
-                  style={{
-                    backgroundColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#7c3aed') : 'transparent',
-                    borderColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#7c3aed') : (isDarkMode ? '#374151' : '#d1d5db'),
-                    color: formData.connectionType === 'Fiber' ? 'white' : (isDarkMode ? '#9ca3af' : '#4b5563')
-                  }}
-                >
-                  Fiber
-                </button>
-              </div>
-              {errors.connectionType && (
-                <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
-                </div>
-              )}
+                }`}>Connection Type</label>
+              <input
+                type="text"
+                value={formData.connectionType}
+                readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  }`}
+              />
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Router/Modem SN<span className="text-red-500">*</span></label>
+                }`}>Router/Modem SN</label>
               <input
                 type="text"
                 value={formData.routerModemSN}
@@ -1360,13 +1314,6 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   } ${errors.routerModemSN ? 'border-red-500' : ''}`}
               />
-              {errors.routerModemSN && (
-                <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
-                </div>
-              )}
             </div>
 
             <div>
@@ -1397,7 +1344,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>PORT<span className="text-red-500">*</span></label>
+                }`}>PORT</label>
               <input
                 type="text"
                 value={formData.port}
@@ -1410,7 +1357,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>VLAN<span className="text-red-500">*</span></label>
+                }`}>VLAN</label>
               <input
                 type="text"
                 value={formData.vlan}
@@ -2357,7 +2304,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Concern<span className="text-red-500">*</span></label>
+                }`}>Concern{!isTechnician && <span className="text-red-500">*</span>}</label>
               <div className="relative">
                 {isTechnician ? (
                   <input
@@ -2430,7 +2377,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Concern Remarks<span className="text-red-500">*</span></label>
+                }`}>Concern Remarks{!isTechnician && <span className="text-red-500">*</span>}</label>
               <textarea
                 value={formData.concernRemarks}
                 onChange={(e) => handleInputChange('concernRemarks', e.target.value)}
@@ -2519,7 +2466,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Support Remarks<span className="text-red-500">*</span></label>
+                }`}>Support Remarks{!isTechnician && <span className="text-red-500">*</span>}</label>
               <textarea
                 value={formData.supportRemarks}
                 onChange={(e) => handleInputChange('supportRemarks', e.target.value)}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { FileText, Search, ChevronDown, ChevronRight, ListFilter, ArrowUp, ArrowDown, Menu, X, RefreshCw, Filter } from 'lucide-react';
+import { FileText, Search, ChevronDown, ChevronRight, ListFilter, ArrowUp, ArrowDown, Menu, X, RefreshCw, Filter, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import JobOrderDetails from '../components/JobOrderDetails';
 import JobOrderFunnelFilter from '../components/filters/JobOrderFunnelFilter';
 import { useJobOrderStore } from '../store/jobOrderStore';
@@ -1943,6 +1943,18 @@ const JobOrderPage: React.FC = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
+                    onClick={() => handlePageChange(1)}
+                    disabled={currentPage === 1}
+                    className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === 1
+                      ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                      : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                      }`}
+                    title="First Page"
+                  >
+                    <ChevronsLeft size={16} />
+                  </button>
+
+                  <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
                     className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
@@ -1968,6 +1980,18 @@ const JobOrderPage: React.FC = () => {
                       }`}
                   >
                     Next
+                  </button>
+
+                  <button
+                    onClick={() => handlePageChange(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+                      ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                      : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                      }`}
+                    title="Last Page"
+                  >
+                    <ChevronsRight size={16} />
                   </button>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Globe, Search, ChevronDown, ChevronRight, Menu, X, FileText, Filter } from 'lucide-react';
+import { Globe, Search, ChevronDown, ChevronRight, Menu, X, FileText, Filter, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import PaymentPortalDetails from '../components/PaymentPortalDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { usePaymentPortalStore } from '../store/paymentPortalStore';
@@ -400,6 +400,18 @@ const PaymentPortal: React.FC = () => {
         </div>
         <div className="flex items-center space-x-2">
           <button
+            onClick={() => handlePageChange(1)}
+            disabled={currentPage === 1}
+            className={`p-1 rounded transition-colors ${currentPage === 1
+              ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+              : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+              }`}
+            title="First Page"
+          >
+            <ChevronsLeft className="h-5 w-5" />
+          </button>
+
+          <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
             className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
@@ -425,6 +437,18 @@ const PaymentPortal: React.FC = () => {
               }`}
           >
             Next
+          </button>
+
+          <button
+            onClick={() => handlePageChange(totalPages)}
+            disabled={currentPage === totalPages}
+            className={`p-1 rounded transition-colors ${currentPage === totalPages
+              ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+              : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+              }`}
+            title="Last Page"
+          >
+            <ChevronsRight className="h-5 w-5" />
           </button>
         </div>
       </div>

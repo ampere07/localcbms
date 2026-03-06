@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Loader2, Eraser, Camera } from 'lucide-react';
+import { X, Loader2, Eraser, Camera, Search, ChevronDown } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { userService } from '../services/userService';
@@ -79,6 +79,9 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
     title: '',
     message: ''
   });
+
+  const [assignToSearch, setAssignToSearch] = useState('');
+  const [isAssignToOpen, setIsAssignToOpen] = useState(false);
 
   useEffect(() => {
     const theme = localStorage.getItem('theme');
@@ -192,6 +195,8 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
           signature: ''
         });
       }
+      setAssignToSearch('');
+      setIsAssignToOpen(false);
     }
   }, [isOpen, isEditMode, workOrder]);
 
@@ -424,11 +429,103 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Assign To<span className="text-red-500">*</span></label>
-                      <select value={formData.assign_to} onChange={(e) => handleInputChange('assign_to', e.target.value)} disabled={isAssignedToCurrentUser}
-                        className={`w-full px-3 py-2 border rounded focus:outline-none ${errors.assign_to ? 'border-red-500' : isAssignedToCurrentUser ? disabledClass : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
-                        <option value="">Select Assigned User</option>
-                        {assignees.map(t => <option key={t.email} value={t.email}>{t.name} ({t.email})</option>)}
-                      </select>
+                      <div className="relative">
+                        <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isAssignedToCurrentUser ? disabledClass : (isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300')
+                          } ${errors.assign_to ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
+                          <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                          <input
+                            type="text"
+                            placeholder="Search user..."
+                            value={isAssignToOpen ? assignToSearch : (assignees.find(a => a.email === formData.assign_to)?.name || formData.assign_to || assignToSearch)}
+                            onChange={(e) => {
+                              setAssignToSearch(e.target.value);
+                              if (!isAssignToOpen) setIsAssignToOpen(true);
+                            }}
+                            onFocus={() => !isAssignedToCurrentUser && setIsAssignToOpen(true)}
+                            disabled={isAssignedToCurrentUser}
+                            className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'} ${isAssignedToCurrentUser ? 'cursor-not-allowed' : ''}`}
+                          />
+                          {!isAssignedToCurrentUser && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isAssignToOpen) {
+                                  setIsAssignToOpen(false);
+                                  setAssignToSearch('');
+                                } else {
+                                  handleInputChange('assign_to', '');
+                                  setAssignToSearch('');
+                                }
+                              }}
+                              className={`ml-2 transition-transform duration-200`}
+                            >
+                              {isAssignToOpen || formData.assign_to ? (
+                                <X size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                              ) : (
+                                <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                              )}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Recommendation Dropdown */}
+                        {isAssignToOpen && !isAssignedToCurrentUser && (
+                          <div
+                            className={`absolute left-0 right-0 top-full mt-1 z-[6000] rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                              }`}
+                            style={{ minWidth: '100%' }}
+                          >
+                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                              {assignees
+                                .filter(a =>
+                                  a.name.toLowerCase().includes(assignToSearch.toLowerCase()) ||
+                                  a.email.toLowerCase().includes(assignToSearch.toLowerCase())
+                                )
+                                .map((assignee) => (
+                                  <div
+                                    key={assignee.email}
+                                    className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode
+                                      ? 'hover:bg-gray-700 text-gray-200'
+                                      : 'hover:bg-gray-100 text-gray-700'
+                                      } ${formData.assign_to === assignee.email ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                                    onClick={() => {
+                                      handleInputChange('assign_to', assignee.email);
+                                      setAssignToSearch('');
+                                      setIsAssignToOpen(false);
+                                    }}
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{assignee.name}</span>
+                                      <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{assignee.email}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              {assignees.filter(a =>
+                                a.name.toLowerCase().includes(assignToSearch.toLowerCase()) ||
+                                a.email.toLowerCase().includes(assignToSearch.toLowerCase())
+                              ).length === 0 && (
+                                  <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                    No users found for "{assignToSearch}"
+                                  </div>
+                                )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Click outside to close */}
+                        {isAssignToOpen && (
+                          <div
+                            className="fixed inset-0 z-[5500] bg-transparent"
+                            onClick={() => {
+                              setIsAssignToOpen(false);
+                              setAssignToSearch('');
+                            }}
+                          />
+                        )}
+                      </div>
+                      {errors.assign_to && (
+                        <p className="text-red-500 text-xs mt-1">{errors.assign_to}</p>
+                      )}
                     </div>
                   </div>
 

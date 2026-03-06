@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types/api';
+import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { userService } from '../services/userService';
 import Breadcrumb from './Breadcrumb';
 import AddNewUserForm from '../components/AddNewUserForm';
@@ -348,10 +349,6 @@ const UserManagement: React.FC = () => {
                             }`}>
                             <td className={`px-4 py-4 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
                               }`}>
-                              {user.salutation && (
-                                <span className={`mr-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                                  }`}>{user.salutation}</span>
-                              )}
                               {getFullName(user)}
                             </td>
                             <td className={`px-4 py-4 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
@@ -424,10 +421,6 @@ const UserManagement: React.FC = () => {
                       <div className="mb-3">
                         <div className={`font-medium mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
                           }`}>
-                          {user.salutation && (
-                            <span className={`mr-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`}>{user.salutation}</span>
-                          )}
                           {getFullName(user)}
                         </div>
                         <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -531,6 +524,18 @@ const UserManagement: React.FC = () => {
 
                 <div className="flex items-center justify-center gap-1 flex-wrap">
                   <button
+                    onClick={() => handlePageChange(1)}
+                    disabled={currentPage === 1 || totalPages === 0}
+                    className={`px-3 py-1 text-sm border rounded whitespace-nowrap ${isDarkMode
+                      ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                      : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
+                      }`}
+                    title="First Page"
+                  >
+                    <ChevronsLeft size={16} />
+                  </button>
+
+                  <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1 || totalPages === 0}
                     className={`px-3 py-1 text-sm border rounded whitespace-nowrap ${isDarkMode
@@ -560,13 +565,18 @@ const UserManagement: React.FC = () => {
                             <button
                               onClick={() => handlePageChange(page)}
                               className={`px-3 py-1 text-sm border rounded ${currentPage === page
-                                ? isDarkMode
-                                  ? 'bg-blue-600 border-blue-600 text-white'
-                                  : 'bg-blue-500 border-blue-500 text-white'
+                                ? (colorPalette?.primary
+                                  ? 'border-transparent text-white'
+                                  : isDarkMode
+                                    ? 'bg-blue-600 border-blue-600 text-white'
+                                    : 'bg-blue-500 border-blue-500 text-white')
                                 : isDarkMode
                                   ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'
                                   : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100'
                                 }`}
+                              style={currentPage === page && colorPalette?.primary ? {
+                                backgroundColor: colorPalette.primary
+                              } : {}}
                             >
                               {page}
                             </button>
@@ -589,6 +599,18 @@ const UserManagement: React.FC = () => {
                       }`}
                   >
                     Next
+                  </button>
+
+                  <button
+                    onClick={() => handlePageChange(totalPages)}
+                    disabled={currentPage === totalPages || totalPages === 0}
+                    className={`px-3 py-1 text-sm border rounded whitespace-nowrap ${isDarkMode
+                      ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                      : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
+                      }`}
+                    title="Last Page"
+                  >
+                    <ChevronsRight size={16} />
                   </button>
                 </div>
               </div>

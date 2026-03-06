@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search } from 'lucide-react';
+import { Search, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import StaggeredListDetails from '../components/StaggeredListDetails';
 import StaggeredInstallationFormModal from '../modals/StaggeredInstallationFormModal';
 import { useStaggeredPaymentContext, StaggeredInstallation } from '../contexts/StaggeredPaymentContext';
@@ -249,6 +249,18 @@ const StaggeredPayment: React.FC = () => {
         </div>
         <div className="flex items-center space-x-2">
           <button
+            onClick={() => handlePageChange(1)}
+            disabled={currentPage === 1}
+            className={`p-1 rounded transition-colors ${currentPage === 1
+              ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+              : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+              }`}
+            title="First Page"
+          >
+            <ChevronsLeft className="h-5 w-5" />
+          </button>
+
+          <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
             className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
@@ -258,11 +270,13 @@ const StaggeredPayment: React.FC = () => {
           >
             Previous
           </button>
+
           <div className="flex items-center space-x-1">
             <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               Page {currentPage} of {totalPages}
             </span>
           </div>
+
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
@@ -272,6 +286,18 @@ const StaggeredPayment: React.FC = () => {
               }`}
           >
             Next
+          </button>
+
+          <button
+            onClick={() => handlePageChange(totalPages)}
+            disabled={currentPage === totalPages}
+            className={`p-1 rounded transition-colors ${currentPage === totalPages
+              ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+              : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+              }`}
+            title="Last Page"
+          >
+            <ChevronsRight className="h-5 w-5" />
           </button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { CreditCard, Search, Circle, X, ListFilter, ArrowUp, ArrowDown, RefreshCw, Filter, ChevronRight, ChevronDown } from 'lucide-react';
+import { CreditCard, Search, Circle, X, ListFilter, ArrowUp, ArrowDown, RefreshCw, Filter, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import BillingDetails from '../components/CustomerDetails';
 import { getBillingRecords, BillingRecord } from '../services/billingService';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
@@ -740,6 +740,18 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
         </div>
         <div className="flex items-center space-x-2">
           <button
+            onClick={() => handlePageChange(1)}
+            disabled={currentPage === 1}
+            className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === 1
+              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+              }`}
+            title="First Page"
+          >
+            <ChevronsLeft size={16} />
+          </button>
+
+          <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
             className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
@@ -751,7 +763,6 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
           </button>
 
           <div className="flex items-center space-x-1">
-            {/* Simple page indicator for now, can be expanded to page numbers */}
             <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               Page {currentPage} of {totalPages}
             </span>
@@ -766,6 +777,18 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
               }`}
           >
             Next
+          </button>
+
+          <button
+            onClick={() => handlePageChange(totalPages)}
+            disabled={currentPage === totalPages}
+            className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+              }`}
+            title="Last Page"
+          >
+            <ChevronsRight size={16} />
           </button>
         </div>
       </div>

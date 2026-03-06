@@ -250,8 +250,9 @@ class EnhancedBillingGenerationServiceWithNotifications
                 throw new \Exception("Plan '{$planName}' has invalid price: " . ($plan->price ?? 'NULL'));
             }
 
+            $dueDateOffset = $this->getDueDateOffset();
             $adjustedDate = $this->calculateAdjustedBillingDate($account, $statementDate);
-            $dueDate = $adjustedDate->copy()->addDays(self::DAYS_UNTIL_DUE);
+            $dueDate = $adjustedDate->copy()->addDays($dueDateOffset);
 
             $prorateAmount = $this->calculateProrateAmount($account, $plan->price, $adjustedDate);
             $monthlyFeeGross = $prorateAmount / (1 + self::VAT_RATE);
@@ -343,8 +344,9 @@ class EnhancedBillingGenerationServiceWithNotifications
                 throw new \Exception("Plan '{$planName}' has invalid price: " . ($plan->price ?? 'NULL'));
             }
 
+            $dueDateOffset = $this->getDueDateOffset();
             $adjustedDate = $this->calculateAdjustedBillingDate($account, $invoiceDate);
-            $dueDate = $adjustedDate->copy()->addDays(self::DAYS_UNTIL_DUE);
+            $dueDate = $adjustedDate->copy()->addDays($dueDateOffset);
 
             $invoiceId = $this->generateInvoiceId($invoiceDate);
             
@@ -443,13 +445,8 @@ class EnhancedBillingGenerationServiceWithNotifications
         if ($account->billing_day === self::END_OF_MONTH_BILLING) {
             return $baseDate->copy()->endOfMonth();
         }
-
-        if ($account->billing_day != 30) {
-            $daysRemaining = 30 - $account->billing_day;
-            return $baseDate->copy()->addDays($daysRemaining);
-        }
         
-        return $baseDate->copy();
+        return $baseDate->copy()->day($account->billing_day);
     }
 
     protected function calculateProrateAmount(BillingAccount $account, float $monthlyFee, Carbon $currentDate): float
@@ -533,6 +530,18 @@ class EnhancedBillingGenerationServiceWithNotifications
     {
         $endDateWithBuffer = $endDate->copy()->addDays(self::DAYS_UNTIL_DUE);
         return $startDate->diffInDays($endDateWithBuffer) + 1;
+    }
+
+    protected function getDueDateOffset(): int
+    {
+        $billingConfig = BillingConfig::first();
+        
+        if (!$billingConfig || $billingConfig->due_date_day === null) {
+            $this->log('info', 'No due_date_day configured, using default ' . self::DAYS_UNTIL_DUE);
+            return self::DAYS_UNTIL_DUE;
+        }
+        
+        return (int)$billingConfig->due_date_day;
     }
 
     protected function getAdvanceGenerationDay(): int

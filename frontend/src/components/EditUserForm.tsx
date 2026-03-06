@@ -95,16 +95,16 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
     return (
       <div className="p-6">
         <div className={`border rounded p-4 ${isDarkMode
-            ? 'bg-red-900 border-red-600 text-red-200'
-            : 'bg-red-100 border-red-300 text-red-800'
+          ? 'bg-red-900 border-red-600 text-red-200'
+          : 'bg-red-100 border-red-300 text-red-800'
           }`}>
           <h3 className="text-lg font-semibold mb-2">Invalid User Data</h3>
           <p>Cannot edit user: No user data provided.</p>
           <button
             onClick={onCancel}
             className={`mt-4 px-4 py-2 rounded transition-colors ${isDarkMode
-                ? 'bg-gray-600 hover:bg-gray-700 text-white'
-                : 'bg-gray-300 hover:bg-gray-400 text-gray-900'
+              ? 'bg-gray-600 hover:bg-gray-700 text-white'
+              : 'bg-gray-300 hover:bg-gray-400 text-gray-900'
               }`}
           >
             Back to Users
@@ -294,8 +294,8 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
         { label: 'Edit User' }
       ]} />
       <div className={`rounded-lg border overflow-hidden ${isDarkMode
-          ? 'bg-gray-800 border-gray-600 text-white'
-          : 'bg-white border-gray-300 text-gray-900'
+        ? 'bg-gray-800 border-gray-600 text-white'
+        : 'bg-white border-gray-300 text-gray-900'
         }`}>
         <div className="p-6">
           <div className="mb-8">
@@ -311,8 +311,8 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
 
           {errors.general && (
             <div className={`mb-6 p-4 border rounded ${isDarkMode
-                ? 'bg-red-900 border-red-600 text-red-200'
-                : 'bg-red-100 border-red-300 text-red-800'
+              ? 'bg-red-900 border-red-600 text-red-200'
+              : 'bg-red-100 border-red-300 text-red-800'
               }`}>
               {errors.general}
             </div>
@@ -330,8 +330,8 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   value={formData.salutation || ''}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 border rounded focus:outline-none ${isDarkMode
-                      ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
-                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                    ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                     }`}
                 >
                   {salutationOptions.map(option => (
@@ -353,10 +353,10 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   value={formData.first_name || ''}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${errors.first_name
-                      ? 'border-red-600'
-                      : isDarkMode
-                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
-                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                    ? 'border-red-600'
+                    : isDarkMode
+                      ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                     }`}
                   placeholder="Enter first name"
                   required
@@ -378,8 +378,8 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   onChange={handleInputChange}
                   maxLength={1}
                   className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${isDarkMode
-                      ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
-                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                    ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                     }`}
                   placeholder="M"
                 />
@@ -396,10 +396,10 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   value={formData.last_name || ''}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${errors.last_name
-                      ? 'border-red-600'
-                      : isDarkMode
-                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
-                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                    ? 'border-red-600'
+                    : isDarkMode
+                      ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                     }`}
                   placeholder="Enter last name"
                   required
@@ -420,10 +420,10 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   value={formData.username || ''}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${errors.username
-                      ? 'border-red-600'
-                      : isDarkMode
-                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
-                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                    ? 'border-red-600'
+                    : isDarkMode
+                      ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                     }`}
                   placeholder="Enter username"
                   required
@@ -444,10 +444,10 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   value={formData.email_address || ''}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${errors.email_address
-                      ? 'border-red-600'
-                      : isDarkMode
-                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
-                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                    ? 'border-red-600'
+                    : isDarkMode
+                      ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                     }`}
                   placeholder="Enter email address"
                   required
@@ -468,10 +468,10 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   value={formData.contact_number || ''}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${errors.contact_number
-                      ? 'border-red-600'
-                      : isDarkMode
-                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
-                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                    ? 'border-red-600'
+                    : isDarkMode
+                      ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                     }`}
                   placeholder="Enter contact number"
                 />
@@ -490,8 +490,8 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   value={formData.organization_id || ''}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 border rounded focus:outline-none ${isDarkMode
-                      ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
-                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                    ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                     }`}
                 >
                   <option value="">No Organization</option>
@@ -513,8 +513,8 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   value={formData.role_id || ''}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 border rounded focus:outline-none ${isDarkMode
-                      ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
-                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                    ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                    : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                     }`}
                 >
                   <option value="">No Role</option>
@@ -537,10 +537,10 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                   value={formData.password || ''}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${errors.password
-                      ? 'border-red-600'
-                      : isDarkMode
-                        ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
-                        : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
+                    ? 'border-red-600'
+                    : isDarkMode
+                      ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
+                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
                     }`}
                   placeholder="Leave blank to keep current password"
                 />
@@ -559,8 +559,8 @@ const EditUserForm: React.FC<EditUserFormProps> = ({ user, onCancel, onUserUpdat
                 onClick={onCancel}
                 disabled={loading}
                 className={`px-6 py-3 border rounded transition-colors text-sm font-medium disabled:opacity-50 ${isDarkMode
-                    ? 'border-gray-600 text-white hover:bg-gray-800'
-                    : 'border-gray-300 text-gray-900 hover:bg-gray-100'
+                  ? 'border-gray-600 text-white hover:bg-gray-800'
+                  : 'border-gray-300 text-gray-900 hover:bg-gray-100'
                   }`}
               >
                 Cancel

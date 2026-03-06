@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Upload, Clock, Info, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { FileText, Upload, Clock, Info, CheckCircle, XCircle, AlertCircle, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { createServiceOrder, getServiceOrders } from '../services/serviceOrderService';
 import { useServiceOrderStore } from '../store/serviceOrderStore';
@@ -425,13 +425,22 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
 
                   {/* Pagination */}
                   {totalPages > 1 && (
-                    <div className={`flex justify-center items-center py-4 gap-4 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+                    <div className={`flex justify-center items-center py-4 gap-2 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+                      <button
+                        onClick={() => setCurrentPage(1)}
+                        disabled={currentPage === 1}
+                        className={`w-8 h-8 flex items-center justify-center rounded-full font-bold transition disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                        title="First Page"
+                      >
+                        <ChevronsLeft size={16} />
+                      </button>
                       <button
                         onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                         disabled={currentPage === 1}
                         className={`w-8 h-8 flex items-center justify-center rounded-full font-bold transition disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                        title="Previous Page"
                       >
-                        &lt;
+                        <ChevronLeft size={16} />
                       </button>
                       <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                         Page {currentPage} of {totalPages}
@@ -440,8 +449,17 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
                         onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                         disabled={currentPage === totalPages}
                         className={`w-8 h-8 flex items-center justify-center rounded-full font-bold transition disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                        title="Next Page"
                       >
-                        &gt;
+                        <ChevronRight size={16} />
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage(totalPages)}
+                        disabled={currentPage === totalPages}
+                        className={`w-8 h-8 flex items-center justify-center rounded-full font-bold transition disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                        title="Last Page"
+                      >
+                        <ChevronsRight size={16} />
                       </button>
                     </div>
                   )}
