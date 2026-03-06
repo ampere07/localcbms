@@ -119,11 +119,21 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
 
-  const [showModal, setShowModal] = useState(false);
-  const [modalContent, setModalContent] = useState<{
+  interface ModalConfig {
+    isOpen: boolean;
+    type: 'success' | 'error' | 'warning' | 'confirm' | 'loading';
     title: string;
-    messages: Array<{ type: 'success' | 'warning' | 'error'; text: string }>;
-  }>({ title: '', messages: [] });
+    message: string;
+    onConfirm?: () => void;
+    onCancel?: () => void;
+  }
+
+  const [modal, setModal] = useState<ModalConfig>({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: ''
+  });
 
   const [technicians, setTechnicians] = useState<Array<{ email: string; name: string }>>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -379,11 +389,6 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
     });
   };
 
-  const showMessageModal = (title: string, messages: Array<{ type: 'success' | 'warning' | 'error'; text: string }>) => {
-    setModalContent({ title, messages });
-    setShowModal(true);
-  };
-
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -440,12 +445,22 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
     setFormData(updatedFormData);
 
     if (!validateForm()) {
-      showMessageModal('Validation Error', [{ type: 'error', text: 'Please fill in all required fields before saving.' }]);
+      setModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'Validation Error',
+        message: 'Please fill in all required fields before saving.'
+      });
       return;
     }
 
     if (!jobOrderData?.id && !jobOrderData?.JobOrder_ID) {
-      showMessageModal('Error', [{ type: 'error', text: 'Cannot update job order: Missing ID' }]);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Cannot update job order: Missing ID'
+      });
       return;
     }
 
@@ -483,10 +498,23 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
 
       if (applicationId) {
         const applicationUpdateData: any = {
-          status: updatedFormData.status
+          status: updatedFormData.status,
+          first_name: updatedFormData.firstName,
+          middle_initial: updatedFormData.middleInitial,
+          last_name: updatedFormData.lastName,
+          mobile_number: updatedFormData.contactNumber,
+          email_address: updatedFormData.email,
+          installation_address: updatedFormData.address,
+          barangay: updatedFormData.barangay,
+          city: updatedFormData.city,
+          region: updatedFormData.region,
+          desired_plan: updatedFormData.choosePlan,
+          promo: updatedFormData.promo,
+          landmark: updatedFormData.installationLandmark,
+          referred_by: updatedFormData.referredBy
         };
         await updateApplication(applicationId, applicationUpdateData);
-        saveMessages.push({ type: 'success', text: 'Application status updated' });
+        saveMessages.push({ type: 'success', text: 'Application details updated' });
       }
 
       clearInterval(progressInterval);
@@ -496,15 +524,28 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
       setErrors({});
       setLoading(false);
       setLoadingPercentage(0);
-      showMessageModal('Success', saveMessages);
-      onSave(updatedFormData);
-      onClose();
+      setModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Success',
+        message: 'Records updated successfully!',
+        onConfirm: () => {
+          onSave(updatedFormData);
+          onClose();
+          setModal({ ...modal, isOpen: false });
+        }
+      });
     } catch (error: any) {
       clearInterval(progressInterval);
       const errorMessage = error.response?.data?.message || error.message || 'Unknown error occurred';
       setLoading(false);
       setLoadingPercentage(0);
-      showMessageModal('Error', [{ type: 'error', text: `Failed to update records: ${errorMessage}` }]);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Update Failed',
+        message: `Failed to update records: ${errorMessage}`
+      });
     }
   };
 
@@ -531,57 +572,98 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
     <>
       {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
-          <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px]`}>
-            <Loader2 className="w-20 h-20 animate-spin" style={{ color: colorPalette?.primary || '#f97316' }} />
+          <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+            <Loader2
+              className="w-20 h-20 animate-spin"
+              style={{ color: colorPalette?.primary || '#7c3aed' }}
+            />
             <div className="text-center">
-              <p className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-4xl font-bold`}>{loadingPercentage}%</p>
+              <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{loadingPercentage}%</p>
             </div>
           </div>
         </div>
       )}
 
-      {showModal && (
+      {modal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
-          <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col`}>
-            <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} flex items-center justify-between`}>
-              <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{modalContent.title}</h3>
-              <button onClick={() => setShowModal(false)} className={`${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors`}>
-                <X size={20} />
-              </button>
-            </div>
-            <div className="px-6 py-4 overflow-y-auto flex-1">
-              <div className="space-y-3">
-                {modalContent.messages.map((message, index) => (
-                  <div key={index} className={`flex items-start gap-3 p-3 rounded-lg ${message.type === 'success'
-                    ? isDarkMode ? 'bg-green-900/30 border border-green-700' : 'bg-green-100 border border-green-300'
-                    : message.type === 'warning'
-                      ? isDarkMode ? 'bg-yellow-900/30 border border-yellow-700' : 'bg-yellow-100 border border-yellow-300'
-                      : isDarkMode ? 'bg-red-900/30 border border-red-700' : 'bg-red-100 border border-red-300'
-                    }`}>
-                    {message.type === 'success' && <CheckCircle className="text-green-500 flex-shrink-0 mt-0.5" size={20} />}
-                    {message.type === 'warning' && <AlertCircle className="text-yellow-500 flex-shrink-0 mt-0.5" size={20} />}
-                    {message.type === 'error' && <XCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />}
-                    <p className={`text-sm ${message.type === 'success'
-                      ? isDarkMode ? 'text-green-200' : 'text-green-800'
-                      : message.type === 'warning'
-                        ? isDarkMode ? 'text-yellow-200' : 'text-yellow-800'
-                        : isDarkMode ? 'text-red-200' : 'text-red-800'
-                      }`}>{message.text}</p>
-                  </div>
-                ))}
+          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+            {modal.type === 'loading' ? (
+              <div className="text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#7c3aed' }}></div>
+                </div>
+                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>{modal.message}</p>
               </div>
-            </div>
-            <div className={`px-6 py-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} flex justify-end`}>
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-white rounded transition-colors"
-                style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
-                onMouseEnter={(e) => { if (colorPalette?.accent) e.currentTarget.style.backgroundColor = colorPalette.accent; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed'; }}
-              >
-                Close
-              </button>
-            </div>
+            ) : (
+              <>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>{modal.message}</p>
+                <div className="flex items-center justify-end gap-3">
+                  {modal.type === 'confirm' ? (
+                    <>
+                      <button
+                        onClick={modal.onCancel}
+                        className={`px-4 py-2 rounded transition-colors ${isDarkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          }`}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={modal.onConfirm}
+                        className="px-4 py-2 text-white rounded transition-colors"
+                        style={{
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                        }}
+                      >
+                        Confirm
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (modal.onConfirm) {
+                          modal.onConfirm();
+                        } else {
+                          setModal({ ...modal, isOpen: false });
+                        }
+                      }}
+                      className="px-4 py-2 text-white rounded transition-colors"
+                      style={{
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                      }}
+                    >
+                      OK
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

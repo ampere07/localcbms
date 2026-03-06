@@ -398,54 +398,62 @@ class TransactionController extends Controller
                 'payment_to_revert' => $paymentToRevert
             ]);
 
-            // 1. Revert Account Balance
-            $currentBalance = floatval($billingAccount->account_balance ?? 0);
-            $newBalance = $currentBalance + $paymentToRevert;
-
-            $billingAccount->account_balance = round($newBalance, 2);
-            $billingAccount->balance_update_date = $currentTime;
-            $billingAccount->updated_by = $userId;
-            $billingAccount->save();
-
-            // 2. Revert Invoice Payments
-            // Find invoices updated by this transaction
-            $invoices = \App\Models\Invoice::where('transaction_id', $transactionId)
-                ->orderBy('invoice_date', 'desc') // Revert in reverse order of application
-                ->get();
-
-            $remainingToRevert = $paymentToRevert;
             $revertedInvoices = [];
+            $newBalance = $currentBalance;
 
-            foreach ($invoices as $invoice) {
-                if ($remainingToRevert <= 0) break;
+            if ($transaction->transaction_type !== 'Security Deposit') {
+                // 1. Revert Account Balance
+                $newBalance = $currentBalance + $paymentToRevert;
 
-                $currentReceived = floatval($invoice->received_payment ?? 0);
-                
-                // Subtract as much as possible from this invoice
-                $toSubtract = min($currentReceived, $remainingToRevert);
-                
-                $newReceived = $currentReceived - $toSubtract;
-                $invoice->received_payment = round($newReceived, 2);
-                
-                // Update status
-                if ($newReceived <= 0) {
-                    $invoice->status = 'Unpaid';
-                } else {
-                    $invoice->status = 'Partial';
+                $billingAccount->account_balance = round($newBalance, 2);
+                $billingAccount->balance_update_date = $currentTime;
+                $billingAccount->updated_by = $userId;
+                $billingAccount->save();
+
+                // 2. Revert Invoice Payments
+                // Find invoices updated by this transaction
+                $invoices = \App\Models\Invoice::where('transaction_id', $transactionId)
+                    ->orderBy('invoice_date', 'desc') // Revert in reverse order of application
+                    ->get();
+
+                $remainingToRevert = $paymentToRevert;
+
+                foreach ($invoices as $invoice) {
+                    if ($remainingToRevert <= 0) break;
+
+                    $currentReceived = floatval($invoice->received_payment ?? 0);
+                    
+                    // Subtract as much as possible from this invoice
+                    $toSubtract = min($currentReceived, $remainingToRevert);
+                    
+                    $newReceived = $currentReceived - $toSubtract;
+                    $invoice->received_payment = round($newReceived, 2);
+                    
+                    // Update status
+                    if ($newReceived <= 0) {
+                        $invoice->status = 'Unpaid';
+                    } else {
+                        $invoice->status = 'Partial';
+                    }
+                    
+                    // Clear transaction_id since we're reverting
+                    $invoice->transaction_id = null;
+                    $invoice->updated_by = Auth::check() ? Auth::user()->email_address : 'unknown';
+                    $invoice->updated_at = $currentTime;
+                    $invoice->save();
+
+                    $remainingToRevert -= $toSubtract;
+                    $revertedInvoices[] = [
+                        'invoice_id' => $invoice->id,
+                        'amount_reverted' => $toSubtract,
+                        'new_status' => $invoice->status
+                    ];
                 }
-                
-                // Clear transaction_id since we're reverting
-                $invoice->transaction_id = null;
-                $invoice->updated_by = Auth::check() ? Auth::user()->email_address : 'unknown';
-                $invoice->updated_at = $currentTime;
-                $invoice->save();
-
-                $remainingToRevert -= $toSubtract;
-                $revertedInvoices[] = [
-                    'invoice_id' => $invoice->id,
-                    'amount_reverted' => $toSubtract,
-                    'new_status' => $invoice->status
-                ];
+            } else {
+                \Log::info('Transaction is Security Deposit, skipping balance and invoice reverts', [
+                    'transaction_id' => $transactionId,
+                    'account_no' => $accountNo
+                ]);
             }
 
             // 3. Update Transaction Status
