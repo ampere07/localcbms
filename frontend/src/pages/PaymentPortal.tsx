@@ -11,6 +11,7 @@ import { getRegions, Region } from '../services/regionService';
 import { barangayService, Barangay } from '../services/barangayService';
 import { BillingDetailRecord } from '../types/billing';
 import PaymentPortalFunnelFilter, { FilterValues } from '../filter/PaymentPortalFunnelFilter';
+import pusher from '../services/pusherService';
 
 // Interfaces for payment portal data (PaymentPortalRecord is imported now)
 // Removed local PaymentPortalRecord interface
@@ -77,7 +78,8 @@ const PaymentPortal: React.FC = () => {
     isLoading: loading,
     error,
     fetchPaymentPortalRecords,
-    refreshPaymentPortalRecords
+    refreshPaymentPortalRecords,
+    silentRefresh
   } = usePaymentPortalStore();
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
@@ -105,10 +107,11 @@ const PaymentPortal: React.FC = () => {
   const [barangays, setBarangays] = useState<Barangay[]>([]);
   const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Format currency function
   const formatCurrency = (amount: number) => {
@@ -172,6 +175,28 @@ const PaymentPortal: React.FC = () => {
 
     fetchLookupData();
   }, []);
+
+  // Pusher/Soketi connection for real-time payment portal updates
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[PaymentPortal Soketi] Update received, refreshing:', data);
+      try {
+        await fetchPaymentPortalRecords(true);
+        console.log('[PaymentPortal Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[PaymentPortal Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const paymentChannel = pusher.subscribe('payments');
+
+    paymentChannel.bind('payment-updated', handleUpdate);
+
+    return () => {
+      paymentChannel.unbind('payment-updated', handleUpdate);
+      pusher.unsubscribe('payments');
+    };
+  }, [fetchPaymentPortalRecords]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -367,12 +392,19 @@ const PaymentPortal: React.FC = () => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLocation, searchQuery]);
+  }, [selectedLocation, searchQuery, itemsPerPage]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage]);
 
   const paginatedRecords = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredRecords.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredRecords, currentPage]);
+  }, [filteredRecords, currentPage, itemsPerPage]);
 
   // Use totalCount for total pages if no filter/search is active
   const totalDisplayCount = useMemo(() => {
@@ -395,8 +427,24 @@ const PaymentPortal: React.FC = () => {
 
     return (
       <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <div className="flex items-center gap-2">
+            <span>Show</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span>entries</span>
+          </div>
+          <span>
+            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+          </span>
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -710,7 +758,7 @@ const PaymentPortal: React.FC = () => {
 
           {/* Table Container */}
           <div className="flex-1 overflow-hidden flex flex-col">
-            <div className="flex-1 overflow-x-auto overflow-y-auto">
+            <div className="flex-1 overflow-x-auto overflow-y-auto" ref={scrollRef}>
               {loading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   <div className="animate-pulse flex flex-col items-center">

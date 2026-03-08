@@ -4,6 +4,7 @@ import InventoryFormModal from '../modals/InventoryFormModal';
 import InventoryDetails from '../components/InventoryDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import apiClient from '../config/api';
+import pusher from '../services/pusherService';
 
 interface InventoryItem {
   item_name: string;
@@ -89,6 +90,27 @@ const Inventory: React.FC = () => {
   useEffect(() => {
     fetchInventoryData();
     fetchCategories();
+  }, []);
+
+  // Real-time updates via Pusher/Soketi
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[Inventory Soketi] Update received, refreshing:', data);
+      try {
+        await Promise.all([fetchInventoryData(true), fetchCategories()]);
+        console.log('[Inventory Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[Inventory Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const inventoryChannel = pusher.subscribe('inventory');
+    inventoryChannel.bind('inventory-updated', handleUpdate);
+
+    return () => {
+      inventoryChannel.unbind('inventory-updated', handleUpdate);
+      pusher.unsubscribe('inventory');
+    };
   }, []);
 
   // Idle detection and auto-refresh logic

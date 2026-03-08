@@ -7,6 +7,7 @@ import { getCities, City } from '../services/cityService';
 import { getRegions, Region } from '../services/regionService';
 import { barangayService, Barangay } from '../services/barangayService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import pusher from '../services/pusherService';
 
 
 interface LocationItem {
@@ -71,6 +72,8 @@ const ServiceOrderPage: React.FC = () => {
   const startWidthRef = useRef<number>(0);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+  const cardScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [activeFilters, setActiveFilters] = useState<any>(() => {
     const saved = localStorage.getItem('serviceOrderFilters');
@@ -107,6 +110,15 @@ const ServiceOrderPage: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (displayMode === 'card' && cardScrollRef.current) {
+      cardScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (displayMode === 'table' && tableScrollRef.current) {
+      tableScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage, displayMode]);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -185,6 +197,27 @@ const ServiceOrderPage: React.FC = () => {
   // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
     silentRefresh();
+  }, [silentRefresh]);
+
+  // Real-time updates via Pusher/Soketi
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[ServiceOrder Soketi] Update received, silently refreshing:', data);
+      try {
+        await silentRefresh();
+        console.log('[ServiceOrder Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[ServiceOrder Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const serviceOrderChannel = pusher.subscribe('service-orders');
+    serviceOrderChannel.bind('service-order-updated', handleUpdate);
+
+    return () => {
+      serviceOrderChannel.unbind('service-order-updated', handleUpdate);
+      pusher.unsubscribe('service-orders');
+    };
   }, [silentRefresh]);
 
   // Idle detection and auto-refresh logic
@@ -1603,7 +1636,7 @@ const ServiceOrderPage: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-hidden flex flex-col">
-            <div className={`flex-1 ${displayMode === 'table' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+            <div className={`flex-1 ${displayMode === 'table' ? 'overflow-hidden' : 'overflow-y-auto'}`} ref={cardScrollRef}>
               {isLoading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   <div className="animate-pulse flex flex-col items-center">
@@ -1659,7 +1692,7 @@ const ServiceOrderPage: React.FC = () => {
                 )
               ) : (
                 <div className="h-full relative flex flex-col">
-                  <div className="flex-1 overflow-auto">
+                  <div className="flex-1 overflow-auto" ref={tableScrollRef}>
                     <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
                       <thead>
                         <tr className={`border-b sticky top-0 z-10 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'

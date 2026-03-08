@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CreditCard, Search, Circle, X, ListFilter, ArrowUp, ArrowDown, RefreshCw, Filter, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import pusher from '../services/pusherService';
 import BillingDetails from '../components/CustomerDetails';
-import { getBillingRecords, BillingRecord } from '../services/billingService';
+import { getBillingRecords, BillingRecord, checkForBillingUpdates } from '../services/billingService';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
 import { getCities, City } from '../services/cityService';
@@ -113,12 +114,8 @@ const allColumns = [
   { key: 'usageType', label: 'Usage Type', width: 'min-w-32' },
   { key: 'referredBy', label: 'Referred By', width: 'min-w-36' },
   { key: 'secondContactNumber', label: 'Second Contact Number', width: 'min-w-40' },
-  { key: 'referrersAccountNumber', label: 'Referrer\'s Account Number', width: 'min-w-44' },
-  { key: 'group', label: 'Group', width: 'min-w-28' },
   { key: 'mikrotikId', label: 'Mikrotik ID', width: 'min-w-32' },
-  { key: 'sessionIP', label: 'Session IP', width: 'min-w-32' },
-  { key: 'referralContactNo', label: 'Referral Contact No.', width: 'min-w-40' },
-  { key: 'logs', label: 'Logs', width: 'min-w-24' }
+  { key: 'sessionIP', label: 'Session IP', width: 'min-w-32' }
 ];
 
 interface CustomerProps {
@@ -130,7 +127,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>(initialSearchQuery || '');
-  const { billingRecords, totalCount, isLoading: isTableLoading, error: contextError, fetchBillingRecords, refreshBillingRecords } = useBillingStore();
+  const { billingRecords, totalCount, isLoading: isTableLoading, error: contextError, fetchBillingRecords, refreshBillingRecords, refreshLatestData } = useBillingStore();
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
   const [cities, setCities] = useState<City[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
@@ -138,6 +135,8 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
   const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [customerRefreshKey, setCustomerRefreshKey] = useState<number>(0);
+  const [hasNewData, setHasNewData] = useState<boolean>(false);
+  const [isSilentRefreshing, setIsSilentRefreshing] = useState<boolean>(false);
 
   const [selectedBillingStatus, setSelectedBillingStatus] = useState<string>('');
   const [selectedAccountBalance, setSelectedAccountBalance] = useState<number | null>(null);
@@ -199,6 +198,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
   const startWidthRef = useRef<number>(0);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Fetch location data
   useEffect(() => {
@@ -263,6 +263,36 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
 
     fetchLocationData();
   }, []);
+
+  // Pusher/Soketi connection for real-time customer data
+  useEffect(() => {
+    const handleDataChange = async (data: any) => {
+      console.log('[Customer Soketi] Data changed, fetching latest:', data);
+      try {
+        await refreshLatestData();
+        console.log('[Customer Soketi] Latest data fetched successfully');
+      } catch (err) {
+        console.error('[Customer Soketi] Failed to fetch latest data:', err);
+      }
+    };
+
+    const appChannel = pusher.subscribe('applications');
+    const jobChannel = pusher.subscribe('job-orders');
+    const customerChannel = pusher.subscribe('customers');
+
+    appChannel.bind('new-application', handleDataChange);
+    jobChannel.bind('job-order-done', handleDataChange);
+    customerChannel.bind('customer-updated', handleDataChange);
+
+    return () => {
+      appChannel.unbind('new-application', handleDataChange);
+      jobChannel.unbind('job-order-done', handleDataChange);
+      customerChannel.unbind('customer-updated', handleDataChange);
+      pusher.unsubscribe('applications');
+      pusher.unsubscribe('job-orders');
+      pusher.unsubscribe('customers');
+    };
+  }, [refreshLatestData]);
 
   // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
@@ -679,18 +709,25 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Reset page when filters change
+  // Reset page when filters or items per page change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection]);
+  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection, itemsPerPage]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage]);
 
   // Derived paginated records
   const paginatedRecords = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredBillingRecords.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredBillingRecords, currentPage]);
+  }, [filteredBillingRecords, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(totalDisplayCount / itemsPerPage);
 
@@ -735,8 +772,27 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
 
     return (
       <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <div className="flex items-center gap-2">
+            <span>Show</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
+                }`}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span>entries</span>
+          </div>
+          <span>
+            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+          </span>
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -901,16 +957,10 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
         return (record as any).referredBy || '-';
       case 'secondContactNumber':
         return (record as any).secondContactNumber || '-';
-      case 'referrersAccountNumber':
-        return (record as any).referrersAccountNumber || '-';
-      case 'group':
-        return (record as any).group || '-';
       case 'mikrotikId':
         return (record as any).mikrotikId || '-';
       case 'sessionIP':
         return (record as any).sessionIP || '-';
-      case 'referralContactNo':
-        return (record as any).referralContactNo || '-';
 
       // Related records - placeholders
       case 'relatedInvoices':
@@ -937,7 +987,6 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       case 'relatedSecurityDeposits':
       case 'relatedApprovedTransactions':
       case 'relatedAttachments':
-      case 'logs':
         return '-';
 
       // Computed fields
@@ -958,10 +1007,14 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
 
   const handleRefresh = async () => {
     try {
-      // Use the context refresh function
-      await refreshBillingRecords();
+      setIsSilentRefreshing(true);
+      // Use the context refresh function to silent refresh locally
+      await refreshLatestData();
+      setHasNewData(false);
     } catch (err) {
       console.error('Failed to refresh billing records:', err);
+    } finally {
+      setIsSilentRefreshing(false);
     }
   };
 
@@ -1662,30 +1715,33 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                 </button> */}
                 <button
                   onClick={handleRefresh}
-                  disabled={isLoading}
-                  className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600 flex items-center"
+                  disabled={isLoading || isSilentRefreshing}
+                  className={`px-4 py-2 rounded text-sm transition-colors disabled:opacity-50 flex items-center relative ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
                   style={{
-                    backgroundColor: colorPalette?.primary || '#7c3aed',
+                    color: colorPalette?.primary || '#7c3aed',
                   }}
                   onMouseEnter={(e) => {
-                    if (!isLoading && colorPalette?.accent) {
-                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    if (!isLoading && !isSilentRefreshing && colorPalette?.accent) {
+                      e.currentTarget.style.color = colorPalette.accent;
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (!isLoading && colorPalette?.primary) {
-                      e.currentTarget.style.backgroundColor = colorPalette.primary;
+                    if (!isLoading && !isSilentRefreshing && colorPalette?.primary) {
+                      e.currentTarget.style.color = colorPalette.primary;
                     }
                   }}
                 >
-                  <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+                  {hasNewData && (
+                    <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span>
+                  )}
+                  <RefreshCw className={`h-5 w-5 ${isLoading || isSilentRefreshing ? 'animate-spin' : ''}`} />
                 </button>
               </div>
             </div>
           </div>
 
           <div className="flex-1 overflow-hidden flex flex-col">
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto" ref={scrollRef}>
               {isLoading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>

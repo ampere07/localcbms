@@ -8,6 +8,7 @@ import {
   InventoryCategory
 } from '../services/inventoryCategoryService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import pusher from '../services/pusherService';
 
 const InventoryCategoryList: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
@@ -50,6 +51,27 @@ const InventoryCategoryList: React.FC = () => {
 
   useEffect(() => {
     fetchCategories();
+  }, []);
+
+  // Real-time updates via Pusher/Soketi
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[InventoryCategory Soketi] Update received, refreshing:', data);
+      try {
+        await fetchCategories(true);
+        console.log('[InventoryCategory Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[InventoryCategory Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const categoryChannel = pusher.subscribe('inventory-categories');
+    categoryChannel.bind('inventory-category-updated', handleUpdate);
+
+    return () => {
+      categoryChannel.unbind('inventory-category-updated', handleUpdate);
+      pusher.unsubscribe('inventory-categories');
+    };
   }, []);
 
   // Idle detection and auto-refresh logic

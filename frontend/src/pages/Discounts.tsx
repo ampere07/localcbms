@@ -3,6 +3,7 @@ import { Receipt, Search, ChevronRight, Tag, ChevronDown, Menu, X, ChevronsLeft,
 import DiscountDetails from '../components/DiscountDetails';
 import DiscountFormModal from '../modals/DiscountFormModal';
 import { useDiscountStore, DiscountRecord } from '../store/discountStore';
+import pusher from '../services/pusherService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
@@ -82,6 +83,7 @@ const Discounts: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [isDiscountFormModalOpen, setIsDiscountFormModalOpen] = useState<boolean>(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
@@ -89,7 +91,7 @@ const Discounts: React.FC = () => {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -147,6 +149,28 @@ const Discounts: React.FC = () => {
   // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
     silentRefresh();
+  }, [silentRefresh]);
+
+  // Pusher/Soketi connection for real-time discount updates
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[Discounts Soketi] Update received, silently refreshing:', data);
+      try {
+        await silentRefresh();
+        console.log('[Discounts Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[Discounts Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const discountChannel = pusher.subscribe('discounts');
+
+    discountChannel.bind('discount-updated', handleUpdate);
+
+    return () => {
+      discountChannel.unbind('discount-updated', handleUpdate);
+      pusher.unsubscribe('discounts');
+    };
   }, [silentRefresh]);
 
   // Idle detection and auto-refresh logic
@@ -308,12 +332,19 @@ const Discounts: React.FC = () => {
   // Reset page when search or location changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedLocation]);
+  }, [searchQuery, selectedLocation, itemsPerPage]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage]);
 
   const paginatedRecords = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredDiscountRecords.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredDiscountRecords, currentPage]);
+  }, [filteredDiscountRecords, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(filteredDiscountRecords.length / itemsPerPage);
 
@@ -328,8 +359,24 @@ const Discounts: React.FC = () => {
 
     return (
       <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredDiscountRecords.length)}</span> of <span className="font-medium">{filteredDiscountRecords.length}</span> results
+        <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <div className="flex items-center gap-2">
+            <span>Show</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span>entries</span>
+          </div>
+          <span>
+            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredDiscountRecords.length)}</span> of <span className="font-medium">{filteredDiscountRecords.length}</span> results
+          </span>
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -711,7 +758,7 @@ const Discounts: React.FC = () => {
         </div>
         <div className="flex flex-col h-full">
           <div className="flex-1 overflow-hidden flex flex-col">
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto" ref={scrollRef}>
               {isLoading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>

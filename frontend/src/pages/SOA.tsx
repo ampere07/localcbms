@@ -9,6 +9,7 @@ import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
 import SOAFunnelFilter, { FilterValues } from '../filter/SOAFunnelFilter';
+import pusher from '../services/pusherService';
 import { Filter } from 'lucide-react';
 
 // Removed local SOARecordUI interface
@@ -65,7 +66,7 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
 };
 
 const SOA: React.FC = () => {
-  const { soaRecords, totalCount, isLoading, error, fetchSOARecords, refreshSOARecords } = useSOAStore();
+  const { soaRecords, totalCount, isLoading, error, fetchSOARecords, refreshSOARecords, silentRefresh } = useSOAStore();
 
   // Fetch data on mount if empty
   useEffect(() => {
@@ -80,6 +81,7 @@ const SOA: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [selectedRecord, setSelectedRecord] = useState<SOARecordUI | null>(null);
   // Removed local soaRecords, isLoading, error state
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
@@ -99,7 +101,7 @@ const SOA: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const [sortColumn, setSortColumn] = useState<string | null>('id');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -236,6 +238,28 @@ const SOA: React.FC = () => {
     };
     fetchColorPalette();
   }, []);
+
+  // Pusher/Soketi connection for real-time SOA updates
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[SOA Soketi] Update received, silently refreshing:', data);
+      try {
+        await silentRefresh();
+        console.log('[SOA Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[SOA Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const soaChannel = pusher.subscribe('soa');
+
+    soaChannel.bind('soa-updated', handleUpdate);
+
+    return () => {
+      soaChannel.unbind('soa-updated', handleUpdate);
+      pusher.unsubscribe('soa');
+    };
+  }, [silentRefresh]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -390,12 +414,19 @@ const SOA: React.FC = () => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedDate, searchQuery]);
+  }, [selectedDate, searchQuery, itemsPerPage]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage]);
 
   const paginatedRecords = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredRecords.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredRecords, currentPage]);
+  }, [filteredRecords, currentPage, itemsPerPage]);
 
   // Use totalCount for total pages if no filter/search is active
   const totalDisplayCount = useMemo(() => {
@@ -418,8 +449,24 @@ const SOA: React.FC = () => {
 
     return (
       <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <div className="flex items-center gap-2">
+            <span>Show</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span>entries</span>
+          </div>
+          <span>
+            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+          </span>
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -1109,7 +1156,7 @@ const SOA: React.FC = () => {
               ) : (
                 <>
                   <div className="h-full relative flex flex-col">
-                    <div className="flex-1 overflow-auto">
+                    <div className="flex-1 overflow-auto" ref={scrollRef}>
                       <table className="w-max min-w-full text-sm border-separate border-spacing-0">
                         <thead>
                           <tr className={`border-b sticky top-0 z-10 ${isDarkMode

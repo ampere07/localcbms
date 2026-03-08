@@ -685,13 +685,13 @@ class JobOrderController extends Controller
                 'title' => 'Job Order Completed',
                 'message' => 'Onsite status marked as Done',
                 'timestamp' => now()->timestamp,
-                'formatted_date' => now()->format('Y-m-d h:i:s A') // e.g. 2026-02-11 05:53:42 PM
+                'formatted_date' => now()->format('Y-m-d h:i:s A')
             ];
 
-            Http::timeout(2)->post('http://127.0.0.1:3001/broadcast/job-order-done', $data);
+            event(new \App\Events\JobOrderDone($data));
             \Log::info('Real-time broadcast sent for Job Order Done', ['id' => $jobOrder->id]);
         } catch (\Exception $e) {
-            \Log::warning('Failed to broadcast Job Order Done to socket server', [
+            \Log::warning('Failed to broadcast Job Order Done via Soketi', [
                 'error' => $e->getMessage()
             ]);
         }

@@ -7,6 +7,7 @@ import { transactionService } from '../services/transactionService';
 import { paymentService, PendingPayment } from '../services/paymentService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { useCustomerDashboardStore } from '../store/customerDashboardStore';
+import pusher from '../services/pusherService';
 
 // Interfaces
 interface SOARecord {
@@ -106,6 +107,46 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
         fetchData();
         fetchColorPalette();
     }, []);
+
+    // Real-time updates via Pusher/Soketi
+    useEffect(() => {
+        const handleUpdate = async (data: any) => {
+            console.log('[Bills Soketi] Update received, refreshing:', data);
+            try {
+                const storedUser = localStorage.getItem('authData');
+                if (storedUser) {
+                    const parsedUser = JSON.parse(storedUser);
+                    if (parsedUser.username) {
+                        await fetchCustomerData(parsedUser.username, parsedUser.role === 'customer');
+                        console.log('[Bills Soketi] Data refreshed successfully');
+                    }
+                }
+            } catch (err) {
+                console.error('[Bills Soketi] Failed to refresh data:', err);
+            }
+        };
+
+        const txChannel = pusher.subscribe('transactions');
+        const invChannel = pusher.subscribe('invoices');
+        const soaChannel = pusher.subscribe('soa');
+        const payChannel = pusher.subscribe('payments');
+
+        txChannel.bind('transaction-updated', handleUpdate);
+        invChannel.bind('invoice-updated', handleUpdate);
+        soaChannel.bind('soa-updated', handleUpdate);
+        payChannel.bind('payment-updated', handleUpdate);
+
+        return () => {
+            txChannel.unbind('transaction-updated', handleUpdate);
+            invChannel.unbind('invoice-updated', handleUpdate);
+            soaChannel.unbind('soa-updated', handleUpdate);
+            payChannel.unbind('payment-updated', handleUpdate);
+            pusher.unsubscribe('transactions');
+            pusher.unsubscribe('invoices');
+            pusher.unsubscribe('soa');
+            pusher.unsubscribe('payments');
+        };
+    }, [fetchCustomerData]);
 
     // Restriction logic removed as requested
 

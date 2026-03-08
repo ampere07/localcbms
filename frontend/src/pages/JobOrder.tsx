@@ -6,6 +6,7 @@ import { useJobOrderStore } from '../store/jobOrderStore';
 import { getBillingStatuses, BillingStatus } from '../services/lookupService';
 import { JobOrder } from '../types/jobOrder';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import pusher from '../services/pusherService';
 
 interface LocationItem {
   id: string;
@@ -112,6 +113,8 @@ const JobOrderPage: React.FC = () => {
   const startWidthRef = useRef<number>(0);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+  const cardScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [activeFilters, setActiveFilters] = useState<any>(() => {
     const saved = localStorage.getItem('jobOrderFilters');
@@ -126,7 +129,7 @@ const JobOrderPage: React.FC = () => {
   });
 
   // No need for internal currentPage as it's managed by store
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -144,7 +147,16 @@ const JobOrderPage: React.FC = () => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection]);
+  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection, itemsPerPage]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (displayMode === 'card' && cardScrollRef.current) {
+      cardScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (displayMode === 'table' && tableScrollRef.current) {
+      tableScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage, displayMode]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -237,23 +249,55 @@ const JobOrderPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const loadData = async () => {
-      const authData = localStorage.getItem('authData');
-      let email: string | undefined;
-      if (authData) {
-        try {
-          const userData = JSON.parse(authData);
-          if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
-            email = userData.email;
-          }
-        } catch (err) { }
+    const authData = localStorage.getItem('authData');
+    let email: string | undefined;
+    if (authData) {
+      try {
+        const userData = JSON.parse(authData);
+        if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
+          email = userData.email;
+        }
+      } catch (err) { }
+    }
+    // Use silentRefresh on mount to check for updates without showing a spinner if we already have data
+    silentRefresh(email);
+  }, [silentRefresh]);
+
+  // Pusher/Soketi connection for real-time job order updates
+  useEffect(() => {
+    const handleJobOrderUpdate = async (data: any) => {
+      console.log('[JobOrder Soketi] Update received, silently refreshing:', data);
+      try {
+        const authData = localStorage.getItem('authData');
+        let email: string | undefined;
+        if (authData) {
+          try {
+            const userData = JSON.parse(authData);
+            if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
+              email = userData.email;
+            }
+          } catch (err) { }
+        }
+        await silentRefresh(email);
+        console.log('[JobOrder Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[JobOrder Soketi] Failed to refresh data:', err);
       }
-      // Fetch a large number to support local filtering and hierarchy
-      await fetchJobOrders(1, 10000, '', email);
     };
 
-    loadData();
-  }, [fetchJobOrders]);
+    const jobChannel = pusher.subscribe('job-orders');
+    const appChannel = pusher.subscribe('applications');
+
+    jobChannel.bind('job-order-done', handleJobOrderUpdate);
+    appChannel.bind('new-application', handleJobOrderUpdate);
+
+    return () => {
+      jobChannel.unbind('job-order-done', handleJobOrderUpdate);
+      appChannel.unbind('new-application', handleJobOrderUpdate);
+      pusher.unsubscribe('job-orders');
+      pusher.unsubscribe('applications');
+    };
+  }, [silentRefresh]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -412,29 +456,33 @@ const JobOrderPage: React.FC = () => {
       return Object.entries(filters).every(([key, filter]: [string, any]) => {
         const orderValue = (order as any)[key] || (order as any)[key.toLowerCase()] || (order as any)[key.charAt(0).toUpperCase() + key.slice(1).replace(/_./g, (match) => match.charAt(1).toUpperCase())];
 
+        let match = true;
         if (filter.type === 'text') {
-          if (!filter.value) return true;
-          const value = String(orderValue || '').toLowerCase();
-          return value.includes(filter.value.toLowerCase());
-        }
-
-        if (filter.type === 'number') {
+          if (!filter.value) match = true;
+          else {
+            const value = String(orderValue || '').toLowerCase();
+            match = value.includes(filter.value.toLowerCase());
+          }
+        } else if (filter.type === 'number') {
           const numValue = Number(orderValue);
-          if (isNaN(numValue)) return false;
-          if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
-          if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
-          return true;
+          if (isNaN(numValue)) match = false;
+          else if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) match = false;
+          else if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) match = false;
+          else match = true;
+        } else if (filter.type === 'date') {
+          if (!orderValue) match = false;
+          else {
+            const dateValue = new Date(orderValue).getTime();
+            if (filter.from && dateValue < new Date(filter.from).getTime()) match = false;
+            else if (filter.to && dateValue > new Date(filter.to).getTime()) match = false;
+            else match = true;
+          }
         }
 
-        if (filter.type === 'date') {
-          if (!orderValue) return false;
-          const dateValue = new Date(orderValue).getTime();
-          if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
-          if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
-          return true;
+        if (!match) {
+          console.log(`[applyFunnelFilters] Order ${order.id} failed filter ${key}: value=${orderValue}, filter=`, filter);
         }
-
-        return true;
+        return match;
       });
     });
   };
@@ -553,7 +601,7 @@ const JobOrderPage: React.FC = () => {
   const paginatedJobOrders = React.useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return sortedJobOrders.slice(startIndex, startIndex + itemsPerPage);
-  }, [sortedJobOrders, currentPage]);
+  }, [sortedJobOrders, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(sortedJobOrders.length / itemsPerPage);
 
@@ -1757,7 +1805,7 @@ const JobOrderPage: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-hidden flex flex-col">
-            <div className={`flex-1 ${displayMode === 'table' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+            <div className={`flex-1 ${displayMode === 'table' ? 'overflow-hidden' : 'overflow-y-auto'}`} ref={cardScrollRef}>
               {isLoading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
@@ -1818,7 +1866,7 @@ const JobOrderPage: React.FC = () => {
                 )
               ) : (
                 <div className="h-full relative flex flex-col">
-                  <div className="flex-1 overflow-auto">
+                  <div className="flex-1 overflow-auto" ref={tableScrollRef}>
                     <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
                       <thead>
                         <tr className={`border-b sticky top-0 z-10 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
@@ -1938,8 +1986,24 @@ const JobOrderPage: React.FC = () => {
             {/* Pagination Controls */}
             {!isLoading && sortedJobOrders.length > 0 && totalPages > 1 && (
               <div className={`border-t p-4 flex items-center justify-between ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
-                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, sortedJobOrders.length)}</span> of <span className="font-medium">{sortedJobOrders.length}</span> results
+                <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <div className="flex items-center gap-2">
+                    <span>Show</span>
+                    <select
+                      value={itemsPerPage}
+                      onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                      className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                    <span>entries</span>
+                  </div>
+                  <span>
+                    Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, sortedJobOrders.length)}</span> of <span className="font-medium">{sortedJobOrders.length}</span> results
+                  </span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
@@ -2026,11 +2090,12 @@ const JobOrderPage: React.FC = () => {
       <JobOrderFunnelFilter
         isOpen={isFunnelFilterOpen}
         onClose={() => setIsFunnelFilterOpen(false)}
-        onApplyFilters={(filters) => {
-          console.log('Applied filters:', filters);
+        onApplyFilters={(filters: any) => {
+          console.log('[JobOrderPage] Applying filters:', filters);
           setActiveFilters(filters);
           localStorage.setItem('jobOrderFilters', JSON.stringify(filters));
           setIsFunnelFilterOpen(false);
+          setCurrentPage(1);
         }}
         currentFilters={activeFilters}
       />

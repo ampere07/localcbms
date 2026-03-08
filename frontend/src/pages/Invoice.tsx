@@ -9,6 +9,7 @@ import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
 import InvoiceFunnelFilter, { FilterValues } from '../filter/InvoiceFunnelFilter';
+import pusher from '../services/pusherService';
 import { Filter } from 'lucide-react';
 
 // Removed local InvoiceRecordUI interface
@@ -65,7 +66,7 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
 };
 
 const Invoice: React.FC = () => {
-  const { invoiceRecords, totalCount, isLoading, error, fetchInvoiceRecords, refreshInvoiceRecords } = useInvoiceStore();
+  const { invoiceRecords, totalCount, isLoading, error, fetchInvoiceRecords, refreshInvoiceRecords, silentRefresh } = useInvoiceStore();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -73,6 +74,7 @@ const Invoice: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [selectedRecord, setSelectedRecord] = useState<InvoiceRecordUI | null>(null);
   // Removed local invoiceRecords, isLoading, error state
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
@@ -93,7 +95,7 @@ const Invoice: React.FC = () => {
 
   // Table State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const [sortColumn, setSortColumn] = useState<string | null>('id');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -234,6 +236,28 @@ const Invoice: React.FC = () => {
   // Initial data fetch
   useEffect(() => {
     fetchInvoiceRecords();
+  }, [fetchInvoiceRecords]);
+
+  // Pusher/Soketi connection for real-time invoice updates
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[Invoice Soketi] Update received, refreshing:', data);
+      try {
+        await fetchInvoiceRecords(true);
+        console.log('[Invoice Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[Invoice Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const invoiceChannel = pusher.subscribe('invoices');
+
+    invoiceChannel.bind('invoice-updated', handleUpdate);
+
+    return () => {
+      invoiceChannel.unbind('invoice-updated', handleUpdate);
+      pusher.unsubscribe('invoices');
+    };
   }, [fetchInvoiceRecords]);
 
   // Idle detection and auto-refresh logic
@@ -398,12 +422,19 @@ const Invoice: React.FC = () => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedDate, searchQuery]);
+  }, [selectedDate, searchQuery, itemsPerPage]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage]);
 
   const paginatedRecords = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredRecords.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredRecords, currentPage]);
+  }, [filteredRecords, currentPage, itemsPerPage]);
 
   const totalDisplayCount = useMemo(() => {
     if (selectedDate === 'All' && searchQuery === '' && Object.keys(activeFilters).length === 0) {
@@ -425,8 +456,24 @@ const Invoice: React.FC = () => {
 
     return (
       <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <div className="flex items-center gap-2">
+            <span>Show</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span>entries</span>
+          </div>
+          <span>
+            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+          </span>
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -1066,7 +1113,7 @@ const Invoice: React.FC = () => {
               ) : (
                 <>
                   <div className="h-full relative flex flex-col">
-                    <div className="flex-1 overflow-auto">
+                    <div className="flex-1 overflow-auto" ref={scrollRef}>
                       <table className="w-max min-w-full text-sm border-separate border-spacing-0">
                         <thead>
                           <tr className={`border-b sticky top-0 z-10 ${isDarkMode

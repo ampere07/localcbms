@@ -3,6 +3,7 @@ import { FileText, Upload, Clock, Info, CheckCircle, XCircle, AlertCircle, Chevr
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { createServiceOrder, getServiceOrders } from '../services/serviceOrderService';
 import { useServiceOrderStore } from '../store/serviceOrderStore';
+import pusher from '../services/pusherService';
 
 interface SupportRequest {
   id: string;
@@ -121,6 +122,27 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
     }
   }, [userAccountNo]);
 
+  // Real-time updates via Pusher/Soketi
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[Support Soketi] Update received, refreshing:', data);
+      try {
+        await fetchStoreServiceOrders();
+        console.log('[Support Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[Support Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const serviceOrderChannel = pusher.subscribe('service-orders');
+    serviceOrderChannel.bind('service-order-updated', handleUpdate);
+
+    return () => {
+      serviceOrderChannel.unbind('service-order-updated', handleUpdate);
+      pusher.unsubscribe('service-orders');
+    };
+  }, [fetchStoreServiceOrders]);
+
   const fetchData = async () => {
     setIsLoading(true);
     await fetchStoreServiceOrders();
@@ -137,6 +159,8 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
       .filter(order => {
         return order.accountNumber === userAccountNo || order.username === userAccountNo;
       })
+      .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime())
+      .slice(0, 1)
       .map(order => ({
         id: order.id,
         date: order.timestamp ? new Date(order.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',

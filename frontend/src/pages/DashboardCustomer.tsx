@@ -6,6 +6,7 @@ import { paymentPortalLogsService } from '../services/paymentPortalLogsService';
 import { paymentService, PendingPayment } from '../services/paymentService'; // Import paymentService
 import { useCustomerDashboardStore } from '../store/customerDashboardStore';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import pusher from '../services/pusherService';
 
 // Interfaces for data types
 interface Payment {
@@ -88,6 +89,46 @@ const DashboardCustomer: React.FC<DashboardCustomerProps> = ({ onNavigate }) => 
 
         fetchData();
         fetchColorPalette();
+    }, [fetchCustomerData]);
+
+    // Real-time updates via Pusher/Soketi
+    useEffect(() => {
+        const handleUpdate = async (data: any) => {
+            console.log('[DashboardCustomer Soketi] Update received, refreshing:', data);
+            try {
+                const storedUser = localStorage.getItem('authData');
+                if (storedUser) {
+                    const parsedUser = JSON.parse(storedUser);
+                    if (parsedUser.username) {
+                        await fetchCustomerData(parsedUser.username, true);
+                        console.log('[DashboardCustomer Soketi] Data refreshed successfully');
+                    }
+                }
+            } catch (err) {
+                console.error('[DashboardCustomer Soketi] Failed to refresh data:', err);
+            }
+        };
+
+        const txChannel = pusher.subscribe('transactions');
+        const invChannel = pusher.subscribe('invoices');
+        const soaChannel = pusher.subscribe('soa');
+        const payChannel = pusher.subscribe('payments');
+
+        txChannel.bind('transaction-updated', handleUpdate);
+        invChannel.bind('invoice-updated', handleUpdate);
+        soaChannel.bind('soa-updated', handleUpdate);
+        payChannel.bind('payment-updated', handleUpdate);
+
+        return () => {
+            txChannel.unbind('transaction-updated', handleUpdate);
+            invChannel.unbind('invoice-updated', handleUpdate);
+            soaChannel.unbind('soa-updated', handleUpdate);
+            payChannel.unbind('payment-updated', handleUpdate);
+            pusher.unsubscribe('transactions');
+            pusher.unsubscribe('invoices');
+            pusher.unsubscribe('soa');
+            pusher.unsubscribe('payments');
+        };
     }, [fetchCustomerData]);
 
     if (isLoading && !customerDetail) return <div className="p-8 flex justify-center bg-gray-50 min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>;

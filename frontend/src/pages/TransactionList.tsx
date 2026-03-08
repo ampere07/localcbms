@@ -8,6 +8,7 @@ import { barangayService, Barangay } from '../services/barangayService';
 import LoadingModal from '../components/LoadingModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { useTransactionStore } from '../store/transactionStore';
+import pusher from '../services/pusherService';
 import { Transaction } from '../types/transaction';
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
@@ -90,6 +91,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Local state for batch approval (kept local as it's UI functionality)
   const [isBatchApproveMode, setIsBatchApproveMode] = useState<boolean>(false);
@@ -125,7 +127,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
 
 
@@ -183,6 +185,28 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
 
     fetchLookupData();
   }, []);
+
+  // Pusher/Soketi connection for real-time transaction updates
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[TransactionList Soketi] Update received, silently refreshing:', data);
+      try {
+        await silentRefresh();
+        console.log('[TransactionList Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[TransactionList Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const transactionChannel = pusher.subscribe('transactions');
+
+    transactionChannel.bind('transaction-updated', handleUpdate);
+
+    return () => {
+      transactionChannel.unbind('transaction-updated', handleUpdate);
+      pusher.unsubscribe('transactions');
+    };
+  }, [silentRefresh]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -412,12 +436,19 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLocation, searchQuery, activeFilters]);
+  }, [selectedLocation, searchQuery, activeFilters, itemsPerPage]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage]);
 
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredTransactions, currentPage]);
+  }, [filteredTransactions, currentPage, itemsPerPage]);
 
   // Use totalCount for total pages if no filter/search is active
   const totalDisplayCount = useMemo(() => {
@@ -440,8 +471,24 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
 
     return (
       <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <div className="flex items-center gap-2">
+            <span>Show</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span>entries</span>
+          </div>
+          <span>
+            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+          </span>
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -981,7 +1028,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
           </div>
         </div>
         <div className="flex-1 overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-x-auto overflow-y-auto">
+          <div className="flex-1 overflow-y-auto" ref={scrollRef}>
             {loading ? (
               <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 <div className="animate-pulse flex flex-col items-center">

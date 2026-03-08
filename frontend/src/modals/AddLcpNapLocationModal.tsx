@@ -599,8 +599,8 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
         {label}{required && <span className="text-red-500">*</span>}
       </label>
       <div className={`relative w-full h-48 border rounded overflow-hidden cursor-pointer ${isDarkMode
-          ? 'bg-gray-800 border-gray-700 hover:bg-gray-750'
-          : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+        ? 'bg-gray-800 border-gray-700 hover:bg-gray-750'
+        : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
         }`}>
         <input
           type="file"
@@ -696,8 +696,8 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
       <div className={`fixed right-0 top-0 h-full w-[600px] shadow-2xl z-[9999] flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
         }`}>
         <div className={`flex items-center justify-between px-6 py-4 border-b ${isDarkMode
-            ? 'border-gray-800 bg-gray-800'
-            : 'border-gray-300 bg-gray-100'
+          ? 'border-gray-800 bg-gray-800'
+          : 'border-gray-300 bg-gray-100'
           }`}>
           <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>LCP NAP Location Form</h2>
@@ -718,8 +718,8 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
                 value={formData.street}
                 onChange={(e) => setFormData({ ...formData, street: e.target.value })}
                 className={`w-full px-3 py-2 rounded border focus:border-orange-500 focus:outline-none ${isDarkMode
-                    ? 'bg-gray-800 text-white border-gray-700'
-                    : 'bg-white text-gray-900 border-gray-300'
+                  ? 'bg-gray-800 text-white border-gray-700'
+                  : 'bg-white text-gray-900 border-gray-300'
                   }`}
               />
             </div>
@@ -732,8 +732,8 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
                   value={formData.region}
                   onChange={(e) => handleRegionChange(e.target.value)}
                   className={`w-full px-3 py-2 rounded border focus:border-orange-500 focus:outline-none appearance-none ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     }`}
                 >
                   <option value="">Select Region</option>
@@ -755,8 +755,8 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
                   onChange={(e) => handleCityChange(e.target.value)}
                   disabled={!formData.region}
                   className={`w-full px-3 py-2 rounded border focus:border-orange-500 focus:outline-none disabled:opacity-50 appearance-none ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     }`}
                 >
                   <option value="">{formData.region ? 'Select City' : 'All'}</option>
@@ -777,8 +777,8 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
                   onChange={(e) => handleBarangayChange(e.target.value)}
                   disabled={!formData.city}
                   className={`w-full px-3 py-2 rounded border focus:border-orange-500 focus:outline-none disabled:opacity-50 appearance-none ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     }`}
                 >
                   <option value="">{formData.city ? 'Select Barangay' : 'All'}</option>
@@ -799,8 +799,8 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                   disabled={!formData.barangay}
                   className={`w-full px-3 py-2 rounded border focus:border-orange-500 focus:outline-none disabled:opacity-50 appearance-none ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     }`}
                 >
                   <option value="">{formData.barangay ? 'Select Location' : 'All'}</option>
@@ -821,8 +821,8 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
                 value={formData.lcp_name}
                 onChange={(e) => setFormData({ ...formData, lcp_name: e.target.value })}
                 className={`w-full px-3 py-2 rounded border focus:border-orange-500 focus:outline-none ${isDarkMode
-                    ? 'bg-gray-800 text-white border-gray-700'
-                    : 'bg-white text-gray-900 border-gray-300'
+                  ? 'bg-gray-800 text-white border-gray-700'
+                  : 'bg-white text-gray-900 border-gray-300'
                   }`}
               >
                 <option value="">Select LCP</option>
@@ -842,8 +842,8 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
                 value={formData.nap_name}
                 onChange={(e) => setFormData({ ...formData, nap_name: e.target.value })}
                 className={`w-full px-3 py-2 rounded border focus:border-orange-500 focus:outline-none ${isDarkMode
-                    ? 'bg-gray-800 text-white border-gray-700'
-                    : 'bg-white text-gray-900 border-gray-300'
+                  ? 'bg-gray-800 text-white border-gray-700'
+                  : 'bg-white text-gray-900 border-gray-300'
                   }`}
               >
                 <option value="">Select NAP</option>
@@ -864,10 +864,10 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
                   type="button"
                   onClick={() => setFormData({ ...formData, port_total: '8' })}
                   className={`py-3 px-4 rounded border transition-colors ${formData.port_total === '8'
-                      ? 'bg-orange-600 border-orange-700 text-white'
-                      : isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-gray-300'
-                        : 'bg-white border-gray-300 text-gray-700'
+                    ? 'bg-orange-600 border-orange-700 text-white'
+                    : isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-gray-300'
+                      : 'bg-white border-gray-300 text-gray-700'
                     }`}
                 >
                   8
@@ -876,10 +876,10 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
                   type="button"
                   onClick={() => setFormData({ ...formData, port_total: '16' })}
                   className={`py-3 px-4 rounded border transition-colors ${formData.port_total === '16'
-                      ? 'bg-orange-600 border-orange-700 text-white'
-                      : isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-gray-300'
-                        : 'bg-white border-gray-300 text-gray-700'
+                    ? 'bg-orange-600 border-orange-700 text-white'
+                    : isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-gray-300'
+                      : 'bg-white border-gray-300 text-gray-700'
                     }`}
                 >
                   16
@@ -888,10 +888,10 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
                   type="button"
                   onClick={() => setFormData({ ...formData, port_total: '32' })}
                   className={`py-3 px-4 rounded border transition-colors ${formData.port_total === '32'
-                      ? 'bg-orange-600 border-orange-700 text-white'
-                      : isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-gray-300'
-                        : 'bg-white border-gray-300 text-gray-700'
+                    ? 'bg-orange-600 border-orange-700 text-white'
+                    : isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-gray-300'
+                      : 'bg-white border-gray-300 text-gray-700'
                     }`}
                 >
                   32
@@ -910,8 +910,8 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
                 value={formData.lcpnap_name}
                 readOnly
                 className={`w-full px-3 py-2 rounded border cursor-not-allowed ${isDarkMode
-                    ? 'bg-gray-700 text-gray-300 border-gray-700'
-                    : 'bg-gray-100 text-gray-600 border-gray-300'
+                  ? 'bg-gray-700 text-gray-300 border-gray-700'
+                  : 'bg-gray-100 text-gray-600 border-gray-300'
                   }`}
                 placeholder="Auto-generated from LCP and NAP"
               />
@@ -932,16 +932,16 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
                   onChange={(e) => setFormData({ ...formData, coordinates: e.target.value })}
                   placeholder="14.466580, 121.201807"
                   className={`w-full px-3 py-2 pr-10 rounded border focus:border-orange-500 focus:outline-none ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     }`}
                 />
                 <button
                   type="button"
                   onClick={handleToggleMap}
                   className={`absolute right-3 top-2.5 transition-colors ${isDarkMode
-                      ? 'text-gray-400 hover:text-orange-500'
-                      : 'text-gray-600 hover:text-orange-500'
+                    ? 'text-gray-400 hover:text-orange-500'
+                    : 'text-gray-600 hover:text-orange-500'
                     }`}
                 >
                   <MapPin size={20} />
@@ -957,8 +957,8 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
                     className={isDarkMode ? 'w-full h-[400px] bg-gray-800' : 'w-full h-[400px] bg-gray-100'}
                   />
                   <div className={`px-3 py-2 text-xs border-t ${isDarkMode
-                      ? 'bg-gray-800 text-gray-400 border-gray-700'
-                      : 'bg-gray-100 text-gray-600 border-gray-300'
+                    ? 'bg-gray-800 text-gray-400 border-gray-700'
+                    : 'bg-gray-100 text-gray-600 border-gray-300'
                     }`}>
                     Click on the map to set coordinates
                   </div>
@@ -978,8 +978,8 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
                 value={formData.modified_by}
                 readOnly
                 className={`w-full px-3 py-2 rounded border cursor-not-allowed ${isDarkMode
-                    ? 'bg-gray-800 text-gray-400 border-gray-700'
-                    : 'bg-gray-100 text-gray-600 border-gray-300'
+                  ? 'bg-gray-800 text-gray-400 border-gray-700'
+                  : 'bg-gray-100 text-gray-600 border-gray-300'
                   }`}
               />
             </div>
@@ -987,14 +987,14 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
         </div>
 
         <div className={`flex items-center justify-end gap-3 px-6 py-4 border-t ${isDarkMode
-            ? 'border-gray-800 bg-gray-800'
-            : 'border-gray-300 bg-gray-100'
+          ? 'border-gray-800 bg-gray-800'
+          : 'border-gray-300 bg-gray-100'
           }`}>
           <button
             onClick={handleClose}
             className={`px-4 py-2 border rounded ${isDarkMode
-                ? 'text-orange-400 hover:text-orange-300 border-orange-600 hover:border-orange-500 bg-transparent'
-                : 'text-orange-600 hover:text-orange-700 border-orange-600 hover:border-orange-700 bg-transparent'
+              ? 'text-orange-400 hover:text-orange-300 border-orange-600 hover:border-orange-500 bg-transparent'
+              : 'text-orange-600 hover:text-orange-700 border-orange-600 hover:border-orange-700 bg-transparent'
               }`}
           >
             Cancel

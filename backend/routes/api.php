@@ -1784,6 +1784,7 @@ Route::prefix('customers')->group(function () {
 
 // Billing API Routes - Fetches from customers, billing_accounts, and technical_details
 Route::prefix('billing')->group(function () {
+    Route::get('/check-updates', [\App\Http\Controllers\BillingController::class, 'checkUpdates']);
     Route::get('/', [\App\Http\Controllers\BillingController::class, 'index']);
     Route::get('/{id}', [\App\Http\Controllers\BillingController::class, 'show']);
     Route::get('/accounts/active', function() {

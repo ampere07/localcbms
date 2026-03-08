@@ -235,7 +235,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
         plan_name: data.plan_name,
         timestamp: data.timestamp || Date.now(),
         formatted_date: data.formatted_date || 'Just now',
-        title: data.title || '🔔 New Application',
+        title: data.title || 'New Application',
         message: data.message || `${data.customer_name} - ${data.plan_name}`
       });
     });
@@ -249,7 +249,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
         plan_name: data.plan_name,
         timestamp: data.timestamp || Date.now(),
         formatted_date: data.formatted_date || 'Just now',
-        title: data.title || '✅ Job Order Done',
+        title: data.title || 'Job Order Done',
         message: data.message || `${data.customer_name} - ${data.plan_name}`
       });
     });

@@ -25,36 +25,43 @@ export const useJobOrderStore = create<JobOrderState>((set, get) => ({
 
     fetchJobOrders: async (page = 1, limit = 50, search = '', assignedEmail?: string, silent = false) => {
         const { jobOrders } = get();
+
+        // Only show loading if not silent OR if we have no data
         if (page === 1 && (!silent || jobOrders.length === 0)) {
             set({ isLoading: true, error: null });
         }
 
         try {
-            const fastResponse = await getJobOrders(true, page, limit, search, assignedEmail);
+            // Fetch full data directly to avoid showing incomplete data first
 
-            if (fastResponse.success) {
-                const newJobOrders = fastResponse.jobOrders || [];
+            // Fetch full data for consistency (always runs)
+            const fullResponse = await getJobOrders(false, page, limit, search, assignedEmail);
 
-                set((state) => ({
-                    jobOrders: page === 1 ? newJobOrders : [...state.jobOrders, ...newJobOrders],
-                    totalCount: fastResponse.jobOrders?.length || state.totalCount,
-                    hasMore: fastResponse.pagination?.has_more ?? false,
-                    currentPage: page,
-                    isLoading: false
-                }));
+            if (fullResponse.success && fullResponse.jobOrders) {
+                const fullJOs = fullResponse.jobOrders;
+                set((state) => {
+                    const currentMap = new Map();
+                    // If not page 1, we preserve existing orders for infinite scroll
+                    if (page !== 1) {
+                        state.jobOrders.forEach(jo => currentMap.set(jo.id, jo));
+                    }
+                    fullJOs.forEach(jo => currentMap.set(jo.id, jo));
 
-                const fullResponse = await getJobOrders(false, page, limit, search, assignedEmail);
-
-                if (fullResponse.success) {
-                    const fullJobOrders = fullResponse.jobOrders || [];
-                    set((state) => ({
-                        jobOrders: page === 1
-                            ? fullJobOrders
-                            : state.jobOrders.map(jo => fullJobOrders.find(fjo => fjo.id === jo.id) || jo)
-                    }));
-                }
+                    return {
+                        jobOrders: Array.from(currentMap.values()).sort((a, b) => {
+                            const idA = parseInt(String(a.id)) || 0;
+                            const idB = parseInt(String(b.id)) || 0;
+                            return idB - idA;
+                        }),
+                        totalCount: (fullResponse.pagination as any)?.total_count || (page === 1 ? fullJOs.length : state.totalCount),
+                        hasMore: fullResponse.pagination?.has_more ?? false,
+                        currentPage: page,
+                        isLoading: false
+                    };
+                });
             }
         } catch (err: any) {
+            console.error('[jobOrderStore] Fetch failed:', err);
             set({ error: err.message || 'Failed to fetch job orders', isLoading: false });
         }
     },

@@ -15,10 +15,14 @@ interface BillingDetailApiResponse {
   status?: string;
 }
 
-export const getBillingRecords = async (page: number = 1, perPage: number = 50): Promise<{ data: BillingRecord[], total: number, hasMore: boolean }> => {
+export const getBillingRecords = async (page: number = 1, perPage: number = 50, updatedSince?: string): Promise<{ data: BillingRecord[], total: number, hasMore: boolean, serverTime?: string }> => {
   try {
+    const params: any = { page, per_page: perPage };
+    if (updatedSince) {
+      params.updated_since = updatedSince;
+    }
     const response = await apiClient.get<any>('/billing', {
-      params: { page, per_page: perPage }
+      params
     });
     const responseData = response.data;
 
@@ -70,14 +74,15 @@ export const getBillingRecords = async (page: number = 1, perPage: number = 50):
       return {
         data,
         total: responseData.total || data.length,
-        hasMore: responseData.pagination?.has_more || false
+        hasMore: responseData.pagination?.has_more || false,
+        serverTime: responseData.server_time || undefined
       };
     }
 
-    return { data: [], total: 0, hasMore: false };
+    return { data: [], total: 0, hasMore: false, serverTime: undefined };
   } catch (error) {
     console.error('Error fetching billing records:', error);
-    return { data: [], total: 0, hasMore: false };
+    return { data: [], total: 0, hasMore: false, serverTime: undefined };
   }
 };
 
@@ -281,5 +286,16 @@ export const deleteBillingRecord = async (id: string): Promise<boolean> => {
   } catch (error) {
     console.error('Error deleting billing record:', error);
     throw error;
+  }
+};
+
+export const checkForBillingUpdates = async (since: string): Promise<{ has_updates: boolean; count: number; server_time?: string }> => {
+  try {
+    const response = await apiClient.get<any>('/billing/check-updates', {
+      params: { since }
+    });
+    return response.data;
+  } catch (error) {
+    return { has_updates: false, count: 0 };
   }
 };

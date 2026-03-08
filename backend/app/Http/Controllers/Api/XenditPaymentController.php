@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Exception;
+use App\Events\PaymentUpdated;
 
 class XenditPaymentController extends Controller
 {
@@ -175,6 +176,8 @@ class XenditPaymentController extends Controller
                 'payment_id' => $paymentId
             ]);
 
+            event(new PaymentUpdated(['action' => 'created', 'reference_no' => $referenceNo, 'account_no' => $accountNo, 'amount' => $amount]));
+
             return response()->json([
                 'status' => 'success',
                 'reference_no' => $referenceNo,
@@ -295,6 +298,8 @@ class XenditPaymentController extends Controller
                         'reference_no' => $ref,
                         'new_status' => $newStatus
                     ]);
+
+                    event(new PaymentUpdated(['action' => 'webhook_update', 'reference_no' => $ref, 'status' => $newStatus]));
                 } else {
                     Log::info('Xendit Webhook: No Update Needed', [
                         'reference_no' => $ref,

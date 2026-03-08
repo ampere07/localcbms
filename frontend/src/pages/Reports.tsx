@@ -40,7 +40,7 @@ const DEFAULT_VISIBLE = [
     'id', 'report_name', 'report_type', 'report_schedule', 'day', 'report_time', 'send_to', 'date_range', 'created_by', 'created_at'
 ];
 
-const ITEMS_PER_PAGE = 50;
+// itemsPerPage is now managed as state inside the component
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -106,12 +106,14 @@ const Reports: React.FC = () => {
     // UI state
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
     const [sortColumn, setSortColumn] = useState<string | null>('created_at');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
     const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE);
     const [showColumnPicker, setShowColumnPicker] = useState(false);
 
     const columnPickerRef = useRef<HTMLDivElement>(null);
+    const scrollRef = useRef<HTMLDivElement>(null);
 
     // ── Color palette & dark mode ──────────────────────────────────────────────
 
@@ -225,11 +227,22 @@ const Reports: React.FC = () => {
     }, [rows, searchQuery, sortColumn, sortDir]);
 
     const paginated = useMemo(() => {
-        const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        return filtered.slice(start, start + ITEMS_PER_PAGE);
-    }, [filtered, currentPage]);
+        const start = (currentPage - 1) * itemsPerPage;
+        return filtered.slice(start, start + itemsPerPage);
+    }, [filtered, currentPage, itemsPerPage]);
 
-    const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+    const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [itemsPerPage]);
+
+    // Scroll to top on page change
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }, [currentPage]);
 
     // Ordered columns based on ALL_COLUMNS to preserve original index
     const orderedVisibleColumns = ALL_COLUMNS.filter(c => visibleColumns.includes(c.key));
@@ -273,10 +286,10 @@ const Reports: React.FC = () => {
 
     return (
         <>
-            <div className={`flex flex-col h-screen ${bg}`}>
+            <div className={`flex flex-col h-full overflow-hidden ${bg}`}>
 
                 {/* ── Top Bar ─────────────────────────────────────────────────────────── */}
-                <div className={`flex items-center justify-between px-5 py-3 border-b ${headerBg}`}>
+                <div className={`flex items-center justify-between px-5 py-3 border-b flex-shrink-0 ${headerBg}`}>
                     <div className="flex items-center gap-3">
                         <FileText size={20} style={{ color: primary }} />
                         <h1 className={`text-lg font-bold ${text}`}>Reports</h1>
@@ -370,7 +383,7 @@ const Reports: React.FC = () => {
                 </div>
 
                 {/* ── Table area ──────────────────────────────────────────────────────── */}
-                <div className="flex-1 overflow-auto">
+                <div className="flex-1 min-h-0 overflow-auto" ref={scrollRef}>
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center h-full gap-4">
                             <div
@@ -399,14 +412,14 @@ const Reports: React.FC = () => {
                             )}
                         </div>
                     ) : (
-                        <table className="w-full text-xs border-collapse" style={{ tableLayout: 'auto' }}>
-                            <thead className="sticky top-0 z-10">
-                                <tr>
-                                    <th className={`px-3 py-2.5 text-left font-semibold border-b border-r text-xs ${thCls} w-10`}>#</th>
+                        <table className="w-max min-w-full text-xs border-separate border-spacing-0">
+                            <thead>
+                                <tr className="sticky top-0 z-30">
+                                    <th className={`sticky left-0 top-0 z-30 px-3 py-2.5 text-left font-semibold border-b border-r text-xs ${thCls} w-10`}>#</th>
                                     {orderedVisibleColumns.map(col => (
                                         <th
                                             key={col.key}
-                                            className={`px-3 py-2.5 text-left font-semibold border-b border-r whitespace-nowrap select-none cursor-pointer ${thCls}`}
+                                            className={`sticky top-0 z-20 px-3 py-2.5 text-left font-semibold border-b border-r whitespace-nowrap select-none cursor-pointer ${thCls}`}
                                             onClick={() => handleSort(col.key)}
                                         >
                                             <div className="flex items-center gap-1">
@@ -422,14 +435,14 @@ const Reports: React.FC = () => {
                                         </th>
                                     ))}
                                     {/* Action column (Download) */}
-                                    <th className={`px-3 py-2.5 text-center font-semibold border-b text-xs ${thCls} whitespace-nowrap`}>
+                                    <th className={`sticky top-0 z-20 px-3 py-2.5 text-center font-semibold border-b text-xs ${thCls} whitespace-nowrap`}>
                                         Download
                                     </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {paginated.map((row, idx) => {
-                                    const rowNum = (currentPage - 1) * ITEMS_PER_PAGE + idx + 1;
+                                    const rowNum = (currentPage - 1) * itemsPerPage + idx + 1;
                                     const isEven = idx % 2 === 0;
                                     const evenBg = isDarkMode
                                         ? (isEven ? 'bg-gray-900' : 'bg-gray-850')
@@ -440,7 +453,9 @@ const Reports: React.FC = () => {
                                             key={row.id}
                                             className={`${evenBg} ${rowHover} transition-colors duration-100 group`}
                                         >
-                                            <td className={`px-3 py-2 border-b border-r ${tdCls} ${subText}`}>{rowNum}</td>
+                                            <td className={`sticky left-0 z-10 px-3 py-2 border-b border-r ${tdCls} ${subText} ${evenBg}`}>
+                                                {rowNum}
+                                            </td>
                                             {orderedVisibleColumns.map(col => (
                                                 <td
                                                     key={col.key}
@@ -481,10 +496,26 @@ const Reports: React.FC = () => {
 
                 {/* ── Pagination ───────────────────────────────────────────────────────── */}
                 {!isLoading && filtered.length > 0 && (
-                    <div className={`flex items-center justify-between px-5 py-3 border-t ${headerBg}`}>
-                        <span className={`text-xs ${subText}`}>
-                            Showing {((currentPage - 1) * ITEMS_PER_PAGE + 1).toLocaleString()}–{Math.min(currentPage * ITEMS_PER_PAGE, filtered.length).toLocaleString()} of {filtered.length.toLocaleString()} records
-                        </span>
+                    <div className={`flex items-center justify-between px-5 py-3 border-t flex-shrink-0 ${headerBg}`}>
+                        <div className={`flex items-center gap-3 text-xs ${subText}`}>
+                            <div className="flex items-center gap-1.5">
+                                <span>Show</span>
+                                <select
+                                    value={itemsPerPage}
+                                    onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                                    className={`px-1.5 py-1 rounded border text-xs focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                                >
+                                    <option value={10}>10</option>
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                </select>
+                                <span>entries</span>
+                            </div>
+                            <span>
+                                Showing {((currentPage - 1) * itemsPerPage + 1).toLocaleString()}–{Math.min(currentPage * itemsPerPage, filtered.length).toLocaleString()} of {filtered.length.toLocaleString()} records
+                            </span>
+                        </div>
 
                         <div className="flex items-center gap-1">
                             <button

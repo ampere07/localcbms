@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Services\ManualRadiusOperationsService;
+use App\Events\TransactionUpdated;
 
 class TransactionController extends Controller
 {
@@ -156,6 +157,8 @@ class TransactionController extends Controller
             \Log::info('Transaction created successfully', [
                 'transaction_id' => $transaction->id
             ]);
+
+            event(new TransactionUpdated(['action' => 'created', 'transaction_id' => $transaction->id, 'account_no' => $transaction->account_no]));
 
             return response()->json([
                 'success' => true,
@@ -329,6 +332,8 @@ class TransactionController extends Controller
 
             // Attempt reconnection after successful approval
             $reconnectStatus = $this->attemptReconnectionAfterApproval($billingAccount);
+
+            event(new TransactionUpdated(['action' => 'approved', 'transaction_id' => $transactionId, 'account_no' => $accountNo]));
 
             return response()->json([
                 'success' => true,
@@ -653,6 +658,8 @@ class TransactionController extends Controller
 
             DB::commit();
 
+            event(new TransactionUpdated(['action' => 'status_updated', 'transaction_id' => $transaction->id]));
+
             return response()->json([
                 'success' => true,
                 'message' => 'Transaction status updated successfully',
@@ -818,6 +825,8 @@ class TransactionController extends Controller
                 'success' => $successCount,
                 'failed' => $failedCount
             ]);
+
+            event(new TransactionUpdated(['action' => 'batch_approved', 'success_count' => $successCount]));
 
             return response()->json([
                 'success' => true,
@@ -1191,6 +1200,8 @@ class TransactionController extends Controller
                     ]
                 ]
             );
+
+            event(new TransactionUpdated(['action' => 'deleted', 'transaction_id' => $id]));
 
             return response()->json([
                 'success' => true,

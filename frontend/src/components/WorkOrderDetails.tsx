@@ -35,6 +35,7 @@ const WorkOrderDetails: React.FC<WorkOrderDetailsComponentProps> = ({
   const defaultFields = [
     'id',
     'workStatus',
+    'workCategory',
     'instructions',
     'reportTo',
     'assignTo',
@@ -152,6 +153,7 @@ const WorkOrderDetails: React.FC<WorkOrderDetailsComponentProps> = ({
     const labels: Record<string, string> = {
       id: 'Work Order ID',
       workStatus: 'Work Status',
+      workCategory: 'Work Category',
       instructions: 'Instructions',
       reportTo: 'Report To',
       assignTo: 'Assign To',
@@ -240,6 +242,14 @@ const WorkOrderDetails: React.FC<WorkOrderDetailsComponentProps> = ({
           </div>
         );
 
+      case 'workCategory':
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Work Category:</div>
+            <div className={valueClass}>{workOrder.work_category || 'N/A'}</div>
+          </div>
+        );
+
       case 'instructions':
         return (
           <div className={baseFieldClass}>
@@ -314,36 +324,41 @@ const WorkOrderDetails: React.FC<WorkOrderDetailsComponentProps> = ({
       case 'image_3':
       case 'signature':
         {
-          const imageUrl = convertGDriveUrl(workOrder[fieldKey]);
-          if (!workOrder[fieldKey]) return null;
+          const fieldValue = workOrder[fieldKey];
+          const imageUrl = convertGDriveUrl(fieldValue);
+
           return (
             <div className={baseFieldClass}>
               <div className={labelClass}>{getFieldLabel(fieldKey)}:</div>
               <div className={valueClass}>
-                <div className={`mt-2 rounded-lg border overflow-hidden max-w-sm ${isDarkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-gray-100'}`}>
-                  <img
-                    src={imageUrl}
-                    alt={getFieldLabel(fieldKey)}
-                    className="w-full h-auto object-contain cursor-pointer transition-transform hover:scale-105"
-                    onClick={() => window.open(workOrder[fieldKey], '_blank')}
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Found';
-                    }}
-                  />
-                  <div className={`px-3 py-2 text-xs flex items-center justify-between ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-200/50'}`}>
-                    <span className="truncate flex-1 mr-2 opacity-60">View on Google Drive</span>
-                    <a
-                      href={workOrder[fieldKey]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-500 hover:text-blue-400 flex items-center"
-                    >
-                      <ExternalLink size={12} className="mr-1" />
-                      Link
-                    </a>
+                {fieldValue ? (
+                  <div className={`mt-2 rounded-lg border overflow-hidden max-w-sm ${isDarkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-gray-100'}`}>
+                    <img
+                      src={imageUrl}
+                      alt={getFieldLabel(fieldKey)}
+                      className="w-full h-auto object-contain cursor-pointer transition-transform hover:scale-105"
+                      onClick={() => window.open(fieldValue, '_blank')}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Found';
+                      }}
+                    />
+                    <div className={`px-3 py-2 text-xs flex items-center justify-between ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-200/50'}`}>
+                      <span className="truncate flex-1 mr-2 opacity-60">View on Google Drive</span>
+                      <a
+                        href={fieldValue}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:text-blue-400 flex items-center"
+                      >
+                        <ExternalLink size={12} className="mr-1" />
+                        Link
+                      </a>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <span className="italic opacity-50">No Data</span>
+                )}
               </div>
             </div>
           );

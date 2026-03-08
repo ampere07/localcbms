@@ -10,6 +10,7 @@ import { getRegions, Region } from '../services/regionService';
 import { barangayService, Barangay } from '../services/barangayService';
 import { locationEvents, LOCATION_EVENTS } from '../services/locationEvents';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import pusher from '../services/pusherService';
 
 
 interface LocationItem {
@@ -58,6 +59,7 @@ const ApplicationManagement: React.FC = () => {
   const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
+  const [funnelFilters, setFunnelFilters] = useState<any>({});
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem('applicationManagementVisibleColumns');
     if (saved) {
@@ -89,8 +91,10 @@ const ApplicationManagement: React.FC = () => {
   const startWidthRef = useRef<number>(0);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+  const cardScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -171,6 +175,39 @@ const ApplicationManagement: React.FC = () => {
     silentRefresh();
   }, [silentRefresh]);
 
+  // Global Soketi/Pusher connection for real-time application data
+  useEffect(() => {
+    const channel = pusher.subscribe('applications');
+
+    channel.bind('new-application', async (data: any) => {
+      console.log('[ApplicationManagement Soketi] New application detected, silently refreshing:', data);
+      try {
+        await silentRefresh();
+        console.log('[ApplicationManagement Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[ApplicationManagement Soketi] Failed to refresh data:', err);
+      }
+    });
+
+    return () => {
+      channel.unbind('new-application');
+      pusher.unsubscribe('applications');
+    };
+  }, [silentRefresh]);
+
+  // Poll for changes every 15 seconds (catches changes from mobile app, other sources)
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        await silentRefresh();
+      } catch (err) {
+        // Silent fail - polling is best-effort
+      }
+    }, 15000);
+
+    return () => clearInterval(pollInterval);
+  }, [silentRefresh]);
+
   // Idle detection and auto-refresh logic
   useEffect(() => {
     const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
@@ -233,6 +270,7 @@ const ApplicationManagement: React.FC = () => {
       { name: 'No Facility', value: 'no facility' },
       { name: 'Duplicate', value: 'duplicate' },
       { name: 'Cancelled', value: 'cancelled' },
+      { name: 'Confirmed', value: 'confirmed' },
       { name: 'Pending', value: 'pending' }
     ];
 
@@ -282,7 +320,63 @@ const ApplicationManagement: React.FC = () => {
 
       const matchesSearch = searchQuery === '' || checkValue(application);
 
-      return matchesLocation && matchesSearch;
+      let matchesFunnel = true;
+      if (Object.keys(funnelFilters).length > 0) {
+        for (const [key, filter] of Object.entries(funnelFilters)) {
+          const appValue = (application as any)[key];
+          const typedFilter = filter as any;
+
+          if (typedFilter.type === 'text' && typedFilter.value !== undefined && typedFilter.value !== '') {
+            if (!String(appValue || '').toLowerCase().includes(String(typedFilter.value).toLowerCase())) {
+              matchesFunnel = false;
+              break;
+            }
+          }
+          else if (typedFilter.type === 'number') {
+            const numValue = parseFloat(appValue);
+            if (!isNaN(numValue)) {
+              if (typedFilter.from !== undefined && typedFilter.from !== '' && numValue < parseFloat(typedFilter.from)) {
+                matchesFunnel = false;
+                break;
+              }
+              if (typedFilter.to !== undefined && typedFilter.to !== '' && numValue > parseFloat(typedFilter.to)) {
+                matchesFunnel = false;
+                break;
+              }
+            } else if ((typedFilter.from !== undefined && typedFilter.from !== '') || (typedFilter.to !== undefined && typedFilter.to !== '')) {
+              matchesFunnel = false;
+              break;
+            }
+          }
+          else if (typedFilter.type === 'date') {
+            if (appValue) {
+              const dateValue = new Date(appValue).getTime();
+              if (!isNaN(dateValue)) {
+                if (typedFilter.from) {
+                  const fromDate = new Date(typedFilter.from).getTime();
+                  if (dateValue < fromDate) { matchesFunnel = false; break; }
+                }
+                if (typedFilter.to) {
+                  const toDate = new Date(typedFilter.to).getTime();
+                  if (dateValue > toDate + 86400000) { matchesFunnel = false; break; }
+                }
+              } else {
+                matchesFunnel = false; break;
+              }
+            } else if (typedFilter.from || typedFilter.to) {
+              matchesFunnel = false; break;
+            }
+          }
+          else if (typedFilter.type === 'boolean' && typedFilter.value !== undefined && typedFilter.value !== '') {
+            const boolVal = appValue === true || appValue === 'true' || appValue === 1;
+            if (boolVal !== typedFilter.value) {
+              matchesFunnel = false; break;
+            }
+          }
+        }
+      }
+
+      return matchesLocation && matchesSearch && matchesFunnel;
     });
 
     filtered.sort((a, b) => {
@@ -390,21 +484,29 @@ const ApplicationManagement: React.FC = () => {
     }
 
     return filtered;
-    return filtered;
-  }, [applications, selectedLocation, searchQuery, sortColumn, sortDirection]);
+  }, [applications, selectedLocation, searchQuery, sortColumn, sortDirection, funnelFilters]);
 
   // Derived paginated records
   const paginatedApplications = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredApplications.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredApplications, currentPage]);
+  }, [filteredApplications, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLocation, searchQuery, sortColumn, sortDirection]);
+  }, [selectedLocation, searchQuery, sortColumn, sortDirection, funnelFilters, itemsPerPage]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (displayMode === 'card' && cardScrollRef.current) {
+      cardScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (displayMode === 'table' && tableScrollRef.current) {
+      tableScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage, displayMode]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -633,8 +735,9 @@ const ApplicationManagement: React.FC = () => {
                 status.toLowerCase() === 'duplicate' ? 'text-pink-400' :
                   status.toLowerCase() === 'in progress' ? 'text-blue-400' :
                     status.toLowerCase() === 'completed' ? 'text-green-400' :
-                      status.toLowerCase() === 'pending' ? 'text-orange-400' :
-                        'text-gray-400'
+                      status.toLowerCase() === 'confirmed' ? 'text-green-400' :
+                        status.toLowerCase() === 'pending' ? 'text-orange-400' :
+                          'text-gray-400'
           }`}>
           {status}
         </span>
@@ -702,6 +805,7 @@ const ApplicationManagement: React.FC = () => {
                 case 'no facility': return 'text-red-500';
                 case 'duplicate': return 'text-pink-500';
                 case 'cancelled': return 'text-red-600';
+                case 'confirmed': return 'text-green-500';
                 case 'pending': return 'text-orange-500';
                 default: return 'text-gray-500';
               }
@@ -801,6 +905,7 @@ const ApplicationManagement: React.FC = () => {
                     case 'no facility': return 'text-red-500';
                     case 'duplicate': return 'text-pink-500';
                     case 'cancelled': return 'text-red-600';
+                    case 'confirmed': return 'text-green-500';
                     case 'pending': return 'text-orange-500';
                     default: return 'text-gray-500';
                   }
@@ -1045,7 +1150,7 @@ const ApplicationManagement: React.FC = () => {
 
           {/* Applications List Container */}
           <div className="flex-1 overflow-hidden flex flex-col">
-            <div className={`flex-1 ${displayMode === 'table' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+            <div className={`flex-1 ${displayMode === 'table' ? 'overflow-hidden' : 'overflow-y-auto'}`} ref={cardScrollRef}>
               {isLoading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
@@ -1108,8 +1213,9 @@ const ApplicationManagement: React.FC = () => {
                                       application.status.toLowerCase() === 'duplicate' ? 'text-pink-400' :
                                         application.status.toLowerCase() === 'in progress' ? 'text-blue-400' :
                                           application.status.toLowerCase() === 'completed' ? 'text-green-400' :
-                                            application.status.toLowerCase() === 'pending' ? 'text-orange-400' :
-                                              'text-gray-400'
+                                            application.status.toLowerCase() === 'confirmed' ? 'text-green-400' :
+                                              application.status.toLowerCase() === 'pending' ? 'text-orange-400' :
+                                                'text-gray-400'
                                 }`}>
                                 {application.status}
                               </div>
@@ -1127,7 +1233,7 @@ const ApplicationManagement: React.FC = () => {
                 )
               ) : (
                 <div className="h-full relative flex flex-col">
-                  <div className="flex-1 overflow-auto">
+                  <div className="flex-1 overflow-auto" ref={tableScrollRef}>
                     <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
                       <thead>
                         <tr className={`border-b sticky top-0 z-20 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
@@ -1220,8 +1326,24 @@ const ApplicationManagement: React.FC = () => {
             {/* Pagination Controls */}
             {!isLoading && filteredApplications.length > 0 && totalPages > 1 && (
               <div className={`border-t p-4 flex items-center justify-between ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
-                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredApplications.length)}</span> of <span className="font-medium">{filteredApplications.length}</span> results
+                <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <div className="flex items-center gap-2">
+                    <span>Show</span>
+                    <select
+                      value={itemsPerPage}
+                      onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                      className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                    <span>entries</span>
+                  </div>
+                  <span>
+                    Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredApplications.length)}</span> of <span className="font-medium">{filteredApplications.length}</span> results
+                  </span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
@@ -1306,6 +1428,7 @@ const ApplicationManagement: React.FC = () => {
                 case 'no facility': return 'text-red-500';
                 case 'duplicate': return 'text-pink-500';
                 case 'cancelled': return 'text-red-600';
+                case 'confirmed': return 'text-green-500';
                 case 'pending': return 'text-orange-500';
                 default: return 'text-gray-500';
               }
@@ -1377,6 +1500,7 @@ const ApplicationManagement: React.FC = () => {
         onClose={() => setIsFunnelFilterOpen(false)}
         onApplyFilters={(filters) => {
           console.log('Applied filters:', filters);
+          setFunnelFilters(filters);
           setIsFunnelFilterOpen(false);
         }}
       />

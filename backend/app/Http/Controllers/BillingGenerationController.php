@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use App\Events\InvoiceUpdated;
+use App\Events\SOAUpdated;
 
 class BillingGenerationController extends Controller
 {
@@ -39,6 +41,8 @@ class BillingGenerationController extends Controller
                 $validated['billing_day'],
                 $userId
             );
+
+            event(new InvoiceUpdated(['action' => 'generated', 'count' => $results['success'], 'billing_day' => $validated['billing_day']]));
 
             return response()->json([
                 'success' => true,
@@ -71,6 +75,8 @@ class BillingGenerationController extends Controller
                 $userId
             );
 
+            event(new SOAUpdated(['action' => 'generated', 'count' => $results['success'], 'billing_day' => $validated['billing_day']]));
+
             return response()->json([
                 'success' => true,
                 'message' => "Generated {$results['success']} statements successfully",
@@ -96,6 +102,9 @@ class BillingGenerationController extends Controller
             $results = $this->enhancedBillingService->generateAllBillingsForToday($userId);
 
             $totalGenerated = $results['invoices']['success'] + $results['statements']['success'];
+
+            event(new InvoiceUpdated(['action' => 'bulk_generated', 'count' => $results['invoices']['success']]));
+            event(new SOAUpdated(['action' => 'bulk_generated', 'count' => $results['statements']['success']]));
 
             return response()->json([
                 'success' => true,
@@ -133,6 +142,8 @@ class BillingGenerationController extends Controller
                 $userId
             );
 
+            event(new InvoiceUpdated(['action' => 'enhanced_generated', 'count' => $results['success'], 'billing_day' => $validated['billing_day']]));
+
             return response()->json([
                 'success' => true,
                 'message' => "Generated {$results['success']} invoices successfully",
@@ -169,6 +180,8 @@ class BillingGenerationController extends Controller
                 $userId
             );
 
+            event(new SOAUpdated(['action' => 'enhanced_generated', 'count' => $results['success'], 'billing_day' => $validated['billing_day']]));
+
             return response()->json([
                 'success' => true,
                 'message' => "Generated {$results['success']} statements successfully",
@@ -201,6 +214,9 @@ class BillingGenerationController extends Controller
             );
 
             $totalGenerated = $results['invoices']['success'] + $results['statements']['success'];
+
+            event(new InvoiceUpdated(['action' => 'day_generated', 'count' => $results['invoices']['success'], 'billing_day' => $validated['billing_day']]));
+            event(new SOAUpdated(['action' => 'day_generated', 'count' => $results['statements']['success'], 'billing_day' => $validated['billing_day']]));
 
             return response()->json([
                 'success' => true,
@@ -346,6 +362,9 @@ class BillingGenerationController extends Controller
                 ]);
                 $results['invoice'] = ['error' => $e->getMessage()];
             }
+
+            event(new InvoiceUpdated(['action' => 'sample_generated', 'account_no' => $account->account_no]));
+            event(new SOAUpdated(['action' => 'sample_generated', 'account_no' => $account->account_no]));
 
             return response()->json([
                 'success' => true,
@@ -677,6 +696,9 @@ class BillingGenerationController extends Controller
                 'emails_queued' => count($soaResults['notifications']),
                 'notifications_enabled' => $sendNotifications
             ]);
+
+            event(new InvoiceUpdated(['action' => 'force_generated', 'count' => $invoiceResults['success']]));
+            event(new SOAUpdated(['action' => 'force_generated', 'count' => $soaResults['success']]));
 
             return response()->json([
                 'success' => true,

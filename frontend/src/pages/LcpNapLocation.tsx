@@ -4,6 +4,7 @@ import AddLcpNapLocationModal from '../modals/AddLcpNapLocationModal';
 import LcpNapLocationDetails from '../components/LcpNapLocationDetails';
 import { GOOGLE_MAPS_API_KEY } from '../config/maps';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { getAllLCPNAPsForMap, clearLCPNAPMapCache } from '../services/lcpnapService';
 import apiClient from '../config/api';
 
 interface LocationMarker {
@@ -76,6 +77,9 @@ const LcpNapLocation: React.FC = () => {
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+  const searchMarkerRef = useRef<google.maps.Marker | null>(null);
+  const allMarkersMapRef = useRef<Map<number, google.maps.Marker>>(new Map());
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -122,18 +126,22 @@ const LcpNapLocation: React.FC = () => {
       return;
     }
 
-    if (autocompleteServiceRef.current && showSuggestions) {
-      autocompleteServiceRef.current.getPlacePredictions(
-        { input: searchQuery, componentRestrictions: { country: 'ph' } },
-        (predictions, status) => {
-          if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-            setAddressSuggestions(predictions.slice(0, 5));
-          } else {
-            setAddressSuggestions([]);
+    const handler = setTimeout(() => {
+      if (autocompleteServiceRef.current && showSuggestions) {
+        autocompleteServiceRef.current.getPlacePredictions(
+          { input: searchQuery, componentRestrictions: { country: 'ph' } },
+          (predictions, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+              setAddressSuggestions(predictions.slice(0, 5));
+            } else {
+              setAddressSuggestions([]);
+            }
           }
-        }
-      );
-    }
+        );
+      }
+    }, 300);
+
+    return () => clearTimeout(handler);
   }, [searchQuery, showSuggestions]);
 
   useEffect(() => {
@@ -158,10 +166,10 @@ const LcpNapLocation: React.FC = () => {
   }, [markers]);
 
   useEffect(() => {
-    if (isMapReady && markers.length > 0 && selectedLcpNapId === 'all') {
+    if (isMapReady && isDataLoaded && selectedLcpNapId === 'all') {
       updateMapMarkers(markers);
     }
-  }, [isMapReady]);
+  }, [isMapReady, isDataLoaded]);
 
   useEffect(() => {
     if (!isResizingSidebar) return;
@@ -290,11 +298,11 @@ const LcpNapLocation: React.FC = () => {
     return { latitude, longitude };
   };
 
-  const loadLocations = async () => {
+  const loadLocations = async (forceRefresh: boolean = false) => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get<ApiResponse<any[]>>('/lcp-nap-locations');
-      const data = response.data;
+      const response = await getAllLCPNAPsForMap(forceRefresh);
+      const data = response;
 
       if (data.success && data.data) {
         const locationData = data.data
@@ -330,9 +338,11 @@ const LcpNapLocation: React.FC = () => {
           .filter((marker): marker is LocationMarker => marker !== null);
 
         setMarkers(locationData);
+        setIsDataLoaded(true);
 
+        // Pre-create markers after data is loaded and map is ready
         if (mapInstanceRef.current) {
-          updateMapMarkers(locationData);
+          initializeAllMarkers(locationData);
         }
       }
     } catch (error) {
@@ -340,6 +350,78 @@ const LcpNapLocation: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const initializeAllMarkers = (locations: LocationMarker[]) => {
+    if (!mapInstanceRef.current || !window.google?.maps) return;
+
+    // Clear existing markers mapping
+    allMarkersMapRef.current.forEach(m => m.setMap(null));
+    allMarkersMapRef.current.clear();
+
+    const icon = createMarkerIcon();
+
+    locations.forEach(location => {
+      const marker = new google.maps.Marker({
+        position: { lat: location.latitude, lng: location.longitude },
+        icon: icon,
+        title: location.lcpnap_name
+      });
+
+      marker.addListener('click', () => {
+        setSelectedLocation(location);
+      });
+
+      marker.addListener('mouseover', () => {
+        if (infoWindowRef.current && mapInstanceRef.current) {
+          const addressParts = [
+            location.street,
+            location.barangay,
+            location.city,
+            location.region
+          ].filter(Boolean);
+
+          const address = addressParts.length > 0
+            ? addressParts.join(', ')
+            : 'No address available';
+
+          const contentString = `
+            <div style="padding: 8px; min-width: 200px;">
+              <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #1f2937;">
+                ${location.lcpnap_name}
+              </h3>
+              <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
+                <strong>LCP:</strong> ${location.lcp_name}
+              </div>
+              <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
+                <strong>NAP:</strong> ${location.nap_name}
+              </div>
+              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+                <div style="font-size: 11px;">
+                  <span style="color: #22c55e;">On: ${location.active_sessions || 0}</span> | 
+                  <span style="color: #f59e0b;">Off: ${location.offline_sessions || 0}</span> | 
+                  <span style="color: #ef4444;">Blk: ${location.blocked_sessions || 0}</span>
+                </div>
+              </div>
+              <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
+                ${address}
+              </div>
+            </div>
+          `;
+
+          infoWindowRef.current.setContent(contentString);
+          infoWindowRef.current.open(mapInstanceRef.current, marker);
+        }
+      });
+
+      marker.addListener('mouseout', () => {
+        if (infoWindowRef.current) {
+          infoWindowRef.current.close();
+        }
+      });
+
+      allMarkersMapRef.current.set(location.id, marker);
+    });
   };
 
   const groupLocationsByLcpNap = () => {
@@ -366,8 +448,11 @@ const LcpNapLocation: React.FC = () => {
   };
 
   const clearMarkers = () => {
-    markersRef.current.forEach(marker => marker.setMap(null));
-    markersRef.current = [];
+    allMarkersMapRef.current.forEach(marker => marker.setMap(null));
+    if (searchMarkerRef.current) {
+      searchMarkerRef.current.setMap(null);
+      searchMarkerRef.current = null;
+    }
   };
 
   const createMarkerIcon = (): google.maps.Symbol => {
@@ -382,104 +467,29 @@ const LcpNapLocation: React.FC = () => {
   };
 
   const updateMapMarkers = (locations: LocationMarker[]) => {
-    if (!mapInstanceRef.current || !window.google?.maps) {
-      console.warn('Map not ready');
-      return;
-    }
+    if (!mapInstanceRef.current || !window.google?.maps) return;
 
-    clearMarkers();
-
+    // Use a fresh set for fast lookup
+    const locationIds = new Set(locations.map(l => l.id));
     const bounds = new google.maps.LatLngBounds();
+    let hasVisibleMarkers = false;
 
-    locations.forEach(location => {
-      const position = { lat: location.latitude, lng: location.longitude };
-
-      const marker = new google.maps.Marker({
-        position,
-        map: mapInstanceRef.current,
-        icon: createMarkerIcon(),
-        title: location.lcpnap_name
-      });
-
-      marker.addListener('click', () => {
-        setSelectedLocation(location);
-      });
-
-      // Add hover event listeners to show info window
-      marker.addListener('mouseover', () => {
-        if (infoWindowRef.current) {
-          const addressParts = [
-            location.street,
-            location.barangay,
-            location.city,
-            location.region
-          ].filter(Boolean);
-
-          const address = addressParts.length > 0
-            ? addressParts.join(', ')
-            : 'No address available';
-
-          const contentString = `
-            <div style="padding: 8px; min-width: 200px;">
-              <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #1f2937;">
-                ${location.lcpnap_name}
-              </h3>
-              <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
-                <strong>LCP:</strong> ${location.lcp_name}
-              </div>
-              <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
-                <strong>NAP:</strong> ${location.nap_name}
-              </div>
-              ${location.port_total ? `
-                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
-                  <strong>Ports:</strong> ${location.port_total}
-                </div>
-              ` : ''}
-              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
-                <div style="font-size: 12px; margin-bottom: 4px;">
-                  <strong style="color: #22c55e;">Online:</strong> 
-                  <span style="color: #22c55e; font-weight: 600;">${location.active_sessions || 0}</span>
-                </div>
-                <div style="font-size: 12px; margin-bottom: 4px;">
-                  <strong style="color: #f59e0b;">Offline:</strong> 
-                  <span style="color: #f59e0b; font-weight: 600;">${location.offline_sessions || 0}</span>
-                </div>
-                <div style="font-size: 12px; margin-bottom: 4px;">
-                  <strong style="color: #6b7280;">Inactive:</strong> 
-                  <span style="color: #6b7280; font-weight: 600;">${location.inactive_sessions || 0}</span>
-                </div>
-                <div style="font-size: 12px; margin-bottom: 4px;">
-                  <strong style="color: #ef4444;">Blocked:</strong> 
-                  <span style="color: #ef4444; font-weight: 600;">${location.blocked_sessions || 0}</span>
-                </div>
-                <div style="font-size: 12px; margin-bottom: 4px;">
-                  <strong style="color: #8b5cf6;">Not Found:</strong> 
-                  <span style="color: #8b5cf6; font-weight: 600;">${location.not_found_sessions || 0}</span>
-                </div>
-              </div>
-              <div style="font-size: 12px; color: #6b7280; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
-                ${address}
-              </div>
-            </div>
-          `;
-
-          infoWindowRef.current.setContent(contentString);
-          infoWindowRef.current.open(mapInstanceRef.current, marker);
-        }
-      });
-
-      marker.addListener('mouseout', () => {
-        if (infoWindowRef.current) {
-          infoWindowRef.current.close();
-        }
-      });
-
-      markersRef.current.push(marker);
-      bounds.extend(position);
+    allMarkersMapRef.current.forEach((marker, id) => {
+      if (locationIds.has(id)) {
+        marker.setMap(mapInstanceRef.current);
+        const pos = marker.getPosition();
+        if (pos) bounds.extend(pos);
+        hasVisibleMarkers = true;
+      } else {
+        marker.setMap(null);
+      }
     });
 
-    if (locations.length > 0) {
+    if (hasVisibleMarkers && locations.length > 0) {
       mapInstanceRef.current.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
+      if (locations.length === 1) {
+        mapInstanceRef.current.setZoom(18);
+      }
     }
   };
 
@@ -499,12 +509,25 @@ const LcpNapLocation: React.FC = () => {
   const handleLocationSelect = (location: LocationMarker) => {
     if (!mapInstanceRef.current) return;
 
-    mapInstanceRef.current.setCenter({ lat: location.latitude, lng: location.longitude });
-    mapInstanceRef.current.setZoom(15);
+    if (searchMarkerRef.current) {
+      searchMarkerRef.current.setMap(null);
+    }
+
+    const position = { lat: location.latitude, lng: location.longitude };
+    mapInstanceRef.current.setCenter(position);
+    mapInstanceRef.current.setZoom(18);
+
+    // Add a red pin at the selected LCPNAP location
+    searchMarkerRef.current = new google.maps.Marker({
+      position,
+      map: mapInstanceRef.current,
+      title: location.lcpnap_name,
+      animation: google.maps.Animation.DROP
+    });
 
     const marker = markersRef.current.find(m => {
       const pos = m.getPosition();
-      return pos && pos.lat() === location.latitude && pos.lng() === location.longitude;
+      return pos && Math.abs(pos.lat() - location.latitude) < 0.000001 && Math.abs(pos.lng() - location.longitude) < 0.000001;
     });
 
     if (marker && infoWindowRef.current) {
@@ -522,8 +545,30 @@ const LcpNapLocation: React.FC = () => {
       { placeId, fields: ['geometry', 'formatted_address', 'name'] },
       (place, status) => {
         if (status === google.maps.places.PlacesServiceStatus.OK && place?.geometry?.location) {
-          mapInstanceRef.current?.setCenter(place.geometry.location);
+          const location = place.geometry.location;
+          mapInstanceRef.current?.setCenter(location);
           mapInstanceRef.current?.setZoom(18);
+
+          if (searchMarkerRef.current) {
+            searchMarkerRef.current.setMap(null);
+          }
+
+          searchMarkerRef.current = new google.maps.Marker({
+            position: location,
+            map: mapInstanceRef.current,
+            title: description,
+            animation: google.maps.Animation.DROP
+          });
+
+          if (infoWindowRef.current) {
+            infoWindowRef.current.setContent(`
+              <div style="padding: 8px; min-width: 150px;">
+                <h3 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: #1f2937;">Selected Location</h3>
+                <p style="margin: 0; font-size: 12px; color: #6b7280;">${description}</p>
+              </div>
+            `);
+            infoWindowRef.current.open(mapInstanceRef.current, searchMarkerRef.current);
+          }
         }
       }
     );
@@ -537,10 +582,11 @@ const LcpNapLocation: React.FC = () => {
   };
 
   const handleSaveLocation = () => {
-    loadLocations();
+    clearLCPNAPMapCache();
+    loadLocations(true);
   };
 
-  const lcpNapItems: LcpNapItem[] = [
+  const lcpNapItems: LcpNapItem[] = React.useMemo(() => [
     {
       id: 0,
       name: 'All',
@@ -551,20 +597,17 @@ const LcpNapLocation: React.FC = () => {
       name: group.lcpnap_name,
       count: group.count
     }))
-  ];
+  ], [markers, lcpNapGroups]);
 
-  const getSelectedGroup = () => {
-    if (selectedLcpNapId === 'all') return null;
-    return lcpNapGroups.find(g => g.lcpnap_id === selectedLcpNapId);
-  };
-
-  const selectedGroup = getSelectedGroup();
-
-  const searchResults = markers.filter(marker =>
-    marker.lcpnap_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (marker.lcp_name && marker.lcp_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (marker.nap_name && marker.nap_name.toLowerCase().includes(searchQuery.toLowerCase()))
-  ).slice(0, 5);
+  const searchResults = React.useMemo(() => {
+    if (!searchQuery) return [];
+    const query = searchQuery.toLowerCase();
+    return markers.filter(marker =>
+      marker.lcpnap_name.toLowerCase().includes(query) ||
+      (marker.lcp_name && marker.lcp_name.toLowerCase().includes(query)) ||
+      (marker.nap_name && marker.nap_name.toLowerCase().includes(query))
+    ).slice(0, 5);
+  }, [markers, searchQuery]);
 
   return (
     <div className={`${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'

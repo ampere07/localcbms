@@ -332,13 +332,18 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       setUploadProgress(100);
 
       if (result.success) {
+        const isRecurringFee = formData.transactionType === 'Recurring Fee';
         setModal({
           isOpen: true,
           type: 'success',
-          title: 'Success',
-          message: 'Transaction created successfully!',
+          title: isRecurringFee ? 'Pending Approval' : 'Success',
+          message: isRecurringFee
+            ? 'Recurring Fee transaction has been submitted successfully.\n\nThis transaction requires approval before the account balance is updated. Please approve it in the Transaction List.'
+            : 'Transaction created successfully!',
           onConfirm: () => {
-            onSave(formData);
+            if (!isRecurringFee) {
+              onSave(formData);
+            }
             onClose();
             setModal(prev => ({ ...prev, isOpen: false }));
           }
@@ -688,6 +693,11 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                 );
               })}
             </div>
+            {formData.transactionType === 'Recurring Fee' && (
+              <p className="text-blue-400 text-xs mt-2">
+                ℹ️ Note: Recurring Fee transactions require approval in the Transaction List before the account balance is updated.
+              </p>
+            )}
             {formData.transactionType === 'Security Deposit' && (
               <p className="text-orange-500 text-xs mt-2">
                 Note: Security deposits do not affect the account balance or invoices.

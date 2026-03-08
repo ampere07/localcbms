@@ -6,11 +6,13 @@ import { useWorkOrderStore } from '../store/workOrderStore';
 import { WorkOrder } from '../types/workOrder';
 import WorkOrderDetails from '../components/WorkOrderDetails';
 import AssignWorkOrderModal from '../modals/AssignWorkOrderModal';
+import pusher from '../services/pusherService';
 
 const WorkOrderPage: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
 
   const { workOrders, isLoading, fetchWorkOrders, error } = useWorkOrderStore();
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
@@ -30,7 +32,7 @@ const WorkOrderPage: React.FC = () => {
   }, [mobileView]);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [userRole, setUserRole] = useState<number | null>(null);
   const [userRoleName, setUserRoleName] = useState<string>('');
   const [userEmail, setUserEmail] = useState<string>('');
@@ -74,6 +76,26 @@ const WorkOrderPage: React.FC = () => {
     fetchWorkOrders(1, 1000, '', '');
   }, [fetchWorkOrders]);
 
+  // Real-time updates via Pusher/Soketi
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[WorkOrder Soketi] Update received, refreshing:', data);
+      try {
+        await fetchWorkOrders(1, 1000, '', '');
+        console.log('[WorkOrder Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[WorkOrder Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const workOrderChannel = pusher.subscribe('work-orders');
+    workOrderChannel.bind('work-order-updated', handleUpdate);
+
+    return () => {
+      workOrderChannel.unbind('work-order-updated', handleUpdate);
+      pusher.unsubscribe('work-orders');
+    };
+  }, [fetchWorkOrders]);
 
 
   const handleDelete = async (workOrder: WorkOrder) => {
@@ -159,7 +181,7 @@ const WorkOrderPage: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, itemsPerPage]);
 
   const totalPages = Math.ceil(filteredWorkOrders.length / itemsPerPage);
 
@@ -168,6 +190,13 @@ const WorkOrderPage: React.FC = () => {
       setCurrentPage(newPage);
     }
   };
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage]);
 
   const paginatedWorkOrders = useMemo(() => {
     return filteredWorkOrders.slice(
@@ -181,8 +210,24 @@ const WorkOrderPage: React.FC = () => {
 
     return (
       <div className={`border-t p-4 flex items-center justify-between ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
-        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredWorkOrders.length)}</span> of <span className="font-medium">{filteredWorkOrders.length}</span> results
+        <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <div className="flex items-center gap-2">
+            <span>Show</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span>entries</span>
+          </div>
+          <span>
+            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredWorkOrders.length)}</span> of <span className="font-medium">{filteredWorkOrders.length}</span> results
+          </span>
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -317,7 +362,7 @@ const WorkOrderPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto" ref={scrollRef}>
             {isLoading ? (
               <div className="flex justify-center py-20">
                 <Loader2 className={`h-8 w-8 animate-spin ${isDarkMode ? 'text-white' : 'text-gray-900'}`} />
@@ -343,6 +388,12 @@ const WorkOrderPage: React.FC = () => {
                         </span>
                       </div>
                       <div className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} flex items-center`}>
+                        {wo.work_category && (
+                          <>
+                            <span className="font-medium text-blue-500">{wo.work_category}</span>
+                            <span className="mx-1.5 opacity-50">|</span>
+                          </>
+                        )}
                         <span>{formatDate(wo.requested_date)}</span>
                         <span className="mx-1.5 opacity-50">|</span>
                         <span className="truncate">{wo.report_to || 'Location not specified'}</span>
