@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { getBillingStatuses, BillingStatus } from '../services/lookupService';
+import { getAllUsageTypes, UsageType } from '../services/usageTypeService';
 
 interface CustomerFunnelFilterProps {
   isOpen: boolean;
@@ -18,7 +20,7 @@ export interface FilterValues {
   };
 }
 
-interface Column {
+export interface Column {
   key: string;
   label: string;
   table: string;
@@ -27,12 +29,9 @@ interface Column {
 
 const STORAGE_KEY = 'customerFunnelFilters';
 
-const allColumns: Column[] = [
+export const allColumns: Column[] = [
   // Customers table
-  { key: 'id', label: 'ID', table: 'customers', dataType: 'bigint' },
-  { key: 'first_name', label: 'First Name', table: 'customers', dataType: 'varchar' },
-  { key: 'middle_initial', label: 'Middle Initial', table: 'customers', dataType: 'varchar' },
-  { key: 'last_name', label: 'Last Name', table: 'customers', dataType: 'varchar' },
+  { key: 'customerName', label: 'Full Name', table: 'customers', dataType: 'varchar' },
   { key: 'email_address', label: 'Email Address', table: 'customers', dataType: 'varchar' },
   { key: 'contact_number_primary', label: 'Contact Number Primary', table: 'customers', dataType: 'varchar' },
   { key: 'contact_number_secondary', label: 'Contact Number Secondary', table: 'customers', dataType: 'varchar' },
@@ -51,7 +50,6 @@ const allColumns: Column[] = [
 
   // Billing Accounts table
   { key: 'billing_id', label: 'Billing ID', table: 'billing_accounts', dataType: 'bigint' },
-  { key: 'customer_id', label: 'Customer ID', table: 'billing_accounts', dataType: 'bigint' },
   { key: 'account_no', label: 'Account No', table: 'billing_accounts', dataType: 'varchar' },
   { key: 'date_installed', label: 'Date Installed', table: 'billing_accounts', dataType: 'date' },
   { key: 'plan_id', label: 'Plan ID', table: 'billing_accounts', dataType: 'bigint' },
@@ -65,10 +63,7 @@ const allColumns: Column[] = [
   { key: 'billing_updated_at', label: 'Updated At', table: 'billing_accounts', dataType: 'datetime' },
 
   // Technical Details table
-  { key: 'technical_id', label: 'Technical ID', table: 'technical_details', dataType: 'bigint' },
-  { key: 'account_id', label: 'Account ID', table: 'technical_details', dataType: 'bigint' },
   { key: 'username', label: 'Username', table: 'technical_details', dataType: 'varchar' },
-  { key: 'username_status', label: 'Username Status', table: 'technical_details', dataType: 'varchar' },
   { key: 'connection_type', label: 'Connection Type', table: 'technical_details', dataType: 'varchar' },
   { key: 'router_model', label: 'Router Model', table: 'technical_details', dataType: 'varchar' },
   { key: 'router_modem_sn', label: 'Router Modem SN', table: 'technical_details', dataType: 'varchar' },
@@ -95,6 +90,8 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [selectedColumn, setSelectedColumn] = useState<Column | null>(null);
   const [filterValues, setFilterValues] = useState<FilterValues>({});
+  const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
+  const [usageTypes, setUsageTypes] = useState<UsageType[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -129,6 +126,32 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
       }
     };
     fetchColorPalette();
+  }, []);
+
+  useEffect(() => {
+    const fetchBillingStatuses = async () => {
+      try {
+        const statuses = await getBillingStatuses();
+        setBillingStatuses(statuses);
+      } catch (err) {
+        console.error('Failed to fetch billing statuses:', err);
+      }
+    };
+    fetchBillingStatuses();
+  }, []);
+
+  useEffect(() => {
+    const fetchUsageTypes = async () => {
+      try {
+        const response = await getAllUsageTypes();
+        if (response.success) {
+          setUsageTypes(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch usage types:', err);
+      }
+    };
+    fetchUsageTypes();
   }, []);
 
   const handleColumnClick = (column: Column) => {
@@ -201,6 +224,31 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
     if (!selectedColumn) return null;
 
     const currentValue = filterValues[selectedColumn.key];
+
+    if (selectedColumn.key === 'billing_status_id') {
+      return (
+        <div>
+          <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            Billing Status
+          </label>
+          <select
+            value={currentValue?.value || ''}
+            onChange={(e) => handleTextChange(selectedColumn.key, e.target.value)}
+            className={`w-full px-3 py-2 rounded border ${isDarkMode
+              ? 'bg-gray-800 border-gray-700 text-white'
+              : 'bg-white border-gray-300 text-gray-900'
+              }`}
+          >
+            <option value="">Select Status</option>
+            {billingStatuses.map((status) => (
+              <option key={status.id} value={status.id.toString()}>
+                {status.status_name}
+              </option>
+            ))}
+          </select>
+        </div>
+      );
+    }
 
     if (isNumericType(selectedColumn.dataType)) {
       return (

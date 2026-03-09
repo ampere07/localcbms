@@ -111,11 +111,11 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    inventoryLogs: false,
-    borrowedLogs: false,
-    jobOrders: false,
-    serviceOrders: false,
-    defectiveLogs: false
+    inventoryLogs: true,
+    borrowedLogs: true,
+    jobOrders: true,
+    serviceOrders: true,
+    defectiveLogs: true
   });
   const [expandedModalSection, setExpandedModalSection] = useState<string | null>(null);
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
@@ -241,9 +241,10 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
   };
 
   const toggleSection = (section: string) => {
+    // Keep it always open
     setExpandedSections(prev => ({
       ...prev,
-      [section]: !prev[section]
+      [section]: true
     }));
   };
 
@@ -541,13 +542,9 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
                 >
                   Expand
                 </button>
-                <button onClick={() => toggleSection('inventoryLogs')} className="flex items-center">
-                  {expandedSections.inventoryLogs ? (
-                    <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  ) : (
-                    <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  )}
-                </button>
+                <div className="flex items-center">
+                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+                </div>
               </div>
             </div>
             {expandedSections.inventoryLogs && (
@@ -578,13 +575,9 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
                 >
                   Expand
                 </button>
-                <button onClick={() => toggleSection('borrowedLogs')} className="flex items-center">
-                  {expandedSections.borrowedLogs ? (
-                    <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  ) : (
-                    <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  )}
-                </button>
+                <div className="flex items-center">
+                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+                </div>
               </div>
             </div>
             {expandedSections.borrowedLogs && (
@@ -612,13 +605,9 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
                 >
                   Expand
                 </button>
-                <button onClick={() => toggleSection('jobOrders')} className="flex items-center">
-                  {expandedSections.jobOrders ? (
-                    <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  ) : (
-                    <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  )}
-                </button>
+                <div className="flex items-center">
+                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+                </div>
               </div>
             </div>
             {expandedSections.jobOrders && (
@@ -646,13 +635,9 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
                 >
                   Expand
                 </button>
-                <button onClick={() => toggleSection('serviceOrders')} className="flex items-center">
-                  {expandedSections.serviceOrders ? (
-                    <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  ) : (
-                    <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  )}
-                </button>
+                <div className="flex items-center">
+                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+                </div>
               </div>
             </div>
             {expandedSections.serviceOrders && (
@@ -680,13 +665,9 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
                 >
                   Expand
                 </button>
-                <button onClick={() => toggleSection('defectiveLogs')} className="flex items-center">
-                  {expandedSections.defectiveLogs ? (
-                    <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  ) : (
-                    <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  )}
-                </button>
+                <div className="flex items-center">
+                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+                </div>
               </div>
             </div>
             {expandedSections.defectiveLogs && (

@@ -26,7 +26,7 @@ interface Column {
 
 const STORAGE_KEY = 'soaFunnelFilters';
 
-const allColumns: Column[] = [
+export const allColumns: Column[] = [
     { key: 'id', label: 'SOA ID', dataType: 'int' },
     { key: 'accountNo', label: 'Account Number', dataType: 'varchar' },
     { key: 'fullName', label: 'Full Name', dataType: 'varchar' },

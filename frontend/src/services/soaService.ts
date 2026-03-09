@@ -95,10 +95,10 @@ export const soaService = {
     }
   },
 
-  async getStatementsByAccount(accountId: number): Promise<SOARecord[]> {
+  async getStatementsByAccount(accountId: number, fast: boolean = true): Promise<SOARecord[]> {
     try {
       const response = await apiClient.get<SOAResponse>('/billing-generation/statements', {
-        params: { account_id: accountId }
+        params: { account_id: accountId, fast: fast ? '1' : '0' }
       });
       if (response.data.success) {
         return response.data.data;
@@ -110,10 +110,10 @@ export const soaService = {
     }
   },
 
-  async getStatementsByAccountNo(accountNo: string): Promise<SOARecord[]> {
+  async getStatementsByAccountNo(accountNo: string, fast: boolean = true): Promise<SOARecord[]> {
     try {
       const response = await apiClient.get<SOAResponse>('/billing-generation/statements', {
-        params: { account_no: accountNo }
+        params: { account_no: accountNo, fast: fast ? '1' : '0' }
       });
       if (response.data.success) {
         return response.data.data;

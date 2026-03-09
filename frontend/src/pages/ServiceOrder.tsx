@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { FileText, Search, X, ListFilter, ArrowUp, ArrowDown, Menu, Filter, RefreshCw, ChevronDown, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { FileText, Search, X, Columns3, ArrowUp, ArrowDown, Menu, Filter, RefreshCw, ChevronDown, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import ServiceOrderDetails from '../components/ServiceOrderDetails';
-import ServiceOrderFunnelFilter from '../components/filters/ServiceOrderFunnelFilter';
+import ServiceOrderFunnelFilter, { FilterValues, allColumns as filterColumns } from '../components/filters/ServiceOrderFunnelFilter';
 import { useServiceOrderStore, type ServiceOrder } from '../store/serviceOrderStore';
 import { getCities, City } from '../services/cityService';
 import { getRegions, Region } from '../services/regionService';
@@ -1469,9 +1469,29 @@ const ServiceOrderPage: React.FC = () => {
               <div className="hidden md:flex space-x-2">
                 <button
                   onClick={() => setIsFunnelFilterOpen(true)}
-                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
-                    ? 'hover:bg-gray-700 text-white'
-                    : 'hover:bg-gray-200 text-gray-900'
+                  title={activeFilters && Object.keys(activeFilters).length > 0
+                    ? `Active Filters:\n${Object.entries(activeFilters).map(([key, filter]: [string, any]) => {
+                      const colName = filterColumns.find(c => c.key === key)?.label || key;
+                      if (filter.type === 'text') return `${colName}: ${filter.value}`;
+                      if (filter.type === 'number') {
+                        if (filter.from && filter.to) return `${colName}: ${filter.from} - ${filter.to}`;
+                        if (filter.from) return `${colName}: > ${filter.from}`;
+                        if (filter.to) return `${colName}: < ${filter.to}`;
+                      }
+                      if (filter.type === 'date') {
+                        if (filter.from && filter.to) return `${colName}: ${filter.from} to ${filter.to}`;
+                        if (filter.from) return `${colName}: After ${filter.from}`;
+                        if (filter.to) return `${colName}: Before ${filter.to}`;
+                      }
+                      return colName;
+                    }).join('\n')}`
+                    : "Filter Service Orders"
+                  }
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${activeFilters && Object.keys(activeFilters).length > 0
+                    ? 'text-red-500 hover:bg-red-500/10'
+                    : isDarkMode
+                      ? 'hover:bg-gray-700 text-white'
+                      : 'hover:bg-gray-200 text-gray-900'
                     }`}
                 >
                   <Filter className="h-5 w-5" />
@@ -1485,7 +1505,7 @@ const ServiceOrderPage: React.FC = () => {
                         }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
-                      <ListFilter className="h-5 w-5" />
+                      <Columns3 className="h-5 w-5" />
                     </button>
                     {filterDropdownOpen && (
                       <div className={`absolute top-full right-0 mt-2 w-80 border rounded shadow-lg z-50 max-h-96 flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
@@ -1570,7 +1590,7 @@ const ServiceOrderPage: React.FC = () => {
                       }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
-                    <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
+                    <span>{displayMode === 'card' ? 'Card' : 'Table'}</span>
                     <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>

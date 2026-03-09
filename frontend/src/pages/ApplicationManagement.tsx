@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { FileText, Search, ListFilter, ChevronDown, ArrowUp, ArrowDown, Menu, X, Filter, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { FileText, Search, Columns3, ChevronDown, ArrowUp, ArrowDown, Menu, X, Filter, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ExternalLink } from 'lucide-react';
 import ApplicationDetails from '../components/ApplicationDetails';
 import AddApplicationModal from '../modals/AddApplicationModal';
-import ApplicationFunnelFilter from '../filter/ApplicationFunnelFilter';
+import ApplicationFunnelFilter, { allColumns as filterColumns } from '../filter/ApplicationFunnelFilter';
 import { useApplicationStore } from '../store/applicationStore';
 import { Application } from '../types/application';
 import { getCities, City } from '../services/cityService';
@@ -762,6 +762,15 @@ const ApplicationManagement: React.FC = () => {
           <div className="flex items-center justify-between mb-1">
             <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>Applications</h2>
+            <button
+              onClick={() => window.open('https://apply.atssfiber.ph', '_blank', 'noopener,noreferrer')}
+              className="px-2.5 py-1 text-xs font-medium rounded flex items-center transition-colors shadow-sm text-white hover:opacity-90"
+              style={{ backgroundColor: colorPalette?.primary || '#f97316' }}
+              title="Open Application Form"
+            >
+              <ExternalLink className="h-3.5 w-3.5 mr-1" />
+              Apply
+            </button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -987,9 +996,30 @@ const ApplicationManagement: React.FC = () => {
               <div className="hidden md:flex space-x-2">
                 <button
                   onClick={() => setIsFunnelFilterOpen(true)}
-                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
-                    ? 'hover:bg-gray-800 text-white'
-                    : 'hover:bg-gray-100 text-gray-900'
+                  title={Object.keys(funnelFilters || {}).length > 0
+                    ? `Active Filters:\n${Object.entries(funnelFilters || {}).map(([key, filter]: [string, any]) => {
+                      const colName = filterColumns.find(c => c.key === key)?.label || key;
+                      if (filter.type === 'text') return `${colName}: ${filter.value}`;
+                      if (filter.type === 'boolean') return `${colName}: ${filter.value ? 'Yes' : 'No'}`;
+                      if (filter.type === 'number') {
+                        if (filter.from && filter.to) return `${colName}: ${filter.from} - ${filter.to}`;
+                        if (filter.from) return `${colName}: > ${filter.from}`;
+                        if (filter.to) return `${colName}: < ${filter.to}`;
+                      }
+                      if (filter.type === 'date') {
+                        if (filter.from && filter.to) return `${colName}: ${filter.from} to ${filter.to}`;
+                        if (filter.from) return `${colName}: After ${filter.from}`;
+                        if (filter.to) return `${colName}: Before ${filter.to}`;
+                      }
+                      return colName;
+                    }).join('\n')}`
+                    : "Filter Applications"
+                  }
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${Object.keys(funnelFilters || {}).length > 0
+                    ? 'text-red-500 hover:bg-red-500/10'
+                    : isDarkMode
+                      ? 'hover:bg-gray-800 text-white'
+                      : 'hover:bg-gray-100 text-gray-900'
                     }`}
                 >
                   <Filter className="h-5 w-5" />
@@ -1003,7 +1033,7 @@ const ApplicationManagement: React.FC = () => {
                         }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
-                      <ListFilter className="h-5 w-5" />
+                      <Columns3 className="h-5 w-5" />
                     </button>
                     {filterDropdownOpen && (
                       <div className={`absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-96 flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
@@ -1083,7 +1113,7 @@ const ApplicationManagement: React.FC = () => {
                       }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
-                    <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
+                    <span>{displayMode === 'card' ? 'Card' : 'Table'}</span>
                     <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
                   {dropdownOpen && (

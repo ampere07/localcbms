@@ -303,6 +303,33 @@ class EnhancedBillingGenerationServiceWithNotifications
 
             DB::commit();
             
+            // GENERATE PDF AND SAVE TO GOOGLE DRIVE IMMEDIATELY AFTER COMMIT
+            try {
+                $pdfService = app(\App\Services\GoogleDrivePdfGenerationService::class);
+                $pdfResult = $pdfService->generateBillingPdf($account, null, $statement);
+                
+                if (isset($pdfResult['success']) && $pdfResult['success'] && !empty($pdfResult['url'])) {
+                    $statement->print_link = $pdfResult['url'];
+                    $statement->save();
+                    
+                    $this->log('info', 'SOA PDF generated and saved to Google Drive immediately', [
+                        'account_no' => $account->account_no,
+                        'statement_id' => $statement->id,
+                        'print_link' => $pdfResult['url']
+                    ]);
+                } else {
+                    $this->log('error', 'Failed to generate SOA PDF immediately', [
+                        'account_no' => $account->account_no,
+                        'error' => $pdfResult['error'] ?? 'Unknown error'
+                    ]);
+                }
+            } catch (\Exception $e) {
+                $this->log('error', 'Exception generating SOA PDF immediately', [
+                    'account_no' => $account->account_no,
+                    'error' => $e->getMessage()
+                ]);
+            }
+            
             $this->log('info', 'SOA created successfully', [
                 'account_no' => $account->account_no,
                 'statement_id' => $statement->id,

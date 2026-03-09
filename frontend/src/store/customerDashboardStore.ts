@@ -55,7 +55,7 @@ export const useCustomerDashboardStore = create<CustomerDashboardState>((set, ge
                     (isCustomerRole ? soaService.getStatementsByAccountNo(accNo) : soaService.getStatementsByAccount(billingId)).catch(() => []),
                     (isCustomerRole ? invoiceService.getInvoicesByAccountNo(accNo) : invoiceService.getInvoicesByAccount(billingId)).catch(() => []),
                     paymentPortalLogsService.getLogsByAccountNo(accNo).catch(() => []),
-                    transactionService.getAllTransactions().catch(() => ({ success: false, data: [] }))
+                    transactionService.getTransactionsByAccountNo(accNo).catch(() => ({ success: false, data: [] }))
                 ]);
 
                 // Process Payments
@@ -71,7 +71,6 @@ export const useCustomerDashboardStore = create<CustomerDashboardState>((set, ge
                 let formattedTxs: Payment[] = [];
                 if (txRes && txRes.success && Array.isArray(txRes.data)) {
                     formattedTxs = txRes.data
-                        .filter((t: any) => t.account_no === accNo)
                         .map((t: any) => ({
                             id: `tx-${t.id}`,
                             date: t.payment_date || t.created_at,

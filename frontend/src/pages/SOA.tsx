@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, ArrowUp, ArrowDown, ListFilter, X, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, Columns3, X, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import SOADetails from '../components/SOADetails';
 import '../services/soaService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -8,7 +8,7 @@ import { useSOAStore, SOARecordUI } from '../store/soaStore';
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
-import SOAFunnelFilter, { FilterValues } from '../filter/SOAFunnelFilter';
+import SOAFunnelFilter, { FilterValues, allColumns as filterColumns } from '../filter/SOAFunnelFilter';
 import pusher from '../services/pusherService';
 import { Filter } from 'lucide-react';
 
@@ -1010,9 +1010,29 @@ const SOA: React.FC = () => {
               </div>
               <button
                 onClick={() => setIsFunnelFilterOpen(true)}
-                className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
-                  ? 'hover:bg-gray-700 text-white'
-                  : 'hover:bg-gray-200 text-gray-900'
+                title={Object.keys(activeFilters).length > 0
+                  ? `Active Filters:\n${Object.entries(activeFilters).map(([key, filter]: [string, any]) => {
+                    const colName = filterColumns.find(c => c.key === key)?.label || key;
+                    if (filter.type === 'text') return `${colName}: ${filter.value}`;
+                    if (filter.type === 'number') {
+                      if (filter.from && filter.to) return `${colName}: ${filter.from} - ${filter.to}`;
+                      if (filter.from) return `${colName}: > ${filter.from}`;
+                      if (filter.to) return `${colName}: < ${filter.to}`;
+                    }
+                    if (filter.type === 'date') {
+                      if (filter.from && filter.to) return `${colName}: ${filter.from} to ${filter.to}`;
+                      if (filter.from) return `${colName}: After ${filter.from}`;
+                      if (filter.to) return `${colName}: Before ${filter.to}`;
+                    }
+                    return colName;
+                  }).join('\n')}`
+                  : "Filter SOA Records"
+                }
+                className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${Object.keys(activeFilters).length > 0
+                  ? 'text-red-500 hover:bg-red-500/10'
+                  : isDarkMode
+                    ? 'hover:bg-gray-700 text-white'
+                    : 'hover:bg-gray-200 text-gray-900'
                   }`}
               >
                 <Filter className="h-5 w-5" />
@@ -1026,7 +1046,7 @@ const SOA: React.FC = () => {
                       }`}
                     onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                   >
-                    <ListFilter className="h-5 w-5" />
+                    <Columns3 className="h-5 w-5" />
                   </button>
                   {filterDropdownOpen && (
                     <div className={`absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-[70vh] flex flex-col ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'

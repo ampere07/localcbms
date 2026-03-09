@@ -387,14 +387,18 @@ class BillingGenerationController extends Controller
     public function getInvoices(Request $request): JsonResponse
     {
         try {
-            $query = \App\Models\Invoice::with([
-                'billingAccount.customer',
-                'billingAccount.technicalDetails',
-                'billingAccount.plan',
-                'discounts',
-                'staggeredInstallations',
-                'transactions'
-            ]);
+            $query = \App\Models\Invoice::query();
+
+            if (!$request->has('fast')) {
+                $query->with([
+                    'billingAccount.customer',
+                    'billingAccount.technicalDetails',
+                    'billingAccount.plan',
+                    'discounts',
+                    'staggeredInstallations',
+                    'transactions'
+                ]);
+            }
 
             if ($request->has('account_no')) {
                 $query->where('account_no', $request->account_no);
@@ -417,10 +421,6 @@ class BillingGenerationController extends Controller
 
             $invoices = $query->orderBy('invoice_date', 'desc')->get();
 
-            Log::info('Fetched invoices with complete data', [
-                'count' => $invoices->count()
-            ]);
-
             return response()->json([
                 'success' => true,
                 'data' => $invoices,
@@ -440,14 +440,18 @@ class BillingGenerationController extends Controller
     public function getStatements(Request $request): JsonResponse
     {
         try {
-            $query = \App\Models\StatementOfAccount::with([
-                'billingAccount.customer',
-                'billingAccount.technicalDetails',
-                'billingAccount.plan',
-                'discounts',
-                'staggeredInstallations',
-                'transactions'
-            ]);
+            $query = \App\Models\StatementOfAccount::query();
+
+            if (!$request->has('fast')) {
+                $query->with([
+                    'billingAccount.customer',
+                    'billingAccount.technicalDetails',
+                    'billingAccount.plan',
+                    'discounts',
+                    'staggeredInstallations',
+                    'transactions'
+                ]);
+            }
 
             if ($request->has('account_no')) {
                 $query->where('account_no', $request->account_no);
@@ -465,10 +469,6 @@ class BillingGenerationController extends Controller
             }
 
             $statements = $query->orderBy('statement_date', 'desc')->get();
-
-            Log::info('Fetched statements with complete data', [
-                'count' => $statements->count()
-            ]);
 
             return response()->json([
                 'success' => true,

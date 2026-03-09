@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FileText, Search, ChevronDown, RefreshCw, ListFilter, ArrowUp, ArrowDown, Menu, X, ArrowLeft, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Search, ChevronDown, RefreshCw, Columns3, ArrowUp, ArrowDown, Menu, X, ArrowLeft, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import ApplicationVisitDetails from '../components/ApplicationVisitDetails';
 import ApplicationVisitFunnelFilter, { FilterValues } from '../filter/ApplicationVisitFunnelFilter';
 import { useApplicationVisitContext, type ApplicationVisit } from '../contexts/ApplicationVisitContext';
@@ -988,7 +988,7 @@ const ApplicationVisitPage: React.FC = () => {
                         }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
-                      <ListFilter className="h-5 w-5" />
+                      <Columns3 className="h-5 w-5" />
                     </button>
                     {filterDropdownOpen && (
                       <>
@@ -1127,7 +1127,7 @@ const ApplicationVisitPage: React.FC = () => {
                       }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
-                    <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
+                    <span>{displayMode === 'card' ? 'Card' : 'Table'}</span>
                     <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
                   {dropdownOpen && (

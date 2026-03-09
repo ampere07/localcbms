@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { FileText, Search, ChevronDown, ChevronRight, ListFilter, ArrowUp, ArrowDown, Menu, X, RefreshCw, Filter, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { FileText, Search, ChevronDown, ChevronRight, Columns3, ArrowUp, ArrowDown, Menu, X, RefreshCw, Filter, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import JobOrderDetails from '../components/JobOrderDetails';
-import JobOrderFunnelFilter from '../components/filters/JobOrderFunnelFilter';
+import JobOrderFunnelFilter, { FilterValues, allColumns as filterColumns } from '../components/filters/JobOrderFunnelFilter';
 import { useJobOrderStore } from '../store/jobOrderStore';
 import { getBillingStatuses, BillingStatus } from '../services/lookupService';
 import { JobOrder } from '../types/jobOrder';
@@ -1571,9 +1571,29 @@ const JobOrderPage: React.FC = () => {
               <div className="flex space-x-2">
                 <button
                   onClick={() => setIsFunnelFilterOpen(true)}
-                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
-                    ? 'hover:bg-gray-700 text-white'
-                    : 'hover:bg-gray-200 text-gray-900'
+                  title={activeFilters && Object.keys(activeFilters).length > 0
+                    ? `Active Filters:\n${Object.entries(activeFilters).map(([key, filter]: [string, any]) => {
+                      const colName = filterColumns.find(c => c.key === key)?.label || key;
+                      if (filter.type === 'text') return `${colName}: ${filter.value}`;
+                      if (filter.type === 'number') {
+                        if (filter.from && filter.to) return `${colName}: ${filter.from} - ${filter.to}`;
+                        if (filter.from) return `${colName}: > ${filter.from}`;
+                        if (filter.to) return `${colName}: < ${filter.to}`;
+                      }
+                      if (filter.type === 'date') {
+                        if (filter.from && filter.to) return `${colName}: ${filter.from} to ${filter.to}`;
+                        if (filter.from) return `${colName}: After ${filter.from}`;
+                        if (filter.to) return `${colName}: Before ${filter.to}`;
+                      }
+                      return colName;
+                    }).join('\n')}`
+                    : "Filter Job Orders"
+                  }
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${activeFilters && Object.keys(activeFilters).length > 0
+                    ? 'text-red-500 hover:bg-red-500/10'
+                    : isDarkMode
+                      ? 'hover:bg-gray-700 text-white'
+                      : 'hover:bg-gray-200 text-gray-900'
                     }`}
                 >
                   <Filter className="h-5 w-5" />
@@ -1587,7 +1607,7 @@ const JobOrderPage: React.FC = () => {
                         }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
-                      <ListFilter className="h-5 w-5" />
+                      <Columns3 className="h-5 w-5" />
                     </button>
                     {filterDropdownOpen && (
                       <>
@@ -1742,7 +1762,7 @@ const JobOrderPage: React.FC = () => {
                       }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
-                    <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
+                    <span>{displayMode === 'card' ? 'Card' : 'Table'}</span>
                     <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
                   {dropdownOpen && (

@@ -120,10 +120,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
     { id: 'application-management', label: 'Application', icon: FileCheck, allowedRoles: ['administrator'] },
     // { id: 'application-visit', label: 'Application Visit', icon: MapPin, allowedRoles: ['administrator', 'technician'] },
     { id: 'job-order', label: 'Job Order', icon: Wrench, allowedRoles: ['administrator', 'technician'] },
+    { id: 'service-order', label: 'Service Order', icon: Wrench, allowedRoles: ['administrator', 'technician'] },
     { id: 'work-order', label: 'Work Order', icon: Wrench, allowedRoles: ['administrator', 'agent', 'Osp'] },
     { id: 'lcp-nap-location', label: 'LCP/NAP Location', icon: MapPinned, allowedRoles: ['administrator', 'technician', 'Osp'] },
     { id: 'sms-blast', label: 'SMS Blast', icon: MessageSquare, allowedRoles: ['administrator'] },
-    { id: 'service-order', label: 'Service Order', icon: Wrench, allowedRoles: ['administrator', 'technician'] },
     { id: 'reports', label: 'Reports', icon: FileBarChart, allowedRoles: ['administrator', 'superadmin'] },
     {
       id: 'inventory-group',

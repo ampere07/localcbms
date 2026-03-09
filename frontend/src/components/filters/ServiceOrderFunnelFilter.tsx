@@ -27,7 +27,7 @@ interface Column {
 
 const STORAGE_KEY = 'serviceOrderFunnelFilters';
 
-const allColumns: Column[] = [
+export const allColumns: Column[] = [
   { key: 'id', label: 'ID', table: 'service_orders', dataType: 'bigint' },
   { key: 'ticket_id', label: 'Ticket ID', table: 'service_orders', dataType: 'varchar' },
   { key: 'timestamp', label: 'Timestamp', table: 'service_orders', dataType: 'datetime' },
@@ -218,8 +218,8 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
               onChange={(e) => handleRangeChange(selectedColumn.key, 'from', e.target.value)}
               placeholder="Minimum value"
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
           </div>
@@ -234,8 +234,8 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
               onChange={(e) => handleRangeChange(selectedColumn.key, 'to', e.target.value)}
               placeholder="Maximum value"
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
           </div>
@@ -256,8 +256,8 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
               value={currentValue?.from || ''}
               onChange={(e) => handleDateChange(selectedColumn.key, 'from', e.target.value)}
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
           </div>
@@ -271,8 +271,8 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
               value={currentValue?.to || ''}
               onChange={(e) => handleDateChange(selectedColumn.key, 'to', e.target.value)}
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
           </div>
@@ -292,8 +292,8 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
           onChange={(e) => handleTextChange(selectedColumn.key, e.target.value)}
           placeholder={`Enter ${selectedColumn.label.toLowerCase()}`}
           className={`w-full px-3 py-2 rounded border ${isDarkMode
-              ? 'bg-gray-800 border-gray-700 text-white'
-              : 'bg-white border-gray-300 text-gray-900'
+            ? 'bg-gray-800 border-gray-700 text-white'
+            : 'bg-white border-gray-300 text-gray-900'
             }`}
         />
       </div>
@@ -324,8 +324,8 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
                       <button
                         onClick={handleBack}
                         className={`p-2 rounded-lg transition-colors ${isDarkMode
-                            ? 'hover:bg-gray-800 text-gray-400'
-                            : 'hover:bg-gray-100 text-gray-600'
+                          ? 'hover:bg-gray-800 text-gray-400'
+                          : 'hover:bg-gray-100 text-gray-600'
                           }`}
                       >
                         <ChevronLeft className="h-5 w-5" />
@@ -347,8 +347,8 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
                   <button
                     onClick={onClose}
                     className={`p-2 rounded-lg transition-colors ${isDarkMode
-                        ? 'hover:bg-gray-800 text-gray-400'
-                        : 'hover:bg-gray-100 text-gray-600'
+                      ? 'hover:bg-gray-800 text-gray-400'
+                      : 'hover:bg-gray-100 text-gray-600'
                       }`}
                   >
                     <X className="h-5 w-5" />
@@ -410,8 +410,8 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
                   <button
                     onClick={handleReset}
                     className={`flex-1 px-4 py-2 rounded transition-colors ${isDarkMode
-                        ? 'bg-gray-800 hover:bg-gray-700 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      ? 'bg-gray-800 hover:bg-gray-700 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                       }`}
                   >
                     Clear All

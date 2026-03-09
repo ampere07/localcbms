@@ -82,7 +82,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
   const [formData, setFormData] = useState<JOFormData>({
     timestamp: new Date().toLocaleString('sv-SE').replace(' ', ' '),
 
-    status: '',
+    status: 'Confirmed',
     referredBy: '',
     firstName: '',
     middleInitial: '',

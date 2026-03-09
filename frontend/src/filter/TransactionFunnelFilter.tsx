@@ -26,7 +26,7 @@ interface Column {
 
 const STORAGE_KEY = 'transactionFunnelFilters';
 
-const allColumns: Column[] = [
+export const allColumns: Column[] = [
     { key: 'id', label: 'Transaction ID', dataType: 'int' },
     { key: 'account_no', label: 'Account Number', dataType: 'varchar' },
     { key: 'full_name', label: 'Full Name', dataType: 'varchar' },

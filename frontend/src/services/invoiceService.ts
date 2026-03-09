@@ -73,10 +73,10 @@ export const invoiceService = {
     }
   },
 
-  async getInvoicesByAccount(accountId: number): Promise<InvoiceRecord[]> {
+  async getInvoicesByAccount(accountId: number, fast: boolean = true): Promise<InvoiceRecord[]> {
     try {
       const response = await apiClient.get<InvoiceResponse>('/billing-generation/invoices', {
-        params: { account_id: accountId }
+        params: { account_id: accountId, fast: fast ? '1' : '0' }
       });
       if (response.data.success) {
         return response.data.data;
@@ -88,10 +88,10 @@ export const invoiceService = {
     }
   },
 
-  async getInvoicesByAccountNo(accountNo: string): Promise<InvoiceRecord[]> {
+  async getInvoicesByAccountNo(accountNo: string, fast: boolean = true): Promise<InvoiceRecord[]> {
     try {
       const response = await apiClient.get<InvoiceResponse>('/billing-generation/invoices', {
-        params: { account_no: accountNo }
+        params: { account_no: accountNo, fast: fast ? '1' : '0' }
       });
       if (response.data.success) {
         return response.data.data;

@@ -165,25 +165,25 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     }
   };
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    invoices: false,
-    paymentPortalLogs: false,
-    transactions: false,
-    advancedPayments: false,
-    discounts: false,
-    staggeredInstallations: false,
-    staggeredPayments: false,
-    serviceOrders: false,
-    serviceOrderLogs: false,
-    reconnectionLogs: false,
-    disconnectedLogs: false,
-    detailsUpdateLogs: false,
-    inventoryLogs: false,
+    invoices: true,
+    paymentPortalLogs: true,
+    transactions: true,
+    advancedPayments: true,
+    discounts: true,
+    staggeredInstallations: true,
+    staggeredPayments: true,
+    serviceOrders: true,
+    serviceOrderLogs: true,
+    reconnectionLogs: true,
+    disconnectedLogs: true,
+    detailsUpdateLogs: true,
+    inventoryLogs: true,
     onlineStatus: true,
-    borrowedLogs: false,
-    planChangeLogs: false,
-    serviceChargeLogs: false,
-    changeDueLogs: false,
-    securityDeposits: false
+    borrowedLogs: true,
+    planChangeLogs: true,
+    serviceChargeLogs: true,
+    changeDueLogs: true,
+    securityDeposits: true
   });
   const [showTransactModal, setShowTransactModal] = useState(false);
   const [showTransactionFormModal, setShowTransactionFormModal] = useState(false);
@@ -949,9 +949,10 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   };
 
   const toggleSection = (section: string) => {
+    // Keep it always open
     setExpandedSections((prev: Record<string, boolean>) => ({
       ...prev,
-      [section]: !prev[section]
+      [section]: true
     }));
   };
 
@@ -1450,18 +1451,11 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                   }`}
               >
-                {expandedSections.invoices ? 'Collapse' : 'Expand'}
+                Expand
               </button>
-              <button
-                onClick={() => toggleSection('invoices')}
-                className="flex items-center"
-              >
-                {expandedSections.invoices ? (
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                ) : (
-                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                )}
-              </button>
+              <div className="flex items-center">
+                <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+              </div>
             </div>
           </div>
 
@@ -1767,18 +1761,11 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                   className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                     }`}
                 >
-                  {expandedSections[section.key] ? 'Collapse' : 'Expand'}
+                  Expand
                 </button>
-                <button
-                  onClick={() => toggleSection(section.key)}
-                  className="flex items-center"
-                >
-                  {expandedSections[section.key] ? (
-                    <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  ) : (
-                    <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  )}
-                </button>
+                <div className="flex items-center">
+                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+                </div>
               </div>
             </div>
 

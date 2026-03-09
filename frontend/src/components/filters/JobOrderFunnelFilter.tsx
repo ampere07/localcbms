@@ -27,7 +27,7 @@ interface Column {
 
 const STORAGE_KEY = 'jobOrderFunnelFilters';
 
-const allColumns: Column[] = [
+export const allColumns: Column[] = [
   { key: 'id', label: 'ID', table: 'job_orders', dataType: 'bigint' },
   { key: 'application_id', label: 'Application ID', table: 'job_orders', dataType: 'bigint' },
   { key: 'timestamp', label: 'Timestamp', table: 'job_orders', dataType: 'datetime' },

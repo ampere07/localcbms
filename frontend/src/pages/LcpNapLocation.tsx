@@ -30,6 +30,7 @@ interface LocationMarker {
   offline_sessions?: number;
   blocked_sessions?: number;
   not_found_sessions?: number;
+  total_technical_details?: number;
 }
 
 interface LcpNapGroup {
@@ -332,7 +333,8 @@ const LcpNapLocation: React.FC = () => {
               inactive_sessions: item.inactive_sessions,
               offline_sessions: item.offline_sessions,
               blocked_sessions: item.blocked_sessions,
-              not_found_sessions: item.not_found_sessions
+              not_found_sessions: item.not_found_sessions,
+              total_technical_details: item.total_technical_details
             } as LocationMarker;
           })
           .filter((marker): marker is LocationMarker => marker !== null);
@@ -359,12 +361,13 @@ const LcpNapLocation: React.FC = () => {
     allMarkersMapRef.current.forEach(m => m.setMap(null));
     allMarkersMapRef.current.clear();
 
-    const icon = createMarkerIcon();
-
     locations.forEach(location => {
+      const isFull = location.port_total && location.total_technical_details !== undefined && location.total_technical_details >= location.port_total;
+      const markerColor = isFull ? '#ef4444' : '#22c55e'; // Red if full, Green otherwise
+
       const marker = new google.maps.Marker({
         position: { lat: location.latitude, lng: location.longitude },
-        icon: icon,
+        icon: createMarkerIcon(markerColor),
         title: location.lcpnap_name
       });
 
@@ -395,6 +398,9 @@ const LcpNapLocation: React.FC = () => {
               </div>
               <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
                 <strong>NAP:</strong> ${location.nap_name}
+              </div>
+              <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
+                <strong>Ports:</strong> ${location.total_technical_details || 0} / ${location.port_total || 0}
               </div>
               <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
                 <div style="font-size: 11px;">
@@ -455,11 +461,11 @@ const LcpNapLocation: React.FC = () => {
     }
   };
 
-  const createMarkerIcon = (): google.maps.Symbol => {
+  const createMarkerIcon = (color: string = '#22c55e'): google.maps.Symbol => {
     return {
       path: google.maps.SymbolPath.CIRCLE,
       scale: 8,
-      fillColor: '#22c55e',
+      fillColor: color,
       fillOpacity: 1,
       strokeColor: '#ffffff',
       strokeWeight: 1,

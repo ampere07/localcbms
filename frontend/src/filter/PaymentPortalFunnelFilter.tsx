@@ -26,7 +26,7 @@ interface Column {
 
 const STORAGE_KEY = 'paymentPortalFunnelFilters';
 
-const allColumns: Column[] = [
+export const allColumns: Column[] = [
     { key: 'id', label: 'Log ID', dataType: 'int' },
     { key: 'reference_no', label: 'Reference No', dataType: 'varchar' },
     { key: 'accountNo', label: 'Account Number', dataType: 'varchar' },

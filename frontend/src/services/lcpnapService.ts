@@ -51,6 +51,13 @@ export interface LCPNAPMapData {
   image2_url?: string;
   modified_by?: string;
   modified_date?: string;
+  active_sessions?: number;
+  inactive_sessions?: number;
+  offline_sessions?: number;
+  blocked_sessions?: number;
+  not_found_sessions?: number;
+  total_technical_details?: number;
+  total_sessions?: number;
 }
 
 let mapDataCache: LCPNAPMapData[] | null = null;

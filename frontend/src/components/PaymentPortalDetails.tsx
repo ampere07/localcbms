@@ -53,7 +53,7 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
   const startWidthRef = useRef<number>(0);
 
   // Related invoices state
-  const [expandedInvoices, setExpandedInvoices] = useState(false);
+  const [expandedInvoices, setExpandedInvoices] = useState(true);
   const [relatedInvoices, setRelatedInvoices] = useState<any[]>([]);
   const [fullRelatedInvoices, setFullRelatedInvoices] = useState<any[]>([]);
   const [invoicesCount, setInvoicesCount] = useState(0);
@@ -435,18 +435,11 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
                   className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                     }`}
                 >
-                  {expandedInvoices ? 'Collapse' : 'Expand'}
+                  Expand
                 </button>
-                <button
-                  onClick={() => setExpandedInvoices(!expandedInvoices)}
-                  className="flex items-center"
-                >
-                  {expandedInvoices ? (
-                    <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  ) : (
-                    <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  )}
-                </button>
+                <div className="flex items-center">
+                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+                </div>
               </div>
             </div>
 

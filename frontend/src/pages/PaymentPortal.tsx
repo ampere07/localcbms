@@ -10,7 +10,7 @@ import { getCities, City } from '../services/cityService';
 import { getRegions, Region } from '../services/regionService';
 import { barangayService, Barangay } from '../services/barangayService';
 import { BillingDetailRecord } from '../types/billing';
-import PaymentPortalFunnelFilter, { FilterValues } from '../filter/PaymentPortalFunnelFilter';
+import PaymentPortalFunnelFilter, { FilterValues, allColumns as filterColumns } from '../filter/PaymentPortalFunnelFilter';
 import pusher from '../services/pusherService';
 
 // Interfaces for payment portal data (PaymentPortalRecord is imported now)
@@ -746,9 +746,29 @@ const PaymentPortal: React.FC = () => {
               </div>
               <button
                 onClick={() => setIsFunnelFilterOpen(true)}
-                className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
-                  ? 'hover:bg-gray-700 text-white'
-                  : 'hover:bg-gray-200 text-gray-900 border border-gray-300'
+                title={Object.keys(activeFilters).length > 0
+                  ? `Active Filters:\n${Object.entries(activeFilters).map(([key, filter]: [string, any]) => {
+                    const colName = filterColumns.find(c => c.key === key)?.label || key;
+                    if (filter.type === 'text') return `${colName}: ${filter.value}`;
+                    if (filter.type === 'number') {
+                      if (filter.from && filter.to) return `${colName}: ${filter.from} - ${filter.to}`;
+                      if (filter.from) return `${colName}: > ${filter.from}`;
+                      if (filter.to) return `${colName}: < ${filter.to}`;
+                    }
+                    if (filter.type === 'date') {
+                      if (filter.from && filter.to) return `${colName}: ${filter.from} to ${filter.to}`;
+                      if (filter.from) return `${colName}: After ${filter.from}`;
+                      if (filter.to) return `${colName}: Before ${filter.to}`;
+                    }
+                    return colName;
+                  }).join('\n')}`
+                  : "Filter Payment Portal Records"
+                }
+                className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${Object.keys(activeFilters).length > 0
+                  ? 'text-red-500 hover:bg-red-500/10'
+                  : isDarkMode
+                    ? 'hover:bg-gray-700 text-white'
+                    : 'hover:bg-gray-200 text-gray-900 border border-gray-300'
                   }`}
               >
                 <Filter className="h-5 w-5" />

@@ -46,6 +46,7 @@ interface LocationMarker {
   offline_sessions?: number;
   blocked_sessions?: number;
   not_found_sessions?: number;
+  total_technical_details?: number;
 }
 
 interface LcpNapLocationDetailsProps {
@@ -66,7 +67,7 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [relatedCustomers, setRelatedCustomers] = useState<any[]>([]);
-  const [isRelatedExpanded, setIsRelatedExpanded] = useState(false);
+  const [isRelatedExpanded, setIsRelatedExpanded] = useState(true);
   const [isLoadingRelated, setIsLoadingRelated] = useState(false);
 
   useEffect(() => {
@@ -296,14 +297,21 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
               </div>
             )}
 
-            {/* Port Total */}
+            {/* Port Usage */}
             {location.port_total !== undefined && (
               <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
                 }`}>
                 <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>Port Total:</div>
-                <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>{location.port_total}</div>
+                  }`}>Port Usage:</div>
+                <div className={`flex-1 font-medium ${location.total_technical_details !== undefined && location.total_technical_details >= location.port_total
+                    ? 'text-red-500'
+                    : isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
+                  {location.total_technical_details || 0} / {location.port_total}
+                  {location.total_technical_details !== undefined && location.total_technical_details >= location.port_total && (
+                    <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">FULL</span>
+                  )}
+                </div>
               </div>
             )}
 
@@ -392,10 +400,7 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
 
             {/* Related Customers Dropdown */}
             <div className={`border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-              <button
-                onClick={() => setIsRelatedExpanded(!isRelatedExpanded)}
-                className={`w-full py-4 flex items-center justify-between hover:opacity-80 transition-opacity`}
-              >
+              <div className="w-full py-4 flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Related Customers
@@ -405,12 +410,8 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
                     {relatedCustomers.length}
                   </span>
                 </div>
-                {isRelatedExpanded ? (
-                  <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                ) : (
-                  <ChevronRight size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                )}
-              </button>
+                <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+              </div>
 
               {isRelatedExpanded && (
                 <div className="pb-4 space-y-3">

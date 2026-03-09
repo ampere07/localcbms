@@ -54,7 +54,7 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord, onViewCu
   const startWidthRef = useRef<number>(0);
 
   // Related staggered payments state
-  const [expandedStaggered, setExpandedStaggered] = useState(false);
+  const [expandedStaggered, setExpandedStaggered] = useState(true);
   const [relatedStaggered, setRelatedStaggered] = useState<any[]>([]);
   const [fullRelatedStaggered, setFullRelatedStaggered] = useState<any[]>([]);
   const [staggeredCount, setStaggeredCount] = useState(0);
@@ -353,18 +353,11 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord, onViewCu
                 className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                   }`}
               >
-                {expandedStaggered ? 'Collapse' : 'Expand'}
+                Expand
               </button>
-              <button
-                onClick={() => setExpandedStaggered(!expandedStaggered)}
-                className="flex items-center"
-              >
-                {expandedStaggered ? (
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                ) : (
-                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                )}
-              </button>
+              <div className="flex items-center">
+                <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
+              </div>
             </div>
           </div>
 

@@ -131,6 +131,23 @@ export const transactionService = {
     }
   },
 
+  getTransactionsByAccountNo: async (accountNo: string): Promise<any> => {
+    try {
+      const response = await apiClient.get<ApiResponse>(`/transactions/by-account/${accountNo}`);
+      return {
+        success: true,
+        data: response.data.data || []
+      };
+    } catch (error: any) {
+      console.error('Error fetching transactions by account:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to fetch transactions',
+        data: []
+      };
+    }
+  },
+
   uploadTransactionImage: async (formData: FormData): Promise<any> => {
     try {
       const response = await apiClient.post<ApiResponse>('/transactions/upload-images', formData, {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { CreditCard, Search, Circle, X, ListFilter, ArrowUp, ArrowDown, RefreshCw, Filter, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { CreditCard, Search, Circle, X, Columns3, ArrowUp, ArrowDown, RefreshCw, Filter, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import pusher from '../services/pusherService';
 import BillingDetails from '../components/CustomerDetails';
 import { getBillingRecords, BillingRecord, checkForBillingUpdates } from '../services/billingService';
@@ -9,7 +9,7 @@ import { getCities, City } from '../services/cityService';
 import { getRegions, Region } from '../services/regionService';
 import { barangayService, Barangay } from '../services/barangayService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
-import CustomerFunnelFilter from '../filter/CustomerFunnelFilter';
+import CustomerFunnelFilter, { allColumns as filterColumns, Column as FilterColumn } from '../filter/CustomerFunnelFilter';
 import { useBillingStore } from '../store/billingStore';
 import { billingStatusService, BillingStatus } from '../services/billingStatusService';
 import { userService } from '../services/userService';
@@ -143,6 +143,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
   const [selectedTotalPaid, setSelectedTotalPaid] = useState<number | null>(null);
 
   const [barangays, setBarangays] = useState<Barangay[]>([]);
+  const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
   const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
 
   const isLoading = isTableLoading || isActionLoading;
@@ -252,6 +253,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
         setCities(citiesData || []);
         setRegions(regionsData || []);
         setBarangays(barangaysRes.success ? barangaysRes.data : []);
+        setBillingStatuses(statusesRes || []);
         setColorPalette(activePalette);
       } catch (err) {
         console.error('Failed to fetch location data:', err);
@@ -487,6 +489,9 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
         if (filter.type === 'text') {
           if (!filter.value) return true;
           const value = String(recordValue || '').toLowerCase();
+          if (key === 'billing_status_id') {
+            return value === filter.value.toLowerCase();
+          }
           return value.includes(filter.value.toLowerCase());
         }
 
@@ -1559,9 +1564,35 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
               <div className="flex space-x-2">
                 <button
                   onClick={() => setIsFunnelFilterOpen(true)}
-                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
-                    ? 'hover:bg-gray-700 text-white'
-                    : 'hover:bg-gray-200 text-gray-900'
+                  title={Object.keys(activeFilters).length > 0
+                    ? `Active Filters:\n${Object.entries(activeFilters).map(([key, filter]: [string, any]) => {
+                      const colName = (filterColumns as FilterColumn[]).find((c: FilterColumn) => c.key === key)?.label || key;
+                      if (filter.type === 'text') {
+                        if (key === 'billing_status_id') {
+                          const status = billingStatuses.find(s => s.id.toString() === filter.value);
+                          return `${colName}: ${status ? status.status_name : filter.value}`;
+                        }
+                        return `${colName}: ${filter.value}`;
+                      }
+                      if (filter.type === 'number') {
+                        if (filter.from && filter.to) return `${colName}: ${filter.from} - ${filter.to}`;
+                        if (filter.from) return `${colName}: > ${filter.from}`;
+                        if (filter.to) return `${colName}: < ${filter.to}`;
+                      }
+                      if (filter.type === 'date') {
+                        if (filter.from && filter.to) return `${colName}: ${filter.from} to ${filter.to}`;
+                        if (filter.from) return `${colName}: After ${filter.from}`;
+                        if (filter.to) return `${colName}: Before ${filter.to}`;
+                      }
+                      return colName;
+                    }).join('\n')}`
+                    : "Filter Customers"
+                  }
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${Object.keys(activeFilters).length > 0
+                    ? 'text-red-500 hover:bg-red-500/10'
+                    : isDarkMode
+                      ? 'hover:bg-gray-700 text-white'
+                      : 'hover:bg-gray-200 text-gray-900'
                     }`}
                 >
                   <Filter className="h-5 w-5" />
@@ -1575,7 +1606,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                         }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
-                      <ListFilter className="h-5 w-5" />
+                      <Columns3 className="h-5 w-5" />
                     </button>
                     {filterDropdownOpen && (
                       <div className={`absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-96 flex flex-col ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
@@ -1659,7 +1690,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                       }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
-                    <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
+                    <span>{displayMode === 'card' ? 'Card' : 'Table'}</span>
                     <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
