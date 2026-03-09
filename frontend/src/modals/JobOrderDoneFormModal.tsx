@@ -286,7 +286,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
       setFormData(prev => ({
         ...prev,
         timestamp: jobOrderData.timestamp || jobOrderData.Timestamp || new Date().toLocaleString('sv-SE').replace(' ', ' '),
-        status: jobOrderData.Status || jobOrderData.status || '',
+        status: jobOrderData.Status || jobOrderData.status || 'Confirmed',
         referredBy: jobOrderData.Referred_By || jobOrderData.referred_by || '',
         firstName: jobOrderData.First_Name || jobOrderData.first_name || '',
         middleInitial: jobOrderData.Middle_Initial || jobOrderData.middle_initial || '',
@@ -314,7 +314,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
     if (!isOpen) {
       setFormData({
         timestamp: new Date().toLocaleString('sv-SE').replace(' ', ' '),
-        status: '',
+        status: 'Confirmed',
         referredBy: '',
         firstName: '',
         middleInitial: '',
@@ -483,6 +483,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
 
       const jobOrderUpdateData: any = {
         timestamp: updatedFormData.timestamp,
+        status: updatedFormData.status,
         onsite_status: updatedFormData.onsiteStatus,
         assigned_email: updatedFormData.assignedEmail,
         onsite_remarks: updatedFormData.remarks,

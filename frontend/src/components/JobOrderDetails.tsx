@@ -629,10 +629,12 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
 
     switch (fieldKey) {
       case 'timestamp':
+        const tsValue = jobOrder.Create_DateTime || jobOrder.created_at || jobOrder.timestamp;
+        if (!tsValue) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Timestamp:</div>
-            <div className={valueClass}>{formatDate(jobOrder.Create_DateTime || jobOrder.created_at || jobOrder.timestamp)}</div>
+            <div className={valueClass}>{formatDate(tsValue)}</div>
           </div>
         );
 
@@ -645,231 +647,283 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'referredBy':
+        const referredBy = jobOrder.Referred_By || jobOrder.referred_by || applicationData?.referred_by;
+        if (!referredBy || referredBy === 'None') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Referred By:</div>
-            <div className={valueClass}>{jobOrder.Referred_By || jobOrder.referred_by || (applicationData?.referred_by) || 'None'}</div>
+            <div className={valueClass}>{referredBy}</div>
           </div>
         );
 
       case 'fullName':
+        const fullName = getClientFullName();
+        if (!fullName || fullName === 'Unknown Client') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Full Name:</div>
-            <div className={valueClass}>{getClientFullName()}</div>
+            <div className={valueClass}>{fullName}</div>
           </div>
         );
 
       case 'contactNumber':
+        const contactNum = jobOrder.Contact_Number || jobOrder.mobile_number || applicationData?.mobile_number;
+        if (!contactNum) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Contact Number:</div>
             <div className={valueClass}>
-              {jobOrder.Contact_Number || jobOrder.mobile_number || (applicationData?.mobile_number) || 'Not provided'}
+              {contactNum}
             </div>
           </div>
         );
 
       case 'secondContactNumber':
+        const secondContact = jobOrder.Second_Contact_Number || jobOrder.secondary_mobile_number || applicationData?.secondary_mobile_number;
+        if (!secondContact) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Second Contact Number:</div>
             <div className={valueClass}>
-              {jobOrder.Second_Contact_Number || jobOrder.secondary_mobile_number || (applicationData?.secondary_mobile_number) || 'Not provided'}
+              {secondContact}
             </div>
           </div>
         );
 
       case 'emailAddress':
+        const emailAddress = jobOrder.Email_Address || jobOrder.email_address || applicationData?.email_address;
+        if (!emailAddress) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Email Address:</div>
             <div className={valueClass}>
-              {jobOrder.Email_Address || jobOrder.email_address || (applicationData?.email_address) || 'Not provided'}
+              {emailAddress}
             </div>
           </div>
         );
 
       case 'fullAddress':
+        const fullAddr = getClientFullAddress();
+        if (!fullAddr || fullAddr === 'No address provided') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Full Address:</div>
-            <div className={valueClass}>{getClientFullAddress()}</div>
+            <div className={valueClass}>{fullAddr}</div>
           </div>
         );
 
       case 'billingStatus':
+        const billingStatus = jobOrder.billing_status || jobOrder.Billing_Status;
+        if (!billingStatus || billingStatus === 'Not Set') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Billing Status:</div>
-            <div className={valueClass}>{jobOrder.billing_status || jobOrder.Billing_Status || 'Not Set'}</div>
+            <div className={valueClass}>{billingStatus}</div>
           </div>
         );
 
       case 'billingDay':
+        const billingDayDisp = getBillingDayDisplay(jobOrder.Billing_Day || jobOrder.billing_day);
+        if (billingDayDisp === 'Not set') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Billing Day:</div>
-            <div className={valueClass}>{getBillingDayDisplay(jobOrder.Billing_Day || jobOrder.billing_day)}</div>
+            <div className={valueClass}>{billingDayDisp}</div>
           </div>
         );
 
       case 'choosePlan':
+        const plan = jobOrder.Desired_Plan || jobOrder.desired_plan || jobOrder.Choose_Plan || jobOrder.choose_plan || applicationData?.desired_plan;
+        if (!plan) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Choose Plan:</div>
             <div className={valueClass}>
-              {jobOrder.Desired_Plan || jobOrder.desired_plan || jobOrder.Choose_Plan || jobOrder.choose_plan || (applicationData?.desired_plan) || 'Not specified'}
+              {plan}
             </div>
           </div>
         );
 
       case 'statusRemarks':
+        const statusRemarks = jobOrder.Status_Remarks || jobOrder.status_remarks;
+        if (!statusRemarks) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Status Remarks:</div>
-            <div className={valueClass}>{jobOrder.Status_Remarks || jobOrder.status_remarks || 'No remarks'}</div>
+            <div className={valueClass}>{statusRemarks}</div>
           </div>
         );
 
       case 'remarks':
+        const remarks = jobOrder.Remarks || jobOrder.onsite_remarks;
+        if (!remarks) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Remarks:</div>
-            <div className={valueClass}>{jobOrder.Remarks || jobOrder.onsite_remarks || 'No remarks'}</div>
+            <div className={valueClass}>{remarks}</div>
           </div>
         );
 
       case 'installationLandmark':
+        const installationLandmark = jobOrder.Installation_Landmark || jobOrder.installation_landmark || jobOrder.landmark || applicationData?.landmark;
+        if (!installationLandmark) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Installation Landmark:</div>
-            <div className={valueClass}>{jobOrder.Installation_Landmark || jobOrder.installation_landmark || jobOrder.landmark || (applicationData?.landmark) || 'Not provided'}</div>
+            <div className={valueClass}>{installationLandmark}</div>
           </div>
         );
 
       case 'connectionType':
+        const connType = jobOrder.Connection_Type || jobOrder.connection_type;
+        if (!connType) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Connection Type:</div>
-            <div className={valueClass}>{jobOrder.Connection_Type || jobOrder.connection_type || 'Not specified'}</div>
+            <div className={valueClass}>{connType}</div>
           </div>
         );
 
       case 'modemRouterSn':
+        const sn = jobOrder.Modem_Router_SN || jobOrder.modem_router_sn || jobOrder.Modem_SN || jobOrder.modem_sn;
+        if (!sn) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Modem/Router SN:</div>
-            <div className={valueClass}>{jobOrder.Modem_Router_SN || jobOrder.modem_router_sn || jobOrder.Modem_SN || jobOrder.modem_sn || 'Not specified'}</div>
+            <div className={valueClass}>{sn}</div>
           </div>
         );
 
       case 'routerModel':
+        const model = jobOrder.Router_Model || jobOrder.router_model;
+        if (!model) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Router Model:</div>
-            <div className={valueClass}>{jobOrder.Router_Model || jobOrder.router_model || 'Not specified'}</div>
+            <div className={valueClass}>{model}</div>
           </div>
         );
 
       case 'installationFee':
+        const fee = jobOrder.Installation_Fee || jobOrder.installation_fee;
+        if (fee === null || fee === undefined) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Installation Fee:</div>
-            <div className={valueClass}>{formatPrice(jobOrder.Installation_Fee || jobOrder.installation_fee)}</div>
+            <div className={valueClass}>{formatPrice(fee)}</div>
           </div>
         );
 
       case 'lcpnap':
+        const lcpnap = jobOrder.LCPNAP || jobOrder.lcpnap;
+        if (!lcpnap) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>LCPNAP:</div>
-            <div className={valueClass}>{jobOrder.LCPNAP || jobOrder.lcpnap || 'Not specified'}</div>
+            <div className={valueClass}>{lcpnap}</div>
           </div>
         );
 
       case 'port':
+        const port = jobOrder.PORT || jobOrder.Port || jobOrder.port;
+        if (!port) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>PORT:</div>
-            <div className={valueClass}>{jobOrder.PORT || jobOrder.Port || jobOrder.port || 'Not specified'}</div>
+            <div className={valueClass}>{port}</div>
           </div>
         );
 
       case 'vlan':
+        const vlan = jobOrder.VLAN || jobOrder.vlan;
+        if (!vlan) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>VLAN:</div>
-            <div className={valueClass}>{jobOrder.VLAN || jobOrder.vlan || 'Not specified'}</div>
+            <div className={valueClass}>{vlan}</div>
           </div>
         );
 
       case 'username':
+        const username = jobOrder.Username || jobOrder.username || jobOrder.pppoe_username;
+        if (!username) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Username:</div>
-            <div className={valueClass}>{jobOrder.Username || jobOrder.username || jobOrder.pppoe_username || 'Not provided'}</div>
+            <div className={valueClass}>{username}</div>
           </div>
         );
 
       case 'ipAddress':
+        const ip = jobOrder.IP_Address || jobOrder.ip_address || jobOrder.IP || jobOrder.ip;
+        if (!ip) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>IP Address:</div>
-            <div className={valueClass}>{jobOrder.IP_Address || jobOrder.ip_address || jobOrder.IP || jobOrder.ip || 'Not specified'}</div>
+            <div className={valueClass}>{ip}</div>
           </div>
         );
 
       case 'usageType':
+        const usage = jobOrder.Usage_Type || jobOrder.usage_type;
+        if (!usage) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Usage Type:</div>
-            <div className={valueClass}>{jobOrder.Usage_Type || jobOrder.usage_type || 'Not specified'}</div>
+            <div className={valueClass}>{usage}</div>
           </div>
         );
 
       case 'dateInstalled':
+        const dateInstalled = jobOrder.Date_Installed || jobOrder.date_installed;
+        if (!dateInstalled) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Date Installed:</div>
             <div className={valueClass}>
-              {(jobOrder.Date_Installed || jobOrder.date_installed)
-                ? formatOnlyDate(jobOrder.Date_Installed || jobOrder.date_installed)
-                : 'Not installed yet'}
+              {formatOnlyDate(dateInstalled)}
             </div>
           </div>
         );
 
       case 'visitBy':
+        const visitBy = jobOrder.Visit_By || jobOrder.visit_by;
+        if (!visitBy) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Visit By:</div>
-            <div className={valueClass}>{jobOrder.Visit_By || jobOrder.visit_by || 'Not assigned'}</div>
+            <div className={valueClass}>{visitBy}</div>
           </div>
         );
 
       case 'visitWith':
+        const visitWith = jobOrder.Visit_With || jobOrder.visit_with;
+        if (!visitWith || visitWith === 'None') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Visit With:</div>
-            <div className={valueClass}>{jobOrder.Visit_With || jobOrder.visit_with || 'None'}</div>
+            <div className={valueClass}>{visitWith}</div>
           </div>
         );
 
       case 'visitWithOther':
+        const visitWithOther = jobOrder.Visit_With_Other || jobOrder.visit_with_other;
+        if (!visitWithOther || visitWithOther === 'None') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Visit With Other:</div>
-            <div className={valueClass}>{jobOrder.Visit_With_Other || jobOrder.visit_with_other || 'None'}</div>
+            <div className={valueClass}>{visitWithOther}</div>
           </div>
         );
 
       case 'onsiteStatus':
+        const onsiteStatus = jobOrder.Onsite_Status;
+        if (!onsiteStatus || onsiteStatus === 'Not set') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Onsite Status:</div>
-            <div className={`${getStatusColor(jobOrder.Onsite_Status, 'onsite')} flex-1 capitalize`}>
-              {jobOrder.Onsite_Status === 'inprogress' ? 'In Progress' : (jobOrder.Onsite_Status || 'Not set')}
+            <div className={`${getStatusColor(onsiteStatus, 'onsite')} flex-1 capitalize`}>
+              {onsiteStatus === 'inprogress' ? 'In Progress' : onsiteStatus}
             </div>
           </div>
         );
@@ -908,14 +962,17 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'modifiedBy':
+        const modifiedBy = jobOrder.Modified_By;
+        if (!modifiedBy) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Modified By:</div>
-            <div className={valueClass}>{jobOrder.Modified_By || 'System'}</div>
+            <div className={valueClass}>{modifiedBy}</div>
           </div>
         );
 
       case 'modifiedDate':
+        if (!jobOrder.Modified_Date) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Modified Date:</div>
@@ -924,25 +981,28 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'assignedEmail':
+        if (!jobOrder.Assigned_Email) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Assigned Email:</div>
-            <div className={valueClass}>{jobOrder.Assigned_Email || 'Not assigned'}</div>
+            <div className={valueClass}>{jobOrder.Assigned_Email}</div>
           </div>
         );
 
       case 'setupImage':
+        const setupImg = jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url;
+        if (!setupImg) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Setup Image</div>
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <span className="truncate mr-2">
-                {jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url || 'No image available'}
+                {setupImg}
               </span>
-              {(jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url) && (
+              {setupImg && (
                 <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                  onClick={() => window.open(jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url || '')}
+                  onClick={() => window.open(setupImg)}
                 >
                   <ExternalLink size={16} />
                 </button>
@@ -952,17 +1012,19 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'speedtestImage':
+        const speedtestImg = jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image;
+        if (!speedtestImg) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Speedtest Image</div>
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <span className="truncate mr-2">
-                {jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image || 'No image available'}
+                {speedtestImg}
               </span>
-              {(jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image) && (
+              {speedtestImg && (
                 <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                  onClick={() => window.open(jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image || '')}
+                  onClick={() => window.open(speedtestImg)}
                 >
                   <ExternalLink size={16} />
                 </button>
@@ -972,17 +1034,19 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'signedContractImage':
+        const contractImg = jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL;
+        if (!contractImg) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Signed Contract Image</div>
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <span className="truncate mr-2">
-                {jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL || 'No image available'}
+                {contractImg}
               </span>
-              {(jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL) && (
+              {contractImg && (
                 <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                  onClick={() => window.open(jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL || '')}
+                  onClick={() => window.open(contractImg)}
                 >
                   <ExternalLink size={16} />
                 </button>
@@ -992,17 +1056,19 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'boxReadingImage':
+        const boxReadingImg = jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL;
+        if (!boxReadingImg) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Box Reading Image</div>
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <span className="truncate mr-2">
-                {jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL || 'No image available'}
+                {boxReadingImg}
               </span>
-              {(jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL) && (
+              {boxReadingImg && (
                 <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                  onClick={() => window.open(jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL || '')}
+                  onClick={() => window.open(boxReadingImg)}
                 >
                   <ExternalLink size={16} />
                 </button>
@@ -1012,17 +1078,19 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'routerReadingImage':
+        const routerReadingImg = jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL;
+        if (!routerReadingImg) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Router Reading Image</div>
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <span className="truncate mr-2">
-                {jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL || 'No image available'}
+                {routerReadingImg}
               </span>
-              {(jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL) && (
+              {routerReadingImg && (
                 <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                  onClick={() => window.open(jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL || '')}
+                  onClick={() => window.open(routerReadingImg)}
                 >
                   <ExternalLink size={16} />
                 </button>
@@ -1032,17 +1100,19 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'portLabelImage':
+        const portLabelImg = jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL;
+        if (!portLabelImg) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Port Label Image</div>
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <span className="truncate mr-2">
-                {jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL || 'No image available'}
+                {portLabelImg}
               </span>
-              {(jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL) && (
+              {portLabelImg && (
                 <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                  onClick={() => window.open(jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL || '')}
+                  onClick={() => window.open(portLabelImg)}
                 >
                   <ExternalLink size={16} />
                 </button>
@@ -1052,17 +1122,19 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'houseFrontPicture':
+        const houseFrontImg = jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture;
+        if (!houseFrontImg) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>House Front Picture</div>
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <span className="truncate mr-2">
-                {jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture || 'No image available'}
+                {houseFrontImg}
               </span>
-              {(jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture) && (
+              {houseFrontImg && (
                 <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                  onClick={() => window.open(jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture || '')}
+                  onClick={() => window.open(houseFrontImg)}
                 >
                   <ExternalLink size={16} />
                 </button>

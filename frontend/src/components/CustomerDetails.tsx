@@ -164,27 +164,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       setLoadingServiceOrder(false);
     }
   };
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    invoices: true,
-    paymentPortalLogs: true,
-    transactions: true,
-    advancedPayments: true,
-    discounts: true,
-    staggeredInstallations: true,
-    staggeredPayments: true,
-    serviceOrders: true,
-    serviceOrderLogs: true,
-    reconnectionLogs: true,
-    disconnectedLogs: true,
-    detailsUpdateLogs: true,
-    inventoryLogs: true,
-    onlineStatus: true,
-    borrowedLogs: true,
-    planChangeLogs: true,
-    serviceChargeLogs: true,
-    changeDueLogs: true,
-    securityDeposits: true
-  });
+
   const [showTransactModal, setShowTransactModal] = useState(false);
   const [showTransactionFormModal, setShowTransactionFormModal] = useState(false);
   const [showStaggeredInstallationModal, setShowStaggeredInstallationModal] = useState(false);
@@ -202,6 +182,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   // Related data states
   const [relatedData, setRelatedData] = useState<Record<string, any[]>>({
     invoices: [],
+    statementOfAccounts: [],
     paymentPortalLogs: [],
     transactions: [],
     staggered: [],
@@ -219,6 +200,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   // Full related data (not limited to 5 items)
   const [fullRelatedData, setFullRelatedData] = useState<Record<string, any[]>>({
     invoices: [],
+    statementOfAccounts: [],
     paymentPortalLogs: [],
     transactions: [],
     staggered: [],
@@ -235,6 +217,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
   const [relatedDataCounts, setRelatedDataCounts] = useState<Record<string, number>>({
     invoices: 0,
+    statementOfAccounts: 0,
     paymentPortalLogs: 0,
     transactions: 0,
     staggered: 0,
@@ -575,14 +558,14 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
   const renderField = (fieldKey: string, billingRecord: BillingDetailRecord): React.ReactElement | null => {
     const fieldRenderers: Record<string, () => React.ReactElement | null> = {
-      fullName: () => (
+      fullName: () => billingRecord.customerName ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Full Name</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>{billingRecord.customerName}</span>
         </div>
-      ),
+      ) : null,
       emailAddress: () => (billingRecord.emailAddress || billingRecord.email) ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -639,14 +622,14 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             }`}>{billingRecord.region}</span>
         </div>
       ) : null,
-      referredBy: () => (
+      referredBy: () => billingRecord.referredBy ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Referred By</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.referredBy || '-'}</span>
+            }`}>{billingRecord.referredBy}</span>
         </div>
-      ),
+      ) : null,
       addressCoordinates: () => {
         if (!billingRecord.addressCoordinates) return null;
 
@@ -682,6 +665,9 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
               <MapContainer
                 center={[lat, lng]}
                 zoom={16}
+                minZoom={6}
+                maxBounds={L.latLngBounds([4.3, 114.0], [21.5, 127.5])}
+                maxBoundsViscosity={1.0}
                 style={{ height: '100%', width: '100%', zIndex: 1 }}
                 scrollWheelZoom={false}
               >
@@ -720,55 +706,56 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           </button>
         </div>
       ) : null,
-      usageType: () => (
+      usageType: () => billingRecord.usageType ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Usage Type</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.usageType || '-'}</span>
+            }`}>{billingRecord.usageType}</span>
         </div>
-      ),
-      dateInstalled: () => (
+      ) : null,
+      dateInstalled: () => billingRecord.dateInstalled ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Date Installed</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.dateInstalled || '-'}</span>
+            }`}>{billingRecord.dateInstalled}</span>
         </div>
-      ),
-      username: () => (
+      ) : null,
+      username: () => billingRecord.username ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>PPPOE Username</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.username || '-'}</span>
+            }`}>{billingRecord.username}</span>
         </div>
-      ),
-      connectionType: () => (
+      ) : null,
+      connectionType: () => billingRecord.connectionType ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Connection Type</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.connectionType || '-'}</span>
+            }`}>{billingRecord.connectionType}</span>
         </div>
-      ),
-      routerModel: () => (
+      ) : null,
+      routerModel: () => billingRecord.routerModel ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Router Model</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.routerModel || '-'}</span>
+            }`}>{billingRecord.routerModel}</span>
         </div>
-      ),
-      routerModemSN: () => (
+      ) : null,
+      routerModemSN: () => billingRecord.routerModemSN ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Router Serial Number</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.routerModemSN || '-'}</span>
+            }`}>{billingRecord.routerModemSN}</span>
         </div>
-      ),
+      ) : null,
       onlineStatus: () => {
+        if (!billingRecord.status && !billingRecord.onlineStatus) return null;
         const statusInfo = getStatusInfo(billingRecord);
         return (
           <div className="flex justify-between items-center">
@@ -786,86 +773,86 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           </div>
         );
       },
-      mikrotikId: () => (
+      mikrotikId: () => billingRecord.mikrotikId ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Mikrotik ID</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.mikrotikId || '-'}</span>
+            }`}>{billingRecord.mikrotikId}</span>
         </div>
-      ),
-      lcpnap: () => (
+      ) : null,
+      lcpnap: () => billingRecord.lcpnap ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>LCP NAP</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.lcpnap || '-'}</span>
+            }`}>{billingRecord.lcpnap}</span>
         </div>
-      ),
-      lcp: () => (
+      ) : null,
+      lcp: () => billingRecord.lcp ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>LCP</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.lcp || '-'}</span>
+            }`}>{billingRecord.lcp}</span>
         </div>
-      ),
-      nap: () => (
+      ) : null,
+      nap: () => billingRecord.nap ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>NAP</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.nap || '-'}</span>
+            }`}>{billingRecord.nap}</span>
         </div>
-      ),
-      port: () => (
+      ) : null,
+      port: () => billingRecord.port ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>PORT</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.port || '-'}</span>
+            }`}>{billingRecord.port}</span>
         </div>
-      ),
-      vlan: () => (
+      ) : null,
+      vlan: () => billingRecord.vlan ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>VLAN</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.vlan || '-'}</span>
+            }`}>{billingRecord.vlan}</span>
         </div>
-      ),
-      sessionIp: () => (
+      ) : null,
+      sessionIp: () => (billingRecord.sessionIp || billingRecord.sessionIP) ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>SESSION IP</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.sessionIp || billingRecord.sessionIP || '-'}</span>
+            }`}>{billingRecord.sessionIp || billingRecord.sessionIP}</span>
         </div>
-      ),
-      accountNumber: () => (
+      ) : null,
+      accountNumber: () => billingRecord.applicationId ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Account Number</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>{billingRecord.applicationId}</span>
         </div>
-      ),
-      billingStatus: () => (
+      ) : null,
+      billingStatus: () => billingRecord.billingStatus ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Billing Status</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>{billingRecord.billingStatus}</span>
         </div>
-      ),
-      billingDay: () => (
+      ) : null,
+      billingDay: () => (billingRecord.billingDay !== undefined && billingRecord.billingDay !== null) ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Billing Day</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.billingDay === 0 ? 'Every end of month' : (billingRecord.billingDay || '-')}</span>
+            }`}>{billingRecord.billingDay === 0 ? 'Every end of month' : (billingRecord.billingDay)}</span>
         </div>
-      ),
+      ) : null,
       plan: () => billingRecord.plan ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -874,19 +861,20 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             }`}>{billingRecord.plan}</span>
         </div>
       ) : null,
-      accountBalance: () => (
+      accountBalance: () => (billingRecord.accountBalance !== undefined && billingRecord.accountBalance !== null) || (billingRecord.balance !== undefined && billingRecord.balance !== null) ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Account Balance</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>₱{Number(billingRecord.accountBalance ?? billingRecord.balance ?? 0).toFixed(2)}</span>
         </div>
-      ),
+      ) : null,
       billingAccountCreatedBy: () => {
         const raw = billingRecord.billingAccountCreatedBy;
+        if (!raw) return null;
         const display = (raw && !isNaN(Number(raw)))
           ? (userEmailCache[raw] || raw)
-          : (raw || '-');
+          : raw;
         return (
           <div className="flex justify-between items-center">
             <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -896,19 +884,20 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           </div>
         );
       },
-      billingAccountCreatedAt: () => (
+      billingAccountCreatedAt: () => billingRecord.billingAccountCreatedAt ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Created At</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.billingAccountCreatedAt || '-'}</span>
+            }`}>{billingRecord.billingAccountCreatedAt}</span>
         </div>
-      ),
+      ) : null,
       billingAccountUpdatedBy: () => {
         const raw = billingRecord.billingAccountUpdatedBy;
+        if (!raw) return null;
         const display = (raw && !isNaN(Number(raw)))
           ? (userEmailCache[raw] || raw)
-          : (raw || '-');
+          : raw;
         return (
           <div className="flex justify-between items-center">
             <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -918,43 +907,37 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           </div>
         );
       },
-      billingAccountUpdatedAt: () => (
+      billingAccountUpdatedAt: () => billingRecord.billingAccountUpdatedAt ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Updated At</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.billingAccountUpdatedAt || '-'}</span>
+            }`}>{billingRecord.billingAccountUpdatedAt}</span>
         </div>
-      ),
-      balanceUpdateDate: () => (
+      ) : null,
+      balanceUpdateDate: () => billingRecord.balanceUpdateDate ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Balance Update Date</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.balanceUpdateDate || '-'}</span>
+            }`}>{billingRecord.balanceUpdateDate}</span>
         </div>
-      ),
-      totalPaid: () => (
+      ) : null,
+      totalPaid: () => (billingRecord.totalPaid !== undefined && billingRecord.totalPaid !== null) ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Total Paid</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>₱{Number(billingRecord.totalPaid || 0).toFixed(2)}</span>
         </div>
-      )
+      ) : null
     };
 
     const renderer = fieldRenderers[fieldKey];
     return renderer ? renderer() : null;
   };
 
-  const toggleSection = (section: string) => {
-    // Keep it always open
-    setExpandedSections((prev: Record<string, boolean>) => ({
-      ...prev,
-      [section]: true
-    }));
-  };
+
 
   useEffect(() => {
     if (!isResizing) return;
@@ -1432,8 +1415,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       <div className="flex-1 overflow-y-auto">
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
-          <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-            }`}>
+          <div className={`w-full px-6 py-4 flex items-center justify-between`}>
             <div className="flex items-center space-x-2">
               <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>Related Invoices</span>
@@ -1453,27 +1435,22 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
               >
                 Expand
               </button>
-              <div className="flex items-center">
-                <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-              </div>
             </div>
           </div>
 
-          {expandedSections.invoices && (
-            <div className="px-6 pb-4">
-              <RelatedDataTable
-                data={relatedData.invoices}
-                columns={relatedDataColumns.invoices}
-                isDarkMode={isDarkMode}
-                onRowClick={handleInvoiceRowClick}
-              />
-            </div>
-          )}
+          <div className="px-6 pb-4">
+            <RelatedDataTable
+              data={relatedData.invoices}
+              columns={relatedDataColumns.invoices}
+              isDarkMode={isDarkMode}
+              onRowClick={handleInvoiceRowClick}
+            />
+          </div>
         </div>
 
         {/* Related Statement of Accounts */}
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-          <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}>
+          <div className={`w-full px-6 py-4 flex items-center justify-between`}>
             <div className="flex items-center space-x-2">
               <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Related Statement of Accounts</span>
               <span className={`text-xs px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 text-white' : 'bg-gray-300 text-gray-900'}`}>{relatedDataCounts.statementOfAccounts}</span>
@@ -1486,37 +1463,27 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 }}
                 className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'}`}
               >
-                {expandedSections.statementOfAccounts ? 'Collapse' : 'Expand'}
-              </button>
-              <button onClick={() => toggleSection('statementOfAccounts')} className="flex items-center">
-                {expandedSections.statementOfAccounts ? (
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                ) : (
-                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                )}
+                Expand
               </button>
             </div>
           </div>
 
-          {expandedSections.statementOfAccounts && (
-            <div className="px-6 pb-4">
-              <RelatedDataTable
-                data={relatedData.statementOfAccounts}
-                columns={relatedDataColumns.statementOfAccounts}
-                isDarkMode={isDarkMode}
-                onRowClick={handleSOARowClick}
-              />
-              <div className="flex justify-end">
-                <button className={isDarkMode ? 'text-red-400 hover:text-red-300 text-sm' : 'text-red-600 hover:text-red-700 text-sm'}>Add</button>
-              </div>
+          <div className="px-6 pb-4">
+            <RelatedDataTable
+              data={relatedData.statementOfAccounts}
+              columns={relatedDataColumns.statementOfAccounts}
+              isDarkMode={isDarkMode}
+              onRowClick={handleSOARowClick}
+            />
+            <div className="flex justify-end">
+              <button className={isDarkMode ? 'text-red-400 hover:text-red-300 text-sm' : 'text-red-600 hover:text-red-700 text-sm'}>Add</button>
             </div>
-          )}
+          </div>
         </div>
 
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
-          <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-            }`}>
+          <div className={`w-full px-6 py-4 flex items-center justify-between`}>
             <div className="flex items-center space-x-2">
               <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>Related Payment Portal Logs</span>
@@ -1534,37 +1501,24 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                   }`}
               >
-                {expandedSections.paymentPortalLogs ? 'Collapse' : 'Expand'}
-              </button>
-              <button
-                onClick={() => toggleSection('paymentPortalLogs')}
-                className="flex items-center"
-              >
-                {expandedSections.paymentPortalLogs ? (
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                ) : (
-                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                )}
+                Expand
               </button>
             </div>
           </div>
 
-          {expandedSections.paymentPortalLogs && (
-            <div className="px-6 pb-4">
-              <RelatedDataTable
-                data={relatedData.paymentPortalLogs}
-                columns={relatedDataColumns.paymentPortalLogs}
-                isDarkMode={isDarkMode}
-                onRowClick={handlePaymentPortalRowClick}
-              />
-            </div>
-          )}
+          <div className="px-6 pb-4">
+            <RelatedDataTable
+              data={relatedData.paymentPortalLogs}
+              columns={relatedDataColumns.paymentPortalLogs}
+              isDarkMode={isDarkMode}
+              onRowClick={handlePaymentPortalRowClick}
+            />
+          </div>
         </div>
 
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
-          <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-            }`}>
+          <div className={`w-full px-6 py-4 flex items-center justify-between`}>
             <div className="flex items-center space-x-2">
               <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>Related Transactions</span>
@@ -1582,43 +1536,30 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                   }`}
               >
-                {expandedSections.transactions ? 'Collapse' : 'Expand'}
-              </button>
-              <button
-                onClick={() => toggleSection('transactions')}
-                className="flex items-center"
-              >
-                {expandedSections.transactions ? (
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                ) : (
-                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                )}
+                Expand
               </button>
             </div>
           </div>
 
-          {expandedSections.transactions && (
-            <div className="px-6 pb-4">
-              <RelatedDataTable
-                data={relatedData.transactions}
-                columns={relatedDataColumns.transactions}
-                isDarkMode={isDarkMode}
-                onRowClick={handleTransactionRowClick}
-              />
-              <div className="flex justify-end">
-                <button className={isDarkMode
-                  ? 'text-red-400 hover:text-red-300 text-sm'
-                  : 'text-red-600 hover:text-red-700 text-sm'
-                }>Add</button>
-              </div>
+          <div className="px-6 pb-4">
+            <RelatedDataTable
+              data={relatedData.transactions}
+              columns={relatedDataColumns.transactions}
+              isDarkMode={isDarkMode}
+              onRowClick={handleTransactionRowClick}
+            />
+            <div className="flex justify-end">
+              <button className={isDarkMode
+                ? 'text-red-400 hover:text-red-300 text-sm'
+                : 'text-red-600 hover:text-red-700 text-sm'
+              }>Add</button>
             </div>
-          )}
+          </div>
         </div>
 
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
-          <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-            }`}>
+          <div className={`w-full px-6 py-4 flex items-center justify-between`}>
             <div className="flex items-center space-x-2">
               <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>Related Staggered</span>
@@ -1636,47 +1577,34 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                   }`}
               >
-                {expandedSections.staggeredInstallations ? 'Collapse' : 'Expand'}
-              </button>
-              <button
-                onClick={() => toggleSection('staggeredInstallations')}
-                className="flex items-center"
-              >
-                {expandedSections.staggeredInstallations ? (
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                ) : (
-                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                )}
+                Expand
               </button>
             </div>
           </div>
 
-          {expandedSections.staggeredInstallations && (
-            <div className="px-6 pb-4">
-              <RelatedDataTable
-                data={relatedData.staggered}
-                columns={relatedDataColumns.staggered}
-                isDarkMode={isDarkMode}
-              />
-              <div className="flex justify-end">
-                <button
-                  onClick={handleStaggeredInstallationAdd}
-                  className={isDarkMode
-                    ? 'text-red-400 hover:text-red-300 text-sm'
-                    : 'text-red-600 hover:text-red-700 text-sm'
-                  }
-                >
-                  Add
-                </button>
-              </div>
+          <div className="px-6 pb-4">
+            <RelatedDataTable
+              data={relatedData.staggered}
+              columns={relatedDataColumns.staggered}
+              isDarkMode={isDarkMode}
+            />
+            <div className="flex justify-end">
+              <button
+                onClick={handleStaggeredInstallationAdd}
+                className={isDarkMode
+                  ? 'text-red-400 hover:text-red-300 text-sm'
+                  : 'text-red-600 hover:text-red-700 text-sm'
+                }
+              >
+                Add
+              </button>
             </div>
-          )}
+          </div>
         </div>
 
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
-          <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-            }`}>
+          <div className={`w-full px-6 py-4 flex items-center justify-between`}>
             <div className="flex items-center space-x-2">
               <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>Related Discounts</span>
@@ -1694,41 +1622,29 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                   }`}
               >
-                {expandedSections.discounts ? 'Collapse' : 'Expand'}
-              </button>
-              <button
-                onClick={() => toggleSection('discounts')}
-                className="flex items-center"
-              >
-                {expandedSections.discounts ? (
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                ) : (
-                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                )}
+                Expand
               </button>
             </div>
           </div>
 
-          {expandedSections.discounts && (
-            <div className="px-6 pb-4">
-              <RelatedDataTable
-                data={relatedData.discounts}
-                columns={relatedDataColumns.discounts}
-                isDarkMode={isDarkMode}
-              />
-              <div className="flex justify-end">
-                <button
-                  onClick={handleDiscountAdd}
-                  className={isDarkMode
-                    ? 'text-red-400 hover:text-red-300 text-sm'
-                    : 'text-red-600 hover:text-red-700 text-sm'
-                  }
-                >
-                  Add
-                </button>
-              </div>
+          <div className="px-6 pb-4">
+            <RelatedDataTable
+              data={relatedData.discounts}
+              columns={relatedDataColumns.discounts}
+              isDarkMode={isDarkMode}
+            />
+            <div className="flex justify-end">
+              <button
+                onClick={handleDiscountAdd}
+                className={isDarkMode
+                  ? 'text-red-400 hover:text-red-300 text-sm'
+                  : 'text-red-600 hover:text-red-700 text-sm'
+                }
+              >
+                Add
+              </button>
             </div>
-          )}
+          </div>
         </div>
         {[
           { key: 'serviceOrders', label: 'Related Service Orders', dataKey: 'serviceOrders' },
@@ -1742,8 +1658,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
         ].map((section) => (
           <div key={section.key} className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
             }`}>
-            <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-              }`}>
+            <div className={`w-full px-6 py-4 flex items-center justify-between`}>
               <div className="flex items-center space-x-2">
                 <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}>{section.label}</span>
@@ -1763,28 +1678,23 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 >
                   Expand
                 </button>
-                <div className="flex items-center">
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                </div>
               </div>
             </div>
 
-            {expandedSections[section.key] && (
-              <div className="px-6 pb-4">
-                <RelatedDataTable
-                  data={relatedData[section.key]}
-                  columns={relatedDataColumns[section.dataKey as keyof typeof relatedDataColumns]}
-                  isDarkMode={isDarkMode}
-                  onRowClick={section.key === 'serviceOrders' ? handleServiceOrderRowClick : undefined}
-                />
-                <div className="flex justify-end">
-                  <button className={isDarkMode
-                    ? 'text-red-400 hover:text-red-300 text-sm'
-                    : 'text-red-600 hover:text-red-700 text-sm'
-                  }>Add</button>
-                </div>
+            <div className="px-6 pb-4">
+              <RelatedDataTable
+                data={relatedData[section.key]}
+                columns={relatedDataColumns[section.dataKey as keyof typeof relatedDataColumns]}
+                isDarkMode={isDarkMode}
+                onRowClick={section.key === 'serviceOrders' ? handleServiceOrderRowClick : undefined}
+              />
+              <div className="flex justify-end">
+                <button className={isDarkMode
+                  ? 'text-red-400 hover:text-red-300 text-sm'
+                  : 'text-red-600 hover:text-red-700 text-sm'
+                }>Add</button>
               </div>
-            )}
+            </div>
           </div>
         ))}
       </div>

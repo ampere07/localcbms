@@ -229,6 +229,16 @@ const LcpNapLocation: React.FC = () => {
       const map = new google.maps.Map(mapRef.current, {
         center: { lat: 12.8797, lng: 121.7740 },
         zoom: 6,
+        minZoom: 6,
+        restriction: {
+          latLngBounds: {
+            north: 21.5,
+            south: 4.3,
+            west: 114.0,
+            east: 127.5,
+          },
+          strictBounds: true,
+        },
         mapTypeControl: true,
         streetViewControl: true,
         fullscreenControl: true,

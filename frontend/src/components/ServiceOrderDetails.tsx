@@ -329,29 +329,42 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
     }
   };
 
-  const renderField = (label: string, value: any) => (
-    <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
-      }`}>
-      <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-        }`}>{label}</div>
-      <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+  const renderField = (label: string, value: any) => {
+    if (!value ||
+      value === '-' ||
+      value === 'Not assigned' ||
+      value === 'Not provided' ||
+      value === 'None' ||
+      value === 'Not specified' ||
+      value === 'Unknown Client' ||
+      value === 'No address provided' ||
+      value === 'Not Set' ||
+      value === 'Not scheduled') return null;
+    return (
+      <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
         }`}>
-        {value || '-'}
+        <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>{label}</div>
+        <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>
+          {value}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  const renderImageField = (label: string, url: string | undefined, displayText: string) => (
-    <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
-      }`}>
-      <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-        }`}>{label}</div>
-      <div className={`flex-1 flex items-center min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
+  const renderImageField = (label: string, url: string | undefined, displayText: string) => {
+    if (!url) return null;
+    return (
+      <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
         }`}>
-        <span className="truncate mr-2" title={url}>
-          {url ? displayText : '-'}
-        </span>
-        {url && (
+        <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>{label}</div>
+        <div className={`flex-1 flex items-center min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>
+          <span className="truncate mr-2" title={url}>
+            {displayText}
+          </span>
           <button
             className={`flex-shrink-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}
@@ -359,10 +372,10 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
           >
             <ExternalLink size={16} />
           </button>
-        )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderFieldContent = (fieldKey: string) => {
     if (!fieldVisibility[fieldKey]) return null;
@@ -373,13 +386,21 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'timestamp':
         return renderField('Timestamp', serviceOrder.timestamp);
       case 'accountNumber':
+        const accInfo = [serviceOrder.accountNumber, serviceOrder.fullName, serviceOrder.fullAddress].filter(val =>
+          val &&
+          val !== 'Not provided' &&
+          val !== 'Unknown Client' &&
+          val !== 'No address provided' &&
+          val !== '-'
+        );
+        if (accInfo.length === 0) return null;
         return (
           <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Account No.</div>
             <div className="text-red-500 flex-1">
-              {serviceOrder.accountNumber} | {serviceOrder.fullName} | {serviceOrder.fullAddress}
+              {accInfo.join(' | ')}
             </div>
           </div>
         );
@@ -418,14 +439,16 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'concernRemarks':
         return renderField('Concern Remarks', serviceOrder.concernRemarks);
       case 'visitStatus':
+        const vStatus = serviceOrder.visitStatus;
+        if (!vStatus || vStatus === '-' || vStatus === 'Not set') return null;
         return (
           <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Visit Status</div>
-            <div className={`flex-1 font-bold uppercase ${getStatusColor(serviceOrder.visitStatus, 'visit')
+            <div className={`flex-1 font-bold uppercase ${getStatusColor(vStatus, 'visit')
               }`}>
-              {serviceOrder.visitStatus || '-'}
+              {vStatus}
             </div>
           </div>
         );
@@ -448,14 +471,16 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'supportRemarks':
         return renderField('Support Remarks', serviceOrder.supportRemarks);
       case 'supportStatus':
+        const sStatus = serviceOrder.supportStatus;
+        if (!sStatus || sStatus === '-' || sStatus === 'Not set') return null;
         return (
           <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Support Status</div>
-            <div className={`flex-1 font-bold uppercase ${getStatusColor(serviceOrder.supportStatus, 'support')
+            <div className={`flex-1 font-bold uppercase ${getStatusColor(sStatus, 'support')
               }`}>
-              {serviceOrder.supportStatus || '-'}
+              {sStatus}
             </div>
           </div>
         );
@@ -476,12 +501,14 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'clientSignatureUrl':
         return renderImageField('Client Signature', serviceOrder.clientSignatureUrl, 'View Signature');
       case 'serviceCharge':
+        const sCharge = serviceOrder.serviceCharge;
+        if (!sCharge || sCharge === '-' || sCharge === '0' || sCharge === '0.00' || sCharge === '₱0.00') return null;
         return (
           <div className="flex py-2">
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Service Charge</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{serviceOrder.serviceCharge}</div>
+              }`}>{sCharge}</div>
           </div>
         );
       default:

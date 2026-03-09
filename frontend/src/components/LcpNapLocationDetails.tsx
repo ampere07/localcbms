@@ -67,7 +67,7 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [relatedCustomers, setRelatedCustomers] = useState<any[]>([]);
-  const [isRelatedExpanded, setIsRelatedExpanded] = useState(true);
+
   const [isLoadingRelated, setIsLoadingRelated] = useState(false);
 
   useEffect(() => {
@@ -304,8 +304,8 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
                 <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>Port Usage:</div>
                 <div className={`flex-1 font-medium ${location.total_technical_details !== undefined && location.total_technical_details >= location.port_total
-                    ? 'text-red-500'
-                    : isDarkMode ? 'text-white' : 'text-gray-900'
+                  ? 'text-red-500'
+                  : isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}>
                   {location.total_technical_details || 0} / {location.port_total}
                   {location.total_technical_details !== undefined && location.total_technical_details >= location.port_total && (
@@ -375,6 +375,9 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
                 <MapContainer
                   center={[location.latitude, location.longitude]}
                   zoom={16}
+                  minZoom={6}
+                  maxBounds={L.latLngBounds([4.3, 114.0], [21.5, 127.5])}
+                  maxBoundsViscosity={1.0}
                   style={{ height: '100%', width: '100%', zIndex: 1 }}
                   scrollWheelZoom={false}
                 >
@@ -410,62 +413,61 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
                     {relatedCustomers.length}
                   </span>
                 </div>
-                <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
               </div>
 
-              {isRelatedExpanded && (
-                <div className="pb-4 space-y-3">
-                  {isLoadingRelated ? (
-                    <div className="flex justify-center py-4">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-500"></div>
-                    </div>
-                  ) : relatedCustomers.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
-                        <thead className={isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-gray-100 text-gray-600'}>
-                          <tr>
-                            <th className="px-3 py-2 font-medium">Account No</th>
-                            <th className="px-3 py-2 font-medium">Full Name</th>
-                            <th className="px-3 py-2 font-medium text-center">Port</th>
-                            <th className="px-3 py-2 font-medium text-right">Status</th>
+
+              <div className="pb-4 space-y-3">
+                {isLoadingRelated ? (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-500"></div>
+                  </div>
+                ) : relatedCustomers.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className={isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-gray-100 text-gray-600'}>
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Account No</th>
+                          <th className="px-3 py-2 font-medium">Full Name</th>
+                          <th className="px-3 py-2 font-medium text-center">Port</th>
+                          <th className="px-3 py-2 font-medium text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className={`divide-y ${isDarkMode ? 'divide-gray-800' : 'divide-gray-200'}`}>
+                        {relatedCustomers.map((customer, idx) => (
+                          <tr key={idx} className={isDarkMode ? 'hover:bg-gray-900' : 'hover:bg-gray-50'}>
+                            <td className={`px-3 py-2 font-mono ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                              {customer.account_no}
+                            </td>
+                            <td className={`px-3 py-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                              {customer.full_name}
+                            </td>
+                            <td className={`px-3 py-2 text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                              {customer.port}
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${customer.status?.toLowerCase() === 'online' || customer.status?.toLowerCase() === 'active'
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                : customer.status?.toLowerCase() === 'offline'
+                                  ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                                  : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                                }`}>
+                                {customer.status || 'Unknown'}
+                              </span>
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody className={`divide-y ${isDarkMode ? 'divide-gray-800' : 'divide-gray-200'}`}>
-                          {relatedCustomers.map((customer, idx) => (
-                            <tr key={idx} className={isDarkMode ? 'hover:bg-gray-900' : 'hover:bg-gray-50'}>
-                              <td className={`px-3 py-2 font-mono ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                                {customer.account_no}
-                              </td>
-                              <td className={`px-3 py-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                {customer.full_name}
-                              </td>
-                              <td className={`px-3 py-2 text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                                {customer.port}
-                              </td>
-                              <td className="px-3 py-2 text-right">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${customer.status?.toLowerCase() === 'online' || customer.status?.toLowerCase() === 'active'
-                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                  : customer.status?.toLowerCase() === 'offline'
-                                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                                    : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
-                                  }`}>
-                                  {customer.status || 'Unknown'}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className={`text-center py-6 border-2 border-dashed rounded-lg ${isDarkMode ? 'border-gray-800 text-gray-500' : 'border-gray-200 text-gray-400'
-                      }`}>
-                      <User size={24} className="mx-auto mb-2 opacity-20" />
-                      <p className="text-sm">No customers related to this LCPNAP</p>
-                    </div>
-                  )}
-                </div>
-              )}
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className={`text-center py-6 border-2 border-dashed rounded-lg ${isDarkMode ? 'border-gray-800 text-gray-500' : 'border-gray-200 text-gray-400'
+                    }`}>
+                    <User size={24} className="mx-auto mb-2 opacity-20" />
+                    <p className="text-sm">No customers related to this LCPNAP</p>
+                  </div>
+                )}
+              </div>
+
             </div>
 
             {/* Reading Image */}

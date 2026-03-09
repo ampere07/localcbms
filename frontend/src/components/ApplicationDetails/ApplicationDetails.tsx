@@ -394,6 +394,10 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
 
     switch (fieldKey) {
       case 'timestamp':
+        const tsValue = detailedApplication?.create_date && detailedApplication?.create_time
+          ? `${detailedApplication.create_date} ${detailedApplication.create_time}`
+          : formatDate(application.timestamp);
+        if (!tsValue || tsValue === 'Not provided') return null;
         return (
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
@@ -401,70 +405,78 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               }`}>Timestamp:</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
-              {detailedApplication?.create_date && detailedApplication?.create_time
-                ? `${detailedApplication.create_date} ${detailedApplication.create_time}`
-                : formatDate(application.timestamp)}
+              {tsValue}
             </div>
           </div>
         );
 
       case 'status':
+        if (!detailedApplication?.status) return null;
         return (
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Status:</div>
             <div className={`${getStatusColor(detailedApplication?.status)} flex-1 capitalize`}>
-              {detailedApplication?.status || 'Pending'}
+              {detailedApplication?.status}
             </div>
           </div>
         );
 
       case 'referredBy':
+        const referredBy = detailedApplication?.referred_by;
+        if (!referredBy || referredBy === 'None') return null;
         return (
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Referred By:</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{detailedApplication?.referred_by || 'None'}</div>
+              }`}>{referredBy}</div>
           </div>
         );
 
       case 'fullName':
+        const clientName = getClientFullName();
+        if (!clientName || clientName === 'Unknown Client') return null;
         return (
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Full Name of Client:</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{getClientFullName()}</div>
+              }`}>{clientName}</div>
           </div>
         );
 
       case 'fullAddress':
+        const clientAddr = getClientFullAddress();
+        if (!clientAddr || clientAddr === 'No address provided') return null;
         return (
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Full Address of Client:</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{getClientFullAddress()}</div>
+              }`}>{clientAddr}</div>
           </div>
         );
 
       case 'landmark':
+        if (!detailedApplication?.landmark) return null;
         return (
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Landmark:</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{detailedApplication?.landmark || 'Not provided'}</div>
+              }`}>{detailedApplication.landmark}</div>
           </div>
         );
 
       case 'contactNumber':
+        const contactNum = detailedApplication?.mobile_number || application.mobile_number;
+        if (!contactNum) return null;
         return (
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
@@ -472,12 +484,13 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               }`}>Contact Number:</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
-              {detailedApplication?.mobile_number || application.mobile_number || 'Not provided'}
+              {contactNum}
             </div>
           </div>
         );
 
       case 'secondContactNumber':
+        if (!detailedApplication?.secondary_mobile_number) return null;
         return (
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
@@ -485,12 +498,14 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               }`}>Second Contact Number:</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
-              {detailedApplication?.secondary_mobile_number || 'Not provided'}
+              {detailedApplication.secondary_mobile_number}
             </div>
           </div>
         );
 
       case 'emailAddress':
+        const emailAddress = detailedApplication?.email_address || application.email_address;
+        if (!emailAddress) return null;
         return (
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
@@ -498,7 +513,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               }`}>Email Address:</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
-              {detailedApplication?.email_address || application.email_address || 'Not provided'}
+              {emailAddress}
             </div>
           </div>
         );
@@ -506,39 +521,46 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
 
 
       case 'barangay':
+        const brgy = detailedApplication?.barangay || application.barangay;
+        if (!brgy) return null;
         return (
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Barangay:</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{detailedApplication?.barangay || application.barangay || 'Not specified'}</div>
+              }`}>{brgy}</div>
           </div>
         );
 
       case 'city':
+        const cty = detailedApplication?.city || application.city;
+        if (!cty) return null;
         return (
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>City:</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{detailedApplication?.city || application.city || 'Not specified'}</div>
+              }`}>{cty}</div>
           </div>
         );
 
       case 'region':
+        const rgn = detailedApplication?.region || application.region;
+        if (!rgn) return null;
         return (
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Region:</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{detailedApplication?.region || application.region || 'Not specified'}</div>
+              }`}>{rgn}</div>
           </div>
         );
 
       case 'desiredPlan':
+        if (!detailedApplication?.desired_plan) return null;
         return (
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
@@ -546,19 +568,20 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               }`}>Desired Plan:</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
-              {detailedApplication?.desired_plan || 'Not specified'}
+              {detailedApplication.desired_plan}
             </div>
           </div>
         );
 
       case 'promo':
+        if (!detailedApplication?.promo) return null;
         return (
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Promo:</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{detailedApplication?.promo || 'None'}</div>
+              }`}>{detailedApplication.promo}</div>
           </div>
         );
 
@@ -575,6 +598,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         );
 
       case 'proofOfBilling':
+        if (!detailedApplication?.proof_of_billing_url) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
@@ -583,7 +607,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
               <span className="truncate mr-2">
-                {detailedApplication?.proof_of_billing_url || 'No document available'}
+                {detailedApplication.proof_of_billing_url}
               </span>
               {detailedApplication?.proof_of_billing_url && (
                 <button
@@ -599,6 +623,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         );
 
       case 'governmentValidId':
+        if (!detailedApplication?.government_valid_id_url) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
@@ -607,7 +632,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
               <span className="truncate mr-2">
-                {detailedApplication?.government_valid_id_url || 'No document available'}
+                {detailedApplication.government_valid_id_url}
               </span>
               {detailedApplication?.government_valid_id_url && (
                 <button
@@ -623,6 +648,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         );
 
       case 'secondaryGovernmentValidId':
+        if (!detailedApplication?.secondary_government_valid_id_url) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
@@ -634,7 +660,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
               <span className="truncate mr-2">
-                {detailedApplication?.secondary_government_valid_id_url || 'No document available'}
+                {detailedApplication.secondary_government_valid_id_url}
               </span>
               {detailedApplication?.secondary_government_valid_id_url && (
                 <button
@@ -650,6 +676,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         );
 
       case 'houseFrontPicture':
+        if (!detailedApplication?.house_front_picture_url) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
@@ -658,7 +685,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
               <span className="truncate mr-2">
-                {detailedApplication?.house_front_picture_url || 'No image available'}
+                {detailedApplication.house_front_picture_url}
               </span>
               {detailedApplication?.house_front_picture_url && (
                 <button
@@ -674,6 +701,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         );
 
       case 'promoImage':
+        if (!detailedApplication?.promo_url) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
@@ -682,7 +710,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
               <span className="truncate mr-2">
-                {detailedApplication?.promo_url || 'No image available'}
+                {detailedApplication.promo_url}
               </span>
               {detailedApplication?.promo_url && (
                 <button
@@ -698,6 +726,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         );
 
       case 'nearestLandmark1':
+        if (!detailedApplication?.nearest_landmark1_url) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
@@ -706,7 +735,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
               <span className="truncate mr-2">
-                {detailedApplication?.nearest_landmark1_url || 'No image available'}
+                {detailedApplication.nearest_landmark1_url}
               </span>
               {detailedApplication?.nearest_landmark1_url && (
                 <button
@@ -722,6 +751,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         );
 
       case 'nearestLandmark2':
+        if (!detailedApplication?.nearest_landmark2_url) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
@@ -730,7 +760,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
               <span className="truncate mr-2">
-                {detailedApplication?.nearest_landmark2_url || 'No image available'}
+                {detailedApplication.nearest_landmark2_url}
               </span>
               {detailedApplication?.nearest_landmark2_url && (
                 <button
@@ -746,6 +776,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         );
 
       case 'documentAttachment':
+        if (!detailedApplication?.document_attachment_url) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
@@ -754,7 +785,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
               <span className="truncate mr-2">
-                {detailedApplication?.document_attachment_url || 'No document available'}
+                {detailedApplication.document_attachment_url}
               </span>
               {detailedApplication?.document_attachment_url && (
                 <button
@@ -770,6 +801,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         );
 
       case 'otherIspBill':
+        if (!detailedApplication?.other_isp_bill_url) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
@@ -778,7 +810,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
               <span className="truncate mr-2">
-                {detailedApplication?.other_isp_bill_url || 'No document available'}
+                {detailedApplication.other_isp_bill_url}
               </span>
               {detailedApplication?.other_isp_bill_url && (
                 <button
@@ -1026,26 +1058,6 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           </div>
           <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
             }`}>Duplicate</span>
-        </button>
-
-        <button
-          className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
-            }`}
-          onClick={() => handleStatusChange('In Progress')}
-          disabled={loading}
-        >
-          <div
-            className="p-2 rounded-full"
-            style={{
-              backgroundColor: colorPalette?.primary || '#7c3aed'
-            }}
-          >
-            <div className="text-white">
-              <CheckCircle size={18} />
-            </div>
-          </div>
-          <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Clear Status</span>
         </button>
       </div>
 

@@ -106,6 +106,8 @@ class JobOrderController extends Controller
                         'Username' => $jobOrder->username,
                         'First_Name' => $application ? $application->first_name : null,
                         'Last_Name' => $application ? $application->last_name : null,
+                        'Status' => $jobOrder->status,
+                        'status' => $jobOrder->status,
                         'updated_at' => $jobOrder->updated_at ? $jobOrder->updated_at->format('Y-m-d H:i:s') : null,
                     ];
                 });
@@ -133,6 +135,8 @@ class JobOrderController extends Controller
                     'Installation_Fee' => $jobOrder->installation_fee,
                     'Billing_Day' => $jobOrder->billing_day,
                     'Onsite_Status' => $jobOrder->onsite_status,
+                    'Status' => $jobOrder->status,
+                    'status' => $jobOrder->status,
                     'billing_status' => $jobOrder->billing_status,
                     'Status_Remarks' => $jobOrder->status_remarks,
                     'Assigned_Email' => $jobOrder->assigned_email,
@@ -226,6 +230,7 @@ class JobOrderController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'application_id' => 'required|integer|exists:applications,id',
+                'status' => 'nullable|string|max:100',
                 'timestamp' => 'nullable|date',
                 'installation_fee' => 'nullable|numeric|min:0',
                 'billing_day' => 'nullable|integer|min:0|max:31',
@@ -499,6 +504,7 @@ class JobOrderController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'application_id' => 'nullable|integer|exists:applications,id',
+                'status' => 'nullable|string|max:100',
                 'timestamp' => 'nullable|date',
                 'date_installed' => 'nullable|date',
                 'installation_fee' => 'nullable|numeric|min:0',

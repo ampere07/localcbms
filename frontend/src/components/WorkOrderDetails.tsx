@@ -243,79 +243,92 @@ const WorkOrderDetails: React.FC<WorkOrderDetailsComponentProps> = ({
         );
 
       case 'workCategory':
+        if (!workOrder.work_category || workOrder.work_category === 'N/A') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Work Category:</div>
-            <div className={valueClass}>{workOrder.work_category || 'N/A'}</div>
+            <div className={valueClass}>{workOrder.work_category}</div>
           </div>
         );
 
       case 'instructions':
+        if (!workOrder.instructions || workOrder.instructions === 'N/A') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Instructions:</div>
             <div
               className={`${valueClass} truncate`}
-              title={workOrder.instructions || undefined}
+              title={workOrder.instructions}
             >
-              {workOrder.instructions || 'N/A'}
+              {workOrder.instructions}
             </div>
           </div>
         );
 
       case 'reportTo':
+        if (!workOrder.report_to || workOrder.report_to === 'N/A') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Report To:</div>
-            <div className={valueClass}>{workOrder.report_to || 'N/A'}</div>
+            <div className={valueClass}>{workOrder.report_to}</div>
           </div>
         );
 
       case 'assignTo':
+        if (!workOrder.assign_to || workOrder.assign_to === 'Unassigned') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Assign To:</div>
-            <div className={valueClass}>{workOrder.assign_to || 'Unassigned'}</div>
+            <div className={valueClass}>{workOrder.assign_to}</div>
           </div>
         );
 
       case 'remarks':
+        if (!workOrder.remarks || workOrder.remarks === 'None') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Remarks:</div>
-            <div className={valueClass}>{workOrder.remarks || 'None'}</div>
+            <div className={valueClass}>{workOrder.remarks}</div>
           </div>
         );
 
       case 'requestedBy':
+        if (!workOrder.requested_by || workOrder.requested_by === 'N/A') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Requested By:</div>
-            <div className={valueClass}>{workOrder.requested_by || 'N/A'}</div>
+            <div className={valueClass}>{workOrder.requested_by}</div>
           </div>
         );
 
       case 'requestedDate':
+        if (!workOrder.requested_date) return null;
+        const reqDate = formatDate(workOrder.requested_date);
+        if (reqDate === 'N/A') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Requested Date:</div>
-            <div className={valueClass}>{formatDate(workOrder.requested_date)}</div>
+            <div className={valueClass}>{reqDate}</div>
           </div>
         );
 
       case 'updatedBy':
+        if (!workOrder.updated_by || workOrder.updated_by === 'N/A') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Updated By:</div>
-            <div className={valueClass}>{workOrder.updated_by || 'N/A'}</div>
+            <div className={valueClass}>{workOrder.updated_by}</div>
           </div>
         );
 
       case 'updatedDate':
+        if (!workOrder.updated_date) return null;
+        const updDate = formatDate(workOrder.updated_date);
+        if (updDate === 'N/A') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Updated Date:</div>
-            <div className={valueClass}>{formatDate(workOrder.updated_date)}</div>
+            <div className={valueClass}>{updDate}</div>
           </div>
         );
 
@@ -325,40 +338,37 @@ const WorkOrderDetails: React.FC<WorkOrderDetailsComponentProps> = ({
       case 'signature':
         {
           const fieldValue = workOrder[fieldKey];
+          if (!fieldValue) return null;
           const imageUrl = convertGDriveUrl(fieldValue);
 
           return (
             <div className={baseFieldClass}>
               <div className={labelClass}>{getFieldLabel(fieldKey)}:</div>
               <div className={valueClass}>
-                {fieldValue ? (
-                  <div className={`mt-2 rounded-lg border overflow-hidden max-w-sm ${isDarkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-gray-100'}`}>
-                    <img
-                      src={imageUrl}
-                      alt={getFieldLabel(fieldKey)}
-                      className="w-full h-auto object-contain cursor-pointer transition-transform hover:scale-105"
-                      onClick={() => window.open(fieldValue, '_blank')}
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Found';
-                      }}
-                    />
-                    <div className={`px-3 py-2 text-xs flex items-center justify-between ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-200/50'}`}>
-                      <span className="truncate flex-1 mr-2 opacity-60">View on Google Drive</span>
-                      <a
-                        href={fieldValue}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:text-blue-400 flex items-center"
-                      >
-                        <ExternalLink size={12} className="mr-1" />
-                        Link
-                      </a>
-                    </div>
+                <div className={`mt-2 rounded-lg border overflow-hidden max-w-sm ${isDarkMode ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-gray-100'}`}>
+                  <img
+                    src={imageUrl}
+                    alt={getFieldLabel(fieldKey)}
+                    className="w-full h-auto object-contain cursor-pointer transition-transform hover:scale-105"
+                    onClick={() => window.open(fieldValue, '_blank')}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Found';
+                    }}
+                  />
+                  <div className={`px-3 py-2 text-xs flex items-center justify-between ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-200/50'}`}>
+                    <span className="truncate flex-1 mr-2 opacity-60">View on Google Drive</span>
+                    <a
+                      href={fieldValue}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:text-blue-400 flex items-center"
+                    >
+                      <ExternalLink size={12} className="mr-1" />
+                      Link
+                    </a>
                   </div>
-                ) : (
-                  <span className="italic opacity-50">No Data</span>
-                )}
+                </div>
               </div>
             </div>
           );

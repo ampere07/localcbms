@@ -80,7 +80,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   const startWidthRef = useRef<number>(0);
 
   // Related invoices state
-  const [expandedInvoices, setExpandedInvoices] = useState(true);
+
   const [relatedInvoices, setRelatedInvoices] = useState<any[]>([]);
   const [fullRelatedInvoices, setFullRelatedInvoices] = useState<any[]>([]);
   const [invoicesCount, setInvoicesCount] = useState(0);
@@ -600,8 +600,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
             }`}>
             <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
               }`}>
-              <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                }`}>
+              <div className={`w-full px-6 py-4 flex items-center justify-between`}>
                 <div className="flex items-center space-x-2">
                   <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                     }`}>Related Invoices</span>
@@ -621,21 +620,17 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                   >
                     Expand
                   </button>
-                  <div className="flex items-center">
-                    <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  </div>
                 </div>
               </div>
 
-              {expandedInvoices && (
-                <div className="px-6 pb-4">
-                  <RelatedDataTable
-                    data={relatedInvoices}
-                    columns={relatedDataColumns.invoices}
-                    isDarkMode={isDarkMode}
-                  />
-                </div>
-              )}
+
+              <div className="px-6 pb-4">
+                <RelatedDataTable
+                  data={relatedInvoices}
+                  columns={relatedDataColumns.invoices}
+                  isDarkMode={isDarkMode}
+                />
+              </div>
             </div>
           </div>
         </div>

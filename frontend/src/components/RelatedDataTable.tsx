@@ -14,12 +14,12 @@ interface RelatedDataTableProps {
 }
 
 const RelatedDataTable: React.FC<RelatedDataTableProps> = ({
-  data,
+  data = [],
   columns,
   isDarkMode,
   onRowClick
 }) => {
-  if (data.length === 0) {
+  if (!data || data.length === 0) {
     return (
       <div className={`text-center py-8 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
         }`}>

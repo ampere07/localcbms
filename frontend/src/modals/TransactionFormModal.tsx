@@ -54,22 +54,35 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     return now.toISOString().slice(0, 16);
   };
 
-  const [formData, setFormData] = useState<TransactionFormData>(() => ({
-    accountNo: billingRecord?.applicationId || '',
-    fullName: billingRecord?.customerName || '',
-    contactNo: billingRecord?.contactNumber || '',
-    plan: billingRecord?.plan || '',
-    accountBalance: billingRecord?.accountBalance?.toString() || '0.00',
-    paymentDate: getCurrentDateTime(),
-    receivedPayment: '',
-    processedBy: '',
-    paymentMethod: '',
-    referenceNo: '',
-    orNo: '',
-    transactionType: 'Recurring Fee',
-    remarks: '',
-    image: null
-  }));
+  const [formData, setFormData] = useState<TransactionFormData>(() => {
+    const authData = localStorage.getItem('authData');
+    let userEmail = '';
+    if (authData) {
+      try {
+        const userData = JSON.parse(authData);
+        userEmail = userData.email_address || '';
+      } catch (e) {
+        console.error('Error parsing auth data:', e);
+      }
+    }
+
+    return {
+      accountNo: billingRecord?.applicationId || '',
+      fullName: billingRecord?.customerName || '',
+      contactNo: billingRecord?.contactNumber || '',
+      plan: billingRecord?.plan || '',
+      accountBalance: billingRecord?.accountBalance?.toString() || '0.00',
+      paymentDate: getCurrentDateTime(),
+      receivedPayment: '',
+      processedBy: userEmail,
+      paymentMethod: '',
+      referenceNo: '',
+      orNo: '',
+      transactionType: 'Recurring Fee',
+      remarks: '',
+      image: null
+    };
+  });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -141,6 +154,22 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     };
 
     fetchImageSizeSettings();
+
+    // Refresh processedBy from authData when modal opens
+    if (isOpen) {
+      const authData = localStorage.getItem('authData');
+      if (authData) {
+        try {
+          const userData = JSON.parse(authData);
+          const userEmail = userData.email_address || '';
+          if (userEmail) {
+            setFormData(prev => ({ ...prev, processedBy: userEmail }));
+          }
+        } catch (e) {
+          console.error('Error refreshing auth data:', e);
+        }
+      }
+    }
   }, [isOpen]);
 
   useEffect(() => {
@@ -576,23 +605,13 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
               }`}>
               Processed By<span className="text-red-500">*</span>
             </label>
-            <div className="relative">
-              <select
-                value={formData.processedBy}
-                onChange={(e) => handleInputChange('processedBy', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${errors.processedBy ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}
-              >
-                <option value="">Select Processor</option>
-                {processors.map((user) => (
-                  <option key={user.id} value={user.email_address}>
-                    {user.email_address}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
-            </div>
+            <input
+              type="text"
+              value={formData.processedBy}
+              readOnly
+              className={`w-full px-3 py-2 border rounded focus:outline-none cursor-not-allowed opacity-75 ${errors.processedBy ? 'border-red-500' : isDarkMode ? 'border-gray-700 bg-gray-700 text-gray-300' : 'border-gray-300 bg-gray-100 text-gray-600'
+                }`}
+            />
             {errors.processedBy && <p className="text-red-500 text-xs mt-1">{errors.processedBy}</p>}
           </div>
 
