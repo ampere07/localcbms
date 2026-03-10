@@ -3,7 +3,7 @@ import { login, forgotPassword } from '../services/api';
 import { UserData } from '../types/api';
 import { formUIService } from '../services/formUIService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (userData: UserData) => void;
@@ -19,6 +19,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [forgotMessage, setForgotMessage] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const convertGoogleDriveUrl = (url: string): string => {
     if (!url) return '';
@@ -337,18 +338,20 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     outline: 'none',
                     fontWeight: '600'
                   }}
-                  placeholder="Username or Email"
+                  placeholder="Account No. / Username / Email"
                 />
               </div>
 
-              <div style={{ marginBottom: '32px' }}>
+              <div style={{ marginBottom: '32px', position: 'relative' }}>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={mobileNo}
                   onChange={(e) => setMobileNo(e.target.value)}
+                  inputMode="tel"
                   style={{
                     width: '100%',
                     padding: '14px',
+                    paddingRight: '50px',
                     backgroundColor: '#ffffff',
                     border: '1px solid #d1d5db',
                     borderRadius: '8px',
@@ -357,8 +360,28 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     outline: 'none',
                     fontWeight: '600'
                   }}
-                  placeholder="Password"
+                  placeholder="Mobile Number / Password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '15px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#6b7280',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 10
+                  }}
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
               </div>
 
               {error && (
