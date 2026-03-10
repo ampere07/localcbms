@@ -168,7 +168,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     }
     return allColumns.map(col => col.key);
   });
-  const [sortColumn, setSortColumn] = useState<string | null>('accountNo');
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
@@ -327,18 +327,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     };
   }, [refreshLatestData]);
 
-  // Poll for changes every 5 seconds as fallback
-  useEffect(() => {
-    const pollInterval = setInterval(async () => {
-      try {
-        await refreshLatestData();
-      } catch (err) {
-        // Silent fail - polling is best-effort
-      }
-    }, 5000);
-
-    return () => clearInterval(pollInterval);
-  }, [refreshLatestData]);
+  // Polling removed - Pusher/Soketi handles real-time updates; idle detection handles 15-min refresh
 
   // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
@@ -522,13 +511,80 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     };
   }, [billingRecords, totalCount]);
 
+  const getVal = (item: BillingRecord, key: string): any => {
+    switch (key) {
+      case 'id':
+      case 'accountNo': return item.id || item.applicationId;
+      case 'customerName': return item.customerName;
+      case 'firstName': return item.firstName;
+      case 'middleInitial': return item.middleInitial;
+      case 'lastName': return item.lastName;
+      case 'address': return item.address;
+      case 'contactNumber': return item.contactNumber;
+      case 'secondContactNumber': return item.secondContactNumber;
+      case 'emailAddress': return item.emailAddress;
+      case 'plan': return item.plan;
+      case 'balance':
+      case 'accountBalance': return item.balance;
+      case 'status': return item.status;
+      case 'onlineStatus': return item.onlineStatus;
+      case 'billingStatus': return item.billingStatus;
+      case 'dateInstalled': return item.dateInstalled;
+      case 'username': return item.username;
+      case 'connectionType': return item.connectionType;
+      case 'routerModel': return item.routerModel;
+      case 'routerModemSN': return item.routerModemSN;
+      case 'lcpnap': return item.lcpnap;
+      case 'port': return item.port;
+      case 'vlan': return item.vlan;
+      case 'billingDay': return item.billingDay;
+      case 'totalPaid': return item.totalPaid;
+      case 'provider': return item.provider;
+      case 'lcp': return item.lcp;
+      case 'nap': return item.nap;
+      case 'modifiedBy': return item.modifiedBy;
+      case 'modifiedDate': return item.modifiedDate;
+      case 'barangay': return item.barangay;
+      case 'city': return item.city;
+      case 'region': return item.region;
+      case 'usageType': return item.usageType;
+      case 'referredBy': return item.referredBy;
+      case 'sessionIP': return item.sessionIP;
+      case 'houseFrontPicture': return item.houseFrontPicture;
+      case 'housingStatus': return (item as any).housingStatus;
+      case 'addressCoordinates': return (item as any).addressCoordinates;
+      case 'balanceUpdateDate': return (item as any).balanceUpdateDate;
+      case 'billingAccountCreatedBy': return (item as any).billingAccountCreatedBy;
+      case 'billingAccountCreatedAt': return (item as any).billingAccountCreatedAt;
+      case 'billingAccountUpdatedBy': return (item as any).billingAccountUpdatedBy;
+      case 'billingAccountUpdatedAt': return (item as any).billingAccountUpdatedAt;
+      case 'customerCreatedAt': return (item as any).customerCreatedAt;
+      case 'customerCreatedBy': return (item as any).customerCreatedBy;
+      case 'techCreatedAt': return (item as any).techCreatedAt;
+      case 'techCreatedBy': return (item as any).techCreatedBy;
+      case 'techUpdatedAt': return (item as any).techUpdatedAt;
+      case 'techUpdatedBy': return (item as any).techUpdatedBy;
+      case 'desiredPlan': return item.plan;
+      case 'groupName': return item.provider;
+      case 'usernameStatus': return (item as any).usernameStatus;
+      default: return (item as any)[key];
+    }
+  };
+
   // Helper function to apply funnel filters
   const applyFunnelFilters = (records: BillingRecord[], filters: any): BillingRecord[] => {
     if (!filters || Object.keys(filters).length === 0) return records;
 
     return records.filter(record => {
       return Object.entries(filters).every(([key, filter]: [string, any]) => {
-        const recordValue = (record as any)[key];
+        const recordValue = getVal(record, key);
+
+        if (filter.type === 'checklist') {
+          if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
+
+          const valStr = String(recordValue || '').toLowerCase();
+          return filter.value.some((v: string) => valStr.includes(v.toLowerCase()));
+        }
 
         if (filter.type === 'text') {
           if (!filter.value) return true;
@@ -550,6 +606,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
         if (filter.type === 'date') {
           if (!recordValue) return false;
           const dateValue = new Date(recordValue).getTime();
+          if (isNaN(dateValue)) return false;
           if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
           if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
           return true;
@@ -603,10 +660,11 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
         }
       }
 
-      // 2. Global search query
+      // 2. Global search query - normalize spaces to fix search issues with full names
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
       const matchesSearch = searchQuery === '' || Object.values(record).some(value => {
         if (value === null || value === undefined) return false;
-        return String(value).toLowerCase().includes(searchQuery.toLowerCase());
+        return String(value).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
       });
 
       return matchesLocation && matchesSearch;
@@ -618,122 +676,8 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     // Sorting logic
     if (sortColumn) {
       filtered = [...filtered].sort((a, b) => {
-        let aValue: any = '';
-        let bValue: any = '';
-
-        switch (sortColumn) {
-          case 'status':
-          case 'onlineStatus':
-            aValue = a.onlineStatus || '';
-            bValue = b.onlineStatus || '';
-            break;
-          case 'billingStatus':
-            aValue = a.billingStatus || 'Active';
-            bValue = b.billingStatus || 'Active';
-            break;
-          case 'accountNo':
-            aValue = a.applicationId || '';
-            bValue = b.applicationId || '';
-            break;
-          case 'dateInstalled':
-            aValue = a.dateInstalled || '';
-            bValue = b.dateInstalled || '';
-            break;
-          case 'customerName':
-            aValue = a.customerName || '';
-            bValue = b.customerName || '';
-            break;
-          case 'address':
-            aValue = a.address || '';
-            bValue = b.address || '';
-            break;
-          case 'contactNumber':
-            aValue = a.contactNumber || '';
-            bValue = b.contactNumber || '';
-            break;
-          case 'emailAddress':
-            aValue = a.emailAddress || '';
-            bValue = b.emailAddress || '';
-            break;
-          case 'plan':
-            aValue = a.plan || '';
-            bValue = b.plan || '';
-            break;
-          case 'balance':
-            aValue = a.balance || 0;
-            bValue = b.balance || 0;
-            break;
-          case 'username':
-            aValue = a.username || '';
-            bValue = b.username || '';
-            break;
-          case 'connectionType':
-            aValue = a.connectionType || '';
-            bValue = b.connectionType || '';
-            break;
-          case 'routerModel':
-            aValue = a.routerModel || '';
-            bValue = b.routerModel || '';
-            break;
-          case 'routerModemSN':
-            aValue = a.routerModemSN || '';
-            bValue = b.routerModemSN || '';
-            break;
-          case 'lcpnap':
-            aValue = a.lcpnap || '';
-            bValue = b.lcpnap || '';
-            break;
-          case 'port':
-            aValue = a.port || '';
-            bValue = b.port || '';
-            break;
-          case 'vlan':
-            aValue = a.vlan || '';
-            bValue = b.vlan || '';
-            break;
-          case 'billingDay':
-            aValue = a.billingDay || 0;
-            bValue = b.billingDay || 0;
-            break;
-          case 'totalPaid':
-            aValue = a.totalPaid || 0;
-            bValue = b.totalPaid || 0;
-            break;
-          case 'provider':
-            aValue = a.provider || '';
-            bValue = b.provider || '';
-            break;
-          case 'lcp':
-            aValue = a.lcp || '';
-            bValue = b.lcp || '';
-            break;
-          case 'nap':
-            aValue = a.nap || '';
-            bValue = b.nap || '';
-            break;
-          case 'modifiedBy':
-            aValue = a.modifiedBy || '';
-            bValue = b.modifiedBy || '';
-            break;
-          case 'modifiedDate':
-            aValue = a.modifiedDate || '';
-            bValue = b.modifiedDate || '';
-            break;
-          case 'barangay':
-            aValue = a.barangay || '';
-            bValue = b.barangay || '';
-            break;
-          case 'city':
-            aValue = a.city || '';
-            bValue = b.city || '';
-            break;
-          case 'region':
-            aValue = a.region || '';
-            bValue = b.region || '';
-            break;
-          default:
-            return 0;
-        }
+        let aValue = getVal(a, sortColumn);
+        let bValue = getVal(b, sortColumn);
 
         if (typeof aValue === 'string' && typeof bValue === 'string') {
           aValue = aValue.toLowerCase();
@@ -1416,11 +1360,10 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
               }`}
             style={selectedLocation === 'all' ? {
               backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-              color: colorPalette?.primary || '#fb923c'
+              color: colorPalette?.primary || '#7c3aed'
             } : {}}
           >
             <div className="flex items-center">
-              <CreditCard className="h-4 w-4 mr-2" />
               <span>All Customers</span>
             </div>
             <span
@@ -1450,7 +1393,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                     }`}
                   style={isSelected ? {
                     backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                    color: colorPalette?.primary || '#fb923c'
+                    color: colorPalette?.primary || '#7c3aed'
                   } : {}}
                 >
                   <div className="flex items-center flex-1">
@@ -1499,7 +1442,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                           }`}
                         style={isBillingSelected ? {
                           backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                          color: colorPalette?.primary || '#fb923c'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {}}
                       >
                         <div className="flex items-center flex-1">
@@ -1541,7 +1484,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                               }`}
                             style={isBrgySelected ? {
                               backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                              color: colorPalette?.primary || '#fb923c'
+                              color: colorPalette?.primary || '#7c3aed'
                             } : {}}
                           >
                             <span>{brgy.name}</span>
@@ -1649,6 +1592,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                         : 'hover:bg-gray-200 text-gray-900'
                         }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+                      title="Column Visibility"
                     >
                       <Columns3 className="h-5 w-5" />
                     </button>
@@ -1792,6 +1736,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                   onClick={handleRefresh}
                   disabled={isLoading || isSilentRefreshing}
                   className={`px-4 py-2 rounded text-sm transition-colors disabled:opacity-50 flex items-center relative ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                  title="Refresh"
                   style={{
                     color: colorPalette?.primary || '#7c3aed',
                   }}
@@ -1936,9 +1881,9 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                                         className="ml-2 transition-colors"
                                       >
                                         {sortColumn === column.key && sortDirection === 'desc' ? (
-                                          <ArrowDown className="h-4 w-4" style={{ color: colorPalette?.accent || '#fb923c' }} />
+                                          <ArrowDown className="h-4 w-4" style={{ color: colorPalette?.accent || '#7c3aed' }} />
                                         ) : (
-                                          <ArrowUp className="h-4 w-4 text-gray-400" style={{ color: hoveredColumn === column.key ? (colorPalette?.accent || '#fb923c') : undefined }} />
+                                          <ArrowUp className="h-4 w-4 text-gray-400" style={{ color: hoveredColumn === column.key ? (colorPalette?.accent || '#7c3aed') : undefined }} />
                                         )}
                                       </button>
                                     )}

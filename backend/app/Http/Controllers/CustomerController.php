@@ -32,6 +32,7 @@ class CustomerController extends Controller
                 ->pluck('total', 'account_id');
 
             $customers = Customer::with(['group', 'billingAccounts'])
+                ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($customer) use ($transactions, $portalLogs) {
                     $totalPaid = 0;

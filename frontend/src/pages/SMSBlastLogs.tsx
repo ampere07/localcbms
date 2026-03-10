@@ -43,7 +43,7 @@ const SMSBlastLogs: React.FC = () => {
         console.error('Failed to fetch color palette:', err);
       }
     };
-    
+
     fetchColorPalette();
   }, []);
 
@@ -69,12 +69,12 @@ const SMSBlastLogs: React.FC = () => {
     const fetchSMSBlastLogs = async () => {
       try {
         setIsLoading(true);
-        
+
         // This would be an API call in a real implementation
         // For now, we'll return an empty array to show "No items"
         setTimeout(() => {
           const mockData: SMSBlastLog[] = [];
-          
+
           setLogs(mockData);
           setFilteredLogs(mockData);
           setIsLoading(false);
@@ -87,41 +87,41 @@ const SMSBlastLogs: React.FC = () => {
         setIsLoading(false);
       }
     };
-    
+
     fetchSMSBlastLogs();
   }, []);
 
   // Filter logs when filter criteria or search query changes
   useEffect(() => {
     if (logs.length === 0) return;
-    
+
     let filtered = [...logs];
-    
+
     // Filter by status
     if (selectedStatus !== 'All') {
       filtered = filtered.filter(log => log.status === selectedStatus);
     }
-    
+
     // Filter by provider
     if (selectedProvider !== 'All') {
       filtered = filtered.filter(log => log.provider === selectedProvider);
     }
-    
+
     // Filter by message type
     if (selectedMessageType !== 'All') {
       filtered = filtered.filter(log => log.messageType === selectedMessageType);
     }
-    
+
     // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(log => 
-        log.recipientNumber.toLowerCase().includes(query) || 
+      filtered = filtered.filter(log =>
+        log.recipientNumber.toLowerCase().includes(query) ||
         log.messageId.toLowerCase().includes(query) ||
         (log.failureReason && log.failureReason.toLowerCase().includes(query))
       );
     }
-    
+
     setFilteredLogs(filtered);
   }, [logs, selectedStatus, selectedProvider, selectedMessageType, searchQuery]);
 
@@ -154,25 +154,18 @@ const SMSBlastLogs: React.FC = () => {
   };
 
   return (
-    <div className={`${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    } h-full flex overflow-hidden`}>
+    <div className={`${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      } h-full flex overflow-hidden`}>
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className={`p-4 border-b flex justify-between items-center ${
-          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-        }`}>
-          <h1 className={`text-xl font-semibold ${
-            isDarkMode ? 'text-white' : 'text-gray-900'
+        <div className={`p-4 border-b flex justify-between items-center ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
           }`}>
+          <h1 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>
             SMS Blast Logs
           </h1>
           <div className="flex items-center space-x-2">
-            <button className={`p-2 rounded ${
-              isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300'
-            }`}>
-              <Filter size={18} className={isDarkMode ? 'text-white' : 'text-gray-900'} />
-            </button>
+
           </div>
         </div>
 
@@ -194,14 +187,12 @@ const SMSBlastLogs: React.FC = () => {
             </div>
           ) : (
             <div className="h-full overflow-auto">
-              <table className={`min-w-full divide-y ${
-                isDarkMode ? 'divide-gray-700' : 'divide-gray-300'
-              }`}>
+              <table className={`min-w-full divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-300'
+                }`}>
                 <thead className={isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}>
                   <tr>
-                    <th scope="col" className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
+                    <th scope="col" className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
                       message id
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
@@ -224,28 +215,24 @@ const SMSBlastLogs: React.FC = () => {
                     </th>
                   </tr>
                 </thead>
-                <tbody className={`divide-y ${
-                  isDarkMode ? 'bg-gray-900 divide-gray-800' : 'bg-white divide-gray-200'
-                }`}>
+                <tbody className={`divide-y ${isDarkMode ? 'bg-gray-900 divide-gray-800' : 'bg-white divide-gray-200'
+                  }`}>
                   {filteredLogs.map((log) => (
-                    <tr key={log.id} className={`cursor-pointer ${
-                      isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                    }`} onClick={() => handleLogClick(log)}>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                        isDarkMode ? 'text-white' : 'text-gray-900'
-                      }`}>
+                    <tr key={log.id} className={`cursor-pointer ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                      }`} onClick={() => handleLogClick(log)}>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
                         {log.messageId}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                         {log.recipientNumber}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          log.status === 'Delivered' ? 'bg-green-900 text-green-200' :
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${log.status === 'Delivered' ? 'bg-green-900 text-green-200' :
                           log.status === 'Failed' ? 'bg-red-900 text-red-200' :
-                          log.status === 'Pending' ? 'bg-yellow-900 text-yellow-200' :
-                          'bg-blue-900 text-blue-200'
-                        }`}>
+                            log.status === 'Pending' ? 'bg-yellow-900 text-yellow-200' :
+                              'bg-blue-900 text-blue-200'
+                          }`}>
                           {log.status}
                         </span>
                       </td>
@@ -259,9 +246,8 @@ const SMSBlastLogs: React.FC = () => {
                         {log.messageType}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <ChevronRight className={`h-5 w-5 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`} />
+                        <ChevronRight className={`h-5 w-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`} />
                       </td>
                     </tr>
                   ))}
@@ -271,101 +257,96 @@ const SMSBlastLogs: React.FC = () => {
           )}
         </div>
       </div>
-      
+
       {/* Details panel that slides in from the right when a log is selected */}
       {selectedLog && (
-        <div className={`w-full max-w-md border-l flex-shrink-0 relative ${
-          isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-        }`}>
+        <div className={`w-full max-w-md border-l flex-shrink-0 relative ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
           <div className="absolute top-4 right-4 z-10">
             <button
               onClick={handleCloseDetails}
-              className={`transition-colors rounded p-1 ${
-                isDarkMode 
-                  ? 'text-gray-400 hover:text-white bg-gray-800' 
-                  : 'text-gray-600 hover:text-gray-900 bg-gray-200'
-              }`}
+              className={`transition-colors rounded p-1 ${isDarkMode
+                ? 'text-gray-400 hover:text-white bg-gray-800'
+                : 'text-gray-600 hover:text-gray-900 bg-gray-200'
+                }`}
             >
               <X size={20} />
             </button>
           </div>
           <div className="p-6 h-full overflow-y-auto">
-            <h2 className={`text-xl font-semibold mb-6 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>
+            <h2 className={`text-xl font-semibold mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               SMS Log Details
             </h2>
-            
+
             <div className="space-y-4">
               <div>
-                <h3 className={`text-sm uppercase mb-1 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>Message ID</h3>
+                <h3 className={`text-sm uppercase mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>Message ID</h3>
                 <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
                   {selectedLog.messageId}
                 </p>
               </div>
-              
+
               <div>
                 <h3 className="text-sm text-gray-400 uppercase mb-1">Recipient</h3>
                 <p className="text-white">{selectedLog.recipientNumber}</p>
               </div>
-              
+
               <div>
                 <h3 className="text-sm text-gray-400 uppercase mb-1">Status</h3>
-                <p className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  selectedLog.status === 'Delivered' ? 'bg-green-900 text-green-200' :
+                <p className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${selectedLog.status === 'Delivered' ? 'bg-green-900 text-green-200' :
                   selectedLog.status === 'Failed' ? 'bg-red-900 text-red-200' :
-                  selectedLog.status === 'Pending' ? 'bg-yellow-900 text-yellow-200' :
-                  'bg-blue-900 text-blue-200'
-                }`}>
+                    selectedLog.status === 'Pending' ? 'bg-yellow-900 text-yellow-200' :
+                      'bg-blue-900 text-blue-200'
+                  }`}>
                   {selectedLog.status}
                 </p>
               </div>
-              
+
               <div>
                 <h3 className="text-sm text-gray-400 uppercase mb-1">Sent Date</h3>
                 <p className="text-white">{selectedLog.sentDate}</p>
               </div>
-              
+
               {selectedLog.deliveryDate && (
                 <div>
                   <h3 className="text-sm text-gray-400 uppercase mb-1">Delivery Date</h3>
                   <p className="text-white">{selectedLog.deliveryDate}</p>
                 </div>
               )}
-              
+
               <div>
                 <h3 className="text-sm text-gray-400 uppercase mb-1">Provider</h3>
                 <p className="text-white">{selectedLog.provider}</p>
               </div>
-              
+
               <div>
                 <h3 className="text-sm text-gray-400 uppercase mb-1">Message Type</h3>
                 <p className="text-white">{selectedLog.messageType}</p>
               </div>
-              
+
               {selectedLog.failureReason && (
                 <div>
                   <h3 className="text-sm text-gray-400 uppercase mb-1">Failure Reason</h3>
                   <p className="text-white">{selectedLog.failureReason}</p>
                 </div>
               )}
-              
+
               {selectedLog.cost !== undefined && (
                 <div>
                   <h3 className="text-sm text-gray-400 uppercase mb-1">Cost</h3>
                   <p className="text-white">₱{selectedLog.cost.toFixed(2)}</p>
                 </div>
               )}
-              
+
               {selectedLog.barangay && (
                 <div>
                   <h3 className="text-sm text-gray-400 uppercase mb-1">Barangay</h3>
                   <p className="text-white">{selectedLog.barangay}</p>
                 </div>
               )}
-              
+
               {selectedLog.city && (
                 <div>
                   <h3 className="text-sm text-gray-400 uppercase mb-1">City</h3>

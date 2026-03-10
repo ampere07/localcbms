@@ -783,7 +783,7 @@ const ApplicationVisitPage: React.FC = () => {
                   }`}
                 style={selectedLocation === location.id ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c'
+                  color: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
                 <div className="flex items-center">
@@ -847,7 +847,7 @@ const ApplicationVisitPage: React.FC = () => {
                   }`}
                 style={selectedLocation === location.id ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c'
+                  color: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
                 <div className="flex items-center">
@@ -899,7 +899,7 @@ const ApplicationVisitPage: React.FC = () => {
                     }`}
                   style={selectedLocation === location.id ? {
                     backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                    color: colorPalette?.primary || '#fb923c'
+                    color: colorPalette?.primary || '#7c3aed'
                   } : {}}
                 >
                   <div className="flex items-center">
@@ -1012,7 +1012,7 @@ const ApplicationVisitPage: React.FC = () => {
                                 className={`text-sm px-3 py-1 rounded transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
                                   }`}
                                 style={{
-                                  color: colorPalette?.primary || '#fb923c'
+                                  color: colorPalette?.primary || '#7c3aed'
                                 }}
                               >
                                 Select All
@@ -1022,7 +1022,7 @@ const ApplicationVisitPage: React.FC = () => {
                                 className={`text-sm px-3 py-1 rounded transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
                                   }`}
                                 style={{
-                                  color: colorPalette?.primary || '#fb923c'
+                                  color: colorPalette?.primary || '#7c3aed'
                                 }}
                               >
                                 Deselect All
@@ -1060,7 +1060,7 @@ const ApplicationVisitPage: React.FC = () => {
                                 onClick={handleSelectAllColumns}
                                 className="text-xs transition-colors"
                                 style={{
-                                  color: colorPalette?.primary || '#fb923c'
+                                  color: colorPalette?.primary || '#7c3aed'
                                 }}
                                 onMouseEnter={(e) => {
                                   if (colorPalette?.accent) {
@@ -1080,7 +1080,7 @@ const ApplicationVisitPage: React.FC = () => {
                                 onClick={handleDeselectAllColumns}
                                 className="text-xs transition-colors"
                                 style={{
-                                  color: colorPalette?.primary || '#fb923c'
+                                  color: colorPalette?.primary || '#7c3aed'
                                 }}
                                 onMouseEnter={(e) => {
                                   if (colorPalette?.accent) {
@@ -1295,14 +1295,14 @@ const ApplicationVisitPage: React.FC = () => {
                                     <ArrowDown
                                       className="h-4 w-4"
                                       style={{
-                                        color: colorPalette?.primary || '#fb923c'
+                                        color: colorPalette?.primary || '#7c3aed'
                                       }}
                                     />
                                   ) : (
                                     <ArrowUp
                                       className="h-4 w-4 text-gray-400 transition-colors"
                                       style={{
-                                        color: hoveredColumn === column.key ? (colorPalette?.primary || '#fb923c') : undefined
+                                        color: hoveredColumn === column.key ? (colorPalette?.primary || '#7c3aed') : undefined
                                       }}
                                     />
                                   )}

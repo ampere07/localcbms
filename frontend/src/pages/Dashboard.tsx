@@ -25,6 +25,7 @@ import ApplicationManagement from './ApplicationManagement';
 import Customer from './Customer';
 import BillingListView from './BillingListView';
 import TransactionList from './TransactionList';
+import TransactionsRevert from './TransactionsRevert';
 import PaymentPortal from './PaymentPortal';
 import JobOrder from './JobOrder';
 import WorkOrder from './WorkOrder';
@@ -232,6 +233,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 return (
                     <TransactionList onNavigate={(section, search) => handleSectionChange(section, search)} />
                 );
+            case 'transactions-revert':
+                return <TransactionsRevert />;
             case 'payment-portal':
                 return <PaymentPortal />;
             case 'job-order':

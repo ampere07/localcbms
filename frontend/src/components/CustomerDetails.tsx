@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronRight, Plus, Trash2, Wrench, Edit, ChevronLeft, ChevronRight as ChevronRightNav, Maximize2, X, ExternalLink, Settings, Circle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2, Wrench, Edit, ChevronLeft, ChevronRight as ChevronRightNav, Maximize2, X, ExternalLink, Settings, Circle, CircleArrowRight } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -21,6 +21,8 @@ import InvoiceDetails from './InvoiceDetails';
 import ServiceOrderDetails from './ServiceOrderDetails';
 import PaymentPortalDetails from './PaymentPortalDetails';
 import TransactionListDetails from './TransactionListDetails';
+import LcpNapLocationDetails from './LcpNapLocationDetails';
+import * as lcpnapService from '../services/lcpnapService';
 import { transformServiceOrder } from '../store/serviceOrderStore';
 
 // Fix Leaflet default icon issue
@@ -162,6 +164,78 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       console.error('Error fetching service order details:', error);
     } finally {
       setLoadingServiceOrder(false);
+    }
+  };
+
+  const [selectedLcpNapLocation, setSelectedLcpNapLocation] = useState<any>(null);
+  const [loadingLcpNap, setLoadingLcpNap] = useState(false);
+
+  const handleLcpNapClick = async () => {
+    if (!billingRecord.lcpnap) return;
+
+    const parseCoordinates = (coordString: string): { latitude: number; longitude: number } | null => {
+      if (!coordString) return null;
+      const coords = coordString.split(',').map(c => c.trim());
+      if (coords.length !== 2) return null;
+      const latitude = parseFloat(coords[0]);
+      const longitude = parseFloat(coords[1]);
+      if (isNaN(latitude) || isNaN(longitude)) return null;
+      return { latitude, longitude };
+    };
+
+    try {
+      setLoadingLcpNap(true);
+      console.log('Fetching LCP NAP locations to find match for:', billingRecord.lcpnap);
+
+      // OPTIMIZATION: Try to fetch the specific LCP NAP by name first
+      let response = await lcpnapService.getAllLCPNAPsForMap(false, billingRecord.lcpnap);
+
+      // If none found with SEARCH (maybe name mismatch), try the full list
+      if (!response.success || !response.data || response.data.length === 0) {
+        console.log('Specific LCP NAP search yielded no results, falling back to full list...');
+        response = await lcpnapService.getAllLCPNAPsForMap();
+      }
+
+      if (response.success && response.data) {
+        const target = billingRecord.lcpnap.trim().toLowerCase();
+
+        // Match logic:
+        // 1. Exact match
+        // 2. Normalized match (trim/lowercase)
+        // 3. Partial match (target in name or vice versa)
+        const matchedItem = response.data.find(loc => {
+          const name = loc.lcpnap_name.trim().toLowerCase();
+          return name === target || name.includes(target) || target.includes(name);
+        });
+
+        if (matchedItem) {
+          console.log('Found matching LCP NAP location:', matchedItem);
+
+          // Parse coordinates to provide latitude and longitude required by LcpNapLocationDetails
+          const coords = parseCoordinates(matchedItem.coordinates);
+          const locationWithCoords = {
+            ...matchedItem,
+            latitude: coords?.latitude,
+            longitude: coords?.longitude
+          };
+
+          if (locationWithCoords.latitude === undefined || locationWithCoords.longitude === undefined) {
+            console.warn('Matching location found but coordinates are invalid:', matchedItem.coordinates);
+            alert(`Found location "${matchedItem.lcpnap_name}" but it has invalid coordinates: ${matchedItem.coordinates}`);
+            return;
+          }
+
+          setSelectedLcpNapLocation(locationWithCoords);
+        } else {
+          console.warn('LCP NAP location not found. Available names:', response.data.slice(0, 10).map(l => l.lcpnap_name));
+        }
+      } else {
+        console.error('Failed to fetch LCP NAP locations:', response.message);
+      }
+    } catch (error) {
+      console.error('Error in handleLcpNapClick:', error);
+    } finally {
+      setLoadingLcpNap(false);
     }
   };
 
@@ -785,8 +859,22 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>LCP NAP</span>
-          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.lcpnap}</span>
+          <div className="flex items-center space-x-2">
+            <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.lcpnap}</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleLcpNapClick();
+              }}
+              disabled={loadingLcpNap}
+              className={`p-1 rounded transition-colors ${loadingLcpNap ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'
+                }`}
+              title="View LCP NAP Location Details"
+            >
+              <CircleArrowRight size={18} className={loadingLcpNap ? 'animate-pulse' : ''} />
+            </button>
+          </div>
         </div>
       ) : null,
       lcp: () => billingRecord.lcp ? (
@@ -1128,6 +1216,16 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     }
   ];
 
+  if (selectedLcpNapLocation) {
+    return (
+      <LcpNapLocationDetails
+        location={selectedLcpNapLocation}
+        onClose={() => setSelectedLcpNapLocation(null)}
+        externalWidth={detailsWidth}
+      />
+    );
+  }
+
   if (selectedSOARecord) {
     return (
       <SOADetails
@@ -1215,6 +1313,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
               ? 'text-gray-400 hover:text-white hover:bg-gray-700'
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
               }`}
+            title="Service Order Request"
           >
             <Wrench size={18} />
           </button>
@@ -1224,6 +1323,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
               ? 'text-gray-400 hover:text-white hover:bg-gray-700'
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
               }`}
+            title="Edit Customer Details"
           >
             <Edit size={18} />
           </button>

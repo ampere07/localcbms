@@ -279,18 +279,7 @@ const Invoice: React.FC = () => {
     };
   }, [fetchInvoiceRecords]);
 
-  // Poll for changes every 5 seconds as fallback
-  useEffect(() => {
-    const pollInterval = setInterval(async () => {
-      try {
-        await silentRefresh();
-      } catch (err) {
-        // Silent fail - polling is best-effort
-      }
-    }, 5000);
-
-    return () => clearInterval(pollInterval);
-  }, [silentRefresh]);
+  // Polling removed - Pusher/Soketi handles real-time updates; idle detection handles 15-min refresh
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -369,12 +358,13 @@ const Invoice: React.FC = () => {
   const filteredRecords = useMemo(() => {
     let filtered = invoiceRecords.filter(record => {
       const matchesDate = selectedDate === 'All' || record.invoiceDate === selectedDate;
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
       const checkValue = (val: any): boolean => {
         if (val === null || val === undefined) return false;
         if (typeof val === 'object') {
           return Object.values(val).some(v => checkValue(v));
         }
-        return String(val).toLowerCase().includes(searchQuery.toLowerCase());
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
       };
 
       const matchesSearch = searchQuery === '' || checkValue(record);
@@ -934,10 +924,12 @@ const Invoice: React.FC = () => {
                 } : {}}
               >
                 <span className="text-sm font-medium flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                  </svg>
+                  {item.date !== 'All' && (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                  )}
                   {item.date}
                 </span>
               </button>
@@ -1033,6 +1025,7 @@ const Invoice: React.FC = () => {
                       : 'hover:bg-gray-200 text-gray-900'
                       }`}
                     onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+                    title="Column Visibility"
                   >
                     <Columns3 className="h-5 w-5" />
                   </button>

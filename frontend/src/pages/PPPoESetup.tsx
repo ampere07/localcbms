@@ -5,10 +5,13 @@ import { pppoeService, UsernamePattern, SequenceItem } from '../services/pppoeSe
 
 const usernameComponents = [
   { type: 'first_name', label: 'First Name' },
+  { type: 'first_name_capitalized', label: 'First Name (Capitalized)' },
   { type: 'first_name_initial', label: 'First Name Initial' },
   { type: 'middle_name', label: 'Middle Name' },
+  { type: 'middle_name_capitalized', label: 'Middle Name (Capitalized)' },
   { type: 'middle_name_initial', label: 'Middle Name Initial' },
   { type: 'last_name', label: 'Last Name' },
+  { type: 'last_name_capitalized', label: 'Last Name (Capitalized)' },
   { type: 'last_name_initial', label: 'Last Name Initial' },
   { type: 'mobile_number', label: 'Mobile Number' },
   { type: 'mobile_number_last_4', label: 'Mobile (Last 4)' },
@@ -21,10 +24,13 @@ const usernameComponents = [
 
 const passwordComponents = [
   { type: 'first_name', label: 'First Name' },
+  { type: 'first_name_capitalized', label: 'First Name (Capitalized)' },
   { type: 'first_name_initial', label: 'First Name Initial' },
   { type: 'middle_name', label: 'Middle Name' },
+  { type: 'middle_name_capitalized', label: 'Middle Name (Capitalized)' },
   { type: 'middle_name_initial', label: 'Middle Name Initial' },
   { type: 'last_name', label: 'Last Name' },
+  { type: 'last_name_capitalized', label: 'Last Name (Capitalized)' },
   { type: 'last_name_initial', label: 'Last Name Initial' },
   { type: 'mobile_number', label: 'Mobile Number' },
   { type: 'mobile_number_last_4', label: 'Mobile (Last 4)' },

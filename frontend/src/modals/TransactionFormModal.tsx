@@ -569,7 +569,12 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                 <input
                   type="text"
                   value={`₱ ${formData.receivedPayment}`}
-                  onChange={(e) => handleInputChange('receivedPayment', e.target.value.replace('₱ ', ''))}
+                  onChange={(e) => {
+                    const val = e.target.value.replace('₱ ', '');
+                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                      handleInputChange('receivedPayment', val);
+                    }
+                  }}
                   className={`w-full px-3 py-2 border rounded-l focus:outline-none focus:border-orange-500 ${errors.receivedPayment ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                     } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
                     }`}

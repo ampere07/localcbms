@@ -24,7 +24,7 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
   const [paletteName, setPaletteName] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#f97316');
   const [secondaryColor, setSecondaryColor] = useState('#1f2937');
-  const [accentColor, setAccentColor] = useState('#fb923c');
+  const [accentColor, setAccentColor] = useState('#7c3aed');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -134,7 +134,7 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
     setPaletteName('');
     setPrimaryColor('#f97316');
     setSecondaryColor('#1f2937');
-    setAccentColor('#fb923c');
+    setAccentColor('#7c3aed');
     setErrors({});
     setShowError(false);
     setErrorMessage('');
@@ -150,8 +150,8 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
         <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
           }`}>
           <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
-              ? 'bg-gray-800 border-gray-700'
-              : 'bg-gray-100 border-gray-300'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-gray-100 border-gray-300'
             }`}>
             <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>Add Custom Color Palette</h2>
@@ -160,8 +160,8 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
                 onClick={handleClose}
                 disabled={isLoading}
                 className={`px-4 py-2 rounded text-sm disabled:cursor-not-allowed ${isDarkMode
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white disabled:bg-gray-600'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900 disabled:bg-gray-300'
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white disabled:bg-gray-600'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900 disabled:bg-gray-300'
                   }`}
               >
                 Cancel
@@ -189,8 +189,8 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
                 onClick={handleClose}
                 disabled={isLoading}
                 className={`transition-colors disabled:cursor-not-allowed ${isDarkMode
-                    ? 'text-gray-400 hover:text-white disabled:text-gray-600'
-                    : 'text-gray-600 hover:text-gray-900 disabled:text-gray-400'
+                  ? 'text-gray-400 hover:text-white disabled:text-gray-600'
+                  : 'text-gray-600 hover:text-gray-900 disabled:text-gray-400'
                   }`}
               >
                 <X size={24} />
@@ -201,8 +201,8 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {showError && (
               <div className={`border rounded p-4 flex items-start gap-3 ${isDarkMode
-                  ? 'bg-red-900/20 border-red-500'
-                  : 'bg-red-50 border-red-300'
+                ? 'bg-red-900/20 border-red-500'
+                : 'bg-red-50 border-red-300'
                 }`}>
                 <XCircle className={`h-5 w-5 flex-shrink-0 mt-0.5 ${isDarkMode ? 'text-red-500' : 'text-red-600'
                   }`} />
@@ -269,8 +269,8 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
                     onChange={(e) => setPrimaryColor(e.target.value)}
                     disabled={isLoading}
                     className={`w-16 h-10 border rounded cursor-pointer disabled:cursor-not-allowed ${isDarkMode
-                        ? 'bg-gray-800 border-gray-700'
-                        : 'bg-white border-gray-300'
+                      ? 'bg-gray-800 border-gray-700'
+                      : 'bg-white border-gray-300'
                       }`}
                   />
                 </div>
@@ -311,8 +311,8 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
                     onChange={(e) => setSecondaryColor(e.target.value)}
                     disabled={isLoading}
                     className={`w-16 h-10 border rounded cursor-pointer disabled:cursor-not-allowed ${isDarkMode
-                        ? 'bg-gray-800 border-gray-700'
-                        : 'bg-white border-gray-300'
+                      ? 'bg-gray-800 border-gray-700'
+                      : 'bg-white border-gray-300'
                       }`}
                   />
                 </div>
@@ -337,7 +337,7 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
                         setAccentColor(e.target.value);
                         if (errors.accent) setErrors({ ...errors, accent: '' });
                       }}
-                      placeholder="#fb923c"
+                      placeholder="#7c3aed"
                       disabled={isLoading}
                       className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 disabled:cursor-not-allowed ${errors.accent ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
                         } ${isDarkMode
@@ -353,8 +353,8 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
                     onChange={(e) => setAccentColor(e.target.value)}
                     disabled={isLoading}
                     className={`w-16 h-10 border rounded cursor-pointer disabled:cursor-not-allowed ${isDarkMode
-                        ? 'bg-gray-800 border-gray-700'
-                        : 'bg-white border-gray-300'
+                      ? 'bg-gray-800 border-gray-700'
+                      : 'bg-white border-gray-300'
                       }`}
                   />
                 </div>
@@ -371,8 +371,8 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
               <h3 className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>Preview</h3>
               <div className={`p-4 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700'
-                  : 'bg-gray-50 border-gray-300'
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-gray-50 border-gray-300'
                 }`}>
                 <div className="flex gap-3">
                   <div className="flex-1">

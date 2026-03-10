@@ -81,9 +81,9 @@ export const getAllLCPNAPs = async (search?: string, page: number = 1, limit: nu
   }
 };
 
-export const getAllLCPNAPsForMap = async (forceRefresh: boolean = false): Promise<ApiResponse<LCPNAPMapData[]>> => {
+export const getAllLCPNAPsForMap = async (forceRefresh: boolean = false, search?: string): Promise<ApiResponse<LCPNAPMapData[]>> => {
   try {
-    if (!forceRefresh && mapDataCache) {
+    if (!forceRefresh && mapDataCache && !search) {
       return {
         success: true,
         data: mapDataCache,
@@ -91,8 +91,11 @@ export const getAllLCPNAPsForMap = async (forceRefresh: boolean = false): Promis
       };
     }
 
-    const response = await apiClient.get<ApiResponse<LCPNAPMapData[]>>('/lcp-nap-locations');
-    if (response.data.success) {
+    const params: any = {};
+    if (search) params.search = search;
+
+    const response = await apiClient.get<ApiResponse<LCPNAPMapData[]>>('/lcp-nap-locations', { params });
+    if (response.data.success && !search) {
       mapDataCache = response.data.data;
     }
     return response.data;

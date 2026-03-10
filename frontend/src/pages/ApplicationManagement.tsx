@@ -216,18 +216,7 @@ const ApplicationManagement: React.FC = () => {
     };
   }, [silentRefresh]);
 
-  // Poll for changes every 5 seconds as fallback (catches changes from mobile app, other sources)
-  useEffect(() => {
-    const pollInterval = setInterval(async () => {
-      try {
-        await silentRefresh();
-      } catch (err) {
-        // Silent fail - polling is best-effort
-      }
-    }, 5000);
-
-    return () => clearInterval(pollInterval);
-  }, [silentRefresh]);
+  // Polling removed - Pusher/Soketi handles real-time updates; idle detection handles 15-min refresh
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -331,12 +320,13 @@ const ApplicationManagement: React.FC = () => {
         }
       }
 
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
       const checkValue = (val: any): boolean => {
         if (val === null || val === undefined) return false;
         if (typeof val === 'object') {
           return Object.values(val).some(v => checkValue(v));
         }
-        return String(val).toLowerCase().includes(searchQuery.toLowerCase());
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
       };
 
       const matchesSearch = searchQuery === '' || checkValue(application);
@@ -816,11 +806,10 @@ const ApplicationManagement: React.FC = () => {
               }`}
             style={selectedLocation === 'all' ? {
               backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-              color: colorPalette?.primary || '#fb923c'
+              color: colorPalette?.primary || '#7c3aed'
             } : {}}
           >
             <div className="flex items-center">
-              <FileText className="h-4 w-4 mr-2" />
               <span>All Applications</span>
             </div>
             <span
@@ -860,7 +849,7 @@ const ApplicationManagement: React.FC = () => {
                   }`}
                 style={isSelected ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c'
+                  color: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
                 <div className="flex items-center flex-1">
@@ -924,7 +913,7 @@ const ApplicationManagement: React.FC = () => {
                 className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === 'all' ? '' : 'text-gray-300'}`}
                 style={selectedLocation === 'all' ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c'
+                  color: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
                 <div className="flex items-center">
@@ -962,7 +951,7 @@ const ApplicationManagement: React.FC = () => {
                     className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isSelected ? '' : 'text-gray-300'}`}
                     style={isSelected ? {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                      color: colorPalette?.primary || '#fb923c'
+                      color: colorPalette?.primary || '#7c3aed'
                     } : {}}
                   >
                     <div className="flex items-center">
@@ -1325,10 +1314,10 @@ const ApplicationManagement: React.FC = () => {
                                     className="ml-2 transition-colors"
                                   >
                                     {sortColumn === column.key && sortDirection === 'desc' ? (
-                                      <ArrowDown className="h-4 w-4" style={{ color: colorPalette?.primary || '#fb923c' }} />
+                                      <ArrowDown className="h-4 w-4" style={{ color: colorPalette?.primary || '#7c3aed' }} />
                                     ) : (
                                       <ArrowUp className="h-4 w-4 text-gray-400" style={{
-                                        color: sortColumn === column.key ? (colorPalette?.primary || '#fb923c') : undefined
+                                        color: sortColumn === column.key ? (colorPalette?.primary || '#7c3aed') : undefined
                                       }} />
                                     )}
                                   </button>
@@ -1475,7 +1464,7 @@ const ApplicationManagement: React.FC = () => {
             className={`flex-shrink-0 flex flex-col items-center justify-center px-4 py-2 text-xs transition-colors ${selectedLocation === 'all' ? '' : 'text-gray-300'}`}
             style={selectedLocation === 'all' ? {
               backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-              color: colorPalette?.primary || '#fb923c'
+              color: colorPalette?.primary || '#7c3aed'
             } : {}}
           >
             <FileText className="h-5 w-5 mb-1" />
@@ -1503,7 +1492,7 @@ const ApplicationManagement: React.FC = () => {
                 className={`flex-shrink-0 flex flex-col items-center justify-center px-4 py-2 text-xs transition-colors ${selectedLocation === status.id ? '' : 'text-gray-300'}`}
                 style={selectedLocation === status.id ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c'
+                  color: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
                 <div className={`h-2.5 w-2.5 rounded-full mb-1 ${getStatusColor(statusValue).replace('text-', 'bg-')}`} />

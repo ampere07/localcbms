@@ -1,7 +1,7 @@
 import { Layout } from 'react-grid-layout';
 
 export type ViewType = 'bar' | 'line' | 'pie' | 'doughnut' | 'list' | 'grid' | 'table';
-export type ScopeType = 'overall' | 'today' | 'custom';
+export type ScopeType = 'overall' | 'today' | 'weekly' | 'monthly' | 'yearly' | 'custom';
 
 export interface WidgetData {
   label: string;
@@ -221,7 +221,7 @@ export const WIDGETS: Record<string, WidgetConfig> = {
     filterType: 'date',
   },
   pay_method_mon: {
-    title: 'Payment Methods',
+    title: 'Payment Methods(Manual Transactions)',
     api: 'pay_method_mon',
     param: '',
     w: 4,
@@ -255,6 +255,14 @@ export const WIDGETS: Record<string, WidgetConfig> = {
   team_detailed_queue: {
     title: 'Team Detailed Queue',
     api: 'team_detailed_queue',
+    param: '',
+    w: 12, // Full width table
+    hasFilters: false,
+    filterType: 'none',
+  },
+  agent_detailed_queue: {
+    title: 'Agent Detailed Queue',
+    api: 'agent_detailed_queue',
     param: '',
     w: 12, // Full width table
     hasFilters: false,

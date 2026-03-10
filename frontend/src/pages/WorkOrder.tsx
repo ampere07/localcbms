@@ -78,7 +78,16 @@ const WorkOrderPage: React.FC = () => {
 
   // Real-time updates via Pusher/Soketi
   useEffect(() => {
+    let lastRefreshTime = 0;
+    const DEBOUNCE_MS = 10000; // Minimum 10s between Pusher-triggered refreshes
+
     const handleUpdate = async (data: any) => {
+      const now = Date.now();
+      if (now - lastRefreshTime < DEBOUNCE_MS) {
+        console.log('[WorkOrder Soketi] Skipping refresh (debounce)');
+        return;
+      }
+      lastRefreshTime = now;
       console.log('[WorkOrder Soketi] Update received, refreshing:', data);
       try {
         await fetchWorkOrders(1, 1000, '', '');
@@ -115,19 +124,6 @@ const WorkOrderPage: React.FC = () => {
       pusher.connection.unbind('state_change', stateHandler);
       pusher.unsubscribe('work-orders');
     };
-  }, [fetchWorkOrders]);
-
-  // Poll for changes every 5 seconds as fallback
-  useEffect(() => {
-    const pollInterval = setInterval(async () => {
-      try {
-        await fetchWorkOrders(1, 1000, '', '');
-      } catch (err) {
-        // Silent fail - polling is best-effort
-      }
-    }, 5000);
-
-    return () => clearInterval(pollInterval);
   }, [fetchWorkOrders]);
 
 
@@ -203,13 +199,20 @@ const WorkOrderPage: React.FC = () => {
 
     if (!searchQuery) return filtered;
 
-    const lowerQuery = searchQuery.toLowerCase();
-    return filtered.filter(wo =>
-      (wo.instructions || '').toLowerCase().includes(lowerQuery) ||
-      (wo.report_to || '').toLowerCase().includes(lowerQuery) ||
-      (wo.assign_to || '').toLowerCase().includes(lowerQuery) ||
-      (wo.requested_by || '').toLowerCase().includes(lowerQuery)
-    );
+    const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
+    return filtered.filter(wo => {
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
+      };
+
+      return (
+        checkValue(wo.instructions) ||
+        checkValue(wo.report_to) ||
+        checkValue(wo.assign_to) ||
+        checkValue(wo.requested_by)
+      );
+    });
   }, [workOrders, userRole, userEmail, userName, searchQuery]);
 
   useEffect(() => {

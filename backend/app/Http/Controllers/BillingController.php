@@ -34,7 +34,9 @@ class BillingController extends Controller
                 ->get()
                 ->pluck('total', 'account_id');
 
-            $query = BillingAccount::with(['customer.group', 'technicalDetails', 'onlineStatus', 'billingStatus']);
+            $query = BillingAccount::with(['customer.group', 'technicalDetails', 'onlineStatus', 'billingStatus'])
+                ->orderBy('created_at', 'desc')
+                ->orderBy('id', 'desc');
 
             // Support incremental refresh: only return records updated since a given timestamp
             $updatedSince = $request->get('updated_since');

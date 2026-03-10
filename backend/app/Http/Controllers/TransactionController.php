@@ -19,7 +19,7 @@ class TransactionController extends Controller
             $limit = request()->input('limit');
             $offset = request()->input('offset');
 
-            $query = Transaction::with(['account.customer', 'account.technicalDetails', 'processor', 'paymentMethodInfo'])
+            $query = Transaction::with(['account.customer', 'account.technicalDetails', 'processor', 'paymentMethodInfo', 'revert_request'])
                 ->orderBy('created_at', 'desc')
                 ->orderBy('id', 'desc');
 
@@ -196,7 +196,7 @@ class TransactionController extends Controller
     public function show(string $id): JsonResponse
     {
         try {
-            $transaction = Transaction::with(['account.customer', 'account.technicalDetails', 'processor', 'paymentMethodInfo'])
+            $transaction = Transaction::with(['account.customer', 'account.technicalDetails', 'processor', 'paymentMethodInfo', 'revert_request'])
                 ->findOrFail($id);
 
             return response()->json([

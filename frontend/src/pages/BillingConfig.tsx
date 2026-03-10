@@ -421,7 +421,7 @@ const BillingConfig: React.FC = () => {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)'
                     }}>
                     <Hash className="h-5 w-5" style={{
-                      color: colorPalette?.primary || '#fb923c'
+                      color: colorPalette?.primary || '#7c3aed'
                     }} />
                   </div>
                   <div>

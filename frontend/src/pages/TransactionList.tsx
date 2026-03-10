@@ -227,18 +227,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     };
   }, [silentRefresh]);
 
-  // Poll for changes every 5 seconds as fallback
-  useEffect(() => {
-    const pollInterval = setInterval(async () => {
-      try {
-        await silentRefresh();
-      } catch (err) {
-        // Silent fail - polling is best-effort
-      }
-    }, 5000);
-
-    return () => clearInterval(pollInterval);
-  }, [silentRefresh]);
+  // Polling removed - Pusher/Soketi handles real-time updates; idle detection handles 15-min refresh
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -408,12 +397,13 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
         }
       }
 
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
       const checkValue = (val: any): boolean => {
         if (val === null || val === undefined) return false;
         if (typeof val === 'object') {
           return Object.values(val).some(v => checkValue(v));
         }
-        return String(val).toLowerCase().includes(searchQuery.toLowerCase());
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
       };
 
       const matchesSearch = searchQuery === '' || checkValue(transaction);
@@ -822,11 +812,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
               }`}
             style={selectedLocation === 'all' ? {
               backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-              color: colorPalette?.primary || '#fb923c'
+              color: colorPalette?.primary || '#7c3aed'
             } : {}}
           >
             <div className="flex items-center">
-              <Receipt className="h-4 w-4 mr-2" />
               <span>All Transactions</span>
             </div>
             <span
@@ -854,7 +843,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                   }`}
                 style={selectedLocation === region.id ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c'
+                  color: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
                 <div className="flex items-center flex-1">
@@ -898,7 +887,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                       }`}
                     style={selectedLocation === city.id ? {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
-                      color: colorPalette?.primary || '#fb923c'
+                      color: colorPalette?.primary || '#7c3aed'
                     } : {}}
                   >
                     <div className="flex items-center flex-1">
@@ -930,7 +919,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                           : isDarkMode ? 'text-gray-500' : 'text-gray-500'
                         }`}
                       style={selectedLocation === barangay.id ? {
-                        color: colorPalette?.primary || '#fb923c',
+                        color: colorPalette?.primary || '#7c3aed',
                         fontWeight: 'bold'
                       } : {}}
                     >
@@ -1310,7 +1299,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                 className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
                 style={selectedLocation === 'all' ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c',
+                  color: colorPalette?.primary || '#7c3aed',
                   fontWeight: 500
                 } : {
                   color: isDarkMode ? '#d1d5db' : '#374151'
@@ -1336,7 +1325,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                     className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === region.id ? '' : 'text-gray-300'}`}
                     style={selectedLocation === region.id ? {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                      color: colorPalette?.primary || '#fb923c',
+                      color: colorPalette?.primary || '#7c3aed',
                       fontWeight: 500
                     } : {}}
                   >
@@ -1372,7 +1361,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                         className={`w-full flex items-center justify-between pl-10 pr-4 py-2 text-sm transition-colors ${selectedLocation === city.id ? '' : 'text-gray-400'}`}
                         style={selectedLocation === city.id ? {
                           backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
-                          color: colorPalette?.primary || '#fb923c'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {}}
                       >
                         <div className="flex items-center flex-1">
@@ -1403,7 +1392,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                           }}
                           className={`w-full flex items-center justify-between pl-16 pr-4 py-1.5 text-xs transition-colors ${selectedLocation === barangay.id ? '' : 'text-gray-500'}`}
                           style={selectedLocation === barangay.id ? {
-                            color: colorPalette?.primary || '#fb923c',
+                            color: colorPalette?.primary || '#7c3aed',
                             fontWeight: 'bold'
                           } : {}}
                         >

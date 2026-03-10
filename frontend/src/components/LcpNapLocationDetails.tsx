@@ -53,14 +53,16 @@ interface LcpNapLocationDetailsProps {
   location: LocationMarker;
   onClose: () => void;
   isMobile?: boolean;
+  externalWidth?: number;
 }
 
 const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
   location,
   onClose,
-  isMobile = false
+  isMobile = false,
+  externalWidth
 }) => {
-  const [detailsWidth, setDetailsWidth] = useState<number>(600);
+  const [detailsWidth, setDetailsWidth] = useState<number>(externalWidth || 600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
@@ -371,33 +373,41 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
                 Coordinates:
               </div>
 
-              <div className={`w-full h-64 border rounded overflow-hidden relative ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} style={{ zIndex: 1 }}>
-                <MapContainer
-                  center={[location.latitude, location.longitude]}
-                  zoom={16}
-                  minZoom={6}
-                  maxBounds={L.latLngBounds([4.3, 114.0], [21.5, 127.5])}
-                  maxBoundsViscosity={1.0}
-                  style={{ height: '100%', width: '100%', zIndex: 1 }}
-                  scrollWheelZoom={false}
-                >
-                  <MapUpdater center={[location.latitude, location.longitude]} />
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
-                  <Marker position={[location.latitude, location.longitude]}>
-                    <Popup>
-                      <strong>{location.lcpnap_name}</strong><br />
-                      {location.street && <span>{location.street}<br /></span>}
-                      {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
-                    </Popup>
-                  </Marker>
-                </MapContainer>
-              </div>
+              {location.latitude !== undefined && location.longitude !== undefined ? (
+                <div className={`w-full h-64 border rounded overflow-hidden relative ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} style={{ zIndex: 1 }}>
+                  <MapContainer
+                    center={[location.latitude, location.longitude]}
+                    zoom={16}
+                    minZoom={6}
+                    maxBounds={L.latLngBounds([4.3, 114.0], [21.5, 127.5])}
+                    maxBoundsViscosity={1.0}
+                    style={{ height: '100%', width: '100%', zIndex: 1 }}
+                    scrollWheelZoom={false}
+                  >
+                    <MapUpdater center={[location.latitude, location.longitude]} />
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker position={[location.latitude, location.longitude]}>
+                      <Popup>
+                        <strong>{location.lcpnap_name}</strong><br />
+                        {location.street && <span>{location.street}<br /></span>}
+                        {location.latitude?.toFixed(6) || 'N/A'}, {location.longitude?.toFixed(6) || 'N/A'}
+                      </Popup>
+                    </Marker>
+                  </MapContainer>
+                </div>
+              ) : (
+                <div className={`w-full h-64 border rounded flex items-center justify-center ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-300'}`}>
+                  <span className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    No valid coordinates available for this location.
+                  </span>
+                </div>
+              )}
 
               <div className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                long and lat : {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                long and lat : {location.latitude?.toFixed(6) || 'N/A'}, {location.longitude?.toFixed(6) || 'N/A'}
               </div>
             </div>
 

@@ -319,10 +319,11 @@ const Discounts: React.FC = () => {
         }
       }
 
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
       const matchesSearch = searchQuery === '' ||
-        record.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.accountNo.includes(searchQuery);
+        record.fullName.toLowerCase().replace(/\s+/g, '').includes(normalizedQuery) ||
+        record.address.toLowerCase().replace(/\s+/g, '').includes(normalizedQuery) ||
+        record.accountNo.replace(/\s+/g, '').includes(normalizedQuery);
 
       return matchesLocation && matchesSearch;
     });
@@ -563,7 +564,6 @@ const Discounts: React.FC = () => {
             } : {}}
           >
             <div className="flex items-center">
-              <Tag className="h-4 w-4 mr-2" />
               <span>All Discounts</span>
             </div>
             <span

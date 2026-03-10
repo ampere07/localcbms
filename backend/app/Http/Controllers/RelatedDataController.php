@@ -1160,5 +1160,108 @@ class RelatedDataController extends Controller
             ], 500);
         }
     }
+
+    public function getCustomerLookupData(): JsonResponse
+    {
+        try {
+            $lcpNames = DB::table('lcp')->pluck('lcp_name')->sort()->values();
+            $napNames = DB::table('nap')->pluck('nap_name')->sort()->values();
+
+            $ports = DB::table('technical_details')
+                ->whereNotNull('port')
+                ->where('port', '!=', '')
+                ->distinct()
+                ->pluck('port')
+                ->sort()
+                ->values();
+
+            $vlans = DB::table('technical_details')
+                ->whereNotNull('vlan')
+                ->where('vlan', '!=', '')
+                ->distinct()
+                ->pluck('vlan')
+                ->sort()
+                ->values();
+
+            $lcpnaps = DB::table('technical_details')
+                ->whereNotNull('lcpnap')
+                ->where('lcpnap', '!=', '')
+                ->distinct()
+                ->pluck('lcpnap')
+                ->sort()
+                ->values();
+
+            $routerModels = DB::table('technical_details')
+                ->whereNotNull('router_model')
+                ->where('router_model', '!=', '')
+                ->distinct()
+                ->pluck('router_model')
+                ->sort()
+                ->values();
+
+            $usageTypes = DB::table('technical_details')
+                ->whereNotNull('usage_type')
+                ->where('usage_type', '!=', '')
+                ->distinct()
+                ->pluck('usage_type')
+                ->sort()
+                ->values();
+
+            $connectionTypes = DB::table('technical_details')
+                ->whereNotNull('connection_type')
+                ->where('connection_type', '!=', '')
+                ->distinct()
+                ->pluck('connection_type')
+                ->sort()
+                ->values();
+
+            $usernameStatuses = DB::table('technical_details')
+                ->whereNotNull('username_status')
+                ->where('username_status', '!=', '')
+                ->distinct()
+                ->pluck('username_status')
+                ->sort()
+                ->values();
+
+            $groupNames = DB::table('customers')
+                ->whereNotNull('group_name')
+                ->where('group_name', '!=', '')
+                ->distinct()
+                ->pluck('group_name')
+                ->sort()
+                ->values();
+
+            // Try to get billing statuses, if table exists
+            $billingStatuses = [];
+            try {
+                $billingStatuses = DB::table('billing_status')->select('id', 'status_name as name')->get();
+            } catch (\Exception $e) {
+                // Ignore if table doesn't exist
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'lcp_names' => $lcpNames,
+                    'nap_names' => $napNames,
+                    'ports' => $ports,
+                    'vlans' => $vlans,
+                    'lcpnaps' => $lcpnaps,
+                    'router_models' => $routerModels,
+                    'usage_types' => $usageTypes,
+                    'connection_types' => $connectionTypes,
+                    'username_statuses' => $usernameStatuses,
+                    'group_names' => $groupNames,
+                    'billing_statuses' => $billingStatuses
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch customer lookup data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
 

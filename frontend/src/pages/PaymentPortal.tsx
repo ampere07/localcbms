@@ -217,18 +217,7 @@ const PaymentPortal: React.FC = () => {
     };
   }, [fetchPaymentPortalRecords]);
 
-  // Poll for changes every 5 seconds as fallback
-  useEffect(() => {
-    const pollInterval = setInterval(async () => {
-      try {
-        await silentRefresh();
-      } catch (err) {
-        // Silent fail - polling is best-effort
-      }
-    }, 5000);
-
-    return () => clearInterval(pollInterval);
-  }, [silentRefresh]);
+  // Polling removed - Pusher/Soketi handles real-time updates; idle detection handles 15-min refresh
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -372,12 +361,13 @@ const PaymentPortal: React.FC = () => {
         }
       }
 
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
       const checkValue = (val: any): boolean => {
         if (val === null || val === undefined) return false;
         if (typeof val === 'object') {
           return Object.values(val).some(v => checkValue(v));
         }
-        return String(val).toLowerCase().includes(searchQuery.toLowerCase());
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
       };
 
       const matchesSearch = searchQuery === '' || checkValue(record);
@@ -628,7 +618,6 @@ const PaymentPortal: React.FC = () => {
             } : {}}
           >
             <div className="flex items-center">
-              <Globe className="h-4 w-4 mr-2" />
               <span>All Records</span>
             </div>
             <span

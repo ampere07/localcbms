@@ -1610,6 +1610,7 @@ Route::prefix('lcpnap')->group(function () {
     Route::post('/', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'store']);
     Route::get('/statistics', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'getStatistics']);
     Route::get('/{id}', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'show']);
+    Route::get('/{id}/related-customers', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'getRelatedCustomers']);
     Route::put('/{id}', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'update']);
     Route::delete('/{id}', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'destroy']);
 });
@@ -2157,6 +2158,14 @@ Route::prefix('transactions')->group(function () {
     Route::post('/{id}/revert', [\App\Http\Controllers\TransactionController::class, 'revert']);
     Route::put('/{id}/status', [\App\Http\Controllers\TransactionController::class, 'updateStatus']);
     Route::delete('/{id}', [\App\Http\Controllers\TransactionController::class, 'destroy']);
+});
+
+// Transaction Revert Request Routes (Super Admin only)
+Route::prefix('transaction-reverts')->group(function () {
+    Route::get('/', [\App\Http\Controllers\TransactionRevertController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\TransactionRevertController::class, 'store']);
+    Route::get('/{id}', [\App\Http\Controllers\TransactionRevertController::class, 'show']);
+    Route::put('/{id}/status', [\App\Http\Controllers\TransactionRevertController::class, 'updateStatus']);
 });
 
 // Rebates endpoint for frontend
@@ -3064,6 +3073,7 @@ Route::get('/lookup/customer-locations', [RelatedDataController::class, 'getDist
 Route::get('/lookup/payment-portal', [RelatedDataController::class, 'getPaymentPortalLookupData']);
 Route::get('/lookup/job-orders', [RelatedDataController::class, 'getJobOrderLookupData']);
 Route::get('/lookup/service-orders', [RelatedDataController::class, 'getServiceOrderLookupData']);
+Route::get('/lookup/customers', [RelatedDataController::class, 'getCustomerLookupData']);
 Route::get('/transactions/{id}/details', [RelatedDataController::class, 'getTransactionById']);
 
 Route::get('/invoices/by-account/{accountNo}', [RelatedDataController::class, 'getInvoicesByAccount']);

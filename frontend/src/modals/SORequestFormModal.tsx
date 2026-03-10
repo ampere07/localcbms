@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, ChevronDown, CheckCircle, Loader2 } from 'lucide-react';
 import * as serviceOrderService from '../services/serviceOrderService';
 import * as concernService from '../services/concernService';
@@ -114,8 +114,12 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
     fetchColorPalette();
   }, []);
 
+  const wasOpenRef = useRef(false);
+
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !wasOpenRef.current) {
+      // Only initialize when transitioning from closed -> open
+      wasOpenRef.current = true;
       setFormData({
         ticketId: generateTicketId(),
         accountNo: customerData?.accountNo || '',
@@ -123,7 +127,6 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
         fullName: customerData?.fullName || '',
         contactNumber: customerData?.contactNumber || '',
         plan: customerData?.plan || '',
-
         username: customerData?.username || '',
         accountEmail: customerData?.emailAddress || '',
         concern: '',
@@ -132,7 +135,13 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
       });
       loadData();
     }
-  }, [isOpen, customerData]);
+
+    if (!isOpen) {
+      // Reset the flag when modal closes so next open triggers initialization again
+      wasOpenRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const loadData = async () => {
     try {

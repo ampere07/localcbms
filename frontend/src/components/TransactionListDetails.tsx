@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft, ArrowRight, Maximize2, X, Phone, MessageSquare, Info,
-  ExternalLink, Mail, Edit, Trash2, Receipt, RefreshCw, CheckCircle,
+  ExternalLink, Mail, Edit, Trash2, Receipt, CheckCircle,
   ChevronDown, ChevronRight
 } from 'lucide-react';
 import { transactionService } from '../services/transactionService';
@@ -11,6 +11,7 @@ import { settingsColorPaletteService, ColorPalette } from '../services/settingsC
 import RelatedDataTable from './RelatedDataTable';
 import { relatedDataColumns } from '../config/relatedDataColumns';
 import { useBillingStore } from '../store/billingStore';
+import TransactionRevertModal from '../modals/TransactionRevertModal';
 
 interface Transaction {
   id: string;
@@ -53,6 +54,10 @@ interface Transaction {
     email_address: string;
     full_name: string;
   };
+  revert_request?: {
+    id: number;
+    status: string;
+  };
 }
 
 interface TransactionListDetailsProps {
@@ -71,6 +76,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showRevertModal, setShowRevertModal] = useState(false);
+  const [showRevertRequestModal, setShowRevertRequestModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
@@ -214,6 +220,10 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
 
   const handleRevertTransaction = () => {
     setShowRevertModal(true);
+  };
+
+  const handleRevertRequest = () => {
+    setShowRevertRequestModal(true);
   };
 
   const handleDeleteTransaction = () => {
@@ -467,20 +477,30 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                 <span>{loading ? 'Approving...' : 'Approve'}</span>
               </button>
             )}
-            {(transaction.status || '').toLowerCase() === 'done' &&
-              (String(userRole?.role_id) === '7' || userRole?.role === 'SuperAdmin') && (
-                <button
-                  onClick={handleRevertTransaction}
-                  disabled={loading}
-                  className="flex items-center space-x-2 text-white px-3 py-1.5 rounded text-sm transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
-                  style={{
-                    backgroundColor: loading ? '#4b5563' : '#ef4444' // Red for revert
-                  }}
-                >
-                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                  <span>{loading ? 'Reverting...' : 'Revert'}</span>
-                </button>
-              )}
+            {(transaction.status || '').toLowerCase() === 'done' && !transaction.revert_request && (
+              <button
+                onClick={handleRevertRequest}
+                disabled={loading}
+                className="flex items-center space-x-2 text-white px-3 py-1.5 rounded text-sm transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#f59e0b')
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading && colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  } else if (!loading) {
+                    e.currentTarget.style.backgroundColor = '#d97706';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#f59e0b';
+                  }
+                }}
+              >
+                <span>Revert Request</span>
+              </button>
+            )}
             {(transaction.status || '').toLowerCase() === 'pending' &&
               (String(userRole?.role_id) === '7' || userRole?.role === 'SuperAdmin') && (
                 <button
@@ -821,6 +841,16 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
           </div>
         </div>
       )}
+
+      <TransactionRevertModal
+        isOpen={showRevertRequestModal}
+        onClose={() => setShowRevertRequestModal(false)}
+        transactionId={transaction.id}
+        onSuccess={() => {
+          setShowRevertRequestModal(false);
+          if (onApprovalSuccess) onApprovalSuccess();
+        }}
+      />
     </>
   );
 };

@@ -97,14 +97,21 @@ const SMSBlast: React.FC = () => {
 
     // Filter by search query
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(record =>
-        record.message.toLowerCase().includes(query) ||
-        record.modifiedEmail.toLowerCase().includes(query) ||
-        record.userEmail.toLowerCase().includes(query) ||
-        record.barangay.toLowerCase().includes(query) ||
-        record.city.toLowerCase().includes(query)
-      );
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
+      filtered = filtered.filter(record => {
+        const checkValue = (val: any): boolean => {
+          if (val === null || val === undefined) return false;
+          return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
+        };
+
+        return (
+          checkValue(record.message) ||
+          checkValue(record.modifiedEmail) ||
+          checkValue(record.userEmail) ||
+          checkValue(record.barangay) ||
+          checkValue(record.city)
+        );
+      });
     }
 
     setFilteredRecords(filtered);
@@ -202,10 +209,7 @@ const SMSBlast: React.FC = () => {
               <Plus size={18} />
               <span>Add</span>
             </button>
-            <button className={`p-2 rounded ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300'
-              }`}>
-              <Filter size={18} className={isDarkMode ? 'text-white' : 'text-gray-900'} />
-            </button>
+
           </div>
         </div>
 

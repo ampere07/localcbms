@@ -289,8 +289,8 @@ const SmsConfig: React.FC = () => {
           <>
             {smsConfigs.map((config) => (
               <div key={config.id} className={`rounded p-4 border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700'
-                  : 'bg-white border-gray-300'
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-gray-300'
                 }`}>
                 {editingId === config.id ? (
                   <div className="space-y-3">
@@ -308,8 +308,8 @@ const SmsConfig: React.FC = () => {
                           onChange={(e) => handleInputChange('code', e.target.value)}
                           placeholder="Enter API code"
                           className={`w-full px-3 py-1.5 text-sm border rounded focus:outline-none ${isDarkMode
-                              ? 'bg-gray-700 border-gray-600 text-white'
-                              : 'bg-white border-gray-300 text-gray-900'
+                            ? 'bg-gray-700 border-gray-600 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
                             }`}
                           onFocus={(e) => {
                             if (colorPalette?.primary) {
@@ -335,8 +335,8 @@ const SmsConfig: React.FC = () => {
                           onChange={(e) => handleInputChange('email', e.target.value)}
                           placeholder="Enter email"
                           className={`w-full px-3 py-1.5 text-sm border rounded focus:outline-none ${isDarkMode
-                              ? 'bg-gray-700 border-gray-600 text-white'
-                              : 'bg-white border-gray-300 text-gray-900'
+                            ? 'bg-gray-700 border-gray-600 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
                             }`}
                           onFocus={(e) => {
                             if (colorPalette?.primary) {
@@ -363,8 +363,8 @@ const SmsConfig: React.FC = () => {
                             onChange={(e) => handleInputChange('password', e.target.value)}
                             placeholder="Enter password"
                             className={`w-full px-3 py-1.5 text-sm border rounded focus:outline-none ${isDarkMode
-                                ? 'bg-gray-700 border-gray-600 text-white'
-                                : 'bg-white border-gray-300 text-gray-900'
+                              ? 'bg-gray-700 border-gray-600 text-white'
+                              : 'bg-white border-gray-300 text-gray-900'
                               }`}
                             onFocus={(e) => {
                               if (colorPalette?.primary) {
@@ -382,8 +382,8 @@ const SmsConfig: React.FC = () => {
                             type="button"
                             onClick={() => togglePasswordVisibility(config.id)}
                             className={`absolute right-2 top-1/2 transform -translate-y-1/2 text-xs ${isDarkMode
-                                ? 'text-gray-400 hover:text-gray-300'
-                                : 'text-gray-600 hover:text-gray-800'
+                              ? 'text-gray-400 hover:text-gray-300'
+                              : 'text-gray-600 hover:text-gray-800'
                               }`}
                           >
                             {showPassword[config.id] ? 'Hide' : 'Show'}
@@ -401,8 +401,8 @@ const SmsConfig: React.FC = () => {
                           onChange={(e) => handleInputChange('sender', e.target.value)}
                           placeholder="Enter sender name"
                           className={`w-full px-3 py-1.5 text-sm border rounded focus:outline-none ${isDarkMode
-                              ? 'bg-gray-700 border-gray-600 text-white'
-                              : 'bg-white border-gray-300 text-gray-900'
+                            ? 'bg-gray-700 border-gray-600 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
                             }`}
                           onFocus={(e) => {
                             if (colorPalette?.primary) {
@@ -444,8 +444,8 @@ const SmsConfig: React.FC = () => {
                         onClick={handleCancel}
                         disabled={loading}
                         className={`px-3 py-1.5 text-sm disabled:opacity-50 rounded transition-colors ${isDarkMode
-                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                           }`}
                       >
                         Cancel
@@ -461,8 +461,8 @@ const SmsConfig: React.FC = () => {
                         <button
                           onClick={() => handleStartEdit(config)}
                           className={`px-3 py-1 text-sm rounded transition-colors ${isDarkMode
-                              ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900'
-                              : 'text-blue-600 hover:text-blue-700 hover:bg-blue-100'
+                            ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900'
+                            : 'text-blue-600 hover:text-blue-700 hover:bg-blue-100'
                             }`}
                         >
                           Edit
@@ -470,8 +470,8 @@ const SmsConfig: React.FC = () => {
                         <button
                           onClick={() => handleDelete(config.id)}
                           className={`px-3 py-1 text-sm rounded transition-colors ${isDarkMode
-                              ? 'text-red-400 hover:text-red-300 hover:bg-red-900'
-                              : 'text-red-600 hover:text-red-700 hover:bg-red-100'
+                            ? 'text-red-400 hover:text-red-300 hover:bg-red-900'
+                            : 'text-red-600 hover:text-red-700 hover:bg-red-100'
                             }`}
                         >
                           Delete
@@ -512,7 +512,7 @@ const SmsConfig: React.FC = () => {
                           onClick={() => togglePasswordVisibility(config.id)}
                           className="text-xs"
                           style={{
-                            color: colorPalette?.primary || (isDarkMode ? '#fb923c' : '#7c3aed')
+                            color: colorPalette?.primary || (isDarkMode ? '#7c3aed' : '#7c3aed')
                           }}
                           onMouseEnter={(e) => {
                             if (colorPalette?.accent) {
@@ -520,7 +520,7 @@ const SmsConfig: React.FC = () => {
                             }
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.color = colorPalette?.primary || (isDarkMode ? '#fb923c' : '#7c3aed');
+                            e.currentTarget.style.color = colorPalette?.primary || (isDarkMode ? '#7c3aed' : '#7c3aed');
                           }}
                         >
                           {showPassword[config.id] ? 'Hide' : 'Show'}
@@ -541,8 +541,8 @@ const SmsConfig: React.FC = () => {
 
             {isCreating && (
               <div className={`rounded p-4 border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700'
-                  : 'bg-white border-gray-300'
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-gray-300'
                 }`}>
                 <h3 className={`text-base font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}>Create New Configuration</h3>
@@ -559,8 +559,8 @@ const SmsConfig: React.FC = () => {
                         onChange={(e) => handleInputChange('code', e.target.value)}
                         placeholder="Enter API code"
                         className={`w-full px-3 py-1.5 text-sm border rounded focus:outline-none ${isDarkMode
-                            ? 'bg-gray-700 border-gray-600 text-white'
-                            : 'bg-white border-gray-300 text-gray-900'
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
                           }`}
                         onFocus={(e) => {
                           if (colorPalette?.primary) {
@@ -587,8 +587,8 @@ const SmsConfig: React.FC = () => {
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         placeholder="Enter email"
                         className={`w-full px-3 py-1.5 text-sm border rounded focus:outline-none ${isDarkMode
-                            ? 'bg-gray-700 border-gray-600 text-white'
-                            : 'bg-white border-gray-300 text-gray-900'
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
                           }`}
                         onFocus={(e) => {
                           if (colorPalette?.primary) {
@@ -616,8 +616,8 @@ const SmsConfig: React.FC = () => {
                           onChange={(e) => handleInputChange('password', e.target.value)}
                           placeholder="Enter password"
                           className={`w-full px-3 py-1.5 text-sm border rounded focus:outline-none ${isDarkMode
-                              ? 'bg-gray-700 border-gray-600 text-white'
-                              : 'bg-white border-gray-300 text-gray-900'
+                            ? 'bg-gray-700 border-gray-600 text-white'
+                            : 'bg-white border-gray-300 text-gray-900'
                             }`}
                           onFocus={(e) => {
                             if (colorPalette?.primary) {
@@ -635,8 +635,8 @@ const SmsConfig: React.FC = () => {
                           type="button"
                           onClick={() => togglePasswordVisibility(0)}
                           className={`absolute right-2 top-1/2 transform -translate-y-1/2 text-xs ${isDarkMode
-                              ? 'text-gray-400 hover:text-gray-300'
-                              : 'text-gray-600 hover:text-gray-800'
+                            ? 'text-gray-400 hover:text-gray-300'
+                            : 'text-gray-600 hover:text-gray-800'
                             }`}
                         >
                           {showPassword[0] ? 'Hide' : 'Show'}
@@ -655,8 +655,8 @@ const SmsConfig: React.FC = () => {
                         onChange={(e) => handleInputChange('sender', e.target.value)}
                         placeholder="Enter sender name"
                         className={`w-full px-3 py-1.5 text-sm border rounded focus:outline-none ${isDarkMode
-                            ? 'bg-gray-700 border-gray-600 text-white'
-                            : 'bg-white border-gray-300 text-gray-900'
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
                           }`}
                         onFocus={(e) => {
                           if (colorPalette?.primary) {
@@ -719,8 +719,8 @@ const SmsConfig: React.FC = () => {
       {operationLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
           <div className={`border rounded-lg p-6 max-w-sm w-full mx-4 ${isDarkMode
-              ? 'bg-gray-900 border-gray-700'
-              : 'bg-white border-gray-300'
+            ? 'bg-gray-900 border-gray-700'
+            : 'bg-white border-gray-300'
             }`}>
             <div className="flex flex-col items-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
@@ -736,8 +736,8 @@ const SmsConfig: React.FC = () => {
       {modal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className={`border rounded-lg p-4 max-w-md w-full mx-4 ${isDarkMode
-              ? 'bg-gray-900 border-gray-700'
-              : 'bg-white border-gray-300'
+            ? 'bg-gray-900 border-gray-700'
+            : 'bg-white border-gray-300'
             }`}>
             <h3 className={`text-base font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>{modal.title}</h3>
@@ -749,8 +749,8 @@ const SmsConfig: React.FC = () => {
                   <button
                     onClick={modal.onCancel}
                     className={`px-3 py-1.5 text-sm rounded transition-colors ${isDarkMode
-                        ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                       }`}
                   >
                     Cancel

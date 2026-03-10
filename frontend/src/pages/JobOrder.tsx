@@ -328,28 +328,7 @@ const JobOrderPage: React.FC = () => {
     };
   }, [silentRefresh]);
 
-  // Poll for changes every 5 seconds as fallback
-  useEffect(() => {
-    const pollInterval = setInterval(async () => {
-      try {
-        const authData = localStorage.getItem('authData');
-        let email: string | undefined;
-        if (authData) {
-          try {
-            const userData = JSON.parse(authData);
-            if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
-              email = userData.email;
-            }
-          } catch (err) { }
-        }
-        await silentRefresh(email);
-      } catch (err) {
-        // Silent fail - polling is best-effort
-      }
-    }, 5000);
-
-    return () => clearInterval(pollInterval);
-  }, [silentRefresh]);
+  // Polling removed - Pusher/Soketi handles real-time updates; idle detection handles 15-min refresh
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -624,15 +603,15 @@ const JobOrderPage: React.FC = () => {
       }
     }
 
+    const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
     const checkValue = (val: any): boolean => {
       if (val === null || val === undefined) return false;
       if (typeof val === 'object') {
         return Object.values(val).some(v => checkValue(v));
       }
-      return String(val).toLowerCase().includes(searchQuery.toLowerCase());
+      return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
     };
 
-    const fullName = getClientFullName(jobOrder).toLowerCase();
     const matchesSearch = searchQuery === '' || checkValue(jobOrder);
 
     return matchesLocation && matchesSearch;
@@ -1138,7 +1117,6 @@ const JobOrderPage: React.FC = () => {
               }}
             >
               <div className="flex items-center">
-                <FileText className="h-5 w-5 mr-3" />
                 <span className="capitalize text-base">All Job Orders</span>
               </div>
               <span className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300">
@@ -1675,6 +1653,7 @@ const JobOrderPage: React.FC = () => {
                         : 'hover:bg-gray-100 text-gray-900'
                         }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+                      title="Column Visibility"
                     >
                       <Columns3 className="h-5 w-5" />
                     </button>

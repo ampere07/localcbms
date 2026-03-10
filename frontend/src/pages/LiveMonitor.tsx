@@ -69,6 +69,8 @@ ChartJS.register(
   Legend
 );
 
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 const LiveMonitor: React.FC = () => {
   const [widgets, setWidgets] = useState<Record<string, any>>({});
   const [widgetStates, setWidgetStates] = useState<Record<string, WidgetState>>({});
@@ -127,7 +129,7 @@ const LiveMonitor: React.FC = () => {
         initialStates[id] = JSON.parse(savedState);
       } else {
         initialStates[id] = {
-          viewType: id === 'tech_availability' ? 'grid' : (id === 'team_detailed_queue' ? 'table' : 'bar'),
+          viewType: id === 'tech_availability' ? 'grid' : (id.includes('detailed_queue') ? 'table' : 'bar'),
           scope: 'overall',
           year: new Date().getFullYear().toString(),
           bgy: 'All',
@@ -202,63 +204,74 @@ const LiveMonitor: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const fetchWidget = async (id: string, state: WidgetState) => {
+    const config = WIDGETS[id];
+    if (!config || (state && !state.visible)) return;
+
+    try {
+      const widgetState = state || {
+        viewType: id === 'tech_availability' ? 'grid' : 'bar',
+        scope: 'overall',
+        year: new Date().getFullYear().toString(),
+        bgy: 'All',
+        visible: true
+      };
+
+      const url = buildHandleUrl({
+        action: config.api,
+        param: config.param || '',
+        scope: widgetState.scope,
+        year: widgetState.year || '',
+        bgy: widgetState.bgy || 'All',
+        start: widgetState.startDate || '',
+        end: widgetState.endDate || ''
+      });
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+
+      const data: WidgetResponse = await response.json();
+
+      if (data.status === 'success' && data.data) {
+        setWidgets(prev => ({ ...prev, [id]: { config, data: data.data } }));
+
+        if (data.barangays && barangays.length === 0) {
+          setBarangays(data.barangays.map((b) => b.Name));
+        }
+      }
+    } catch (error) {
+      console.error(`Error fetching widget ${id}:`, error);
+    }
+  };
+
   const fetchAllWidgets = async (states?: Record<string, WidgetState>) => {
     const timestamp = new Date().toLocaleTimeString();
     setLastUpdate(timestamp);
 
     const currentStates = states || widgetStates;
 
-    for (const [id, config] of Object.entries(WIDGETS)) {
-      const state = currentStates[id];
-      if (state && !state.visible) continue;
+    const fetchPromises = Object.keys(WIDGETS).map(id =>
+      fetchWidget(id, currentStates[id])
+    );
 
-      try {
-        const widgetState = state || {
-          viewType: id === 'tech_availability' ? 'grid' : 'bar',
-          scope: 'overall',
-          year: new Date().getFullYear().toString(),
-          bgy: 'All',
-          visible: true
-        };
-
-        const url = buildHandleUrl({
-          action: config.api,
-          param: config.param || '',
-          scope: widgetState.scope,
-          year: widgetState.year || '',
-          bgy: widgetState.bgy || 'All',
-          start: widgetState.startDate || '',
-          end: widgetState.endDate || ''
-        });
-
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' }
-        });
-
-        const data: WidgetResponse = await response.json();
-
-        if (data.status === 'success' && data.data) {
-          setWidgets(prev => ({ ...prev, [id]: { config, data: data.data } }));
-
-          if (data.barangays && barangays.length === 0) {
-            setBarangays(data.barangays.map((b) => b.Name));
-          }
-        }
-      } catch (error) {
-        console.error(`Error fetching widget ${id}:`, error);
-      }
-    }
+    await Promise.all(fetchPromises);
   };
 
   const updateWidgetState = (id: string, updates: Partial<WidgetState>) => {
     setWidgetStates(prev => {
-      const newState = { ...prev, [id]: { ...prev[id], ...updates } };
-      localStorage.setItem(`widget_state_${id}`, JSON.stringify(newState[id]));
+      const updatedState = { ...prev[id], ...updates };
+      const newState = { ...prev, [id]: updatedState };
+      localStorage.setItem(`widget_state_${id}`, JSON.stringify(updatedState));
+
+      // Fetch the specific widget immediately with the updated state
+      if (updatedState.visible) {
+        fetchWidget(id, updatedState);
+      }
+
       return newState;
     });
-
-    setTimeout(() => fetchAllWidgets(), 100);
   };
 
   const ensureWidgetInLayout = (widgetId: string) => {
@@ -360,19 +373,27 @@ const LiveMonitor: React.FC = () => {
   const generateChartData = (widgetData: WidgetData[], widgetId: string, viewType: string) => {
     if (!widgetData || widgetData.length === 0) return null;
 
-    // Handle multi-series data (e.g., Invoice Yearly Count with Paid/Unpaid statuses per month)
-    // Data format: [{label: "January", series: {"Paid": 150, "Unpaid": 30}}, ...]
-    if (widgetData[0].series) {
-      const labels = widgetData.map(d => d.label); // Months: January, February, etc.
+    const isMonthly = widgetId.includes('_mon') || widgetId.startsWith('invoice_') || widgetId.startsWith('transactions_') || widgetId.startsWith('portal_');
 
-      // Extract all unique status values (Paid, Unpaid, Pending, etc.) from all months
+    const formatLabel = (label: string) => {
+      const monthNum = parseInt(label);
+      if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+        return MONTH_NAMES[monthNum - 1];
+      }
+      return label;
+    };
+
+    const labels = widgetData.map(d => formatLabel(d.label));
+
+    // Handle multi-series data (e.g., Invoice Yearly Count with Paid/Unpaid statuses per month)
+    if (widgetData[0].series) {
       const seriesKeys = Array.from(new Set(widgetData.flatMap(d => Object.keys(d.series || {}))));
 
       return {
-        labels, // X-axis: Months
+        labels,
         datasets: seriesKeys.map((key, idx) => ({
-          label: key, // Each status becomes a line/series (Paid, Unpaid, etc.)
-          data: widgetData.map(d => Number(d.series?.[key] || 0)), // Y-axis: counts/amounts per month
+          label: key,
+          data: widgetData.map(d => Number(d.series?.[key] || 0)),
           backgroundColor: CHART_COLORS[idx % CHART_COLORS.length],
           borderWidth: 0
         }))
@@ -380,12 +401,24 @@ const LiveMonitor: React.FC = () => {
     }
 
     // Handle simple data (single value per label)
-    // Data format: [{label: "Category A", value: 100}, ...]
-
-    // For bar charts, we want each category in the legend, so we create a dataset for each
     if (viewType === 'bar') {
+      // For monthly/timeline widgets, we prefer a single dataset with colored bars or primary color
+      // rather than 12 legend items.
+      if (isMonthly) {
+        return {
+          labels,
+          datasets: [{
+            label: WIDGETS[widgetId]?.title || 'Value',
+            data: widgetData.map(d => Number(d.value || 0)),
+            backgroundColor: CHART_COLORS[0],
+            borderWidth: 0
+          }]
+        };
+      }
+
+      // Default bar chart: each item gets its own legend entry
       return {
-        labels: widgetData.map(d => d.label),
+        labels,
         datasets: widgetData.map((d, idx) => {
           const dataArr = new Array(widgetData.length).fill(null);
           dataArr[idx] = Number(d.value || 0);
@@ -400,12 +433,14 @@ const LiveMonitor: React.FC = () => {
     }
 
     return {
-      labels: widgetData.map(d => d.label),
+      labels,
       datasets: [{
-        label: 'Count',
+        label: WIDGETS[widgetId]?.title || 'Count',
         data: widgetData.map(d => Number(d.value || 0)),
-        backgroundColor: widgetData.map((_, idx) => CHART_COLORS[idx % CHART_COLORS.length]),
-        borderWidth: 0
+        backgroundColor: viewType === 'line' ? CHART_COLORS[0] : widgetData.map((_, idx) => CHART_COLORS[idx % CHART_COLORS.length]),
+        borderColor: CHART_COLORS[0],
+        borderWidth: viewType === 'line' ? 2 : 0,
+        tension: 0.3
       }]
     };
   };
@@ -488,7 +523,7 @@ const LiveMonitor: React.FC = () => {
 
     if (widgetData[0]?.series) {
       return (
-        <div className="space-y-2 overflow-y-auto max-h-64">
+        <div className="space-y-2 overflow-y-auto flex-1 custom-scrollbar">
           {widgetData.map((row, idx) => (
             <div
               key={idx}
@@ -517,7 +552,7 @@ const LiveMonitor: React.FC = () => {
     }
 
     return (
-      <div className="grid grid-cols-2 gap-2 overflow-y-auto max-h-64" style={{ fontSize: `${fontSize}px` }}>
+      <div className="grid grid-cols-2 gap-2 overflow-y-auto flex-1 custom-scrollbar" style={{ fontSize: `${fontSize}px` }}>
         {widgetData.map((row, idx) => (
           <div
             key={idx}
@@ -541,7 +576,7 @@ const LiveMonitor: React.FC = () => {
 
   const renderGridView = (widgetData: WidgetData[], widgetId: string, fontSize: number) => {
     return (
-      <div className="flex gap-4 overflow-x-auto overflow-y-hidden p-2 pb-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent">
+      <div className="flex gap-4 overflow-x-auto overflow-y-hidden p-2 pb-4 flex-1 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent">
         {widgetData.map((row, idx) => {
           const meta: any = (row as any).meta || {};
           const status = meta.status || 'Unknown';
@@ -572,27 +607,27 @@ const LiveMonitor: React.FC = () => {
               style={{ fontSize: `${fontSize}px` }}
             >
               {/* Status - Top Left */}
-              <div className={`absolute top-4 left-4 text-xs font-bold uppercase tracking-wider ${textColor}`}>
+              <div className={`absolute top-4 left-4 font-bold uppercase tracking-wider ${textColor}`} style={{ fontSize: `${fontSize * 0.8}px` }}>
                 {status}
               </div>
 
               {/* Name - Top Center (slightly pushed down to not overlap with status if name is long) */}
               <div className="w-full text-center mt-6">
-                <div className={`font-bold text-lg truncate px-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`} title={row.label}>
+                <div className={`font-bold truncate px-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`} style={{ fontSize: `${fontSize * 1.25}px` }} title={row.label}>
                   {row.label}
                 </div>
               </div>
 
               {/* Time - Center Large */}
               <div className="flex-1 flex items-center justify-center">
-                <div className={`text-5xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                <div className={`font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-800'}`} style={{ fontSize: `${fontSize * 4}px` }}>
                   {timeString}
                 </div>
               </div>
 
               {/* Details - Bottom */}
               {meta.details && (
-                <div className={`w-full text-center text-[10px] opacity-60 truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} title={meta.details}>
+                <div className={`w-full text-center opacity-60 truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} style={{ fontSize: `${fontSize * 0.7}px` }} title={meta.details}>
                   {meta.details}
                 </div>
               )}
@@ -617,7 +652,7 @@ const LiveMonitor: React.FC = () => {
         <table className={`min-w-full text-left ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} style={{ fontSize: `${fontSize}px` }}>
           <thead className={`font-semibold border-b ${isDarkMode ? 'border-gray-800 text-gray-400' : 'border-gray-200 text-gray-500'}`}>
             <tr>
-              <th className="py-2 px-3">Team Name</th>
+              <th className="py-2 px-3">{id === 'agent_detailed_queue' ? 'Agent Name' : 'Team Name'}</th>
               <th className="py-2 px-3">Type</th>
               <th className="py-2 px-3">Customer</th>
               <th className="py-2 px-3">Address</th>
@@ -625,24 +660,31 @@ const LiveMonitor: React.FC = () => {
               <th className="py-2 px-3">Duration</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-800/50">
-            {data.map((row, idx) => (
-              <tr key={idx} className={`${isDarkMode ? 'hover:bg-gray-800/50' : 'hover:bg-gray-50'}`}>
-                <td className="py-2 px-3 font-medium">{row.team_name}</td>
-                <td className="py-2 px-3">
-                  <span className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-wide font-bold ${row.type?.toLowerCase().includes('job')
-                    ? 'bg-blue-500/20 text-blue-500'
-                    : 'bg-purple-500/20 text-purple-500'
-                    }`}>
-                    {row.type}
-                  </span>
-                </td>
-                <td className="py-2 px-3">{row.customer}</td>
-                <td className="py-2 px-3 max-w-xs truncate" title={row.address}>{row.address}</td>
-                <td className="py-2 px-3 whitespace-nowrap">{row.start}</td>
-                <td className="py-2 px-3 font-mono font-bold text-orange-500">{row.duration}</td>
-              </tr>
-            ))}
+          <tbody className="">
+            {data.map((row, idx) => {
+              const isDuplicate = idx > 0 && data[idx - 1].team_name === row.team_name;
+              const borderClass = (!isDuplicate && idx > 0) ? (isDarkMode ? 'border-t border-gray-700/50' : 'border-t border-gray-200') : '';
+
+              return (
+                <tr key={idx} className={`${isDarkMode ? 'hover:bg-gray-800/50' : 'hover:bg-gray-50'} ${borderClass}`}>
+                  <td className="py-2 px-3 font-medium">
+                    {!isDuplicate ? row.team_name : ""}
+                  </td>
+                  <td className="py-2 px-3">
+                    <span className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-wide font-bold ${row.type?.toLowerCase().includes('(joborder)')
+                      ? 'bg-blue-500/20 text-blue-500'
+                      : 'bg-purple-500/20 text-purple-500'
+                      }`}>
+                      {row.type}
+                    </span>
+                  </td>
+                  <td className="py-2 px-3">{row.customer}</td>
+                  <td className="py-2 px-3 max-w-xs truncate" title={row.address}>{row.address}</td>
+                  <td className="py-2 px-3 whitespace-nowrap">{row.start}</td>
+                  <td className="py-2 px-3 font-mono font-bold text-orange-500">{row.duration}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -701,7 +743,7 @@ const LiveMonitor: React.FC = () => {
 
     // IMPORTANT: put id on the chart container so tooltip can detect widgetId for currency
     return (
-      <div className="h-64" id={id}>
+      <div className="flex-1 min-h-0" id={id}>
         {renderChart(id, chartData, state.viewType, fontSize)}
       </div>
     );
@@ -716,15 +758,17 @@ const LiveMonitor: React.FC = () => {
     return (
       <div className="flex gap-2 items-center text-xs flex-wrap" style={{ fontSize: `${fontSize}px` }}>
         {(config.filterType === 'toggle_today' || config.filterType === 'date' || config.filterType === 'date_bgy') && (
-          <label className="flex items-center gap-1 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={state.scope === 'today'}
-              onChange={(e) => updateWidgetState(id, { scope: e.target.checked ? 'today' : 'overall' })}
-              className="rounded"
-            />
-            <span>Today</span>
-          </label>
+          <select
+            value={state.scope}
+            onChange={(e) => updateWidgetState(id, { scope: e.target.value as any })}
+            className={`px-2 py-1 rounded border text-[10px] ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
+          >
+            <option value="overall">Overall</option>
+            <option value="today">Today</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+          </select>
         )}
 
         {config.filterType === 'year' && (
@@ -927,7 +971,7 @@ const LiveMonitor: React.FC = () => {
     <div ref={containerRef} className={`min-h-screen ${isDarkMode ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'} ${isFullscreen ? 'overflow-y-auto' : ''}`}>
       {/* Header */}
       <div className={`sticky top-0 z-20 border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-4">
+        <div className={`${isFullscreen ? 'max-w-none px-6' : 'container mx-auto px-4'} py-3 flex items-center justify-between flex-wrap gap-4`}>
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2">
               <Activity size={24} style={{ color: colorPalette?.primary || '#7c3aed' }} />
@@ -994,7 +1038,7 @@ const LiveMonitor: React.FC = () => {
       {/* Template Menu */}
       {showTemplateMenu && (
         <div className={`border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-          <div className="container mx-auto px-4 py-4">
+          <div className={`${isFullscreen ? 'max-w-none px-6' : 'container mx-auto px-4'} py-4`}>
             <h3 className="text-sm font-semibold mb-3">Dashboard Templates</h3>
 
             <div className="mb-4 flex gap-2">
@@ -1056,7 +1100,7 @@ const LiveMonitor: React.FC = () => {
       {/* Widget Menu */}
       {showWidgetMenu && (
         <div className={`border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-          <div className="container mx-auto px-4 py-4">
+          <div className={`${isFullscreen ? 'max-w-none px-6' : 'container mx-auto px-4'} py-4`}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold">Toggle Widgets</h3>
               <div className="flex gap-2">
@@ -1102,10 +1146,15 @@ const LiveMonitor: React.FC = () => {
       )}
 
       {/* Widgets Grid - Replaced with ResponsiveGridLayout */}
-      <div className="container mx-auto px-4 py-6">
+      <div className={`${isFullscreen ? 'max-w-none px-2' : 'container mx-auto px-4'} py-6`}>
         <ResponsiveGridLayout
           className="layout"
-          layouts={layouts}
+          layouts={Object.fromEntries(
+            Object.entries(layouts).map(([bp, layout]: [string, any]) => [
+              bp,
+              Array.isArray(layout) ? layout.map((item: any) => ({ ...item, static: !isDraggable })) : layout
+            ])
+          )}
           breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
           cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
           rowHeight={60}
@@ -1164,7 +1213,7 @@ const LiveMonitor: React.FC = () => {
                         {widgetStates[id]?.fontSize || 12}
                       </span>
                       <button
-                        onClick={() => updateWidgetState(id, { fontSize: Math.min(24, (widgetStates[id]?.fontSize || 12) + 1) })}
+                        onClick={() => updateWidgetState(id, { fontSize: (widgetStates[id]?.fontSize || 12) + 1 })}
                         className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-200 text-gray-600 hover:text-black'}`}
                         title="Increase Font Size"
                       >

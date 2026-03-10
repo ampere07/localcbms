@@ -654,7 +654,7 @@ const LcpNapLocation: React.FC = () => {
               } : {}}
             >
               <div className="flex items-center">
-                <MapPin className="h-4 w-4 mr-2" />
+                {item.name !== 'All' && <MapPin className="h-4 w-4 mr-2" />}
                 <span>{item.name}</span>
               </div>
               {item.count > 0 && (
