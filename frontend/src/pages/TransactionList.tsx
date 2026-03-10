@@ -200,12 +200,44 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
 
     const transactionChannel = pusher.subscribe('transactions');
 
+    transactionChannel.bind('pusher:subscription_succeeded', () => {
+      console.log('[TransactionList Soketi] Successfully subscribed to transactions channel');
+    });
+    transactionChannel.bind('pusher:subscription_error', (error: any) => {
+      console.error('[TransactionList Soketi] Subscription error:', error);
+    });
+
     transactionChannel.bind('transaction-updated', handleUpdate);
 
+    // Re-subscribe on reconnection
+    const stateHandler = (states: { previous: string; current: string }) => {
+      console.log(`[TransactionList Soketi] Connection state: ${states.previous} -> ${states.current}`);
+      if (states.current === 'connected' && transactionChannel.subscribed !== true) {
+        pusher.subscribe('transactions');
+      }
+    };
+    pusher.connection.bind('state_change', stateHandler);
+
     return () => {
+      transactionChannel.unbind('pusher:subscription_succeeded');
+      transactionChannel.unbind('pusher:subscription_error');
       transactionChannel.unbind('transaction-updated', handleUpdate);
+      pusher.connection.unbind('state_change', stateHandler);
       pusher.unsubscribe('transactions');
     };
+  }, [silentRefresh]);
+
+  // Poll for changes every 5 seconds as fallback
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        await silentRefresh();
+      } catch (err) {
+        // Silent fail - polling is best-effort
+      }
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
   }, [silentRefresh]);
 
   // Idle detection and auto-refresh logic
@@ -401,6 +433,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
           else if (key === 'city') recordValue = transaction.account?.customer?.city;
           else if (key === 'region') recordValue = transaction.account?.customer?.region;
           else if (key === 'account_balance') recordValue = transaction.account?.account_balance;
+          else if (key === 'contact_no') recordValue = transaction.account?.customer?.contact_number_primary;
+          else if (key === 'payment_method') recordValue = transaction.payment_method_info?.payment_method || transaction.payment_method;
           else recordValue = (transaction as any)[key];
 
           if (filter.type === 'text') {
@@ -423,6 +457,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
             if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
             if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
             return true;
+          }
+
+          if (filter.type === 'checklist') {
+            if (!filter.selectedOptions || filter.selectedOptions.length === 0) return true;
+            return filter.selectedOptions.includes(String(recordValue || ''));
           }
 
           return true;
@@ -1031,6 +1070,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                     if (filter.from && filter.to) return `${colName}: ${filter.from} to ${filter.to}`;
                     if (filter.from) return `${colName}: After ${filter.from}`;
                     if (filter.to) return `${colName}: Before ${filter.to}`;
+                  }
+                  if (filter.type === 'checklist') {
+                    const options = filter.selectedOptions?.join(', ');
+                    return `${colName}: ${options?.length > 20 ? options.substring(0, 20) + '...' : options}`;
                   }
                   return colName;
                 }).join('\n')}`

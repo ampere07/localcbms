@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
-import { getBillingStatuses, BillingStatus } from '../services/lookupService';
-import { getAllUsageTypes, UsageType } from '../services/usageTypeService';
+import { planService, Plan } from '../services/planService';
+import { getAllLCPs, LCP } from '../services/lcpService';
+import { getAllNAPs, NAP } from '../services/napService';
+import { getAllPorts, Port } from '../services/portService';
+import { getAllVLANs, VLAN } from '../services/vlanService';
+import { getAllLCPNAPs, LCPNAP } from '../services/lcpnapService';
+import { Search, Check } from 'lucide-react';
 
 interface CustomerFunnelFilterProps {
   isOpen: boolean;
@@ -13,10 +18,11 @@ interface CustomerFunnelFilterProps {
 
 export interface FilterValues {
   [key: string]: {
-    type: 'text' | 'number' | 'date';
+    type: 'text' | 'number' | 'date' | 'checklist';
     value?: string;
     from?: string | number;
     to?: string | number;
+    selectedOptions?: string[];
   };
 }
 
@@ -30,55 +36,36 @@ export interface Column {
 const STORAGE_KEY = 'customerFunnelFilters';
 
 export const allColumns: Column[] = [
-  // Customers table
-  { key: 'customerName', label: 'Full Name', table: 'customers', dataType: 'varchar' },
-  { key: 'email_address', label: 'Email Address', table: 'customers', dataType: 'varchar' },
-  { key: 'contact_number_primary', label: 'Contact Number Primary', table: 'customers', dataType: 'varchar' },
-  { key: 'contact_number_secondary', label: 'Contact Number Secondary', table: 'customers', dataType: 'varchar' },
-  { key: 'address', label: 'Address', table: 'customers', dataType: 'text' },
-  { key: 'barangay', label: 'Barangay', table: 'customers', dataType: 'varchar' },
-  { key: 'city', label: 'City', table: 'customers', dataType: 'varchar' },
-  { key: 'region', label: 'Region', table: 'customers', dataType: 'varchar' },
-  { key: 'address_coordinates', label: 'Address Coordinates', table: 'customers', dataType: 'varchar' },
-  { key: 'housing_status', label: 'Housing Status', table: 'customers', dataType: 'enum' },
-  { key: 'referred_by', label: 'Referred By', table: 'customers', dataType: 'varchar' },
-  { key: 'group_id', label: 'Group ID', table: 'customers', dataType: 'bigint' },
-  { key: 'created_by', label: 'Created By', table: 'customers', dataType: 'bigint' },
-  { key: 'created_at', label: 'Created At', table: 'customers', dataType: 'datetime' },
-  { key: 'updated_by', label: 'Updated By', table: 'customers', dataType: 'bigint' },
-  { key: 'updated_at', label: 'Updated At', table: 'customers', dataType: 'datetime' },
-
-  // Billing Accounts table
-  { key: 'billing_id', label: 'Billing ID', table: 'billing_accounts', dataType: 'bigint' },
+  // billing_accounts table
   { key: 'account_no', label: 'Account No', table: 'billing_accounts', dataType: 'varchar' },
   { key: 'date_installed', label: 'Date Installed', table: 'billing_accounts', dataType: 'date' },
-  { key: 'plan_id', label: 'Plan ID', table: 'billing_accounts', dataType: 'bigint' },
-  { key: 'account_balance', label: 'Account Balance', table: 'billing_accounts', dataType: 'decimal' },
-  { key: 'balance_update_date', label: 'Balance Update Date', table: 'billing_accounts', dataType: 'datetime' },
-  { key: 'billing_day', label: 'Billing Day', table: 'billing_accounts', dataType: 'int' },
-  { key: 'billing_status_id', label: 'Billing Status ID', table: 'billing_accounts', dataType: 'bigint' },
-  { key: 'billing_created_by', label: 'Created By', table: 'billing_accounts', dataType: 'bigint' },
-  { key: 'billing_created_at', label: 'Created At', table: 'billing_accounts', dataType: 'datetime' },
-  { key: 'billing_updated_by', label: 'Updated By', table: 'billing_accounts', dataType: 'bigint' },
-  { key: 'billing_updated_at', label: 'Updated At', table: 'billing_accounts', dataType: 'datetime' },
 
-  // Technical Details table
+  // customers table
+  { key: 'customerName', label: 'Full Name', table: 'customers', dataType: 'varchar' },
+  { key: 'contact_number_primary', label: 'Contact Number', table: 'customers', dataType: 'varchar' },
+  { key: 'email_address', label: 'Email Address', table: 'customers', dataType: 'varchar' },
+
+  // billing_accounts table continued
+  { key: 'plan_id', label: 'Plan', table: 'billing_accounts', dataType: 'bigint' },
+  { key: 'account_balance', label: 'Account Balance', table: 'billing_accounts', dataType: 'decimal' },
+
+  // technical_details table
   { key: 'username', label: 'Username', table: 'technical_details', dataType: 'varchar' },
   { key: 'connection_type', label: 'Connection Type', table: 'technical_details', dataType: 'varchar' },
-  { key: 'router_model', label: 'Router Model', table: 'technical_details', dataType: 'varchar' },
-  { key: 'router_modem_sn', label: 'Router Modem SN', table: 'technical_details', dataType: 'varchar' },
-  { key: 'ip_address', label: 'IP Address', table: 'technical_details', dataType: 'varchar' },
+  { key: 'router_modem_sn', label: 'Router/Modem SN', table: 'technical_details', dataType: 'varchar' },
   { key: 'lcp', label: 'LCP', table: 'technical_details', dataType: 'varchar' },
   { key: 'nap', label: 'NAP', table: 'technical_details', dataType: 'varchar' },
   { key: 'port', label: 'Port', table: 'technical_details', dataType: 'varchar' },
   { key: 'vlan', label: 'VLAN', table: 'technical_details', dataType: 'varchar' },
   { key: 'lcpnap', label: 'LCPNAP', table: 'technical_details', dataType: 'varchar' },
-  { key: 'usage_type_id', label: 'Usage Type ID', table: 'technical_details', dataType: 'bigint' },
-  { key: 'technical_created_by', label: 'Created By', table: 'technical_details', dataType: 'bigint' },
-  { key: 'technical_created_at', label: 'Created At', table: 'technical_details', dataType: 'datetime' },
-  { key: 'technical_updated_by', label: 'Updated By', table: 'technical_details', dataType: 'bigint' },
-  { key: 'technical_updated_at', label: 'Updated At', table: 'technical_details', dataType: 'datetime' },
+
+  // Modified By
+  { key: 'updated_by', label: 'Modified By', table: 'customers', dataType: 'bigint' },
+
+  // billing_accounts table continued
+  { key: 'billing_day', label: 'Billing Day', table: 'billing_accounts', dataType: 'int' },
 ];
+
 
 const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
   isOpen,
@@ -90,8 +77,13 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [selectedColumn, setSelectedColumn] = useState<Column | null>(null);
   const [filterValues, setFilterValues] = useState<FilterValues>({});
-  const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
-  const [usageTypes, setUsageTypes] = useState<UsageType[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [lcps, setLcps] = useState<LCP[]>([]);
+  const [naps, setNaps] = useState<NAP[]>([]);
+  const [ports, setPorts] = useState<Port[]>([]);
+  const [vlans, setVlans] = useState<VLAN[]>([]);
+  const [lcpnaps, setLcpnaps] = useState<LCPNAP[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -129,37 +121,57 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
   }, []);
 
   useEffect(() => {
-    const fetchBillingStatuses = async () => {
+    const fetchChecklistData = async () => {
       try {
-        const statuses = await getBillingStatuses();
-        setBillingStatuses(statuses);
+        const [plansData, lcpsData, napsData, portsData, vlansData, lcpnapsData] = await Promise.all([
+          planService.getAllPlans(),
+          getAllLCPs(),
+          getAllNAPs(),
+          getAllPorts(),
+          getAllVLANs(),
+          getAllLCPNAPs()
+        ]);
+        setPlans(plansData);
+        setLcps(lcpsData.data);
+        setNaps(napsData.data);
+        setPorts(portsData.data);
+        setVlans(vlansData.data);
+        setLcpnaps(lcpnapsData.data);
       } catch (err) {
-        console.error('Failed to fetch billing statuses:', err);
+        console.error('Failed to fetch checklist data:', err);
       }
     };
-    fetchBillingStatuses();
-  }, []);
-
-  useEffect(() => {
-    const fetchUsageTypes = async () => {
-      try {
-        const response = await getAllUsageTypes();
-        if (response.success) {
-          setUsageTypes(response.data);
-        }
-      } catch (err) {
-        console.error('Failed to fetch usage types:', err);
-      }
-    };
-    fetchUsageTypes();
-  }, []);
+    if (isOpen) {
+      fetchChecklistData();
+    }
+  }, [isOpen]);
 
   const handleColumnClick = (column: Column) => {
     setSelectedColumn(column);
+    setSearchQuery('');
   };
 
   const handleBack = () => {
     setSelectedColumn(null);
+    setSearchQuery('');
+  };
+
+  const toggleOption = (columnKey: string, option: string) => {
+    setFilterValues(prev => {
+      const current = prev[columnKey] || { type: 'checklist', selectedOptions: [] };
+      const selectedOptions = current.selectedOptions || [];
+      const newOptions = selectedOptions.includes(option)
+        ? selectedOptions.filter(o => o !== option)
+        : [...selectedOptions, option];
+
+      return {
+        ...prev,
+        [columnKey]: {
+          type: 'checklist',
+          selectedOptions: newOptions
+        }
+      };
+    });
   };
 
   const handleApply = () => {
@@ -214,74 +226,118 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
     }));
   };
 
-  const groupedColumns = {
-    customers: allColumns.filter(col => col.table === 'customers'),
-    billing_accounts: allColumns.filter(col => col.table === 'billing_accounts'),
-    technical_details: allColumns.filter(col => col.table === 'technical_details')
-  };
 
   const renderFilterInput = () => {
     if (!selectedColumn) return null;
 
     const currentValue = filterValues[selectedColumn.key];
 
-    if (selectedColumn.key === 'billing_status_id') {
+    // Checklist types
+    const checklists: Record<string, { label: string, value: string }[]> = {
+      plan_id: plans.map(p => ({
+        label: `${p.name} ${Math.floor(p.price || 0)}`,
+        value: p.id.toString()
+      })),
+      connection_type: [
+        { label: 'Fiber', value: 'Fiber' },
+        { label: '(empty)', value: 'empty' },
+        { label: 'Antenna', value: 'Antenna' }
+      ],
+      lcp: lcps.map(l => ({ label: l.lcp_name, value: l.lcp_name })),
+      nap: naps.map(n => ({ label: n.nap_name, value: n.nap_name })),
+      port: Array.from(new Set(ports.map(p => p.PORT_ID))).map(pid => ({ label: pid, value: pid })),
+      vlan: Array.from(new Set(vlans.map(v => v.vlan_id))).map(vid => ({ label: vid, value: vid })),
+      lcpnap: lcpnaps.map(ln => ({ label: ln.lcpnap_name, value: ln.lcpnap_name }))
+    };
+
+    if (checklists[selectedColumn.key]) {
+      const options = checklists[selectedColumn.key];
+      const filteredOptions = options.filter(opt =>
+        opt.label.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
       return (
-        <div>
-          <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-            Billing Status
-          </label>
-          <select
-            value={currentValue?.value || ''}
-            onChange={(e) => handleTextChange(selectedColumn.key, e.target.value)}
-            className={`w-full px-3 py-2 rounded border ${isDarkMode
-              ? 'bg-gray-800 border-gray-700 text-white'
-              : 'bg-white border-gray-300 text-gray-900'
-              }`}
-          >
-            <option value="">Select Status</option>
-            {billingStatuses.map((status) => (
-              <option key={status.id} value={status.id.toString()}>
-                {status.status_name}
-              </option>
-            ))}
-          </select>
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search options..."
+              className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:ring-2 outline-none transition-all ${isDarkMode
+                ? 'bg-gray-800 border-gray-700 text-white focus:ring-purple-500/20 focus:border-purple-500'
+                : 'bg-white border-gray-200 text-gray-900 focus:ring-purple-500/20 focus:border-purple-500'
+                }`}
+            />
+          </div>
+          <div className={`max-h-[400px] overflow-y-auto rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            {filteredOptions.length > 0 ? (
+              <div className="divide-y divide-transparent">
+                {filteredOptions.map((option) => {
+                  const isSelected = currentValue?.selectedOptions?.includes(option.value);
+                  return (
+                    <div
+                      key={option.value}
+                      onClick={() => toggleOption(selectedColumn.key, option.value)}
+                      className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${isSelected
+                        ? (isDarkMode ? 'bg-purple-500/10' : 'bg-purple-50')
+                        : (isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50')
+                        }`}
+                    >
+                      <span className={`text-sm ${isSelected
+                        ? (isDarkMode ? 'text-purple-400 font-semibold' : 'text-purple-700 font-semibold')
+                        : (isDarkMode ? 'text-gray-300' : 'text-gray-700')
+                        }`}>
+                        {option.label}
+                      </span>
+                      {isSelected && (
+                        <Check className="h-4 w-4 text-purple-500" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className={`px-4 py-8 text-center text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                No options found matching your search.
+              </div>
+            )}
+          </div>
         </div>
       );
     }
 
-    if (isNumericType(selectedColumn.dataType)) {
+    if (isNumericType(selectedColumn.dataType) && (selectedColumn.key === 'account_balance' || selectedColumn.key === 'billing_day')) {
       return (
         <div className="space-y-4">
           <div>
-            <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-              From
+            <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Minimum {selectedColumn.label}
             </label>
             <input
               type="number"
               value={currentValue?.from || ''}
               onChange={(e) => handleRangeChange(selectedColumn.key, 'from', e.target.value)}
-              placeholder="Minimum value"
-              className={`w-full px-3 py-2 rounded border ${isDarkMode
-                ? 'bg-gray-800 border-gray-700 text-white'
-                : 'bg-white border-gray-300 text-gray-900'
+              placeholder="0"
+              className={`w-full px-3 py-2 rounded border focus:ring-2 outline-none transition-all ${isDarkMode
+                ? 'bg-gray-800 border-gray-700 text-white focus:ring-purple-500/20 focus:border-purple-500'
+                : 'bg-white border-gray-300 text-gray-900 focus:ring-purple-500/20 focus:border-purple-500'
                 }`}
             />
           </div>
           <div>
-            <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-              To
+            <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Maximum {selectedColumn.label}
             </label>
             <input
               type="number"
               value={currentValue?.to || ''}
               onChange={(e) => handleRangeChange(selectedColumn.key, 'to', e.target.value)}
-              placeholder="Maximum value"
-              className={`w-full px-3 py-2 rounded border ${isDarkMode
-                ? 'bg-gray-800 border-gray-700 text-white'
-                : 'bg-white border-gray-300 text-gray-900'
+              placeholder="Any"
+              className={`w-full px-3 py-2 rounded border focus:ring-2 outline-none transition-all ${isDarkMode
+                ? 'bg-gray-800 border-gray-700 text-white focus:ring-purple-500/20 focus:border-purple-500'
+                : 'bg-white border-gray-300 text-gray-900 focus:ring-purple-500/20 focus:border-purple-500'
                 }`}
             />
           </div>
@@ -295,30 +351,30 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
           <div>
             <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}>
-              From
+              From Date
             </label>
             <input
               type={selectedColumn.dataType === 'datetime' ? 'datetime-local' : 'date'}
               value={currentValue?.from || ''}
               onChange={(e) => handleDateChange(selectedColumn.key, 'from', e.target.value)}
-              className={`w-full px-3 py-2 rounded border ${isDarkMode
-                ? 'bg-gray-800 border-gray-700 text-white'
-                : 'bg-white border-gray-300 text-gray-900'
+              className={`w-full px-3 py-2 rounded border focus:ring-2 outline-none transition-all ${isDarkMode
+                ? 'bg-gray-800 border-gray-700 text-white focus:ring-purple-500/20 focus:border-purple-500'
+                : 'bg-white border-gray-300 text-gray-900 focus:ring-purple-500/20 focus:border-purple-500'
                 }`}
             />
           </div>
           <div>
             <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}>
-              To
+              To Date
             </label>
             <input
               type={selectedColumn.dataType === 'datetime' ? 'datetime-local' : 'date'}
               value={currentValue?.to || ''}
               onChange={(e) => handleDateChange(selectedColumn.key, 'to', e.target.value)}
-              className={`w-full px-3 py-2 rounded border ${isDarkMode
-                ? 'bg-gray-800 border-gray-700 text-white'
-                : 'bg-white border-gray-300 text-gray-900'
+              className={`w-full px-3 py-2 rounded border focus:ring-2 outline-none transition-all ${isDarkMode
+                ? 'bg-gray-800 border-gray-700 text-white focus:ring-purple-500/20 focus:border-purple-500'
+                : 'bg-white border-gray-300 text-gray-900 focus:ring-purple-500/20 focus:border-purple-500'
                 }`}
             />
           </div>
@@ -330,18 +386,20 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
       <div>
         <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
           }`}>
-          Search Value
+          {selectedColumn.label}
         </label>
-        <input
-          type="text"
-          value={currentValue?.value || ''}
-          onChange={(e) => handleTextChange(selectedColumn.key, e.target.value)}
-          placeholder={`Enter ${selectedColumn.label.toLowerCase()}`}
-          className={`w-full px-3 py-2 rounded border ${isDarkMode
-            ? 'bg-gray-800 border-gray-700 text-white'
-            : 'bg-white border-gray-300 text-gray-900'
-            }`}
-        />
+        <div className="relative">
+          <input
+            type="text"
+            value={currentValue?.value || ''}
+            onChange={(e) => handleTextChange(selectedColumn.key, e.target.value)}
+            placeholder={`Enter ${selectedColumn.label.toLowerCase()}...`}
+            className={`w-full px-3 py-2 rounded border focus:ring-2 outline-none transition-all ${isDarkMode
+              ? 'bg-gray-800 border-gray-700 text-white focus:ring-purple-500/20 focus:border-purple-500'
+              : 'bg-white border-gray-300 text-gray-900 focus:ring-purple-500/20 focus:border-purple-500'
+              }`}
+          />
+        </div>
       </div>
     );
   };
@@ -398,72 +456,26 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
                 ) : (
                   <div className="space-y-6">
                     <div>
-                      <h3 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
-                        Customers Details
+                      <h3 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Available Filters
                       </h3>
                       <div className="flex flex-col gap-2 w-full">
-                        {groupedColumns.customers.map(column => (
+                        {allColumns.map(column => (
                           <div
                             key={column.key}
                             onClick={() => handleColumnClick(column)}
-                            className={`w-full p-3 cursor-pointer transition-all flex items-center justify-between border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                            className={`w-full p-3 cursor-pointer transition-all flex items-center justify-between border-b ${isDarkMode ? 'border-gray-800 hover:bg-gray-800/50' : 'border-gray-100 hover:bg-gray-50'
                               }`}
                           >
-                            <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-                              }`}>
+                            <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                               {column.label}
                             </span>
-                            <ChevronRight className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
-                        Billing Accounts Details
-                      </h3>
-                      <div className="flex flex-col gap-2 w-full">
-                        {groupedColumns.billing_accounts.map(column => (
-                          <div
-                            key={column.key}
-                            onClick={() => handleColumnClick(column)}
-                            className={`w-full p-3 cursor-pointer transition-all flex items-center justify-between border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                              }`}
-                          >
-                            <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-                              }`}>
-                              {column.label}
-                            </span>
-                            <ChevronRight className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
-                        Technical Details
-                      </h3>
-                      <div className="flex flex-col gap-2 w-full">
-                        {groupedColumns.technical_details.map(column => (
-                          <div
-                            key={column.key}
-                            onClick={() => handleColumnClick(column)}
-                            className={`w-full p-3 cursor-pointer transition-all flex items-center justify-between border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                              }`}
-                          >
-                            <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-                              }`}>
-                              {column.label}
-                            </span>
-                            <ChevronRight className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} />
+                            <div className="flex items-center space-x-2">
+                              {filterValues[column.key] && (
+                                <span className="h-2 w-2 rounded-full bg-purple-500" />
+                              )}
+                              <ChevronRight className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+                            </div>
                           </div>
                         ))}
                       </div>

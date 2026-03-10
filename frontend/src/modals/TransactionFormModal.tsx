@@ -60,7 +60,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     if (authData) {
       try {
         const userData = JSON.parse(authData);
-        userEmail = userData.email_address || '';
+        userEmail = userData.email || userData.email_address || '';
       } catch (e) {
         console.error('Error parsing auth data:', e);
       }
@@ -161,7 +161,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       if (authData) {
         try {
           const userData = JSON.parse(authData);
-          const userEmail = userData.email_address || '';
+          const userEmail = userData.email || userData.email_address || '';
           if (userEmail) {
             setFormData(prev => ({ ...prev, processedBy: userEmail }));
           }
@@ -370,9 +370,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
             ? 'Recurring Fee transaction has been submitted successfully.\n\nThis transaction requires approval before the account balance is updated. Please approve it in the Transaction List.'
             : 'Transaction created successfully!',
           onConfirm: () => {
-            if (!isRecurringFee) {
-              onSave(formData);
-            }
+            onSave(formData);
             onClose();
             setModal(prev => ({ ...prev, isOpen: false }));
           }
@@ -712,11 +710,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                 );
               })}
             </div>
-            {formData.transactionType === 'Recurring Fee' && (
-              <p className="text-blue-400 text-xs mt-2">
-                ℹ️ Note: Recurring Fee transactions require approval in the Transaction List before the account balance is updated.
-              </p>
-            )}
+
             {formData.transactionType === 'Security Deposit' && (
               <p className="text-orange-500 text-xs mt-2">
                 Note: Security deposits do not affect the account balance or invoices.

@@ -282,18 +282,62 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     const jobChannel = pusher.subscribe('job-orders');
     const customerChannel = pusher.subscribe('customers');
 
+    // Subscription success/error handlers
+    const channels = [
+      { channel: appChannel, name: 'applications' },
+      { channel: jobChannel, name: 'job-orders' },
+      { channel: customerChannel, name: 'customers' }
+    ];
+    channels.forEach(({ channel, name }) => {
+      channel.bind('pusher:subscription_succeeded', () => {
+        console.log(`[Customer Soketi] Successfully subscribed to ${name} channel`);
+      });
+      channel.bind('pusher:subscription_error', (error: any) => {
+        console.error(`[Customer Soketi] Subscription error on ${name}:`, error);
+      });
+    });
+
     appChannel.bind('new-application', handleDataChange);
     jobChannel.bind('job-order-done', handleDataChange);
     customerChannel.bind('customer-updated', handleDataChange);
 
+    // Re-subscribe on reconnection
+    const stateHandler = (states: { previous: string; current: string }) => {
+      console.log(`[Customer Soketi] Connection state: ${states.previous} -> ${states.current}`);
+      if (states.current === 'connected') {
+        if (appChannel.subscribed !== true) pusher.subscribe('applications');
+        if (jobChannel.subscribed !== true) pusher.subscribe('job-orders');
+        if (customerChannel.subscribed !== true) pusher.subscribe('customers');
+      }
+    };
+    pusher.connection.bind('state_change', stateHandler);
+
     return () => {
+      channels.forEach(({ channel }) => {
+        channel.unbind('pusher:subscription_succeeded');
+        channel.unbind('pusher:subscription_error');
+      });
       appChannel.unbind('new-application', handleDataChange);
       jobChannel.unbind('job-order-done', handleDataChange);
       customerChannel.unbind('customer-updated', handleDataChange);
+      pusher.connection.unbind('state_change', stateHandler);
       pusher.unsubscribe('applications');
       pusher.unsubscribe('job-orders');
       pusher.unsubscribe('customers');
     };
+  }, [refreshLatestData]);
+
+  // Poll for changes every 5 seconds as fallback
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        await refreshLatestData();
+      } catch (err) {
+        // Silent fail - polling is best-effort
+      }
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
   }, [refreshLatestData]);
 
   // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
@@ -2004,7 +2048,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                 onClose={handleCloseDetails}
                 onRefresh={async () => {
                   try {
-                    await refreshBillingRecords();
+                    await refreshLatestData();
                     if (selectedCustomer?.billingAccount?.accountNo) {
                       const updatedCustomer = await getCustomerDetail(selectedCustomer.billingAccount.accountNo);
                       setSelectedCustomer(updatedCustomer);

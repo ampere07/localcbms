@@ -58,6 +58,23 @@ export interface ServiceOrderData {
   created_by_user?: string;
   updated_at?: string;
   updated_by_user?: string;
+  referred_by?: string;
+  old_lcp?: string;
+  old_nap?: string;
+  old_port?: string;
+  old_vlan?: string;
+  old_lcpnap?: string;
+  new_lcp?: string;
+  new_nap?: string;
+  new_port?: string;
+  new_vlan?: string;
+  router_model?: string;
+  billing_day?: string;
+  onsite_remarks?: string;
+  status_remarks?: string;
+  contract_template?: string;
+  ip_address?: string;
+  usage_type?: string;
 }
 
 export const createServiceOrder = async (serviceOrderData: Partial<ServiceOrderData>) => {

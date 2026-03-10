@@ -89,12 +89,45 @@ const WorkOrderPage: React.FC = () => {
     };
 
     const workOrderChannel = pusher.subscribe('work-orders');
+
+    workOrderChannel.bind('pusher:subscription_succeeded', () => {
+      console.log('[WorkOrder Soketi] Successfully subscribed to work-orders channel');
+    });
+    workOrderChannel.bind('pusher:subscription_error', (error: any) => {
+      console.error('[WorkOrder Soketi] Subscription error:', error);
+    });
+
     workOrderChannel.bind('work-order-updated', handleUpdate);
 
+    // Re-subscribe on reconnection
+    const stateHandler = (states: { previous: string; current: string }) => {
+      console.log(`[WorkOrder Soketi] Connection state: ${states.previous} -> ${states.current}`);
+      if (states.current === 'connected' && workOrderChannel.subscribed !== true) {
+        pusher.subscribe('work-orders');
+      }
+    };
+    pusher.connection.bind('state_change', stateHandler);
+
     return () => {
+      workOrderChannel.unbind('pusher:subscription_succeeded');
+      workOrderChannel.unbind('pusher:subscription_error');
       workOrderChannel.unbind('work-order-updated', handleUpdate);
+      pusher.connection.unbind('state_change', stateHandler);
       pusher.unsubscribe('work-orders');
     };
+  }, [fetchWorkOrders]);
+
+  // Poll for changes every 5 seconds as fallback
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        await fetchWorkOrders(1, 1000, '', '');
+      } catch (err) {
+        // Silent fail - polling is best-effort
+      }
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
   }, [fetchWorkOrders]);
 
 

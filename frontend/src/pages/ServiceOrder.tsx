@@ -212,12 +212,45 @@ const ServiceOrderPage: React.FC = () => {
     };
 
     const serviceOrderChannel = pusher.subscribe('service-orders');
+
+    serviceOrderChannel.bind('pusher:subscription_succeeded', () => {
+      console.log('[ServiceOrder Soketi] Successfully subscribed to service-orders channel');
+    });
+    serviceOrderChannel.bind('pusher:subscription_error', (error: any) => {
+      console.error('[ServiceOrder Soketi] Subscription error:', error);
+    });
+
     serviceOrderChannel.bind('service-order-updated', handleUpdate);
 
+    // Re-subscribe on reconnection
+    const stateHandler = (states: { previous: string; current: string }) => {
+      console.log(`[ServiceOrder Soketi] Connection state: ${states.previous} -> ${states.current}`);
+      if (states.current === 'connected' && serviceOrderChannel.subscribed !== true) {
+        pusher.subscribe('service-orders');
+      }
+    };
+    pusher.connection.bind('state_change', stateHandler);
+
     return () => {
+      serviceOrderChannel.unbind('pusher:subscription_succeeded');
+      serviceOrderChannel.unbind('pusher:subscription_error');
       serviceOrderChannel.unbind('service-order-updated', handleUpdate);
+      pusher.connection.unbind('state_change', stateHandler);
       pusher.unsubscribe('service-orders');
     };
+  }, [silentRefresh]);
+
+  // Poll for changes every 5 seconds as fallback
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        await silentRefresh();
+      } catch (err) {
+        // Silent fail - polling is best-effort
+      }
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
   }, [silentRefresh]);
 
   // Idle detection and auto-refresh logic
@@ -388,13 +421,77 @@ const ServiceOrderPage: React.FC = () => {
     };
   }, [serviceOrders, barangays]);
 
+  const getVal = (item: ServiceOrder, key: string): any => {
+    switch (key) {
+      case 'id': return item.id;
+      case 'ticketId': return item.ticketId;
+      case 'accountNumber': return item.accountNumber;
+      case 'fullName': return item.fullName;
+      case 'contactNumber': return item.contactNumber;
+      case 'emailAddress': return item.emailAddress;
+      case 'fullAddress': return item.fullAddress;
+      case 'plan': return item.plan;
+      case 'lcp': return item.lcp;
+      case 'nap': return item.nap;
+      case 'port': return item.port;
+      case 'vlan': return item.vlan;
+      case 'oldLcpnap': return item.oldLcpnap;
+      case 'newLcp': return item.newLcp;
+      case 'newNap': return item.newNap;
+      case 'newPort': return item.newPort;
+      case 'newVlan': return item.newVlan;
+      case 'newLcpnap': return item.newLcpnap;
+      case 'supportStatus': return item.supportStatus;
+      case 'visitStatus': return item.visitStatus;
+      case 'timestamp': return item.timestamp;
+      case 'dateInstalled': return item.dateInstalled;
+      case 'modifiedBy': return item.modifiedBy;
+      case 'modifiedDate': return item.modifiedDate;
+      case 'assignedEmail': return item.assignedEmail;
+      case 'requestedBy': return item.requestedBy;
+      case 'serviceCharge': return item.serviceCharge;
+      case 'routerModel': return item.routerModel;
+      case 'routerModemSN': return item.routerModemSN;
+      case 'referredBy': return item.referredBy;
+      case 'status': return item.status;
+      case 'billingDay': return item.billingDay;
+      case 'onsiteRemarks': return item.onsiteRemarks;
+      case 'statusRemarks': return item.statusRemarks;
+      case 'contractTemplate': return item.contractTemplate;
+      case 'ipAddress': return item.ipAddress;
+      case 'usageType': return item.usageType;
+      case 'houseFrontPicture': return item.houseFrontPicture;
+      case 'visitBy': return item.visitBy;
+      case 'visitWith': return item.visitWith;
+      case 'visitWithOther': return item.visitWithOther;
+      default: return (item as any)[key];
+    }
+  };
+
   // Helper function to apply funnel filters
   const applyFunnelFilters = (orders: ServiceOrder[], filters: any): ServiceOrder[] => {
     if (!filters || Object.keys(filters).length === 0) return orders;
 
     return orders.filter(order => {
       return Object.entries(filters).every(([key, filter]: [string, any]) => {
-        const orderValue = (order as any)[key];
+        const orderValue = getVal(order, key);
+
+        if (filter.type === 'checklist') {
+          if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
+
+          if (key === 'barangay' || key === 'city' || key === 'region') {
+            const address = String(order.fullAddress || '').toLowerCase();
+            return filter.value.some((val: string) => address.includes(val.toLowerCase()));
+          }
+
+          if (key === 'plan') {
+            // Plan filter value in checklist is just the name part, but order has full plan string
+            const pVal = String(orderValue || '').toLowerCase();
+            return filter.value.some((val: string) => pVal.includes(val.toLowerCase()));
+          }
+
+          return filter.value.includes(String(orderValue || ''));
+        }
 
         if (filter.type === 'text') {
           if (!filter.value) return true;
@@ -518,65 +615,8 @@ const ServiceOrderPage: React.FC = () => {
 
     if (sortColumn) {
       filtered = [...filtered].sort((a, b) => {
-        let aValue: any = '';
-        let bValue: any = '';
-
-        switch (sortColumn) {
-          case 'timestamp':
-            aValue = a.timestamp || '';
-            bValue = b.timestamp || '';
-            break;
-          case 'supportStatus':
-            aValue = a.supportStatus || '';
-            bValue = b.supportStatus || '';
-            break;
-          case 'visitStatus':
-            aValue = a.visitStatus || '';
-            bValue = b.visitStatus || '';
-            break;
-          case 'fullName':
-            aValue = a.fullName || '';
-            bValue = b.fullName || '';
-            break;
-          case 'contactNumber':
-            aValue = a.contactNumber || '';
-            bValue = b.contactNumber || '';
-            break;
-          case 'fullAddress':
-            aValue = a.fullAddress || '';
-            bValue = b.fullAddress || '';
-            break;
-          case 'concern':
-            aValue = a.concern || '';
-            bValue = b.concern || '';
-            break;
-          case 'concernRemarks':
-            aValue = a.concernRemarks || '';
-            bValue = b.concernRemarks || '';
-            break;
-          case 'requestedBy':
-            aValue = a.requestedBy || '';
-            bValue = b.requestedBy || '';
-            break;
-          case 'assignedEmail':
-            aValue = a.assignedEmail || '';
-            bValue = b.assignedEmail || '';
-            break;
-          case 'repairCategory':
-            aValue = a.repairCategory || '';
-            bValue = b.repairCategory || '';
-            break;
-          case 'modifiedBy':
-            aValue = a.modifiedBy || '';
-            bValue = b.modifiedBy || '';
-            break;
-          case 'modifiedDate':
-            aValue = a.modifiedDate || '';
-            bValue = b.modifiedDate || '';
-            break;
-          default:
-            return 0;
-        }
+        let aValue = getVal(a, sortColumn);
+        let bValue = getVal(b, sortColumn);
 
         if (typeof aValue === 'string' && typeof bValue === 'string') {
           aValue = aValue.toLowerCase();

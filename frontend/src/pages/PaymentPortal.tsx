@@ -190,13 +190,45 @@ const PaymentPortal: React.FC = () => {
 
     const paymentChannel = pusher.subscribe('payments');
 
+    paymentChannel.bind('pusher:subscription_succeeded', () => {
+      console.log('[PaymentPortal Soketi] Successfully subscribed to payments channel');
+    });
+    paymentChannel.bind('pusher:subscription_error', (error: any) => {
+      console.error('[PaymentPortal Soketi] Subscription error:', error);
+    });
+
     paymentChannel.bind('payment-updated', handleUpdate);
 
+    // Re-subscribe on reconnection
+    const stateHandler = (states: { previous: string; current: string }) => {
+      console.log(`[PaymentPortal Soketi] Connection state: ${states.previous} -> ${states.current}`);
+      if (states.current === 'connected' && paymentChannel.subscribed !== true) {
+        pusher.subscribe('payments');
+      }
+    };
+    pusher.connection.bind('state_change', stateHandler);
+
     return () => {
+      paymentChannel.unbind('pusher:subscription_succeeded');
+      paymentChannel.unbind('pusher:subscription_error');
       paymentChannel.unbind('payment-updated', handleUpdate);
+      pusher.connection.unbind('state_change', stateHandler);
       pusher.unsubscribe('payments');
     };
   }, [fetchPaymentPortalRecords]);
+
+  // Poll for changes every 5 seconds as fallback
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        await silentRefresh();
+      } catch (err) {
+        // Silent fail - polling is best-effort
+      }
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
+  }, [silentRefresh]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -357,7 +389,10 @@ const PaymentPortal: React.FC = () => {
     if (activeFilters && Object.keys(activeFilters).length > 0) {
       filtered = filtered.filter((record: any) => {
         return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
-          const recordValue = (record as any)[key];
+          let recordValue = (record as any)[key];
+
+          // Map filter keys to record fields if they differ
+          if (key === 'fullName') recordValue = record.fullName;
 
           if (filter.type === 'text') {
             if (!filter.value) return true;
@@ -376,9 +411,22 @@ const PaymentPortal: React.FC = () => {
           if (filter.type === 'date') {
             if (!recordValue) return false;
             const dateValue = new Date(recordValue).getTime();
-            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
-            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
+            if (isNaN(dateValue)) return false;
+
+            if (filter.from) {
+              const fromDate = new Date(filter.from).getTime();
+              if (dateValue < fromDate) return false;
+            }
+            if (filter.to) {
+              const toDate = new Date(filter.to).getTime();
+              if (dateValue > toDate) return false;
+            }
             return true;
+          }
+
+          if (filter.type === 'checklist') {
+            if (!filter.selectedOptions || filter.selectedOptions.length === 0) return true;
+            return filter.selectedOptions.includes(String(recordValue || ''));
           }
 
           return true;
@@ -759,6 +807,9 @@ const PaymentPortal: React.FC = () => {
                       if (filter.from && filter.to) return `${colName}: ${filter.from} to ${filter.to}`;
                       if (filter.from) return `${colName}: After ${filter.from}`;
                       if (filter.to) return `${colName}: Before ${filter.to}`;
+                    }
+                    if (filter.type === 'checklist') {
+                      return `${colName}: ${filter.selectedOptions.join(', ')}`;
                     }
                     return colName;
                   }).join('\n')}`

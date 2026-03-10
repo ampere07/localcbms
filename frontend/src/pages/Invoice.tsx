@@ -252,13 +252,45 @@ const Invoice: React.FC = () => {
 
     const invoiceChannel = pusher.subscribe('invoices');
 
+    invoiceChannel.bind('pusher:subscription_succeeded', () => {
+      console.log('[Invoice Soketi] Successfully subscribed to invoices channel');
+    });
+    invoiceChannel.bind('pusher:subscription_error', (error: any) => {
+      console.error('[Invoice Soketi] Subscription error:', error);
+    });
+
     invoiceChannel.bind('invoice-updated', handleUpdate);
 
+    // Re-subscribe on reconnection
+    const stateHandler = (states: { previous: string; current: string }) => {
+      console.log(`[Invoice Soketi] Connection state: ${states.previous} -> ${states.current}`);
+      if (states.current === 'connected' && invoiceChannel.subscribed !== true) {
+        pusher.subscribe('invoices');
+      }
+    };
+    pusher.connection.bind('state_change', stateHandler);
+
     return () => {
+      invoiceChannel.unbind('pusher:subscription_succeeded');
+      invoiceChannel.unbind('pusher:subscription_error');
       invoiceChannel.unbind('invoice-updated', handleUpdate);
+      pusher.connection.unbind('state_change', stateHandler);
       pusher.unsubscribe('invoices');
     };
   }, [fetchInvoiceRecords]);
+
+  // Poll for changes every 5 seconds as fallback
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        await silentRefresh();
+      } catch (err) {
+        // Silent fail - polling is best-effort
+      }
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
+  }, [silentRefresh]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {

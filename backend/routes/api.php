@@ -3056,6 +3056,16 @@ Route::prefix('monitor')->group(function () {
     Route::match(['DELETE', 'OPTIONS'], '/templates/{id}', [MonitorController::class, 'deleteTemplate']);
 });
 
+Route::get('/invoices/{id}', [RelatedDataController::class, 'getInvoiceById']);
+Route::get('/payment-portal-logs/{id}', [RelatedDataController::class, 'getPaymentPortalLogById']);
+Route::get('/lookup/payment-methods', [RelatedDataController::class, 'getPaymentMethods']);
+Route::get('/lookup/transaction-types', [RelatedDataController::class, 'getDistinctTransactionTypes']);
+Route::get('/lookup/customer-locations', [RelatedDataController::class, 'getDistinctCustomerLocations']);
+Route::get('/lookup/payment-portal', [RelatedDataController::class, 'getPaymentPortalLookupData']);
+Route::get('/lookup/job-orders', [RelatedDataController::class, 'getJobOrderLookupData']);
+Route::get('/lookup/service-orders', [RelatedDataController::class, 'getServiceOrderLookupData']);
+Route::get('/transactions/{id}/details', [RelatedDataController::class, 'getTransactionById']);
+
 Route::get('/invoices/by-account/{accountNo}', [RelatedDataController::class, 'getInvoicesByAccount']);
 Route::get('/payment-portal-logs/by-account/{accountNo}', [RelatedDataController::class, 'getPaymentPortalLogsByAccount']);
 Route::get('/transactions/by-account/{accountNo}', [RelatedDataController::class, 'getTransactionsByAccount']);

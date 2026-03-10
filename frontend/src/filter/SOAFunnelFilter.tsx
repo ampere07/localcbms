@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Search, Check } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import apiClient from '../config/api';
+import { planService } from '../services/planService';
 
 interface SOAFunnelFilterProps {
     isOpen: boolean;
@@ -11,44 +13,36 @@ interface SOAFunnelFilterProps {
 
 export interface FilterValues {
     [key: string]: {
-        type: 'text' | 'number' | 'date';
+        type: 'text' | 'number' | 'date' | 'checklist';
         value?: string;
         from?: string | number;
         to?: string | number;
+        selectedOptions?: string[];
     };
 }
 
 interface Column {
     key: string;
     label: string;
-    dataType: 'varchar' | 'text' | 'int' | 'decimal' | 'date' | 'datetime';
+    dataType: 'varchar' | 'text' | 'int' | 'decimal' | 'date' | 'datetime' | 'checklist';
 }
 
 const STORAGE_KEY = 'soaFunnelFilters';
 
 export const allColumns: Column[] = [
-    { key: 'id', label: 'SOA ID', dataType: 'int' },
-    { key: 'accountNo', label: 'Account Number', dataType: 'varchar' },
+    { key: 'accountNo', label: 'Account No', dataType: 'varchar' },
     { key: 'fullName', label: 'Full Name', dataType: 'varchar' },
-    { key: 'statementDateRaw', label: 'Statement Date', dataType: 'date' },
+    { key: 'contactNumber', label: 'Contact Number', dataType: 'varchar' },
+    { key: 'emailAddress', label: 'Email Address', dataType: 'varchar' },
+    { key: 'plan', label: 'Plan', dataType: 'checklist' },
+    { key: 'remarks', label: 'Remarks', dataType: 'varchar' },
+    { key: 'dateProcessed', label: 'Date Processed', dataType: 'date' },
     { key: 'dueDate', label: 'Due Date', dataType: 'date' },
-    { key: 'monthlyServiceFee', label: 'Monthly Service Fee', dataType: 'decimal' },
-    { key: 'amountDue', label: 'Amount Due', dataType: 'decimal' },
-    { key: 'totalAmountDue', label: 'Total Amount Due', dataType: 'decimal' },
-    { key: 'balanceFromPreviousBill', label: 'Previous Balance', dataType: 'decimal' },
-    { key: 'paymentReceivedPrevious', label: 'Previous Payment', dataType: 'decimal' },
-    { key: 'remainingBalancePrevious', label: 'Previous Remaining', dataType: 'decimal' },
-    { key: 'serviceCharge', label: 'Service Charge', dataType: 'decimal' },
-    { key: 'rebate', label: 'Rebate', dataType: 'decimal' },
-    { key: 'discounts', label: 'Discounts', dataType: 'decimal' },
-    { key: 'staggered', label: 'Staggered', dataType: 'decimal' },
-    { key: 'vat', label: 'VAT', dataType: 'decimal' },
-    { key: 'address', label: 'Address', dataType: 'text' },
-    { key: 'barangay', label: 'Barangay', dataType: 'varchar' },
-    { key: 'city', label: 'City', dataType: 'varchar' },
-    { key: 'region', label: 'Region', dataType: 'varchar' },
-    { key: 'createdAt', label: 'Created At', dataType: 'datetime' },
-    { key: 'createdBy', label: 'Created By', dataType: 'varchar' },
+    { key: 'invoiceStatus', label: 'Invoice Status', dataType: 'checklist' },
+    { key: 'referenceNo', label: 'Reference No', dataType: 'varchar' },
+    { key: 'orNo', label: 'OR No', dataType: 'varchar' },
+    { key: 'modifiedBy', label: 'Modified By', dataType: 'varchar' },
+    { key: 'transactionId', label: 'Transaction ID', dataType: 'varchar' },
 ];
 
 const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
@@ -61,6 +55,13 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
     const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
     const [selectedColumn, setSelectedColumn] = useState<Column | null>(null);
     const [filterValues, setFilterValues] = useState<FilterValues>({});
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // Checklist data states
+    const [plans, setPlans] = useState<string[]>([]);
+    const [barangays, setBarangays] = useState<string[]>([]);
+    const [cities, setCities] = useState<string[]>([]);
+    const [regions, setRegions] = useState<string[]>([]);
 
     useEffect(() => {
         if (isOpen) {
@@ -97,12 +98,36 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
         fetchColorPalette();
     }, []);
 
+    useEffect(() => {
+        if (isOpen) {
+            const fetchChecklistData = async () => {
+                try {
+                    const planData = await planService.getAllPlans();
+
+                    if (planData) {
+                        const formattedPlans = planData.map(p => {
+                            const name = p.name || (p as any).plan_name || 'Unknown';
+                            const price = Math.floor(Number(p.price || 0));
+                            return `${name} ${price}`;
+                        });
+                        setPlans(formattedPlans);
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch checklist data:', err);
+                }
+            };
+            fetchChecklistData();
+        }
+    }, [isOpen]);
+
     const handleColumnClick = (column: Column) => {
         setSelectedColumn(column);
+        setSearchTerm('');
     };
 
     const handleBack = () => {
         setSelectedColumn(null);
+        setSearchTerm('');
     };
 
     const handleApply = () => {
@@ -126,41 +151,152 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
     };
 
     const handleTextChange = (columnKey: string, value: string) => {
-        setFilterValues(prev => ({
-            ...prev,
-            [columnKey]: {
-                type: 'text',
-                value
-            }
-        }));
+        if (value === '') {
+            const newFilters = { ...filterValues };
+            delete newFilters[columnKey];
+            setFilterValues(newFilters);
+        } else {
+            setFilterValues(prev => ({
+                ...prev,
+                [columnKey]: {
+                    type: 'text',
+                    value
+                }
+            }));
+        }
     };
 
     const handleRangeChange = (columnKey: string, field: 'from' | 'to', value: string) => {
-        setFilterValues(prev => ({
-            ...prev,
-            [columnKey]: {
-                ...prev[columnKey],
-                type: 'number',
-                [field]: value
+        setFilterValues(prev => {
+            const current = prev[columnKey] || { type: 'number' };
+            const next = { ...current, [field]: value };
+
+            if (next.from === '' && next.to === '') {
+                const newFilters = { ...prev };
+                delete newFilters[columnKey];
+                return newFilters;
             }
-        }));
+
+            return {
+                ...prev,
+                [columnKey]: next
+            };
+        });
     };
 
     const handleDateChange = (columnKey: string, field: 'from' | 'to', value: string) => {
-        setFilterValues(prev => ({
-            ...prev,
-            [columnKey]: {
-                ...prev[columnKey],
-                type: 'date',
-                [field]: value
+        setFilterValues(prev => {
+            const current = prev[columnKey] || { type: 'date' };
+            const next = { ...current, [field]: value };
+
+            if (!next.from && !next.to) {
+                const newFilters = { ...prev };
+                delete newFilters[columnKey];
+                return newFilters;
             }
-        }));
+
+            return {
+                ...prev,
+                [columnKey]: next
+            };
+        });
+    };
+
+    const toggleOption = (columnKey: string, option: string) => {
+        setFilterValues(prev => {
+            const current = prev[columnKey] || { type: 'checklist', selectedOptions: [] };
+            const selectedOptions = current.selectedOptions || [];
+
+            const nextOptions = selectedOptions.includes(option)
+                ? selectedOptions.filter(o => o !== option)
+                : [...selectedOptions, option];
+
+            if (nextOptions.length === 0) {
+                const newFilters = { ...prev };
+                delete newFilters[columnKey];
+                return newFilters;
+            }
+
+            return {
+                ...prev,
+                [columnKey]: {
+                    ...current,
+                    type: 'checklist',
+                    selectedOptions: nextOptions
+                }
+            };
+        });
     };
 
     const renderFilterInput = () => {
         if (!selectedColumn) return null;
 
         const currentValue = filterValues[selectedColumn.key];
+
+        if (selectedColumn.dataType === 'checklist') {
+            let options: { label: string, value: string }[] = [];
+            if (selectedColumn.key === 'plan') {
+                options = plans.map(p => {
+                    const parts = p.split(' ');
+                    const price = parts.pop();
+                    const name = parts.join(' ');
+                    return { label: p, value: name };
+                });
+            } else if (selectedColumn.key === 'invoiceStatus') {
+                options = [
+                    { label: 'Paid', value: 'Paid' },
+                    { label: 'Unpaid', value: 'Unpaid' },
+                    { label: 'Pending', value: 'Pending' },
+                    { label: 'Partial', value: 'Partial' }
+                ];
+            }
+
+            const filteredOptions = options.filter(opt =>
+                opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            return (
+                <div className="flex flex-col h-full overflow-hidden">
+                    <div className="relative mb-4">
+                        <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                        <input
+                            type="text"
+                            placeholder="Search options..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm focus:outline-none transition-all ${isDarkMode
+                                ? 'bg-gray-800 border-gray-700 text-white focus:border-purple-500'
+                                : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-purple-500'
+                                }`}
+                        />
+                    </div>
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map((option, idx) => {
+                                const isSelected = currentValue?.selectedOptions?.includes(option.value);
+                                return (
+                                    <button
+                                        key={idx}
+                                        onClick={() => toggleOption(selectedColumn.key, option.value)}
+                                        className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${isSelected
+                                            ? (isDarkMode ? 'bg-purple-500/10 text-purple-400' : 'bg-purple-50 text-purple-600')
+                                            : (isDarkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-50 text-gray-700')
+                                            }`}
+                                    >
+                                        <span className="text-sm font-medium">{option.label}</span>
+                                        {isSelected && <Check className="h-4 w-4" />}
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <div className="text-center py-8">
+                                <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>No results found</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
 
         if (isNumericType(selectedColumn.dataType)) {
             return (
@@ -261,109 +397,113 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 overflow-hidden">
+        <div className="fixed inset-0 z-50 overflow-hidden text-left">
             <div className="absolute inset-0 overflow-hidden">
                 <div
-                    className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+                    className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
                     onClick={onClose}
                 />
 
                 <div className="fixed inset-y-0 right-0 max-w-full flex">
-                    <div className={`w-screen max-w-md transform transition-transform ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+                    <div className={`w-screen max-w-md transform transition-transform duration-300 flex flex-col ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900 shadow-2xl'
                         }`}>
-                        <div className="h-full flex flex-col">
-                            <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                                }`}>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-3">
-                                        {selectedColumn && (
+                        {/* Header */}
+                        <div className={`px-6 py-5 flex items-center justify-between border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-100'
+                            }`}>
+                            <div className="flex items-center space-x-4">
+                                {selectedColumn && (
+                                    <button
+                                        onClick={handleBack}
+                                        className={`p-2 rounded-xl transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                                            }`}
+                                    >
+                                        <ChevronLeft className="h-5 w-5" />
+                                    </button>
+                                )}
+                                <div>
+                                    <h2 className="text-xl font-bold tracking-tight">
+                                        {selectedColumn ? selectedColumn.label : 'SOA Filters'}
+                                    </h2>
+                                    {!selectedColumn && (
+                                        <p className={`text-xs mt-0.5 font-medium ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                            Refine your statement results
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                            <button
+                                onClick={onClose}
+                                className={`p-2 rounded-xl transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                                    }`}
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto px-6 py-6 scroll-smooth">
+                            {selectedColumn ? (
+                                renderFilterInput()
+                            ) : (
+                                <div className="space-y-1">
+                                    {allColumns.map((column) => {
+                                        const isActive = !!filterValues[column.key];
+                                        return (
                                             <button
-                                                onClick={handleBack}
-                                                className={`p-2 rounded-lg transition-colors ${isDarkMode
-                                                    ? 'hover:bg-gray-800 text-gray-400'
-                                                    : 'hover:bg-gray-100 text-gray-600'
+                                                key={column.key}
+                                                onClick={() => handleColumnClick(column)}
+                                                className={`w-full group flex items-center justify-between p-4 rounded-2xl transition-all duration-200 ${isDarkMode
+                                                    ? 'hover:bg-gray-800'
+                                                    : 'hover:bg-gray-50 border border-transparent hover:border-gray-200'
                                                     }`}
                                             >
-                                                <ChevronLeft className="h-5 w-5" />
-                                            </button>
-                                        )}
-                                        <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
-                                            }`}>
-                                            {selectedColumn ? selectedColumn.label : 'SOA Filter'}
-                                        </h2>
-                                    </div>
-                                    <button
-                                        onClick={onClose}
-                                        className={`p-2 rounded-lg transition-colors ${isDarkMode
-                                            ? 'hover:bg-gray-800 text-gray-400'
-                                            : 'hover:bg-gray-100 text-gray-600'
-                                            }`}
-                                    >
-                                        <X className="h-5 w-5" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto px-6 py-4">
-                                {selectedColumn ? (
-                                    renderFilterInput()
-                                ) : (
-                                    <div className="space-y-6">
-                                        <div>
-                                            <h3 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                                                }`}>
-                                                Statement Details
-                                            </h3>
-                                            <div className="flex flex-col gap-2 w-full">
-                                                {allColumns.map(column => (
-                                                    <div
-                                                        key={column.key}
-                                                        onClick={() => handleColumnClick(column)}
-                                                        className={`w-full p-3 cursor-pointer transition-all flex items-center justify-between border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                                                            }`}
-                                                    >
-                                                        <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                                <div className="flex items-center space-x-4">
+                                                    <div className="relative">
+                                                        <div className={`text-sm font-semibold transition-colors ${isActive ? 'text-purple-500' : (isDarkMode ? 'text-gray-200' : 'text-gray-700')
                                                             }`}>
                                                             {column.label}
-                                                        </span>
-                                                        <ChevronRight className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                                                            }`} />
+                                                        </div>
+                                                        {isActive && (
+                                                            <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.6)]" />
+                                                        )}
                                                     </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className={`px-6 py-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                                }`}>
-                                <div className="flex space-x-3">
-                                    <button
-                                        onClick={handleReset}
-                                        className={`flex-1 px-4 py-2 rounded transition-colors ${isDarkMode
-                                            ? 'bg-gray-800 hover:bg-gray-700 text-white'
-                                            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                                            }`}
-                                    >
-                                        Clear
-                                    </button>
-                                    <button
-                                        onClick={handleApply}
-                                        className="flex-1 px-4 py-2 text-white rounded transition-colors"
-                                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
-                                        onMouseEnter={(e) => {
-                                            if (colorPalette?.accent) {
-                                                e.currentTarget.style.backgroundColor = colorPalette.accent;
-                                            }
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
-                                        }}
-                                    >
-                                        Done
-                                    </button>
+                                                </div>
+                                                <div className="flex items-center space-x-3">
+                                                    {isActive && (
+                                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${isDarkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700'
+                                                            }`}>
+                                                            Active
+                                                        </span>
+                                                    )}
+                                                    <ChevronRight className={`h-4 w-4 transition-transform group-hover:translate-x-0.5 ${isDarkMode ? 'text-gray-600' : 'text-gray-300'
+                                                        }`} />
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className={`px-6 py-6 border-t ${isDarkMode ? 'border-gray-800 bg-gray-900/50' : 'border-gray-100 bg-gray-50/50'}`}>
+                            <div className="flex space-x-3">
+                                <button
+                                    onClick={handleReset}
+                                    className={`flex-1 px-4 py-3 rounded-2xl font-bold text-sm transition-all duration-200 ${isDarkMode
+                                        ? 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                                        : 'bg-white border border-gray-200 hover:border-gray-300 text-gray-600 shadow-sm'
+                                        }`}
+                                >
+                                    Clear All
+                                </button>
+                                <button
+                                    onClick={handleApply}
+                                    className="flex-1 px-4 py-3 rounded-2xl font-bold text-sm text-white transition-all duration-200 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 active:scale-[0.98]"
+                                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
+                                >
+                                    Apply Filters
+                                </button>
                             </div>
                         </div>
                     </div>

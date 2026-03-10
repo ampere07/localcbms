@@ -43,6 +43,12 @@ export interface SOARecordUI {
     deliveryProof?: string;
     modifiedBy?: string;
     modifiedDate?: string;
+    remarks?: string;
+    dateProcessed?: string;
+    invoiceStatus?: string;
+    referenceNo?: string;
+    orNo?: string;
+    transactionId?: string;
 }
 
 interface SOAState {
@@ -93,6 +99,12 @@ const transform = (record: SOARecord): SOARecordUI => ({
     remainingBalance: Number(record.remaining_balance_previous) || 0,
     modifiedBy: record.updated_by,
     modifiedDate: record.updated_at ? new Date(record.updated_at).toLocaleDateString() : undefined,
+    remarks: (record as any).remarks || '',
+    dateProcessed: (record as any).date_processed || '',
+    invoiceStatus: (record as any).status || '',
+    referenceNo: (record as any).reference_no || '',
+    orNo: (record as any).or_no || '',
+    transactionId: (record as any).transaction_id || '',
 });
 
 export const useSOAStore = create<SOAState>((set, get) => ({

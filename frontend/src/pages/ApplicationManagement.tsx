@@ -179,6 +179,14 @@ const ApplicationManagement: React.FC = () => {
   useEffect(() => {
     const channel = pusher.subscribe('applications');
 
+    channel.bind('pusher:subscription_succeeded', () => {
+      console.log('[ApplicationManagement Soketi] Successfully subscribed to applications channel');
+    });
+
+    channel.bind('pusher:subscription_error', (error: any) => {
+      console.error('[ApplicationManagement Soketi] Subscription error:', error);
+    });
+
     channel.bind('new-application', async (data: any) => {
       console.log('[ApplicationManagement Soketi] New application detected, silently refreshing:', data);
       try {
@@ -189,13 +197,26 @@ const ApplicationManagement: React.FC = () => {
       }
     });
 
+    // Log connection state for debugging
+    const stateHandler = (states: { previous: string; current: string }) => {
+      console.log(`[ApplicationManagement Soketi] Connection state: ${states.previous} -> ${states.current}`);
+      if (states.current === 'connected' && channel.subscribed !== true) {
+        console.log('[ApplicationManagement Soketi] Reconnected, re-subscribing...');
+        pusher.subscribe('applications');
+      }
+    };
+    pusher.connection.bind('state_change', stateHandler);
+
     return () => {
+      channel.unbind('pusher:subscription_succeeded');
+      channel.unbind('pusher:subscription_error');
       channel.unbind('new-application');
+      pusher.connection.unbind('state_change', stateHandler);
       pusher.unsubscribe('applications');
     };
   }, [silentRefresh]);
 
-  // Poll for changes every 15 seconds (catches changes from mobile app, other sources)
+  // Poll for changes every 5 seconds as fallback (catches changes from mobile app, other sources)
   useEffect(() => {
     const pollInterval = setInterval(async () => {
       try {
@@ -203,7 +224,7 @@ const ApplicationManagement: React.FC = () => {
       } catch (err) {
         // Silent fail - polling is best-effort
       }
-    }, 15000);
+    }, 5000);
 
     return () => clearInterval(pollInterval);
   }, [silentRefresh]);
@@ -371,6 +392,17 @@ const ApplicationManagement: React.FC = () => {
             const boolVal = appValue === true || appValue === 'true' || appValue === 1;
             if (boolVal !== typedFilter.value) {
               matchesFunnel = false; break;
+            }
+          }
+          else if (typedFilter.type === 'checklist' && typedFilter.selectedOptions && typedFilter.selectedOptions.length > 0) {
+            const normalizedValue = String(appValue || '').toLowerCase().trim();
+            const isMatch = typedFilter.selectedOptions.some((opt: string) =>
+              opt.toLowerCase().trim() === normalizedValue || String(appValue) === opt
+            );
+
+            if (!isMatch) {
+              matchesFunnel = false;
+              break;
             }
           }
         }

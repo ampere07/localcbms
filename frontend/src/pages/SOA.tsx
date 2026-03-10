@@ -253,12 +253,44 @@ const SOA: React.FC = () => {
 
     const soaChannel = pusher.subscribe('soa');
 
+    soaChannel.bind('pusher:subscription_succeeded', () => {
+      console.log('[SOA Soketi] Successfully subscribed to soa channel');
+    });
+    soaChannel.bind('pusher:subscription_error', (error: any) => {
+      console.error('[SOA Soketi] Subscription error:', error);
+    });
+
     soaChannel.bind('soa-updated', handleUpdate);
 
+    // Re-subscribe on reconnection
+    const stateHandler = (states: { previous: string; current: string }) => {
+      console.log(`[SOA Soketi] Connection state: ${states.previous} -> ${states.current}`);
+      if (states.current === 'connected' && soaChannel.subscribed !== true) {
+        pusher.subscribe('soa');
+      }
+    };
+    pusher.connection.bind('state_change', stateHandler);
+
     return () => {
+      soaChannel.unbind('pusher:subscription_succeeded');
+      soaChannel.unbind('pusher:subscription_error');
       soaChannel.unbind('soa-updated', handleUpdate);
+      pusher.connection.unbind('state_change', stateHandler);
       pusher.unsubscribe('soa');
     };
+  }, [silentRefresh]);
+
+  // Poll for changes every 5 seconds as fallback
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        await silentRefresh();
+      } catch (err) {
+        // Silent fail - polling is best-effort
+      }
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
   }, [silentRefresh]);
 
   // Idle detection and auto-refresh logic
@@ -344,7 +376,12 @@ const SOA: React.FC = () => {
     if (activeFilters && Object.keys(activeFilters).length > 0) {
       filtered = filtered.filter(record => {
         return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
-          const recordValue = (record as any)[key];
+          let recordValue = (record as any)[key];
+
+          // Special handling for nested or differently named fields
+          if (key === 'statementDateRaw') recordValue = record.statementDateRaw;
+          if (key === 'statementNo') recordValue = record.statementNo;
+          if (key === 'dateInstalled') recordValue = record.dateInstalled;
 
           if (filter.type === 'text') {
             if (!filter.value) return true;
@@ -361,11 +398,25 @@ const SOA: React.FC = () => {
           }
 
           if (filter.type === 'date') {
-            if (!recordValue) return false;
+            if (!recordValue || recordValue === 'N/A') return false;
+            // recordValue might be a formatted date string "MM/DD/YYYY"
             const dateValue = new Date(recordValue).getTime();
-            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
-            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
+            if (isNaN(dateValue)) return false;
+
+            if (filter.from) {
+              const fromDate = new Date(filter.from).getTime();
+              if (dateValue < fromDate) return false;
+            }
+            if (filter.to) {
+              const toDate = new Date(filter.to).getTime();
+              if (dateValue > toDate) return false;
+            }
             return true;
+          }
+
+          if (filter.type === 'checklist') {
+            if (!filter.selectedOptions || filter.selectedOptions.length === 0) return true;
+            return filter.selectedOptions.includes(String(recordValue || ''));
           }
 
           return true;
@@ -1023,6 +1074,9 @@ const SOA: React.FC = () => {
                       if (filter.from && filter.to) return `${colName}: ${filter.from} to ${filter.to}`;
                       if (filter.from) return `${colName}: After ${filter.from}`;
                       if (filter.to) return `${colName}: Before ${filter.to}`;
+                    }
+                    if (filter.type === 'checklist') {
+                      return `${colName}: ${filter.selectedOptions.join(', ')}`;
                     }
                     return colName;
                   }).join('\n')}`

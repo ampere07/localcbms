@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Search, Check } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../../services/settingsColorPaletteService';
+import apiClient from '../../config/api';
+import { planService } from '../../services/planService';
 
 interface JobOrderFunnelFilterProps {
   isOpen: boolean;
@@ -11,82 +13,53 @@ interface JobOrderFunnelFilterProps {
 
 export interface FilterValues {
   [key: string]: {
-    type: 'text' | 'number' | 'date';
-    value?: string;
+    type: 'text' | 'number' | 'date' | 'checklist' | 'boolean';
+    value?: string | boolean | string[];
     from?: string | number;
     to?: string | number;
+    selectedOptions?: string[];
   };
 }
 
 interface Column {
   key: string;
   label: string;
-  table: string;
-  dataType: 'varchar' | 'text' | 'int' | 'bigint' | 'decimal' | 'date' | 'datetime' | 'enum';
+  dataType: 'varchar' | 'text' | 'int' | 'decimal' | 'date' | 'datetime' | 'checklist' | 'bigint';
 }
 
 const STORAGE_KEY = 'jobOrderFunnelFilters';
 
 export const allColumns: Column[] = [
-  { key: 'id', label: 'ID', table: 'job_orders', dataType: 'bigint' },
-  { key: 'application_id', label: 'Application ID', table: 'job_orders', dataType: 'bigint' },
-  { key: 'timestamp', label: 'Timestamp', table: 'job_orders', dataType: 'datetime' },
-  { key: 'date_installed', label: 'Date Installed', table: 'job_orders', dataType: 'date' },
-  { key: 'installation_fee', label: 'Installation Fee', table: 'job_orders', dataType: 'decimal' },
-  { key: 'billing_day', label: 'Billing Day', table: 'job_orders', dataType: 'int' },
-  { key: 'billing_status', label: 'Billing Status', table: 'job_orders', dataType: 'varchar' },
-  { key: 'modem_router_sn', label: 'Modem/Router SN', table: 'job_orders', dataType: 'varchar' },
-  { key: 'router_model', label: 'Router Model', table: 'job_orders', dataType: 'varchar' },
-  { key: 'group_name', label: 'Group Name', table: 'job_orders', dataType: 'varchar' },
-  { key: 'lcpnap', label: 'LCPNAP', table: 'job_orders', dataType: 'varchar' },
-  { key: 'port', label: 'PORT', table: 'job_orders', dataType: 'varchar' },
-  { key: 'vlan', label: 'VLAN', table: 'job_orders', dataType: 'varchar' },
-  { key: 'username', label: 'Username', table: 'job_orders', dataType: 'varchar' },
-  { key: 'ip_address', label: 'IP Address', table: 'job_orders', dataType: 'varchar' },
-  { key: 'connection_type', label: 'Connection Type', table: 'job_orders', dataType: 'enum' },
-  { key: 'usage_type', label: 'Usage Type', table: 'job_orders', dataType: 'varchar' },
-  { key: 'username_status', label: 'Username Status', table: 'job_orders', dataType: 'varchar' },
-  { key: 'visit_by', label: 'Visit By', table: 'job_orders', dataType: 'varchar' },
-  { key: 'visit_with', label: 'Visit With', table: 'job_orders', dataType: 'varchar' },
-  { key: 'visit_with_other', label: 'Visit With Other', table: 'job_orders', dataType: 'varchar' },
-  { key: 'onsite_status', label: 'Onsite Status', table: 'job_orders', dataType: 'enum' },
-  { key: 'onsite_remarks', label: 'Onsite Remarks', table: 'job_orders', dataType: 'text' },
-  { key: 'status_remarks', label: 'Status Remarks', table: 'job_orders', dataType: 'text' },
-  { key: 'address_coordinates', label: 'Address Coordinates', table: 'job_orders', dataType: 'varchar' },
-  { key: 'contract_link', label: 'Contract Link', table: 'job_orders', dataType: 'text' },
-  { key: 'client_signature_url', label: 'Client Signature URL', table: 'job_orders', dataType: 'text' },
-  { key: 'setup_image_url', label: 'Setup Image URL', table: 'job_orders', dataType: 'text' },
-  { key: 'speedtest_image_url', label: 'Speedtest Image URL', table: 'job_orders', dataType: 'text' },
-  { key: 'signed_contract_image_url', label: 'Signed Contract Image URL', table: 'job_orders', dataType: 'text' },
-  { key: 'box_reading_image_url', label: 'Box Reading Image URL', table: 'job_orders', dataType: 'text' },
-  { key: 'router_reading_image_url', label: 'Router Reading Image URL', table: 'job_orders', dataType: 'text' },
-  { key: 'port_label_image_url', label: 'Port Label Image URL', table: 'job_orders', dataType: 'text' },
-  { key: 'house_front_picture_url', label: 'House Front Picture URL', table: 'job_orders', dataType: 'text' },
-  { key: 'created_at', label: 'Created At', table: 'job_orders', dataType: 'datetime' },
-  { key: 'created_by_user_email', label: 'Created By User Email', table: 'job_orders', dataType: 'varchar' },
-  { key: 'updated_at', label: 'Updated At', table: 'job_orders', dataType: 'datetime' },
-  { key: 'updated_by_user_email', label: 'Updated By User Email', table: 'job_orders', dataType: 'varchar' },
-  { key: 'assigned_email', label: 'Assigned Email', table: 'job_orders', dataType: 'varchar' },
-  { key: 'pppoe_username', label: 'PPPoE Username', table: 'job_orders', dataType: 'varchar' },
-  { key: 'pppoe_password', label: 'PPPoE Password', table: 'job_orders', dataType: 'varchar' },
-  { key: 'full_name', label: 'Full Name', table: 'job_orders', dataType: 'varchar' },
-  { key: 'address', label: 'Address', table: 'job_orders', dataType: 'text' },
-  { key: 'contract_template', label: 'Contract Template', table: 'job_orders', dataType: 'varchar' },
-  { key: 'first_name', label: 'First Name', table: 'job_orders', dataType: 'varchar' },
-  { key: 'middle_initial', label: 'Middle Initial', table: 'job_orders', dataType: 'varchar' },
-  { key: 'last_name', label: 'Last Name', table: 'job_orders', dataType: 'varchar' },
-  { key: 'contact_number', label: 'Contact Number', table: 'job_orders', dataType: 'varchar' },
-  { key: 'second_contact_number', label: 'Second Contact Number', table: 'job_orders', dataType: 'varchar' },
-  { key: 'email_address', label: 'Email Address', table: 'job_orders', dataType: 'varchar' },
-  { key: 'region', label: 'Region', table: 'job_orders', dataType: 'varchar' },
-  { key: 'city', label: 'City', table: 'job_orders', dataType: 'varchar' },
-  { key: 'barangay', label: 'Barangay', table: 'job_orders', dataType: 'varchar' },
-
-  { key: 'choose_plan', label: 'Choose Plan', table: 'job_orders', dataType: 'varchar' },
-  { key: 'referred_by', label: 'Referred By', table: 'job_orders', dataType: 'varchar' },
-  { key: 'start_timestamp', label: 'Start Timestamp', table: 'job_orders', dataType: 'datetime' },
-  { key: 'end_timestamp', label: 'End Timestamp', table: 'job_orders', dataType: 'datetime' },
-  { key: 'duration', label: 'Duration', table: 'job_orders', dataType: 'varchar' },
+  { key: 'emailAddress', label: 'Email Address', dataType: 'varchar' },
+  { key: 'referredBy', label: 'Referred By', dataType: 'varchar' },
+  { key: 'fullName', label: 'Full Name', dataType: 'varchar' },
+  { key: 'contactNumber', label: 'Contact Number', dataType: 'varchar' },
+  { key: 'barangay', label: 'Barangay', dataType: 'checklist' },
+  { key: 'city', label: 'City', dataType: 'checklist' },
+  { key: 'region', label: 'Region', dataType: 'checklist' },
+  { key: 'choosePlan', label: 'Desired Plan', dataType: 'checklist' },
+  { key: 'statusRemarks', label: 'Remarks', dataType: 'varchar' },
+  { key: 'contractTemplate', label: 'Contract Template', dataType: 'varchar' },
+  { key: 'billingDay', label: 'Billing Day', dataType: 'varchar' },
+  { key: 'onsiteRemarks', label: 'Onsite Remarks', dataType: 'varchar' },
+  { key: 'billingStatus', label: 'Status', dataType: 'checklist' },
+  { key: 'modemRouterSN', label: 'Modem SN', dataType: 'varchar' },
+  { key: 'lcp', label: 'LCP', dataType: 'checklist' },
+  { key: 'nap', label: 'NAP', dataType: 'checklist' },
+  { key: 'port', label: 'Port', dataType: 'checklist' },
+  { key: 'vlan', label: 'VLAN', dataType: 'checklist' },
+  { key: 'lcpnap', label: 'LCPNAP', dataType: 'checklist' },
+  { key: 'visitBy', label: 'Visit By', dataType: 'varchar' },
+  { key: 'visitWith', label: 'Visit With', dataType: 'varchar' },
+  { key: 'visitWithOther', label: 'Visit With Other', dataType: 'varchar' },
+  { key: 'onsiteStatus', label: 'Onsite Status', dataType: 'checklist' },
+  { key: 'routerModel', label: 'Router Model', dataType: 'checklist' },
+  { key: 'dateInstalled', label: 'Date Installed', dataType: 'date' },
+  { key: 'ipAddress', label: 'IP', dataType: 'varchar' },
+  { key: 'usageType', label: 'Usage Type', dataType: 'checklist' },
+  { key: 'Account_No', label: 'Account No', dataType: 'varchar' },
+  { key: 'houseFrontPictureUrl', label: 'House Front Image', dataType: 'varchar' },
+  { key: 'address', label: 'Full Address', dataType: 'varchar' },
 ];
 
 const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
@@ -99,6 +72,35 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [selectedColumn, setSelectedColumn] = useState<Column | null>(null);
   const [filterValues, setFilterValues] = useState<FilterValues>({});
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Checklist data states
+  const [plans, setPlans] = useState<string[]>([]);
+  const [barangays, setBarangays] = useState<string[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
+  const [regions, setRegions] = useState<string[]>([]);
+  const [lcpNames, setLcpNames] = useState<string[]>([]);
+  const [napNames, setNapNames] = useState<string[]>([]);
+  const [ports, setPorts] = useState<string[]>([]);
+  const [vlans, setVlans] = useState<string[]>([]);
+  const [lcpnaps, setLcpnaps] = useState<string[]>([]);
+  const [routerModels, setRouterModels] = useState<string[]>([]);
+  const [usageTypes, setUsageTypes] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const savedFilters = localStorage.getItem(STORAGE_KEY);
+      if (savedFilters) {
+        try {
+          setFilterValues(JSON.parse(savedFilters));
+        } catch (err) {
+          console.error('Failed to load saved filters:', err);
+        }
+      } else if (currentFilters) {
+        setFilterValues(currentFilters);
+      }
+    }
+  }, [isOpen, currentFilters]);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -122,25 +124,64 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      const savedFilters = localStorage.getItem(STORAGE_KEY);
-      if (savedFilters) {
+      const fetchChecklistData = async () => {
         try {
-          setFilterValues(JSON.parse(savedFilters));
+          const [planData, locRes, joRes] = await Promise.all([
+            planService.getAllPlans(),
+            apiClient.get<{ success: boolean; data: { barangays: string[], cities: string[], regions: string[] } }>('/lookup/customer-locations'),
+            apiClient.get<{
+              success: boolean; data: {
+                lcp_names: string[],
+                nap_names: string[],
+                ports: string[],
+                vlans: string[],
+                lcpnaps: string[],
+                router_models: string[],
+                usage_types: string[]
+              }
+            }>('/lookup/job-orders')
+          ]);
+
+          if (planData) {
+            const formattedPlans = planData.map(p => {
+              const name = p.name || (p as any).plan_name || 'Unknown';
+              const price = Math.floor(Number(p.price || 0));
+              return `${name} ${price}`;
+            });
+            setPlans(formattedPlans);
+          }
+
+          if (locRes.data.success) {
+            setBarangays(locRes.data.data.barangays);
+            setCities(locRes.data.data.cities);
+            setRegions(locRes.data.data.regions);
+          }
+
+          if (joRes.data.success) {
+            setLcpNames(joRes.data.data.lcp_names);
+            setNapNames(joRes.data.data.nap_names);
+            setPorts(joRes.data.data.ports);
+            setVlans(joRes.data.data.vlans);
+            setLcpnaps(joRes.data.data.lcpnaps);
+            setRouterModels(joRes.data.data.router_models);
+            setUsageTypes(joRes.data.data.usage_types);
+          }
         } catch (err) {
-          console.error('Failed to load saved filters:', err);
+          console.error('Failed to fetch checklist data:', err);
         }
-      } else if (currentFilters) {
-        setFilterValues(currentFilters);
-      }
+      };
+      fetchChecklistData();
     }
-  }, [isOpen, currentFilters]);
+  }, [isOpen]);
 
   const handleColumnClick = (column: Column) => {
     setSelectedColumn(column);
+    setSearchTerm('');
   };
 
   const handleBack = () => {
     setSelectedColumn(null);
+    setSearchTerm('');
   };
 
   const handleApply = () => {
@@ -156,7 +197,7 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
   };
 
   const isNumericType = (dataType: string) => {
-    return ['int', 'bigint', 'decimal'].includes(dataType);
+    return ['int', 'decimal', 'bigint'].includes(dataType);
   };
 
   const isDateType = (dataType: string) => {
@@ -164,55 +205,179 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
   };
 
   const handleTextChange = (columnKey: string, value: string) => {
-    setFilterValues(prev => ({
-      ...prev,
-      [columnKey]: {
-        type: 'text',
-        value
-      }
-    }));
+    if (value === '') {
+      const newFilters = { ...filterValues };
+      delete newFilters[columnKey];
+      setFilterValues(newFilters);
+    } else {
+      setFilterValues(prev => ({
+        ...prev,
+        [columnKey]: {
+          type: 'text',
+          value
+        }
+      }));
+    }
   };
 
   const handleRangeChange = (columnKey: string, field: 'from' | 'to', value: string) => {
-    setFilterValues(prev => ({
-      ...prev,
-      [columnKey]: {
-        ...prev[columnKey],
-        type: 'number',
-        [field]: value
+    setFilterValues(prev => {
+      const current = prev[columnKey] || { type: 'number' };
+      const next = { ...current, [field]: value };
+
+      if (next.from === '' && next.to === '') {
+        const newFilters = { ...prev };
+        delete newFilters[columnKey];
+        return newFilters;
       }
-    }));
+
+      return {
+        ...prev,
+        [columnKey]: next
+      };
+    });
   };
 
   const handleDateChange = (columnKey: string, field: 'from' | 'to', value: string) => {
-    setFilterValues(prev => ({
-      ...prev,
-      [columnKey]: {
-        ...prev[columnKey],
-        type: 'date',
-        [field]: value
+    setFilterValues(prev => {
+      const current = prev[columnKey] || { type: 'date' };
+      const next = { ...current, [field]: value };
+
+      if (!next.from && !next.to) {
+        const newFilters = { ...prev };
+        delete newFilters[columnKey];
+        return newFilters;
       }
-    }));
+
+      return {
+        ...prev,
+        [columnKey]: next
+      };
+    });
   };
 
-  const getActiveFilterCount = () => {
-    return Object.keys(filterValues).filter(key => {
-      const filter = filterValues[key];
-      if (filter.type === 'text') {
-        return filter.value && filter.value.trim() !== '';
-      }
-      return filter.from !== undefined || filter.to !== undefined;
-    }).length;
-  };
+  const toggleOption = (columnKey: string, option: string) => {
+    setFilterValues(prev => {
+      const current = prev[columnKey] || { type: 'checklist', value: [] };
+      const selectedOptions = (current.value as string[]) || [];
 
-  const groupedColumns = {
-    job_orders: allColumns.filter(col => col.table === 'job_orders')
+      const nextOptions = selectedOptions.includes(option)
+        ? selectedOptions.filter(o => o !== option)
+        : [...selectedOptions, option];
+
+      if (nextOptions.length === 0) {
+        const newFilters = { ...prev };
+        delete newFilters[columnKey];
+        return newFilters;
+      }
+
+      return {
+        ...prev,
+        [columnKey]: {
+          type: 'checklist',
+          value: nextOptions
+        }
+      };
+    });
   };
 
   const renderFilterInput = () => {
     if (!selectedColumn) return null;
 
     const currentValue = filterValues[selectedColumn.key];
+
+    if (selectedColumn.dataType === 'checklist') {
+      let options: { label: string, value: string }[] = [];
+      if (selectedColumn.key === 'choosePlan') {
+        options = plans.map(p => {
+          const parts = p.split(' ');
+          const price = parts.pop();
+          const name = parts.join(' ');
+          return { label: p, value: name };
+        });
+      } else if (selectedColumn.key === 'barangay') {
+        options = barangays.map(b => ({ label: b, value: b }));
+      } else if (selectedColumn.key === 'city') {
+        options = cities.map(c => ({ label: c, value: c }));
+      } else if (selectedColumn.key === 'region') {
+        options = regions.map(r => ({ label: r, value: r }));
+      } else if (selectedColumn.key === 'billingStatus') {
+        options = [
+          { label: 'Confirmed', value: 'Confirmed' },
+          { label: 'Cancelled', value: 'Cancelled' },
+          { label: 'For Confirmation', value: 'For Confirmation' },
+          { label: 'Pending', value: 'Pending' }
+        ];
+      } else if (selectedColumn.key === 'onsiteStatus') {
+        options = [
+          { label: 'Done', value: 'Done' },
+          { label: 'Failed', value: 'Failed' },
+          { label: 'Reschedule', value: 'Reschedule' },
+          { label: 'In Progress', value: 'In Progress' },
+          { label: 'Empty', value: '' }
+        ];
+      } else if (selectedColumn.key === 'lcp') {
+        options = lcpNames.map(o => ({ label: o, value: o }));
+      } else if (selectedColumn.key === 'nap') {
+        options = napNames.map(o => ({ label: o, value: o }));
+      } else if (selectedColumn.key === 'port') {
+        options = ports.map(o => ({ label: o, value: o }));
+      } else if (selectedColumn.key === 'vlan') {
+        options = vlans.map(o => ({ label: o, value: o }));
+      } else if (selectedColumn.key === 'lcpnap') {
+        options = lcpnaps.map(o => ({ label: o, value: o }));
+      } else if (selectedColumn.key === 'routerModel') {
+        options = routerModels.map(o => ({ label: o, value: o }));
+      } else if (selectedColumn.key === 'usageType') {
+        options = usageTypes.map(o => ({ label: o, value: o }));
+      }
+
+      const filteredOptions = options.filter(opt =>
+        opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      return (
+        <div className="flex flex-col h-full overflow-hidden">
+          <div className="relative mb-4">
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+            <input
+              type="text"
+              placeholder="Search options..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm focus:outline-none transition-all ${isDarkMode
+                ? 'bg-gray-800 border-gray-700 text-white focus:border-purple-500'
+                : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-purple-500'
+                }`}
+            />
+          </div>
+          <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option, idx) => {
+                const isSelected = (currentValue?.value as string[])?.includes(option.value);
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => toggleOption(selectedColumn.key, option.value)}
+                    className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${isSelected
+                      ? (isDarkMode ? 'bg-purple-500/10 text-purple-400' : 'bg-purple-50 text-purple-600')
+                      : (isDarkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-50 text-gray-700')
+                      }`}
+                  >
+                    <span className="text-sm font-medium">{option.label}</span>
+                    {isSelected && <Check className="h-4 w-4" />}
+                  </button>
+                );
+              })
+            ) : (
+              <div className="text-center py-8">
+                <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>No results found</p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
 
     if (isNumericType(selectedColumn.dataType)) {
       return (
@@ -312,136 +477,114 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
 
   if (!isOpen) return null;
 
-  const activeFilterCount = getActiveFilterCount();
-
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
+    <div className="fixed inset-0 z-50 overflow-hidden text-left">
       <div className="absolute inset-0 overflow-hidden">
         <div
-          className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+          className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
           onClick={onClose}
         />
 
         <div className="fixed inset-y-0 right-0 max-w-full flex">
-          <div className={`w-screen max-w-md transform transition-transform ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+          <div className={`w-screen max-w-md transform transition-transform duration-300 flex flex-col ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900 shadow-2xl'
             }`}>
-            <div className="h-full flex flex-col">
-              <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    {selectedColumn && (
+            {/* Header */}
+            <div className={`px-6 py-5 flex items-center justify-between border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-100'
+              }`}>
+              <div className="flex items-center space-x-4">
+                {selectedColumn && (
+                  <button
+                    onClick={handleBack}
+                    className={`p-2 rounded-xl transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                      }`}
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                )}
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight">
+                    {selectedColumn ? selectedColumn.label : 'Job Order Filters'}
+                  </h2>
+                  {!selectedColumn && (
+                    <p className={`text-xs mt-0.5 font-medium ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      Refine your job order results
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className={`p-2 rounded-xl transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                  }`}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto px-6 py-6 scroll-smooth">
+              {selectedColumn ? (
+                renderFilterInput()
+              ) : (
+                <div className="space-y-1">
+                  {allColumns.map((column) => {
+                    const isActive = !!filterValues[column.key];
+                    return (
                       <button
-                        onClick={handleBack}
-                        className={`p-2 rounded-lg transition-colors ${isDarkMode
-                          ? 'hover:bg-gray-800 text-gray-400'
-                          : 'hover:bg-gray-100 text-gray-600'
+                        key={column.key}
+                        onClick={() => handleColumnClick(column)}
+                        className={`w-full group flex items-center justify-between p-4 rounded-2xl transition-all duration-200 ${isDarkMode
+                          ? 'hover:bg-gray-800'
+                          : 'hover:bg-gray-50 border border-transparent hover:border-gray-200'
                           }`}
                       >
-                        <ChevronLeft className="h-5 w-5" />
-                      </button>
-                    )}
-                    <div>
-                      <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>
-                        {selectedColumn ? selectedColumn.label : 'Filter'}
-                      </h2>
-                      {!selectedColumn && activeFilterCount > 0 && (
-                        <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
-                          {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} active
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    onClick={onClose}
-                    className={`p-2 rounded-lg transition-colors ${isDarkMode
-                      ? 'hover:bg-gray-800 text-gray-400'
-                      : 'hover:bg-gray-100 text-gray-600'
-                      }`}
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto px-6 py-4">
-                {selectedColumn ? (
-                  renderFilterInput()
-                ) : (
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
-                        Job Order Details
-                      </h3>
-                      <div className="flex flex-col gap-2 w-full">
-                        {groupedColumns.job_orders.map(column => {
-                          const hasFilter = filterValues[column.key] && (
-                            filterValues[column.key].value ||
-                            filterValues[column.key].from !== undefined ||
-                            filterValues[column.key].to !== undefined
-                          );
-
-                          return (
-                            <div
-                              key={column.key}
-                              onClick={() => handleColumnClick(column)}
-                              className={`w-full p-3 cursor-pointer transition-all flex items-center justify-between border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                                }`}
-                            >
-                              <div className="flex items-center space-x-2">
-                                <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-                                  }`}>
-                                  {column.label}
-                                </span>
-                                {hasFilter && (
-                                  <span
-                                    className="w-2 h-2 rounded-full"
-                                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
-                                  />
-                                )}
-                              </div>
-                              <ChevronRight className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                                }`} />
+                        <div className="flex items-center space-x-4">
+                          <div className="relative">
+                            <div className={`text-sm font-semibold transition-colors ${isActive ? 'text-purple-500' : (isDarkMode ? 'text-gray-200' : 'text-gray-700')
+                              }`}>
+                              {column.label}
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className={`px-6 py-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                }`}>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={handleReset}
-                    className={`flex-1 px-4 py-2 rounded transition-colors ${isDarkMode
-                      ? 'bg-gray-800 hover:bg-gray-700 text-white'
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                      }`}
-                  >
-                    Clear All
-                  </button>
-                  <button
-                    onClick={handleApply}
-                    className="flex-1 px-4 py-2 text-white rounded transition-colors"
-                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
-                    onMouseEnter={(e) => {
-                      if (colorPalette?.accent) {
-                        e.currentTarget.style.backgroundColor = colorPalette.accent;
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
-                    }}
-                  >
-                    Apply Filters
-                  </button>
+                            {isActive && (
+                              <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.6)]" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          {isActive && (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${isDarkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700'
+                              }`}>
+                              Active
+                            </span>
+                          )}
+                          <ChevronRight className={`h-4 w-4 transition-transform group-hover:translate-x-0.5 ${isDarkMode ? 'text-gray-600' : 'text-gray-300'
+                            }`} />
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className={`px-6 py-6 border-t ${isDarkMode ? 'border-gray-800 bg-gray-900/50' : 'border-gray-100 bg-gray-50/50'}`}>
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleReset}
+                  className={`flex-1 px-4 py-3 rounded-2xl font-bold text-sm transition-all duration-200 ${isDarkMode
+                    ? 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                    : 'bg-white border border-gray-200 hover:border-gray-300 text-gray-600 shadow-sm'
+                    }`}
+                >
+                  Clear All
+                </button>
+                <button
+                  onClick={handleApply}
+                  className="flex-1 px-4 py-3 rounded-2xl font-bold text-sm text-white transition-all duration-200 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 active:scale-[0.98]"
+                  style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
+                >
+                  Apply Filters
+                </button>
               </div>
             </div>
           </div>

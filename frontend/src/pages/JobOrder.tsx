@@ -288,15 +288,67 @@ const JobOrderPage: React.FC = () => {
     const jobChannel = pusher.subscribe('job-orders');
     const appChannel = pusher.subscribe('applications');
 
+    // Subscription success/error handlers
+    const channels = [
+      { channel: jobChannel, name: 'job-orders' },
+      { channel: appChannel, name: 'applications' }
+    ];
+    channels.forEach(({ channel, name }) => {
+      channel.bind('pusher:subscription_succeeded', () => {
+        console.log(`[JobOrder Soketi] Successfully subscribed to ${name} channel`);
+      });
+      channel.bind('pusher:subscription_error', (error: any) => {
+        console.error(`[JobOrder Soketi] Subscription error on ${name}:`, error);
+      });
+    });
+
     jobChannel.bind('job-order-done', handleJobOrderUpdate);
     appChannel.bind('new-application', handleJobOrderUpdate);
 
+    // Re-subscribe on reconnection
+    const stateHandler = (states: { previous: string; current: string }) => {
+      console.log(`[JobOrder Soketi] Connection state: ${states.previous} -> ${states.current}`);
+      if (states.current === 'connected') {
+        if (jobChannel.subscribed !== true) pusher.subscribe('job-orders');
+        if (appChannel.subscribed !== true) pusher.subscribe('applications');
+      }
+    };
+    pusher.connection.bind('state_change', stateHandler);
+
     return () => {
+      channels.forEach(({ channel }) => {
+        channel.unbind('pusher:subscription_succeeded');
+        channel.unbind('pusher:subscription_error');
+      });
       jobChannel.unbind('job-order-done', handleJobOrderUpdate);
       appChannel.unbind('new-application', handleJobOrderUpdate);
+      pusher.connection.unbind('state_change', stateHandler);
       pusher.unsubscribe('job-orders');
       pusher.unsubscribe('applications');
     };
+  }, [silentRefresh]);
+
+  // Poll for changes every 5 seconds as fallback
+  useEffect(() => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const authData = localStorage.getItem('authData');
+        let email: string | undefined;
+        if (authData) {
+          try {
+            const userData = JSON.parse(authData);
+            if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
+              email = userData.email;
+            }
+          } catch (err) { }
+        }
+        await silentRefresh(email);
+      } catch (err) {
+        // Silent fail - polling is best-effort
+      }
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
   }, [silentRefresh]);
 
   // Idle detection and auto-refresh logic
@@ -449,12 +501,57 @@ const JobOrderPage: React.FC = () => {
   }, [jobOrders]);
 
   // Helper function to apply funnel filters
+  const getVal = (jo: JobOrder, key: string) => {
+    switch (key) {
+      case 'timestamp': return jo.Timestamp || jo.timestamp || '';
+      case 'billingStatus': return jo.billing_status || jo.Billing_Status || '';
+      case 'onsiteStatus': return jo.Onsite_Status || jo.onsite_status || '';
+      case 'dateInstalled': return jo.Date_Installed || jo.date_installed || '';
+      case 'installationFee': return jo.Installation_Fee || jo.installation_fee || 0;
+      case 'billingDay': return jo.Billing_Day ?? jo.billing_day ?? 0;
+      case 'modemRouterSN': return jo.Modem_Router_SN || jo.modem_router_sn || '';
+      case 'routerModel': return jo.Router_Model || jo.router_model || '';
+      case 'groupName': return jo.group_name || jo.Group_Name || '';
+      case 'lcpnap': return jo.LCPNAP || jo.lcpnap || '';
+      case 'port': return jo.PORT || jo.Port || jo.port || '';
+      case 'vlan': return jo.VLAN || jo.vlan || '';
+      case 'username': return jo.Username || jo.username || '';
+      case 'ipAddress': return jo.IP_Address || jo.ip_address || jo.IP || jo.ip || '';
+      case 'connectionType': return jo.Connection_Type || jo.connection_type || '';
+      case 'usageType': return jo.Usage_Type || jo.usage_type || '';
+      case 'usernameStatus': return jo.username_status || jo.Username_Status || '';
+      case 'visitBy': return jo.Visit_By || jo.visit_by || '';
+      case 'visitWith': return jo.Visit_With || jo.visit_with || '';
+      case 'visitWithOther': return jo.Visit_With_Other || jo.visit_with_other || '';
+      case 'onsiteRemarks': return jo.Onsite_Remarks || jo.onsite_remarks || '';
+      case 'statusRemarks': return jo.Status_Remarks || jo.status_remarks || '';
+      case 'fullName': return getClientFullName(jo) || jo.Full_Name || jo.full_name || '';
+      case 'emailAddress': return jo.Email_Address || jo.email_address || '';
+      case 'referredBy': return jo.Referred_By || jo.referred_by || '';
+      case 'contactNumber': return jo.Contact_Number || jo.contact_number || jo.Mobile_Number || jo.mobile_number || '';
+      case 'barangay': return jo.Barangay || jo.barangay || '';
+      case 'city': return jo.City || jo.city || '';
+      case 'region': return jo.Region || jo.region || '';
+      case 'choosePlan': return jo.Choose_Plan || jo.Desired_Plan || jo.choose_plan || jo.desired_plan || '';
+      case 'contractTemplate': return jo.Contract_Template || jo.contract_link || '';
+      case 'Account_No': return jo.Account_No || jo.Account_Number || jo.account_no || jo.account_number || '';
+      case 'houseFrontPictureUrl': return jo.house_front_picture_url || jo.House_Front_Picture || '';
+      case 'address': return getClientFullAddress(jo) || jo.Address || '';
+      case 'assignedEmail': return jo.Assigned_Email || jo.assigned_email || '';
+      case 'createdAt': return jo.created_at || jo.Created_At || '';
+      case 'updatedAt': return jo.updated_at || jo.Updated_At || '';
+      case 'lcp': return jo.LCP || jo.lcp || '';
+      case 'nap': return jo.NAP || jo.nap || '';
+      default: return (jo as any)[key] || '';
+    }
+  };
+
   const applyFunnelFilters = (orders: JobOrder[], filters: any): JobOrder[] => {
     if (!filters || Object.keys(filters).length === 0) return orders;
 
     return orders.filter(order => {
       return Object.entries(filters).every(([key, filter]: [string, any]) => {
-        const orderValue = (order as any)[key] || (order as any)[key.toLowerCase()] || (order as any)[key.charAt(0).toUpperCase() + key.slice(1).replace(/_./g, (match) => match.charAt(1).toUpperCase())];
+        const orderValue = getVal(order, key);
 
         let match = true;
         if (filter.type === 'text') {
@@ -469,6 +566,11 @@ const JobOrderPage: React.FC = () => {
           else if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) match = false;
           else if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) match = false;
           else match = true;
+        } else if (filter.type === 'checklist') {
+          if (!filter.value || filter.value.length === 0) match = true;
+          else {
+            match = filter.value.includes(String(orderValue || ''));
+          }
         } else if (filter.type === 'date') {
           if (!orderValue) match = false;
           else {
@@ -550,39 +652,6 @@ const JobOrderPage: React.FC = () => {
 
     let aValue: any = '';
     let bValue: any = '';
-
-    const getVal = (jo: JobOrder, key: string) => {
-      switch (key) {
-        case 'timestamp': return jo.Timestamp || jo.timestamp || '';
-        case 'billingStatus': return jo.billing_status || jo.Billing_Status || '';
-        case 'onsiteStatus': return jo.Onsite_Status || jo.onsite_status || '';
-        case 'dateInstalled': return jo.Date_Installed || jo.date_installed || '';
-        case 'installationFee': return jo.Installation_Fee || jo.installation_fee || 0;
-        case 'billingDay': return jo.Billing_Day ?? jo.billing_day ?? 0;
-        case 'modemRouterSN': return jo.Modem_Router_SN || jo.modem_router_sn || '';
-        case 'routerModel': return jo.Router_Model || jo.router_model || '';
-        case 'groupName': return jo.group_name || jo.Group_Name || '';
-        case 'lcpnap': return jo.LCPNAP || jo.lcpnap || '';
-        case 'port': return jo.PORT || jo.Port || jo.port || '';
-        case 'vlan': return jo.VLAN || jo.vlan || '';
-        case 'username': return jo.Username || jo.username || '';
-        case 'ipAddress': return jo.IP_Address || jo.ip_address || jo.IP || jo.ip || '';
-        case 'connectionType': return jo.Connection_Type || jo.connection_type || '';
-        case 'usageType': return jo.Usage_Type || jo.usage_type || '';
-        case 'usernameStatus': return jo.username_status || jo.Username_Status || '';
-        case 'visitBy': return jo.Visit_By || jo.visit_by || '';
-        case 'visitWith': return jo.Visit_With || jo.visit_with || '';
-        case 'visitWithOther': return jo.Visit_With_Other || jo.visit_with_other || '';
-        case 'onsiteRemarks': return jo.Onsite_Remarks || jo.onsite_remarks || '';
-        case 'statusRemarks': return jo.Status_Remarks || jo.status_remarks || '';
-        case 'fullName': return getClientFullName(jo);
-        case 'address': return getClientFullAddress(jo);
-        case 'assignedEmail': return jo.Assigned_Email || jo.assigned_email || '';
-        case 'createdAt': return jo.created_at || jo.Created_At || '';
-        case 'updatedAt': return jo.updated_at || jo.Updated_At || '';
-        default: return '';
-      }
-    };
 
     aValue = getVal(a, sortColumn);
     bValue = getVal(b, sortColumn);

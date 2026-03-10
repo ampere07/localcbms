@@ -41,13 +41,31 @@ export interface ServiceOrder {
     supportStatus?: string;
     priorityLevel?: string;
     newRouterSn?: string;
-    newLcpnap?: string;
     newPlan?: string;
     clientSignatureUrl?: string;
     image1Url?: string;
     image2Url?: string;
     image3Url?: string;
     rawUpdatedAt?: string;
+    referredBy?: string;
+    status?: string;
+    routerModel?: string;
+    oldLcp?: string;
+    oldNap?: string;
+    oldPort?: string;
+    oldVlan?: string;
+    oldLcpnap?: string;
+    newLcp?: string;
+    newNap?: string;
+    newPort?: string;
+    newVlan?: string;
+    newLcpnap?: string;
+    billingDay?: string;
+    onsiteRemarks?: string;
+    statusRemarks?: string;
+    contractTemplate?: string;
+    ipAddress?: string;
+    usageType?: string;
 }
 
 export const transformServiceOrder = (order: ServiceOrderData): ServiceOrder => {
@@ -69,10 +87,10 @@ export const transformServiceOrder = (order: ServiceOrderData): ServiceOrder => 
         username: order.username || '',
         connectionType: order.connection_type || '',
         routerModemSN: order.router_modem_sn || '',
-        lcp: order.lcp || '',
-        nap: order.nap || '',
-        port: order.port || '',
-        vlan: order.vlan || '',
+        lcp: order.lcp || order.old_lcp || '',
+        nap: order.nap || order.old_nap || '',
+        port: order.port || order.old_port || '',
+        vlan: order.vlan || order.old_vlan || '',
         concern: order.concern || '',
         concernRemarks: order.concern_remarks || '',
         visitStatus: order.visit_status || '',
@@ -91,13 +109,31 @@ export const transformServiceOrder = (order: ServiceOrderData): ServiceOrder => 
         supportStatus: order.support_status || '',
         priorityLevel: order.priority_level || '',
         newRouterSn: order.new_router_sn || '',
-        newLcpnap: order.new_lcpnap || '',
         newPlan: order.new_plan || '',
         clientSignatureUrl: order.client_signature_url || '',
         image1Url: order.image1_url || '',
         image2Url: order.image2_url || '',
         image3Url: order.image3_url || '',
-        rawUpdatedAt: order.updated_at || ''
+        rawUpdatedAt: order.updated_at || '',
+        referredBy: (order as any).referred_by || '',
+        status: (order as any).status || '',
+        routerModel: (order as any).router_model || '',
+        oldLcp: (order as any).old_lcp || '',
+        oldNap: (order as any).old_nap || '',
+        oldPort: (order as any).old_port || '',
+        oldVlan: (order as any).old_vlan || '',
+        oldLcpnap: (order as any).old_lcpnap || '',
+        newLcp: (order as any).new_lcp || '',
+        newNap: (order as any).new_nap || '',
+        newPort: (order as any).new_port || '',
+        newVlan: (order as any).new_vlan || '',
+        newLcpnap: (order as any).new_lcpnap || '',
+        billingDay: (order as any).billing_day || '',
+        onsiteRemarks: (order as any).onsite_remarks || '',
+        statusRemarks: (order as any).status_remarks || '',
+        contractTemplate: (order as any).contract_template || '',
+        ipAddress: (order as any).ip_address || '',
+        usageType: (order as any).usage_type || '',
     };
 };
 
