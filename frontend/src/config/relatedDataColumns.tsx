@@ -6,305 +6,381 @@ export interface TableColumn {
 
 export const relatedDataColumns = {
   invoices: [
-    { key: 'id', label: 'Invoice ID', render: (val: any, row: any) => row.id || row.invoice_id },
-    { key: 'amount', label: 'Amount', render: (val: any, row: any) => `₱${row.amount || row.total_amount || '0.00'}` },
-    { key: 'status', label: 'Status' },
+    { key: 'status', label: 'Status', render: (val: any) => val || '-' },
+    { key: 'id', label: 'ID' },
+    { key: 'account_no', label: 'Account No' },
     {
       key: 'invoice_date',
-      label: 'Date',
-      render: (val: any, row: any) => {
-        const dateStr = row.invoice_date || row.created_at || row.date;
-        if (!dateStr) return 'N/A';
-        return dateStr.includes(' ') ? dateStr.split(' ')[0] : dateStr;
-      }
-    }
+      label: 'Invoice Date',
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+    },
+    { key: 'invoice_balance', label: 'Balance', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'others_and_basic_charges', label: 'Basic Charges', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'total_amount', label: 'Total Amt', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'received_payment', label: 'Paid', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    {
+      key: 'due_date',
+      label: 'Due Date',
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+    },
+    { key: 'payment_portal_log_ref', label: 'Portal Ref', render: (val: any) => val || '-' },
+    { key: 'transaction_id', label: 'Trans ID', render: (val: any) => val || '-' },
+    { key: 'service_charge', label: 'Svc Charge', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'rebate', label: 'Rebate', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'discounts', label: 'Discounts', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'staggered', label: 'Staggered', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_by', label: 'Created By', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_by', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
   paymentPortalLogs: [
+    { key: 'status', label: 'Status', render: (val: any) => val || '-' },
     { key: 'id', label: 'ID' },
-    { key: 'account_balance_before', label: 'Balance Before', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'total_amount', label: 'Received', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'status', label: 'Status' },
+    { key: 'reference_no', label: 'Ref No', render: (val: any) => val || '-' },
+    { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
+    { key: 'total_amount', label: 'Total Amt', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'account_balance_before', label: 'Bal Before', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     {
       key: 'date_time',
-      label: 'Date',
-      render: (val: any) => {
-        if (!val) return 'N/A';
-        return val.includes(' ') ? val.split(' ')[0] : val;
-      }
-    }
+      label: 'Date Time',
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+    },
+    { key: 'checkout_id', label: 'Checkout ID', render: (val: any) => val || '-' },
+    { key: 'transaction_status', label: 'Trans Status', render: (val: any) => val || '-' },
+    { key: 'ewallet_type', label: 'E-wallet', render: (val: any) => val || '-' },
+    { key: 'payment_channel', label: 'Channel', render: (val: any) => val || '-' },
+    { key: 'type', label: 'Type', render: (val: any) => val || '-' },
+    { key: 'payment_url', label: 'Payment URL', render: (val: any) => val ? 'View' : '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
   transactions: [
-    { key: 'id', label: 'Transaction ID', render: (val: any, row: any) => row.id || row.transaction_id || 'N/A' },
-    { key: 'received_payment', label: 'Amount', render: (val: any, row: any) => `₱${parseFloat(row.received_payment || '0').toFixed(2)}` },
-    { key: 'transaction_type', label: 'Type' },
-    { key: 'payment_method', label: 'Payment Method', render: (val: any, row: any) => row.payment_method_name || val || 'N/A' },
-    {
-      key: 'date_processed',
-      label: 'Date',
-      render: (val: any, row: any) => {
-        const dateStr = row.date_processed || row.payment_date || row.created_at || row.date;
-        if (!dateStr) return 'N/A';
-        return dateStr.includes(' ') ? dateStr.split(' ')[0] : dateStr;
-      }
-    }
-  ] as TableColumn[],
-
-  staggered: [
+    { key: 'status', label: 'Status', render: (val: any) => val || '-' },
     { key: 'id', label: 'ID' },
-    {
-      key: 'staggered_date',
-      label: 'Date',
-      render: (val: any) => {
-        if (!val) return 'N/A';
-        return val.includes(' ') ? val.split(' ')[0] : val;
-      }
-    },
-    { key: 'staggered_balance', label: 'Balance', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'monthly_payment', label: 'Monthly', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    {
-      key: 'modified_date',
-      label: 'Modified',
-      render: (val: any) => {
-        if (!val) return 'N/A';
-        return val.includes(' ') ? val.split(' ')[0] : val;
-      }
-    }
-  ] as TableColumn[],
-
-  discounts: [
-    { key: 'id', label: 'ID' },
-    { key: 'discount_amount', label: 'Amount', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'status', label: 'Status' },
-    {
-      key: 'used_date',
-      label: 'Used Date',
-      render: (val: any) => {
-        if (!val) return 'N/A';
-        return val.includes(' ') ? val.split(' ')[0] : val;
-      }
-    }
-  ] as TableColumn[],
-
-  serviceOrders: [
-    { key: 'id', label: 'SO ID' },
-    { key: 'concern', label: 'Type', render: (val: any) => val || 'N/A' },
-    { key: 'support_status', label: 'Status', render: (val: any) => val || 'N/A' },
-    { key: 'assigned_email', label: 'Assigned To', render: (val: any) => val || 'Unassigned' },
-    {
-      key: 'timestamp',
-      label: 'Date',
-      render: (val: any) => {
-        if (!val) return 'N/A';
-        return val.includes(' ') ? val.split(' ')[0] : val;
-      }
-    }
-  ] as TableColumn[],
-
-  reconnectionLogs: [
-    { key: 'id', label: 'Log ID' },
-    { key: 'plan_name', label: 'Plan', render: (val: any) => val || 'N/A' },
-    { key: 'reconnection_fee', label: 'Fee', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    {
-      key: 'created_at',
-      label: 'Date',
-      render: (val: any) => {
-        if (!val) return 'N/A';
-        return val.includes(' ') ? val.split(' ')[0] : val;
-      }
-    }
-  ] as TableColumn[],
-
-  disconnectedLogs: [
-    { key: 'id', label: 'Log ID' },
-    { key: 'remarks', label: 'Remarks', render: (val: any) => val || 'N/A' },
-    {
-      key: 'created_at',
-      label: 'Date',
-      render: (val: any) => {
-        if (!val) return 'N/A';
-        return val.includes(' ') ? val.split(' ')[0] : val;
-      }
-    }
-  ] as TableColumn[],
-
-  detailsUpdateLogs: [
-    { key: 'id', label: 'Log ID' },
-    { key: 'old_details', label: 'Old Details', render: (val: any) => val || 'N/A' },
-    { key: 'new_details', label: 'New Details', render: (val: any) => val || 'N/A' },
-    { key: 'updated_by_user_id', label: 'Updated By', render: (val: any) => val || 'System' },
-    {
-      key: 'updated_at',
-      label: 'Date',
-      render: (val: any) => {
-        if (!val) return 'N/A';
-        return val.includes(' ') ? val.split(' ')[0] : val;
-      }
-    }
-  ] as TableColumn[],
-
-  planChangeLogs: [
-    { key: 'id', label: 'Log ID' },
-    { key: 'old_plan_name', label: 'Old Plan', render: (val: any) => val || '-' },
-    { key: 'new_plan_name', label: 'New Plan', render: (val: any) => val || '-' },
-    { key: 'status', label: 'Status' },
-    {
-      key: 'date_changed',
-      label: 'Date Changed',
-      render: (val: any) => {
-        if (!val) return 'N/A';
-        return val.includes(' ') ? val.split(' ')[0] : val;
-      }
-    },
-    {
-      key: 'date_used',
-      label: 'Date Used',
-      render: (val: any) => {
-        if (!val) return 'N/A';
-        return val.includes(' ') ? val.split(' ')[0] : val;
-      }
-    },
-    {
-      key: 'created_at',
-      label: 'Date',
-      render: (val: any) => {
-        if (!val) return 'N/A';
-        return val.includes(' ') ? val.split(' ')[0] : val;
-      }
-    }
-  ] as TableColumn[],
-
-  serviceChargeLogs: [
-    { key: 'id', label: 'Log ID' },
-    { key: 'service_charge', label: 'Service Charge', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'status', label: 'Status' },
-    {
-      key: 'date_used',
-      label: 'Date Used',
-      render: (val: any) => {
-        if (!val) return 'N/A';
-        return val.includes(' ') ? val.split(' ')[0] : val;
-      }
-    }
-  ] as TableColumn[],
-
-  changeDueLogs: [
-    { key: 'id', label: 'Log ID' },
-    {
-      key: 'previous_date',
-      label: 'Previous Date',
-      render: (val: any) => val ? (val.includes(' ') ? val.split(' ')[0] : val) : 'N/A'
-    },
-    {
-      key: 'changed_date',
-      label: 'Changed Date',
-      render: (val: any) => val ? (val.includes(' ') ? val.split(' ')[0] : val) : 'N/A'
-    },
-    { key: 'added_balance', label: 'Added Balance', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'remarks', label: 'Remarks', render: (val: any) => val || 'N/A' },
-    {
-      key: 'created_at',
-      label: 'Date',
-      render: (val: any) => val ? (val.includes(' ') ? val.split(' ')[0] : val) : 'N/A'
-    }
-  ] as TableColumn[],
-
-  securityDeposits: [
-    { key: 'id', label: 'ID' },
-    { key: 'amount', label: 'Amount', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'status', label: 'Status' },
+    { key: 'account_no', label: 'Account No', render: (val: any) => val || '-' },
+    { key: 'transaction_type', label: 'Trans Type', render: (val: any) => val || '-' },
+    { key: 'received_payment', label: 'Received', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'account_balance_before', label: 'Bal Before', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     {
       key: 'payment_date',
       label: 'Payment Date',
-      render: (val: any) => val ? (val.includes(' ') ? val.split(' ')[0] : val) : 'N/A'
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
     },
-    { key: 'reference_no', label: 'Ref No', render: (val: any) => val || 'N/A' },
-    { key: 'created_by', label: 'Created By', render: (val: any) => val || 'N/A' },
     {
-      key: 'created_at',
+      key: 'date_processed',
+      label: 'Processed Date',
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+    },
+    { key: 'processed_by_user', label: 'Processed By', render: (val: any) => val || '-' },
+    { key: 'payment_method', label: 'Method', render: (val: any) => val || '-' },
+    { key: 'reference_no', label: 'Ref No', render: (val: any) => val || '-' },
+    { key: 'or_no', label: 'OR No', render: (val: any) => val || '-' },
+    { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
+    { key: 'image_url', label: 'Image URL', render: (val: any) => val ? 'View' : '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' },
+    { key: 'approved_by', label: 'Approved By', render: (val: any) => val || '-' }
+  ] as TableColumn[],
+
+  staggered: [
+    { key: 'status', label: 'Status', render: (val: any) => val || '-' },
+    { key: 'id', label: 'ID' },
+    { key: 'account_no', label: 'Account No', render: (val: any) => val || '-' },
+    { key: 'staggered_install_no', label: 'Install No', render: (val: any) => val || '-' },
+    {
+      key: 'staggered_date',
       label: 'Date',
-      render: (val: any) => val ? (val.includes(' ') ? val.split(' ')[0] : val) : 'N/A'
-    }
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+    },
+    { key: 'staggered_balance', label: 'Balance', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'months_to_pay', label: 'Months', render: (val: any) => val || 0 },
+    { key: 'monthly_payment', label: 'Monthly', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'modified_by', label: 'Modified By', render: (val: any) => val || '-' },
+    {
+      key: 'modified_date',
+      label: 'Modified Date',
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+    },
+    { key: 'user_email', label: 'User Email', render: (val: any) => val || '-' },
+    { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' }
+  ] as TableColumn[],
+
+  discounts: [
+    { key: 'status', label: 'Status', render: (val: any) => val || '-' },
+    { key: 'id', label: 'ID' },
+    { key: 'account_no', label: 'Account No', render: (val: any) => val || '-' },
+    { key: 'invoice_used_id', label: 'Invoice ID', render: (val: any) => val || '-' },
+    { key: 'discount_amount', label: 'Discount', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'remaining', label: 'Remaining', render: (val: any) => val || 0 },
+    {
+      key: 'used_date',
+      label: 'Used Date',
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+    },
+    {
+      key: 'processed_date',
+      label: 'Processed',
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+    },
+    { key: 'processed_by_user_id', label: 'Processed By', render: (val: any) => val || '-' },
+    { key: 'approved_by_user_id', label: 'Approved By', render: (val: any) => val || '-' },
+    { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_by_user_id', label: 'Created By', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_by_user_id', label: 'Updated By', render: (val: any) => val || '-' }
+  ] as TableColumn[],
+
+  serviceOrders: [
+    { key: 'status', label: 'Status', render: (val: any) => val || '-' },
+    { key: 'id', label: 'ID' },
+    { key: 'account_no', label: 'Account No', render: (val: any) => val || '-' },
+    { key: 'invoice_id', label: 'Invoice ID', render: (val: any) => val || '-' },
+    { key: 'ticket_id', label: 'Ticket ID', render: (val: any) => val || '-' },
+    {
+      key: 'timestamp',
+      label: 'Timestamp',
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+    },
+    { key: 'support_status', label: 'Support Status', render: (val: any) => val || '-' },
+    { key: 'concern', label: 'Concern', render: (val: any) => val || '-' },
+    { key: 'concern_remarks', label: 'Concern Remarks', render: (val: any) => val || '-' },
+    { key: 'priority_level', label: 'Priority', render: (val: any) => val || '-' },
+    { key: 'requested_by', label: 'Requested By', render: (val: any) => val || '-' },
+    { key: 'assigned_email', label: 'Assigned To', render: (val: any) => val || '-' },
+    { key: 'visit_status', label: 'Visit Status', render: (val: any) => val || '-' },
+    { key: 'visit_by_user', label: 'Visit By', render: (val: any) => val || '-' },
+    { key: 'visit_with', label: 'Visit With', render: (val: any) => val || '-' },
+    { key: 'visit_with_other', label: 'Visit With Other', render: (val: any) => val || '-' },
+    { key: 'visit_remarks', label: 'Visit Remarks', render: (val: any) => val || '-' },
+    { key: 'repair_category', label: 'Repair Cat', render: (val: any) => val || '-' },
+    { key: 'support_remarks', label: 'Support Remarks', render: (val: any) => val || '-' },
+    { key: 'service_charge', label: 'Svc Charge', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'client_signature_url', label: 'Signature', render: (val: any) => val ? 'View' : '-' },
+    { key: 'image1_url', label: 'Img 1', render: (val: any) => val ? 'View' : '-' },
+    { key: 'image2_url', label: 'Img 2', render: (val: any) => val ? 'View' : '-' },
+    { key: 'image3_url', label: 'Img 3', render: (val: any) => val ? 'View' : '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' },
+    { key: 'old_lcp', label: 'Old LCP', render: (val: any) => val || '-' },
+    { key: 'old_nap', label: 'Old NAP', render: (val: any) => val || '-' },
+    { key: 'old_port', label: 'Old Port', render: (val: any) => val || '-' },
+    { key: 'old_router_modem_sn', label: 'Old SN', render: (val: any) => val || '-' },
+    { key: 'old_vlan', label: 'Old VLAN', render: (val: any) => val || '-' },
+    { key: 'new_router_modem_sn', label: 'New SN', render: (val: any) => val || '-' },
+    { key: 'new_lcp', label: 'New LCP', render: (val: any) => val || '-' },
+    { key: 'new_nap', label: 'New NAP', render: (val: any) => val || '-' },
+    { key: 'new_port', label: 'New Port', render: (val: any) => val || '-' },
+    { key: 'new_vlan', label: 'New VLAN', render: (val: any) => val || '-' },
+    { key: 'router_model', label: 'Router Model', render: (val: any) => val || '-' },
+    { key: 'new_lcpnap', label: 'New LCPNAP', render: (val: any) => val || '-' },
+    { key: 'old_lcpnap', label: 'Old LCPNAP', render: (val: any) => val || '-' },
+    { key: 'old_plan', label: 'Old Plan', render: (val: any) => val || '-' },
+    { key: 'new_plan', label: 'New Plan', render: (val: any) => val || '-' },
+    { key: 'referred_by', label: 'Referred By', render: (val: any) => val || '-' }
+  ] as TableColumn[],
+
+  reconnectionLogs: [
+    { key: 'id', label: 'ID' },
+    { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
+    { key: 'session_id', label: 'Session ID', render: (val: any) => val || '-' },
+    { key: 'username', label: 'Username', render: (val: any) => val || '-' },
+    { key: 'plan_id', label: 'Plan ID', render: (val: any) => val || '-' },
+    { key: 'reconnection_fee', label: 'Fee', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' }
+  ] as TableColumn[],
+
+  disconnectedLogs: [
+    { key: 'id', label: 'ID' },
+    { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
+    { key: 'session_id', label: 'Session ID', render: (val: any) => val || '-' },
+    { key: 'username', label: 'Username', render: (val: any) => val || '-' },
+    { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' }
+  ] as TableColumn[],
+
+  detailsUpdateLogs: [
+    { key: 'id', label: 'ID' },
+    { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
+    { key: 'old_details', label: 'Old Details', render: (val: any) => val || '-' },
+    { key: 'new_details', label: 'New Details', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_by_user_id', label: 'Created By', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_by_user_id', label: 'Updated By', render: (val: any) => val || '-' }
+  ] as TableColumn[],
+
+  planChangeLogs: [
+    { key: 'status', label: 'Status', render: (val: any) => val || '-' },
+    { key: 'id', label: 'ID' },
+    { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
+    { key: 'old_plan_id', label: 'Old Plan ID', render: (val: any) => val || '-' },
+    { key: 'new_plan_id', label: 'New Plan ID', render: (val: any) => val || '-' },
+    {
+      key: 'date_changed',
+      label: 'Date Changed',
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+    },
+    {
+      key: 'date_used',
+      label: 'Date Used',
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+    },
+    { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' }
+  ] as TableColumn[],
+
+  serviceChargeLogs: [
+    { key: 'status', label: 'Status', render: (val: any) => val || '-' },
+    { key: 'id', label: 'ID' },
+    { key: 'account_no', label: 'Account No', render: (val: any) => val || '-' },
+    { key: 'service_order_id', label: 'SO ID', render: (val: any) => val || '-' },
+    { key: 'service_charge', label: 'Svc Charge', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    {
+      key: 'date_used',
+      label: 'Date Used',
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+    },
+    { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_by', label: 'Created By', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_by', label: 'Updated By', render: (val: any) => val || '-' },
+    { key: 'invoice_id', label: 'Invoice ID', render: (val: any) => val || '-' },
+    { key: 'service_charge_type', label: 'Charge Type', render: (val: any) => val || '-' }
+  ] as TableColumn[],
+
+  changeDueLogs: [
+    { key: 'id', label: 'ID' },
+    { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
+    { key: 'previous_date', label: 'Prev Date', render: (val: any) => val || '-' },
+    { key: 'changed_date', label: 'Changed Date', render: (val: any) => val || '-' },
+    { key: 'added_balance', label: 'Added Bal', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_by_user_id', label: 'Created By', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_by_user_id', label: 'Updated By', render: (val: any) => val || '-' }
+  ] as TableColumn[],
+
+  securityDeposits: [
+    { key: 'status', label: 'Status', render: (val: any) => val || '-' },
+    { key: 'id', label: 'ID' },
+    { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
+    { key: 'amount', label: 'Amount', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    {
+      key: 'payment_date',
+      label: 'Payment Date',
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+    },
+    { key: 'reference_no', label: 'Ref No', render: (val: any) => val || '-' },
+    { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
+    { key: 'created_by', label: 'Created By', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
   statementOfAccounts: [
     { key: 'id', label: 'ID' },
+    { key: 'account_no', label: 'Account No', render: (val: any) => val || '-' },
     {
       key: 'statement_date',
-      label: 'Date',
-      render: (val: any) => val ? (val.includes(' ') ? val.split(' ')[0] : val) : 'N/A'
+      label: 'Statement Date',
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
     },
+    { key: 'balance_from_previous_bill', label: 'Bal Prev', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'payment_received_previous', label: 'Pay Prev', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'remaining_balance_previous', label: 'Rem Bal', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'monthly_service_fee', label: 'MSF', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'others_and_basic_charges', label: 'Basic Charges', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'vat', label: 'VAT', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     {
-      key: 'balance_from_previous_bill',
-      label: 'Balance Prev',
-      render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}`
+      key: 'due_date',
+      label: 'Due Date',
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
     },
-    {
-      key: 'payment_received_previous',
-      label: 'Payment Prev',
-      render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}`
-    },
-    {
-      key: 'remaining_balance_previous',
-      label: 'Rem. Balance',
-      render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}`
-    },
-    {
-      key: 'amount_due',
-      label: 'Amount Due',
-      render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}`
-    },
-    {
-      key: 'total_amount_due',
-      label: 'Total Due',
-      render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}`
-    },
+    { key: 'amount_due', label: 'Amt Due', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'total_amount_due', label: 'Total Due', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'print_link', label: 'Print Link', render: (val: any) => val ? 'View' : '-' },
+    { key: 'service_charge', label: 'Svc Charge', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'rebate', label: 'Rebate', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'discounts', label: 'Discounts', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'staggered', label: 'Staggered', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_by', label: 'Created By', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_by', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
   inventoryLogs: [
+    { key: 'status', label: 'Status', render: (val: any) => val || '-' },
     {
       key: 'date',
       label: 'Date',
-      render: (val: any) => val ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : 'N/A'
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : val) : '-'
     },
-    { key: 'log_type', label: 'Type', render: (val: any) => val || 'N/A' },
-    { key: 'item_quantity', label: 'Quantity', render: (val: any) => val || 0 },
-    { key: 'requested_by', label: 'Requested By', render: (val: any) => val || 'N/A' },
-    { key: 'requested_with', label: 'Requested With', render: (val: any) => val || 'N/A' },
+    { key: 'item_name', label: 'Item', render: (val: any) => val || '-' },
+    { key: 'item_description', label: 'Description', render: (val: any) => val || '-' },
+    { key: 'log_type', label: 'Type', render: (val: any) => val || '-' },
+    { key: 'item_quantity', label: 'Qty', render: (val: any) => val || 0 },
+    { key: 'sn', label: 'Serial No', render: (val: any) => val || '-' },
+    { key: 'requested_by', label: 'Requested By', render: (val: any) => val || '-' },
+    { key: 'requested_with', label: 'Requested With', render: (val: any) => val || '-' },
+    { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
+    { key: 'user_email', label: 'User Email', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
   borrowedLogs: [
+    { key: 'status', label: 'Status', render: (val: any) => val || '-' },
     {
       key: 'date',
       label: 'Date',
-      render: (val: any) => val ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : 'N/A'
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : val) : '-'
     },
-    { key: 'borrowed_by', label: 'Borrowed By', render: (val: any) => val || 'N/A' },
+    { key: 'borrowed_by', label: 'Borrowed By', render: (val: any) => val || '-' },
     { key: 'item_quantity', label: 'Quantity', render: (val: any) => val || 0 },
-    { key: 'status', label: 'Status', render: (val: any) => val || 'N/A' },
   ] as TableColumn[],
 
   jobOrders: [
-    { key: 'job_order_no', label: 'JO No.' },
-    { key: 'customer_name', label: 'Customer' },
-    { key: 'item_quantity', label: 'Quantity' },
-    { key: 'status', label: 'Status' },
+    { key: 'status', label: 'Status', render: (val: any) => val || '-' },
+    { key: 'job_order_no', label: 'JO No.', render: (val: any) => val || '-' },
+    { key: 'customer_name', label: 'Customer', render: (val: any) => val || '-' },
+    { key: 'item_quantity', label: 'Quantity', render: (val: any) => val || 0 },
     {
       key: 'created_at',
       label: 'Date',
-      render: (val: any) => val ? (val.includes(' ') ? val.split(' ')[0] : val) : 'N/A'
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : val) : val) : '-'
     }
   ] as TableColumn[],
 
   defectiveLogs: [
+    { key: 'status', label: 'Status', render: (val: any) => val || '-' },
     {
       key: 'date',
       label: 'Date',
-      render: (val: any) => val ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : 'N/A'
+      render: (val: any) => val ? (typeof val === 'string' ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : val) : '-'
     },
-    { key: 'reported_by', label: 'Reported By' },
-    { key: 'item_quantity', label: 'Quantity' },
-    { key: 'defect_type', label: 'Type' },
+    { key: 'reported_by', label: 'Reported By', render: (val: any) => val || '-' },
+    { key: 'item_quantity', label: 'Qty', render: (val: any) => val || 0 },
+    { key: 'defect_type', label: 'Type', render: (val: any) => val || '-' },
+    { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
+    { key: 'sn', label: 'Serial No', render: (val: any) => val || '-' }
   ] as TableColumn[],
 };

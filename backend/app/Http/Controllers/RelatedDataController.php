@@ -61,7 +61,6 @@ class RelatedDataController extends Controller
 
             $logs = DB::table('payment_portal_logs')
                 ->where('account_id', $billingAccount->id)
-                ->select(['id', 'total_amount', 'account_balance_before', 'date_time', 'status'])
                 ->orderBy('date_time', 'desc')
                 ->orderBy('updated_at', 'desc')
                 ->get();
@@ -130,7 +129,6 @@ class RelatedDataController extends Controller
         try {
             $staggered = DB::table('staggered_installation')
                 ->where('account_no', $accountNo)
-                ->select(['id', 'staggered_date', 'staggered_balance', 'monthly_payment', 'modified_date'])
                 ->orderBy('staggered_date', 'desc')
                 ->get();
 
@@ -162,7 +160,6 @@ class RelatedDataController extends Controller
         try {
             $discounts = DB::table('discounts')
                 ->where('account_no', $accountNo)
-                ->select(['id', 'discount_amount', 'status', 'used_date'])
                 ->orderBy('used_date', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -195,7 +192,6 @@ class RelatedDataController extends Controller
         try {
             $serviceOrders = DB::table('service_orders')
                 ->where('account_no', $accountNo)
-                ->select(['id', 'concern', 'support_status', 'assigned_email', 'timestamp'])
                 ->orderBy('timestamp', 'desc')
                 ->get();
 
@@ -242,9 +238,7 @@ class RelatedDataController extends Controller
                 ->leftJoin('plan_list', 'reconnection_logs.plan_id', '=', 'plan_list.id')
                 ->where('reconnection_logs.account_id', $billingAccount->id)
                 ->select([
-                    'reconnection_logs.id',
-                    'reconnection_logs.reconnection_fee',
-                    'reconnection_logs.created_at',
+                    'reconnection_logs.*',
                     'plan_list.plan_name'
                 ])
                 ->orderBy('reconnection_logs.created_at', 'desc')
@@ -291,7 +285,6 @@ class RelatedDataController extends Controller
 
             $logs = DB::table('disconnected_logs')
                 ->where('account_id', $billingAccount->id)
-                ->select(['id', 'remarks', 'created_at'])
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -336,7 +329,6 @@ class RelatedDataController extends Controller
 
             $logs = DB::table('details_update_logs')
                 ->where('account_id', $billingAccount->id)
-                ->select(['id', 'old_details', 'new_details', 'updated_at', 'updated_by_user_id'])
                 ->orderBy('updated_at', 'desc')
                 ->get();
 
@@ -384,11 +376,7 @@ class RelatedDataController extends Controller
                 ->leftJoin('plan_list as new_plans', 'plan_change_logs.new_plan_id', '=', 'new_plans.id')
                 ->where('plan_change_logs.account_id', $billingAccount->id)
                 ->select([
-                    'plan_change_logs.id',
-                    'plan_change_logs.status',
-                    'plan_change_logs.date_changed',
-                    'plan_change_logs.date_used',
-                    'plan_change_logs.created_at',
+                    'plan_change_logs.*',
                     'old_plans.plan_name as old_plan_name',
                     'new_plans.plan_name as new_plan_name'
                 ])
@@ -423,8 +411,7 @@ class RelatedDataController extends Controller
         try {
             $logs = DB::table('service_charge_logs')
                 ->where('account_no', $accountNo)
-                ->select(['id', 'service_charge', 'status', 'date_used'])
-                ->orderBy('date_used', 'desc')
+                ->orderBy('created_at', 'desc')
                 ->get();
 
             return response()->json([
@@ -468,7 +455,6 @@ class RelatedDataController extends Controller
 
             $logs = DB::table('change_due_logs')
                 ->where('account_id', $billingAccount->id)
-                ->select(['id', 'previous_date', 'changed_date', 'added_balance', 'remarks', 'created_at'])
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -513,7 +499,6 @@ class RelatedDataController extends Controller
 
             $deposits = DB::table('security_deposits')
                 ->where('account_id', $billingAccount->id)
-                ->select(['id', 'amount', 'status', 'payment_date', 'reference_no', 'created_by', 'created_at'])
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -545,15 +530,6 @@ class RelatedDataController extends Controller
         try {
             $soas = DB::table('statement_of_accounts')
                 ->where('account_no', $accountNo)
-                ->select([
-                    'id',
-                    'statement_date',
-                    'balance_from_previous_bill',
-                    'payment_received_previous',
-                    'remaining_balance_previous',
-                    'amount_due',
-                    'total_amount_due'
-                ])
                 ->orderBy('statement_date', 'desc')
                 ->get();
 
