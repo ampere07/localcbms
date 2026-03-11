@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { FileText, Search, ChevronDown, ChevronRight, Columns3, ArrowUp, ArrowDown, Menu, X, RefreshCw, Filter, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, Columns3, ArrowUp, ArrowDown, Menu, X, RefreshCw, Filter, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import JobOrderDetails from '../components/JobOrderDetails';
 import JobOrderFunnelFilter, { FilterValues, allColumns as filterColumns } from '../components/filters/JobOrderFunnelFilter';
 import { useJobOrderStore } from '../store/jobOrderStore';
@@ -7,6 +7,11 @@ import { getBillingStatuses, BillingStatus } from '../services/lookupService';
 import { JobOrder } from '../types/jobOrder';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import pusher from '../services/pusherService';
+
+const hexToRgba = (hex: string, opacity: number) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${opacity})` : hex;
+};
 
 interface LocationItem {
   id: string;
@@ -127,6 +132,13 @@ const JobOrderPage: React.FC = () => {
     }
     return {};
   });
+
+  const removeFilter = (key: string) => {
+    const newFilters = { ...activeFilters };
+    delete newFilters[key];
+    setActiveFilters(newFilters);
+    localStorage.setItem('jobOrderFilters', JSON.stringify(newFilters));
+  };
 
   // No need for internal currentPage as it's managed by store
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -1312,7 +1324,6 @@ const JobOrderPage: React.FC = () => {
                 } : {}}
               >
                 <div className="flex items-center">
-                  <FileText className="h-4 w-4 mr-2" />
                   <span>All Job Orders</span>
                 </div>
                 <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
@@ -1397,7 +1408,6 @@ const JobOrderPage: React.FC = () => {
               }}
             >
               <div className="flex items-center">
-                <FileText className="h-4 w-4 mr-2" />
                 <span>All Job Orders</span>
               </div>
               <span
@@ -1871,6 +1881,81 @@ const JobOrderPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Active Funnel Filters Row */}
+          {Object.keys(activeFilters || {}).length > 0 && (
+            <div className={`px-4 py-2 border-b flex flex-wrap items-center gap-2 overflow-x-auto no-scrollbar ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Active Filters:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(activeFilters || {}).map(([key, filter]: [string, any]) => {
+                  const column = filterColumns.find(c => (c as any).key === key);
+                  const label = column?.label || key;
+
+                  let displayValue = '';
+                  if (filter.type === 'text' || filter.type === 'boolean') {
+                    displayValue = String(filter.value);
+                  } else if (filter.type === 'checklist') {
+                    displayValue = Array.isArray(filter.value)
+                      ? filter.value.join(', ')
+                      : String(filter.value);
+                  } else if (filter.type === 'number' || filter.type === 'date') {
+                    if (filter.from && filter.to) displayValue = `${filter.from} - ${filter.to}`;
+                    else if (filter.from) displayValue = `> ${filter.from}`;
+                    else if (filter.to) displayValue = `< ${filter.to}`;
+                  }
+
+                  return (
+                    <div
+                      key={key}
+                      className={`group flex items-center h-7 pl-2 pr-1 rounded-full text-xs font-medium transition-all`}
+                      style={{
+                        backgroundColor: hexToRgba(colorPalette?.primary || '#7c3aed', isDarkMode ? 0.1 : 0.05),
+                        color: colorPalette?.primary || '#7c3aed',
+                        border: `1px solid ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.2)}`
+                      }}
+                    >
+                      <span className="opacity-70 mr-1">{label}:</span>
+                      <span className="truncate max-w-[150px]">{displayValue}</span>
+                      <button
+                        onClick={() => removeFilter(key)}
+                        className={`ml-1 p-0.5 rounded-full transition-colors`}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.primary) {
+                            e.currentTarget.style.backgroundColor = hexToRgba(colorPalette.primary, 0.2);
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+                <button
+                  onClick={() => {
+                    setActiveFilters({});
+                    localStorage.removeItem('jobOrderFilters');
+                  }}
+                  className={`text-[10px] font-bold uppercase tracking-wider underline-offset-4 hover:underline transition-colors px-2 py-1 rounded-md`}
+                  style={{ color: colorPalette?.primary || '#7c3aed' }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = hexToRgba(colorPalette.primary, 0.1);
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  Clear all
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex-1 overflow-hidden flex flex-col">
             <div className={`flex-1 ${displayMode === 'table' ? 'overflow-hidden' : 'overflow-y-auto'}`} ref={cardScrollRef}>

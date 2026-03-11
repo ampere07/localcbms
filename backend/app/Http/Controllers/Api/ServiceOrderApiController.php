@@ -188,22 +188,42 @@ class ServiceOrderApiController extends Controller
                 'new_lcpnap' => 'nullable|string|max:255',
                 'new_plan' => 'nullable|string|max:255',
                 'status' => 'nullable|string|max:50',
+                'start_time' => 'nullable|date',
+                'end_time' => 'nullable|date',
                 'created_by_user' => 'nullable|string|max:255',
                 'updated_by_user' => 'nullable|string|max:255'
             ]);
 
-            // Enforce limit: 1 ticket per day per account
+            // Enforce limit: 5 tickets per day per account, with 1 hour interval
             $today = Carbon::today();
-            $existingToday = DB::table('service_orders')
+            $todayCount = DB::table('service_orders')
                 ->where('account_no', $validated['account_no'])
                 ->whereDate('created_at', $today)
-                ->exists();
+                ->count();
 
-            if ($existingToday) {
+            if ($todayCount >= 5) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'You have already submitted a support ticket today. Please wait until tomorrow to submit another one.'
+                    'message' => 'Daily limit of 5 tickets reached. Please try again tomorrow.'
                 ], 422);
+            }
+
+            // Check 1 hour cooldown since last submission
+            $lastTicket = DB::table('service_orders')
+                ->where('account_no', $validated['account_no'])
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($lastTicket && $lastTicket->created_at) {
+                $lastCreated = Carbon::parse($lastTicket->created_at);
+                $minutesSinceLast = $lastCreated->diffInMinutes(now());
+                if ($minutesSinceLast < 60) {
+                    $remaining = 60 - $minutesSinceLast;
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Please wait {$remaining} minute(s) before submitting another ticket."
+                    ], 422);
+                }
             }
             
             $ticketId = $this->generateTicketId();
@@ -242,6 +262,8 @@ class ServiceOrderApiController extends Controller
                 'new_lcpnap' => $validated['new_lcpnap'] ?? null,
                 'new_plan' => $validated['new_plan'] ?? null,
                 'status' => $validated['status'] ?? 'unused',
+                'start_time' => $validated['start_time'] ?? null,
+                'end_time' => $validated['end_time'] ?? null,
                 'created_by_user' => $validated['created_by_user'] ?? null,
                 'updated_by_user' => $validated['updated_by_user'] ?? null,
                 'created_at' => now(),
@@ -393,6 +415,8 @@ class ServiceOrderApiController extends Controller
                     'so.image2_url',
                     'so.image3_url',
                     'so.status',
+                    'so.start_time',
+                    'so.end_time',
                     'so.created_at',
                     'so.created_by_user',
                     'so.updated_at',
@@ -452,6 +476,7 @@ class ServiceOrderApiController extends Controller
                 'visit_status',
                 'visit_by_user',
                 'visit_with',
+                'visit_with_other',
                 'visit_remarks',
                 'repair_category',
                 'support_remarks',
@@ -476,6 +501,8 @@ class ServiceOrderApiController extends Controller
                 'image2_url',
                 'image3_url',
                 'status',
+                'start_time',
+                'end_time',
                 'updated_by_user'
             ];
             

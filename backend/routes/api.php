@@ -1125,19 +1125,49 @@ Route::post('/login', function (Request $request) {
 });
 
 Route::post('/forgot-password', function (Request $request) {
-    $email = $request->input('email');
+    $identifier = $request->input('email') ?: $request->input('account_no');
     
-    if (!$email) {
+    if (!$identifier) {
         return response()->json([
             'status' => 'error',
-            'message' => 'Email is required'
+            'message' => 'Email address or account number is required'
         ], 400);
     }
     
-    return response()->json([
-        'status' => 'success',
-        'message' => 'Password reset instructions have been sent to your email.'
-    ]);
+    // Find user by username (account number) or email address
+    $user = \App\Models\User::where('username', $identifier)
+               ->orWhere('email_address', $identifier)
+               ->first();
+    
+    if (!$user) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Account or email not found'
+        ], 404);
+    }
+    
+    if (!$user->email_address) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'This account does not have a registered email address. Please contact support.'
+        ], 400);
+    }
+    
+    try {
+        $emailQueueService = app(\App\Services\EmailQueueService::class);
+        $emailQueueService->sendUserCredentials($user);
+        
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Your account details have been sent to your registered email address.'
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Forgot password email queuing failed', ['error' => $e->getMessage()]);
+        return response()->json([
+            'status' => 'error',
+            'message' => 'An error occurred while processing your request. Please try again later.'
+        ], 500);
+    }
 });
 
 // Health check
@@ -2129,6 +2159,7 @@ Route::prefix('email-queue')->group(function () {
     Route::post('/retry-failed', [EmailQueueController::class, 'retryFailed']);
     Route::post('/{id}/retry', [EmailQueueController::class, 'retry']);
     Route::delete('/{id}', [EmailQueueController::class, 'delete']);
+    Route::post('/send-credentials/{userId}', [EmailQueueController::class, 'sendUserCredentials']);
 });
 
 // Settings Image Size Management Routes

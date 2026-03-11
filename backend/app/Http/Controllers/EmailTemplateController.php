@@ -166,6 +166,9 @@ class EmailTemplateController extends Controller
 
             Log::info('Updating email template', [
                 'template_code' => $templateCode,
+                'has_Body_HTML' => $request->has('Body_HTML'),
+                'Body_HTML_length' => $request->has('Body_HTML') ? strlen($request->input('Body_HTML')) : 0,
+                'existing_Body_HTML_length' => strlen($template->Body_HTML ?? ''),
                 'data' => $request->except(['Body_HTML'])
             ]);
 
@@ -202,7 +205,21 @@ class EmailTemplateController extends Controller
                 $updateData['email_body'] = $request->input('email_body');
             }
 
+            Log::info('Email template update data', [
+                'template_code' => $templateCode,
+                'fields_being_updated' => array_keys($updateData),
+                'Body_HTML_in_updateData' => isset($updateData['Body_HTML']),
+                'Body_HTML_update_length' => isset($updateData['Body_HTML']) ? strlen($updateData['Body_HTML']) : 0,
+            ]);
+
             $template->update($updateData);
+
+            Log::info('Email template updated result', [
+                'template_code' => $templateCode,
+                'wasChanged' => $template->wasChanged(),
+                'changes' => $template->getChanges(),
+                'Body_HTML_after_length' => strlen($template->fresh()->Body_HTML ?? ''),
+            ]);
 
             return response()->json([
                 'success' => true,

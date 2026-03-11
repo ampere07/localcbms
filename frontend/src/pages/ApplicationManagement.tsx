@@ -12,6 +12,11 @@ import { locationEvents, LOCATION_EVENTS } from '../services/locationEvents';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import pusher from '../services/pusherService';
 
+const hexToRgba = (hex: string, opacity: number) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${opacity})` : hex;
+};
+
 
 interface LocationItem {
   id: string;
@@ -59,7 +64,17 @@ const ApplicationManagement: React.FC = () => {
   const [displayMode, setDisplayMode] = useState<DisplayMode>('card');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
-  const [funnelFilters, setFunnelFilters] = useState<any>({});
+  const [funnelFilters, setFunnelFilters] = useState<any>(() => {
+    const saved = localStorage.getItem('applicationFunnelFilters');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error('Failed to load filters:', err);
+      }
+    }
+    return {};
+  });
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem('applicationManagementVisibleColumns');
     if (saved) {
@@ -271,6 +286,13 @@ const ApplicationManagement: React.FC = () => {
 
   const handleApplicationUpdate = () => {
     refreshApplications();
+  };
+
+  const removeFilter = (key: string) => {
+    const newFilters = { ...funnelFilters };
+    delete newFilters[key];
+    setFunnelFilters(newFilters);
+    localStorage.setItem('applicationFunnelFilters', JSON.stringify(newFilters));
   };
 
   const statusItems = useMemo(() => {
@@ -1199,6 +1221,81 @@ const ApplicationManagement: React.FC = () => {
             </div>
           </div>
 
+          {/* Active Funnel Filters Row */}
+          {Object.keys(funnelFilters || {}).length > 0 && (
+            <div className={`px-4 py-2 border-b flex flex-wrap items-center gap-2 overflow-x-auto no-scrollbar ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Active Filters:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(funnelFilters || {}).map(([key, filter]: [string, any]) => {
+                  const column = filterColumns.find(c => (c as any).key === key);
+                  const label = column?.label || key;
+
+                  let displayValue = '';
+                  if (filter.type === 'text' || filter.type === 'boolean') {
+                    displayValue = String(filter.value);
+                  } else if (filter.type === 'checklist') {
+                    displayValue = Array.isArray(filter.selectedOptions)
+                      ? filter.selectedOptions.join(', ')
+                      : String(filter.selectedOptions);
+                  } else if (filter.type === 'number' || filter.type === 'date') {
+                    if (filter.from && filter.to) displayValue = `${filter.from} - ${filter.to}`;
+                    else if (filter.from) displayValue = `> ${filter.from}`;
+                    else if (filter.to) displayValue = `< ${filter.to}`;
+                  }
+
+                  return (
+                    <div
+                      key={key}
+                      className={`group flex items-center h-7 pl-2 pr-1 rounded-full text-xs font-medium transition-all`}
+                      style={{
+                        backgroundColor: hexToRgba(colorPalette?.primary || '#7c3aed', isDarkMode ? 0.1 : 0.05),
+                        color: colorPalette?.primary || '#7c3aed',
+                        border: `1px solid ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.2)}`
+                      }}
+                    >
+                      <span className="opacity-70 mr-1">{label}:</span>
+                      <span className="truncate max-w-[150px]">{displayValue}</span>
+                      <button
+                        onClick={() => removeFilter(key)}
+                        className={`ml-1 p-0.5 rounded-full transition-colors`}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.primary) {
+                            e.currentTarget.style.backgroundColor = hexToRgba(colorPalette.primary, 0.2);
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+                <button
+                  onClick={() => {
+                    setFunnelFilters({});
+                    localStorage.removeItem('applicationFunnelFilters');
+                  }}
+                  className={`text-[10px] font-bold uppercase tracking-wider underline-offset-4 hover:underline transition-colors px-2 py-1 rounded-md`}
+                  style={{ color: colorPalette?.primary || '#7c3aed' }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = hexToRgba(colorPalette.primary, 0.1);
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  Clear all
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Applications List Container */}
           <div className="flex-1 overflow-hidden flex flex-col">
             <div className={`flex-1 ${displayMode === 'table' ? 'overflow-hidden' : 'overflow-y-auto'}`} ref={cardScrollRef}>
@@ -1554,6 +1651,7 @@ const ApplicationManagement: React.FC = () => {
           setFunnelFilters(filters);
           setIsFunnelFilterOpen(false);
         }}
+        currentFilters={funnelFilters}
       />
     </div>
   );

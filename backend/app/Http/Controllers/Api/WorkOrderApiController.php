@@ -7,6 +7,8 @@ use App\Models\WorkOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Events\WorkOrderUpdated;
+use App\Models\ActivityLog;
+use Illuminate\Support\Facades\Auth;
 
 class WorkOrderApiController extends Controller
 {
@@ -75,7 +77,9 @@ class WorkOrderApiController extends Controller
                 'work_status' => 'nullable|string|max:100',
                 'work_category' => 'nullable|string|max:255',
                 'requested_by' => 'required|string|max:255',
-                'updated_by' => 'nullable|string|max:255'
+                'updated_by' => 'nullable|string|max:255',
+                'start_time' => 'nullable|string',
+                'end_time' => 'nullable|string'
             ]);
 
             if ($validator->fails()) {
@@ -142,6 +146,13 @@ class WorkOrderApiController extends Controller
 
             $workOrder->save();
             
+            ActivityLog::log(
+                'Work Order Created',
+                "Work Order #{$workOrder->id} created. Category: {$workOrder->work_category}",
+                'info',
+                ['resource_type' => 'WorkOrder', 'resource_id' => $workOrder->id]
+            );
+
             event(new WorkOrderUpdated(['action' => 'created', 'work_order_id' => $workOrder->id]));
 
             return response()->json([
@@ -303,7 +314,9 @@ class WorkOrderApiController extends Controller
                 'remarks' => 'nullable|string',
                 'work_status' => 'nullable|string|max:100',
                 'work_category' => 'nullable|string|max:255',
-                'updated_by' => 'nullable|string|max:255'
+                'updated_by' => 'nullable|string|max:255',
+                'start_time' => 'nullable|string',
+                'end_time' => 'nullable|string'
             ]);
 
             if ($validator->fails()) {
@@ -324,7 +337,7 @@ class WorkOrderApiController extends Controller
             
             $data = $request->only([
                 'instructions', 'report_to', 'assign_to', 'remarks', 
-                'work_status', 'work_category', 'updated_by'
+                'work_status', 'work_category', 'updated_by', 'start_time', 'end_time'
             ]);
             
             $workOrder->fill($data);
@@ -373,6 +386,13 @@ class WorkOrderApiController extends Controller
 
             $workOrder->save();
             
+            ActivityLog::log(
+                'Work Order Updated',
+                "Work Order #{$workOrder->id} updated. Status: {$workOrder->work_status}",
+                'info',
+                ['resource_type' => 'WorkOrder', 'resource_id' => $workOrder->id]
+            );
+
             event(new WorkOrderUpdated(['action' => 'updated', 'work_order_id' => $workOrder->id]));
 
             return response()->json([
@@ -401,6 +421,13 @@ class WorkOrderApiController extends Controller
             }
             
             $workOrder->delete();
+
+            ActivityLog::log(
+                'Work Order Deleted',
+                "Work Order #{$id} deleted.",
+                'warning',
+                ['resource_type' => 'WorkOrder', 'resource_id' => $id]
+            );
 
             event(new WorkOrderUpdated(['action' => 'deleted', 'work_order_id' => $id]));
             

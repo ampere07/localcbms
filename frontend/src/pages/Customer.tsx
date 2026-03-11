@@ -14,6 +14,11 @@ import { useBillingStore } from '../store/billingStore';
 import { billingStatusService, BillingStatus } from '../services/billingStatusService';
 import { userService } from '../services/userService';
 
+const hexToRgba = (hex: string, opacity: number) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${opacity})` : hex;
+};
+
 const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
   return {
     id: customerData.billingAccount?.accountNo || '',
@@ -192,6 +197,15 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     }
     return {};
   });
+
+  const removeFilter = (key: string) => {
+    setActiveFilters((prev: any) => {
+      const next = { ...prev };
+      delete next[key];
+      localStorage.setItem('customerFilters', JSON.stringify(next));
+      return next;
+    });
+  };
   const dropdownRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -1711,27 +1725,6 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                     </div>
                   )}
                 </div>
-                {/* <button
-                  onClick={handleProcessOverdueNotifications}
-                  disabled={isLoading}
-                  className="bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors"
-                >
-                  {isLoading ? 'Processing...' : 'Process Overdue'}
-                </button>
-                <button
-                  onClick={handleProcessDisconnectionNotices}
-                  disabled={isLoading}
-                  className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors"
-                >
-                  {isLoading ? 'Processing...' : 'Process DC Notice'}
-                </button>
-                <button
-                  onClick={handleGenerateSampleData}
-                  disabled={isLoading}
-                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors"
-                >
-                  {isLoading ? 'Generating...' : 'Generate Sample Data'}
-                </button> */}
                 <button
                   onClick={handleRefresh}
                   disabled={isLoading || isSilentRefreshing}
@@ -1758,6 +1751,72 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                 </button>
               </div>
             </div>
+
+            {/* Active Funnel Filters Row - Placed "under" the search input row */}
+            {Object.keys(activeFilters).length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-4 px-1">
+                {Object.entries(activeFilters).map(([key, filter]: [string, any]) => {
+                  const col = filterColumns.find(c => c.key === key);
+                  const label = col ? col.label : key;
+
+                  let displayValue = '';
+                  if (filter.type === 'checklist' && Array.isArray(filter.value)) {
+                    displayValue = filter.value.join(', ');
+                  } else if (filter.type === 'text') {
+                    displayValue = filter.value;
+                  } else if (filter.type === 'number') {
+                    if (filter.from && filter.to) displayValue = `${filter.from} - ${filter.to}`;
+                    else if (filter.from) displayValue = `≥ ${filter.from}`;
+                    else if (filter.to) displayValue = `≤ ${filter.to}`;
+                  } else if (filter.type === 'date') {
+                    if (filter.from && filter.to) displayValue = `${filter.from} to ${filter.to}`;
+                    else if (filter.from) displayValue = `After ${filter.from}`;
+                    else if (filter.to) displayValue = `Before ${filter.to}`;
+                  }
+
+                  return (
+                    <div
+                      key={key}
+                      className={`group flex items-center h-7 pl-2 pr-1 rounded-full text-xs font-medium transition-all`}
+                      style={{
+                        backgroundColor: hexToRgba(colorPalette?.primary || '#7c3aed', isDarkMode ? 0.1 : 0.05),
+                        color: colorPalette?.primary || '#7c3aed',
+                        border: `1px solid ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.2)}`
+                      }}
+                    >
+                      <span className="opacity-70 mr-1">{label}:</span>
+                      <span className="truncate max-w-[150px]">{displayValue}</span>
+                      <button
+                        onClick={() => removeFilter(key)}
+                        className={`ml-1 p-0.5 rounded-full transition-colors`}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.primary) {
+                            e.currentTarget.style.backgroundColor = hexToRgba(colorPalette.primary, 0.2);
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+                <button
+                  onClick={() => {
+                    setActiveFilters({});
+                    localStorage.removeItem('customerFilters');
+                  }}
+                  className={`text-xs font-medium px-2 h-7 rounded-full transition-colors ${isDarkMode
+                      ? 'text-gray-500 hover:text-white hover:bg-gray-800'
+                      : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex-1 overflow-hidden flex flex-col">

@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
+const hexToRgba = (hex: string, opacity: number) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${opacity})` : hex;
+};
+
 interface InvoiceFunnelFilterProps {
     isOpen: boolean;
     onClose: () => void;
@@ -190,10 +195,19 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
                             value={currentValue?.to || ''}
                             onChange={(e) => handleRangeChange(selectedColumn.key, 'to', e.target.value)}
                             placeholder="Maximum value"
-                            className={`w-full px-3 py-2 rounded border ${isDarkMode
+                            className={`w-full px-3 py-2 rounded border focus:outline-none transition-all ${isDarkMode
                                 ? 'bg-gray-800 border-gray-700 text-white'
                                 : 'bg-white border-gray-300 text-gray-900'
                                 }`}
+                            style={{ borderColor: 'transparent' }}
+                            onFocus={(e) => {
+                                if (colorPalette?.primary) {
+                                    e.currentTarget.style.borderColor = colorPalette.primary;
+                                }
+                            }}
+                            onBlur={(e) => {
+                                e.currentTarget.style.borderColor = 'transparent';
+                            }}
                         />
                     </div>
                 </div>
@@ -248,10 +262,19 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
                     value={currentValue?.value || ''}
                     onChange={(e) => handleTextChange(selectedColumn.key, e.target.value)}
                     placeholder={`Enter ${selectedColumn.label.toLowerCase()}`}
-                    className={`w-full px-3 py-2 rounded border ${isDarkMode
+                    className={`w-full px-3 py-2 rounded border focus:outline-none transition-all ${isDarkMode
                         ? 'bg-gray-800 border-gray-700 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
                         }`}
+                    style={{ borderColor: 'transparent' }}
+                    onFocus={(e) => {
+                        if (colorPalette?.primary) {
+                            e.currentTarget.style.borderColor = colorPalette.primary;
+                        }
+                    }}
+                    onBlur={(e) => {
+                        e.currentTarget.style.borderColor = 'transparent';
+                    }}
                 />
             </div>
         );
@@ -314,21 +337,54 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
                                                 Invoice Details
                                             </h3>
                                             <div className="flex flex-col gap-2 w-full">
-                                                {allColumns.map(column => (
-                                                    <div
-                                                        key={column.key}
-                                                        onClick={() => handleColumnClick(column)}
-                                                        className={`w-full p-3 cursor-pointer transition-all flex items-center justify-between border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                                                            }`}
-                                                    >
-                                                        <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-                                                            }`}>
-                                                            {column.label}
-                                                        </span>
-                                                        <ChevronRight className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                                                            }`} />
-                                                    </div>
-                                                ))}
+                                                {allColumns.map(column => {
+                                                    const isActive = !!filterValues[column.key];
+                                                    return (
+                                                        <div
+                                                            key={column.key}
+                                                            onClick={() => handleColumnClick(column)}
+                                                            className={`group w-full p-4 cursor-pointer transition-all flex items-center justify-between rounded-xl mb-1 ${isDarkMode
+                                                                ? 'hover:bg-gray-800/50'
+                                                                : 'hover:bg-gray-50 border border-transparent hover:border-gray-100'
+                                                                }`}
+                                                        >
+                                                            <div className="flex items-center space-x-3">
+                                                                <div className="relative">
+                                                                    <span className={`text-sm font-semibold transition-colors ${isActive ? '' : (isDarkMode ? 'text-gray-200' : 'text-gray-700')
+                                                                        }`}
+                                                                        style={isActive ? { color: colorPalette?.primary || '#7c3aed' } : {}}
+                                                                    >
+                                                                        {column.label}
+                                                                    </span>
+                                                                    {isActive && (
+                                                                        <div
+                                                                            className="absolute -left-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
+                                                                            style={{
+                                                                                backgroundColor: colorPalette?.primary || '#7c3aed',
+                                                                                boxShadow: `0 0 8px ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.6)}`
+                                                                            }}
+                                                                        />
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center space-x-3">
+                                                                {isActive && (
+                                                                    <span
+                                                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider`}
+                                                                        style={{
+                                                                            backgroundColor: hexToRgba(colorPalette?.primary || '#7c3aed', isDarkMode ? 0.2 : 0.1),
+                                                                            color: colorPalette?.primary || '#7c3aed'
+                                                                        }}
+                                                                    >
+                                                                        Active
+                                                                    </span>
+                                                                )}
+                                                                <ChevronRight className={`h-4 w-4 transition-transform group-hover:translate-x-0.5 ${isDarkMode ? 'text-gray-600' : 'text-gray-300'
+                                                                    }`} />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     </div>
@@ -347,20 +403,15 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
                                     >
                                         Clear
                                     </button>
-                                    <button
+                                     <button
                                         onClick={handleApply}
-                                        className="flex-1 px-4 py-2 text-white rounded transition-colors"
-                                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
-                                        onMouseEnter={(e) => {
-                                            if (colorPalette?.accent) {
-                                                e.currentTarget.style.backgroundColor = colorPalette.accent;
-                                            }
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                                        className="flex-1 px-4 py-3 rounded-2xl font-bold text-sm text-white transition-all duration-200 active:scale-[0.98]"
+                                        style={{ 
+                                            backgroundColor: colorPalette?.primary || '#7c3aed',
+                                            boxShadow: `0 4px 12px ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.2)}`
                                         }}
                                     >
-                                        Done
+                                        Apply Filters
                                     </button>
                                 </div>
                             </div>

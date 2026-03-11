@@ -4,6 +4,11 @@ import { settingsColorPaletteService, ColorPalette } from '../services/settingsC
 import apiClient from '../config/api';
 import { planService } from '../services/planService';
 
+const hexToRgba = (hex: string, opacity: number) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${opacity})` : hex;
+};
+
 interface SOAFunnelFilterProps {
     isOpen: boolean;
     onClose: () => void;
@@ -265,9 +270,18 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm focus:outline-none transition-all ${isDarkMode
-                                ? 'bg-gray-800 border-gray-700 text-white focus:border-purple-500'
-                                : 'bg-gray-50 border-gray-200 text-gray-900 focus:border-purple-500'
+                                    ? 'bg-gray-800 border-gray-700 text-white'
+                                    : 'bg-gray-50 border-gray-200 text-gray-900'
                                 }`}
+                            style={{ borderColor: 'transparent' }}
+                            onFocus={(e) => {
+                                if (colorPalette?.primary) {
+                                    e.currentTarget.style.borderColor = colorPalette.primary;
+                                }
+                            }}
+                            onBlur={(e) => {
+                                e.currentTarget.style.borderColor = 'transparent';
+                            }}
                         />
                     </div>
                     <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
@@ -279,9 +293,13 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                                         key={idx}
                                         onClick={() => toggleOption(selectedColumn.key, option.value)}
                                         className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${isSelected
-                                            ? (isDarkMode ? 'bg-purple-500/10 text-purple-400' : 'bg-purple-50 text-purple-600')
+                                            ? ''
                                             : (isDarkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-50 text-gray-700')
-                                            }`}
+                                        }`}
+                                        style={isSelected ? {
+                                            backgroundColor: hexToRgba(colorPalette?.primary || '#7c3aed', 0.1),
+                                            color: colorPalette?.primary || '#7c3aed'
+                                        } : {}}
                                     >
                                         <span className="text-sm font-medium">{option.label}</span>
                                         {isSelected && <Check className="h-4 w-4" />}
@@ -311,10 +329,19 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                             value={currentValue?.from || ''}
                             onChange={(e) => handleRangeChange(selectedColumn.key, 'from', e.target.value)}
                             placeholder="Minimum value"
-                            className={`w-full px-3 py-2 rounded border ${isDarkMode
+                            className={`w-full px-3 py-2 rounded border focus:outline-none transition-all ${isDarkMode
                                 ? 'bg-gray-800 border-gray-700 text-white'
                                 : 'bg-white border-gray-300 text-gray-900'
                                 }`}
+                            style={{ borderColor: 'transparent' }}
+                            onFocus={(e) => {
+                                if (colorPalette?.primary) {
+                                    e.currentTarget.style.borderColor = colorPalette.primary;
+                                }
+                            }}
+                            onBlur={(e) => {
+                                e.currentTarget.style.borderColor = 'transparent';
+                            }}
                         />
                     </div>
                     <div>
@@ -327,10 +354,19 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                             value={currentValue?.to || ''}
                             onChange={(e) => handleRangeChange(selectedColumn.key, 'to', e.target.value)}
                             placeholder="Maximum value"
-                            className={`w-full px-3 py-2 rounded border ${isDarkMode
+                            className={`w-full px-3 py-2 rounded border focus:outline-none transition-all ${isDarkMode
                                 ? 'bg-gray-800 border-gray-700 text-white'
                                 : 'bg-white border-gray-300 text-gray-900'
                                 }`}
+                            style={{ borderColor: 'transparent' }}
+                            onFocus={(e) => {
+                                if (colorPalette?.primary) {
+                                    e.currentTarget.style.borderColor = colorPalette.primary;
+                                }
+                            }}
+                            onBlur={(e) => {
+                                e.currentTarget.style.borderColor = 'transparent';
+                            }}
                         />
                     </div>
                 </div>
@@ -349,10 +385,19 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                             type={selectedColumn.dataType === 'datetime' ? 'datetime-local' : 'date'}
                             value={currentValue?.from || ''}
                             onChange={(e) => handleDateChange(selectedColumn.key, 'from', e.target.value)}
-                            className={`w-full px-3 py-2 rounded border ${isDarkMode
+                            className={`w-full px-3 py-2 rounded border focus:outline-none transition-all ${isDarkMode
                                 ? 'bg-gray-800 border-gray-700 text-white'
                                 : 'bg-white border-gray-300 text-gray-900'
                                 }`}
+                            style={{ borderColor: 'transparent' }}
+                            onFocus={(e) => {
+                                if (colorPalette?.primary) {
+                                    e.currentTarget.style.borderColor = colorPalette.primary;
+                                }
+                            }}
+                            onBlur={(e) => {
+                                e.currentTarget.style.borderColor = 'transparent';
+                            }}
                         />
                     </div>
                     <div>
@@ -364,10 +409,19 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                             type={selectedColumn.dataType === 'datetime' ? 'datetime-local' : 'date'}
                             value={currentValue?.to || ''}
                             onChange={(e) => handleDateChange(selectedColumn.key, 'to', e.target.value)}
-                            className={`w-full px-3 py-2 rounded border ${isDarkMode
+                            className={`w-full px-3 py-2 rounded border focus:outline-none transition-all ${isDarkMode
                                 ? 'bg-gray-800 border-gray-700 text-white'
                                 : 'bg-white border-gray-300 text-gray-900'
                                 }`}
+                            style={{ borderColor: 'transparent' }}
+                            onFocus={(e) => {
+                                if (colorPalette?.primary) {
+                                    e.currentTarget.style.borderColor = colorPalette.primary;
+                                }
+                            }}
+                            onBlur={(e) => {
+                                e.currentTarget.style.borderColor = 'transparent';
+                            }}
                         />
                     </div>
                 </div>
@@ -389,6 +443,15 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                         ? 'bg-gray-800 border-gray-700 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
                         }`}
+                    style={{ borderColor: 'transparent' }}
+                    onFocus={(e) => {
+                        if (colorPalette?.primary) {
+                            e.currentTarget.style.borderColor = colorPalette.primary;
+                        }
+                    }}
+                    onBlur={(e) => {
+                        e.currentTarget.style.borderColor = 'transparent';
+                    }}
                 />
             </div>
         );
@@ -459,19 +522,32 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                                             >
                                                 <div className="flex items-center space-x-4">
                                                     <div className="relative">
-                                                        <div className={`text-sm font-semibold transition-colors ${isActive ? 'text-purple-500' : (isDarkMode ? 'text-gray-200' : 'text-gray-700')
-                                                            }`}>
+                                                        <div className={`text-sm font-semibold transition-colors ${isActive ? '' : (isDarkMode ? 'text-gray-200' : 'text-gray-700')
+                                                            }`}
+                                                            style={isActive ? { color: colorPalette?.primary || '#7c3aed' } : {}}
+                                                        >
                                                             {column.label}
                                                         </div>
                                                         {isActive && (
-                                                            <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.6)]" />
+                                                            <div 
+                                                                className="absolute -left-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
+                                                                style={{ 
+                                                                    backgroundColor: colorPalette?.primary || '#7c3aed',
+                                                                    boxShadow: `0 0 8px ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.6)}`
+                                                                }}
+                                                            />
                                                         )}
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center space-x-3">
                                                     {isActive && (
-                                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${isDarkMode ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700'
-                                                            }`}>
+                                                        <span 
+                                                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider`}
+                                                            style={{
+                                                                backgroundColor: hexToRgba(colorPalette?.primary || '#7c3aed', isDarkMode ? 0.2 : 0.1),
+                                                                color: colorPalette?.primary || '#7c3aed'
+                                                            }}
+                                                        >
                                                             Active
                                                         </span>
                                                     )}
@@ -499,8 +575,11 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                                 </button>
                                 <button
                                     onClick={handleApply}
-                                    className="flex-1 px-4 py-3 rounded-2xl font-bold text-sm text-white transition-all duration-200 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 active:scale-[0.98]"
-                                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
+                                    className="flex-1 px-4 py-3 rounded-2xl font-bold text-sm text-white transition-all duration-200 active:scale-[0.98]"
+                                    style={{ 
+                                        backgroundColor: colorPalette?.primary || '#7c3aed',
+                                        boxShadow: `0 4px 12px ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.2)}`
+                                    }}
                                 >
                                     Apply Filters
                                 </button>

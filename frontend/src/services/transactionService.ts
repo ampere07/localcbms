@@ -195,5 +195,20 @@ export const transactionService = {
         message: error.response?.data?.message || error.message || 'Failed to batch approve transactions'
       };
     }
+  },
+
+  updateStatus: async (transactionId: string, status: string): Promise<ApiResponse> => {
+    try {
+      const response = await apiClient.post<ApiResponse>(`/transactions/${transactionId}/status`, {
+        status
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error updating transaction status:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to update transaction status'
+      };
+    }
   }
 };

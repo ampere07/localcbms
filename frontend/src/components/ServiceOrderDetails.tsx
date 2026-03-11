@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  X, ExternalLink, Edit, Settings
+  X, ExternalLink, Edit, Settings, CircleArrowRight
 } from 'lucide-react';
 import ServiceOrderEditModal from '../modals/ServiceOrderEditModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import BillingDetails from './CustomerDetails';
+import { BillingDetailRecord } from '../types/billing';
 
 interface ServiceOrderDetailsProps {
   serviceOrder: {
@@ -63,6 +65,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [showFieldSettings, setShowFieldSettings] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [showCustomerDetails, setShowCustomerDetails] = useState(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
 
@@ -399,13 +402,20 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Account No.</div>
-            <div className="text-red-500 flex-1">
-              {accInfo.join(' | ')}
+            <div className="text-red-500 flex-1 flex items-center">
+              <span>{accInfo.join(' | ')}</span>
+              <button 
+                onClick={() => setShowCustomerDetails(!showCustomerDetails)}
+                className={`ml-2 p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-800 hover:text-white' : 'hover:bg-gray-200 hover:text-gray-900'} ${showCustomerDetails ? (colorPalette?.primary ? 'text-[' + colorPalette.primary + ']' : 'text-blue-500') : (isDarkMode ? 'text-gray-400' : 'text-gray-600')}`}
+                title="View Customer Details"
+              >
+                <CircleArrowRight size={16} />
+              </button>
             </div>
           </div>
         );
       case 'dateInstalled':
-        return renderField('Date Installed', serviceOrder.dateInstalled);
+        return renderField('Date Installed', serviceOrder.dateInstalled?.includes('T') ? serviceOrder.dateInstalled.split('T')[0] : serviceOrder.dateInstalled);
       case 'fullName':
         return renderField('Full Name', serviceOrder.fullName);
       case 'contactNumber':
@@ -515,6 +525,34 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
         return null;
     }
   };
+
+  if (showCustomerDetails) {
+    return (
+      <BillingDetails
+        billingRecord={{
+          id: serviceOrder.id,
+          applicationId: serviceOrder.accountNumber,
+          customerName: serviceOrder.fullName,
+          address: serviceOrder.fullAddress,
+          status: 'Unknown',
+          balance: 0,
+          onlineStatus: 'Unknown',
+          contactNumber: serviceOrder.contactNumber,
+          emailAddress: serviceOrder.emailAddress,
+          plan: serviceOrder.plan,
+          username: serviceOrder.username,
+          connectionType: serviceOrder.connectionType,
+          routerModemSN: serviceOrder.routerModemSN,
+          lcp: serviceOrder.lcp,
+          nap: serviceOrder.nap,
+          port: serviceOrder.port,
+          vlan: serviceOrder.vlan,
+          houseFrontPicture: serviceOrder.houseFrontPicture
+        } as BillingDetailRecord}
+        onClose={() => setShowCustomerDetails(false)}
+      />
+    );
+  }
 
   return (
     <div className={`h-full flex flex-col overflow-hidden relative ${!isMobile ? 'border-l' : ''} ${isDarkMode

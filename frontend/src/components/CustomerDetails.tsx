@@ -1513,6 +1513,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
         }`}></div>
 
       <div className="flex-1 overflow-y-auto">
+        {/* Related Invoices */}
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
           <div className={`w-full px-6 py-4 flex items-center justify-between`}>
@@ -1538,14 +1539,16 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             </div>
           </div>
 
-          <div className="px-6 pb-4">
-            <RelatedDataTable
-              data={relatedData.invoices}
-              columns={relatedDataColumns.invoices}
-              isDarkMode={isDarkMode}
-              onRowClick={handleInvoiceRowClick}
-            />
-          </div>
+          {relatedDataCounts.invoices > 0 && (
+            <div className="px-6 pb-4">
+              <RelatedDataTable
+                data={relatedData.invoices}
+                columns={relatedDataColumns.invoices}
+                isDarkMode={isDarkMode}
+                onRowClick={handleInvoiceRowClick}
+              />
+            </div>
+          )}
         </div>
 
         {/* Related Statement of Accounts */}
@@ -1568,19 +1571,22 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             </div>
           </div>
 
-          <div className="px-6 pb-4">
-            <RelatedDataTable
-              data={relatedData.statementOfAccounts}
-              columns={relatedDataColumns.statementOfAccounts}
-              isDarkMode={isDarkMode}
-              onRowClick={handleSOARowClick}
-            />
-            <div className="flex justify-end">
-              <button className={isDarkMode ? 'text-red-400 hover:text-red-300 text-sm' : 'text-red-600 hover:text-red-700 text-sm'}>Add</button>
+          {relatedDataCounts.statementOfAccounts > 0 && (
+            <div className="px-6 pb-4">
+              <RelatedDataTable
+                data={relatedData.statementOfAccounts}
+                columns={relatedDataColumns.statementOfAccounts}
+                isDarkMode={isDarkMode}
+                onRowClick={handleSOARowClick}
+              />
+              <div className="flex justify-end">
+                <button className={isDarkMode ? 'text-red-400 hover:text-red-300 text-sm' : 'text-red-600 hover:text-red-700 text-sm'}>Add</button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
+        {/* Related Payment Portal Logs */}
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
           <div className={`w-full px-6 py-4 flex items-center justify-between`}>
@@ -1606,16 +1612,19 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             </div>
           </div>
 
-          <div className="px-6 pb-4">
-            <RelatedDataTable
-              data={relatedData.paymentPortalLogs}
-              columns={relatedDataColumns.paymentPortalLogs}
-              isDarkMode={isDarkMode}
-              onRowClick={handlePaymentPortalRowClick}
-            />
-          </div>
+          {relatedDataCounts.paymentPortalLogs > 0 && (
+            <div className="px-6 pb-4">
+              <RelatedDataTable
+                data={relatedData.paymentPortalLogs}
+                columns={relatedDataColumns.paymentPortalLogs}
+                isDarkMode={isDarkMode}
+                onRowClick={handlePaymentPortalRowClick}
+              />
+            </div>
+          )}
         </div>
 
+        {/* Related Transactions */}
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
           <div className={`w-full px-6 py-4 flex items-center justify-between`}>
@@ -1641,22 +1650,25 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             </div>
           </div>
 
-          <div className="px-6 pb-4">
-            <RelatedDataTable
-              data={relatedData.transactions}
-              columns={relatedDataColumns.transactions}
-              isDarkMode={isDarkMode}
-              onRowClick={handleTransactionRowClick}
-            />
-            <div className="flex justify-end">
-              <button className={isDarkMode
-                ? 'text-red-400 hover:text-red-300 text-sm'
-                : 'text-red-600 hover:text-red-700 text-sm'
-              }>Add</button>
+          {relatedDataCounts.transactions > 0 && (
+            <div className="px-6 pb-4">
+              <RelatedDataTable
+                data={relatedData.transactions}
+                columns={relatedDataColumns.transactions}
+                isDarkMode={isDarkMode}
+                onRowClick={handleTransactionRowClick}
+              />
+              <div className="flex justify-end">
+                <button className={isDarkMode
+                  ? 'text-red-400 hover:text-red-300 text-sm'
+                  : 'text-red-600 hover:text-red-700 text-sm'
+                }>Add</button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
+        {/* Related Staggered */}
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
           <div className={`w-full px-6 py-4 flex items-center justify-between`}>
@@ -1682,26 +1694,29 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             </div>
           </div>
 
-          <div className="px-6 pb-4">
-            <RelatedDataTable
-              data={relatedData.staggered}
-              columns={relatedDataColumns.staggered}
-              isDarkMode={isDarkMode}
-            />
-            <div className="flex justify-end">
-              <button
-                onClick={handleStaggeredInstallationAdd}
-                className={isDarkMode
-                  ? 'text-red-400 hover:text-red-300 text-sm'
-                  : 'text-red-600 hover:text-red-700 text-sm'
-                }
-              >
-                Add
-              </button>
+          {relatedDataCounts.staggered > 0 && (
+            <div className="px-6 pb-4">
+              <RelatedDataTable
+                data={relatedData.staggered}
+                columns={relatedDataColumns.staggered}
+                isDarkMode={isDarkMode}
+              />
+              <div className="flex justify-end">
+                <button
+                  onClick={handleStaggeredInstallationAdd}
+                  className={isDarkMode
+                    ? 'text-red-400 hover:text-red-300 text-sm'
+                    : 'text-red-600 hover:text-red-700 text-sm'
+                  }
+                >
+                  Add
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
+        {/* Related Discounts */}
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
           <div className={`w-full px-6 py-4 flex items-center justify-between`}>
@@ -1727,27 +1742,30 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             </div>
           </div>
 
-          <div className="px-6 pb-4">
-            <RelatedDataTable
-              data={relatedData.discounts}
-              columns={relatedDataColumns.discounts}
-              isDarkMode={isDarkMode}
-            />
-            <div className="flex justify-end">
-              <button
-                onClick={handleDiscountAdd}
-                className={isDarkMode
-                  ? 'text-red-400 hover:text-red-300 text-sm'
-                  : 'text-red-600 hover:text-red-700 text-sm'
-                }
-              >
-                Add
-              </button>
+          {relatedDataCounts.discounts > 0 && (
+            <div className="px-6 pb-4">
+              <RelatedDataTable
+                data={relatedData.discounts}
+                columns={relatedDataColumns.discounts}
+                isDarkMode={isDarkMode}
+              />
+              <div className="flex justify-end">
+                <button
+                  onClick={handleDiscountAdd}
+                  className={isDarkMode
+                    ? 'text-red-400 hover:text-red-300 text-sm'
+                    : 'text-red-600 hover:text-red-700 text-sm'
+                  }
+                >
+                  Add
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
-        {[
-          { key: 'serviceOrders', label: 'Related Service Orders', dataKey: 'serviceOrders' },
+
+        {/* Other Sections */}
+        {[{ key: 'serviceOrders', label: 'Related Service Orders', dataKey: 'serviceOrders' },
           { key: 'reconnectionLogs', label: 'Related Reconnection Logs', dataKey: 'reconnectionLogs' },
           { key: 'disconnectedLogs', label: 'Related Disconnected Logs', dataKey: 'disconnectedLogs' },
           { key: 'detailsUpdateLogs', label: 'Related Details Update Logs', dataKey: 'detailsUpdateLogs' },
@@ -1781,20 +1799,22 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
               </div>
             </div>
 
-            <div className="px-6 pb-4">
-              <RelatedDataTable
-                data={relatedData[section.key]}
-                columns={relatedDataColumns[section.dataKey as keyof typeof relatedDataColumns]}
-                isDarkMode={isDarkMode}
-                onRowClick={section.key === 'serviceOrders' ? handleServiceOrderRowClick : undefined}
-              />
-              <div className="flex justify-end">
-                <button className={isDarkMode
-                  ? 'text-red-400 hover:text-red-300 text-sm'
-                  : 'text-red-600 hover:text-red-700 text-sm'
-                }>Add</button>
+            {relatedDataCounts[section.key] > 0 && (
+              <div className="px-6 pb-4">
+                <RelatedDataTable
+                  data={relatedData[section.key]}
+                  columns={relatedDataColumns[section.dataKey as keyof typeof relatedDataColumns]}
+                  isDarkMode={isDarkMode}
+                  onRowClick={section.key === 'serviceOrders' ? handleServiceOrderRowClick : undefined}
+                />
+                <div className="flex justify-end">
+                  <button className={isDarkMode
+                    ? 'text-red-400 hover:text-red-300 text-sm'
+                    : 'text-red-600 hover:text-red-700 text-sm'
+                  }>Add</button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ))}
       </div>

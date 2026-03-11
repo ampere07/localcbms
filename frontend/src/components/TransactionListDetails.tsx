@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft, ArrowRight, Maximize2, X, Phone, MessageSquare, Info,
   ExternalLink, Mail, Edit, Trash2, Receipt, CheckCircle,
-  ChevronDown, ChevronRight
+  ChevronDown, ChevronRight, AlertCircle, CircleArrowRight
 } from 'lucide-react';
 import { transactionService } from '../services/transactionService';
 import { relatedDataService } from '../services/relatedDataService';
@@ -12,6 +12,8 @@ import RelatedDataTable from './RelatedDataTable';
 import { relatedDataColumns } from '../config/relatedDataColumns';
 import { useBillingStore } from '../store/billingStore';
 import TransactionRevertModal from '../modals/TransactionRevertModal';
+import BillingDetails from './CustomerDetails';
+import { BillingDetailRecord } from '../types/billing';
 
 interface Transaction {
   id: string;
@@ -78,6 +80,8 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   const [showRevertModal, setShowRevertModal] = useState(false);
   const [showRevertRequestModal, setShowRevertRequestModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showFailedConfirmModal, setShowFailedConfirmModal] = useState(false);
+  const [showCustomerDetails, setShowCustomerDetails] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
@@ -191,6 +195,31 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
     startWidthRef.current = detailsWidth;
   };
 
+  const { refreshBillingRecords } = useBillingStore();
+
+  if (showCustomerDetails && transaction.account) {
+    return (
+      <BillingDetails
+        billingRecord={{
+          id: transaction.account.id.toString(),
+          applicationId: transaction.account.account_no,
+          accountNo: transaction.account.account_no,
+          customerName: transaction.account.customer?.full_name || '',
+          address: transaction.account.customer?.address || '',
+          status: transaction.account.billing_status_id === 2 ? 'Active' : 'Inactive',
+          balance: transaction.account.account_balance || 0,
+          onlineStatus: transaction.account.billing_status_id === 2 ? 'Online' : 'Offline',
+          contactNumber: transaction.account.customer?.contact_number_primary,
+          barangay: transaction.account.customer?.barangay,
+          city: transaction.account.customer?.city,
+          region: transaction.account.customer?.region,
+          plan: transaction.account.customer?.desired_plan,
+        } as BillingDetailRecord}
+        onClose={() => setShowCustomerDetails(false)}
+      />
+    );
+  }
+
   const formatCurrency = (amount: number | string) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return `₱${numAmount.toFixed(2)}`;
@@ -229,8 +258,6 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   const handleDeleteTransaction = () => {
     setShowDeleteModal(true);
   };
-
-  const { refreshBillingRecords } = useBillingStore();
 
   const confirmApprove = async () => {
     setShowConfirmModal(false);
@@ -346,6 +373,31 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
     } finally {
       setLoading(false);
       setLoadingPercentage(0);
+    }
+  };  const confirmMarkAsFailed = async () => {
+    setShowFailedConfirmModal(false);
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const result = await transactionService.updateStatus(transaction.id, 'Failed');
+
+      if (result.success) {
+        transaction.status = 'Failed';
+        setSuccessMessage('Transaction marked as failed successfully');
+        setShowSuccessModal(true);
+        if (onApprovalSuccess) {
+          onApprovalSuccess();
+        }
+      } else {
+        setError(result.message || 'Failed to update transaction status');
+      }
+    } catch (err: any) {
+      setError(`Failed to mark as failed: ${err.message || err}`);
+      console.error('Mark as failed error:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -477,6 +529,16 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                 <span>{loading ? 'Approving...' : 'Approve'}</span>
               </button>
             )}
+            {(transaction.status || '').toLowerCase() === 'pending' && (
+              <button
+                onClick={() => setShowFailedConfirmModal(true)}
+                disabled={loading}
+                className="flex items-center space-x-2 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+              >
+                <AlertCircle size={16} />
+                <span>Mark as Failed</span>
+              </button>
+            )}
             {(transaction.status || '').toLowerCase() === 'done' && !transaction.revert_request && (
               <button
                 onClick={handleRevertRequest}
@@ -544,16 +606,11 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                 <div className="text-red-400 flex-1 font-medium flex items-center">
                   {transaction.account?.account_no || '-'}
                   <button
-                    onClick={() => {
-                      if (onViewCustomer && transaction.account?.account_no) {
-                        onViewCustomer(transaction.account.account_no);
-                      } else {
-                        onNavigate?.('customer', transaction.account?.account_no);
-                      }
-                    }}
-                    className={isDarkMode ? 'ml-2 text-gray-400 hover:text-white' : 'ml-2 text-gray-600 hover:text-gray-900'}
+                    onClick={() => setShowCustomerDetails(true)}
+                    className={`ml-2 p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-800 hover:text-white' : 'hover:bg-gray-200 hover:text-gray-900'} ${showCustomerDetails ? (colorPalette?.primary ? 'text-[' + colorPalette.primary + ']' : 'text-blue-500') : (isDarkMode ? 'text-gray-400' : 'text-gray-600')}`}
+                    title="View Customer Details"
                   >
-                    <Info size={16} />
+                    <CircleArrowRight size={16} />
                   </button>
                 </div>
               </div>
@@ -579,7 +636,8 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                   <div className={`capitalize ${(transaction.status || '').toLowerCase() === 'done' ? 'text-green-500' :
                     (transaction.status || '').toLowerCase() === 'pending' ? 'text-yellow-500' :
                       (transaction.status || '').toLowerCase() === 'processing' ? 'text-blue-500' :
-                        'text-gray-400'
+                        (transaction.status || '').toLowerCase() === 'failed' ? 'text-red-500' :
+                          'text-gray-400'
                     }`}>
                     {transaction.status || 'Unknown'}
                   </div>
@@ -851,6 +909,37 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
           if (onApprovalSuccess) onApprovalSuccess();
         }}
       />
+
+      {showFailedConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border transform transition-all duration-300 ${isDarkMode
+            ? 'bg-gray-800 border-gray-700 shadow-2xl'
+            : 'bg-white border-gray-300 shadow-xl'
+            }`}>
+            <h3 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Confirm Mark as Failed</h3>
+            <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Are you sure you want to mark this transaction as failed? This will update the status and you will not be able to approve it later unless reverted or reset.</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowFailedConfirmModal(false)}
+                className={`px-6 py-2.5 rounded font-medium transition-colors ${isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmMarkAsFailed}
+                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2.5 rounded font-medium transition-all active:scale-95"
+              >
+                Confirm Failed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Receipt, Search, ChevronDown, CheckCheck, X, Check, ChevronRight, Menu, FileText, Globe, Filter, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Receipt, Search, ChevronDown, CheckCheck, X, Check, ChevronRight, Menu, FileText, Globe, Filter, ChevronsLeft, ChevronsRight, RefreshCw, Loader2 } from 'lucide-react';
 import TransactionListDetails from '../components/TransactionListDetails';
 import { transactionService } from '../services/transactionService';
 import { getCities, City } from '../services/cityService';
@@ -10,10 +10,16 @@ import { settingsColorPaletteService, ColorPalette } from '../services/settingsC
 import { useTransactionStore } from '../store/transactionStore';
 import pusher from '../services/pusherService';
 import { Transaction } from '../types/transaction';
+
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
 import TransactionFunnelFilter, { FilterValues, allColumns } from '../filter/TransactionFunnelFilter';
+
+const hexToRgba = (hex: string, opacity: number) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${opacity})` : hex;
+};
 
 interface LocationItem {
   id: string;
@@ -83,6 +89,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
       fetchTransactions();
     }
   }, [fetchTransactions, transactions.length]);
+
+  // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
+  useEffect(() => {
+    silentRefresh();
+  }, [silentRefresh]);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -118,6 +129,13 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     }
     return {};
   });
+
+  const removeFilter = (key: string) => {
+    const newFilters = { ...activeFilters };
+    delete newFilters[key];
+    setActiveFilters(newFilters);
+    localStorage.setItem('transactionFunnelFilters', JSON.stringify(newFilters));
+  };
 
   const [cities, setCities] = useState<City[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
@@ -166,6 +184,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     fetchThemeData();
   }, []);
 
+  const handleRefresh = async () => {
+    await fetchTransactions(true, false);
+  };
+
   // Fetch lookup data
   useEffect(() => {
     const fetchLookupData = async () => {
@@ -188,7 +210,17 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
 
   // Pusher/Soketi connection for real-time transaction updates
   useEffect(() => {
-    const handleUpdate = async (data: any) => {
+    const channel = pusher.subscribe('transactions');
+
+    channel.bind('pusher:subscription_succeeded', () => {
+      console.log('[TransactionList Soketi] Successfully subscribed to transactions channel');
+    });
+
+    channel.bind('pusher:subscription_error', (error: any) => {
+      console.error('[TransactionList Soketi] Subscription error:', error);
+    });
+
+    channel.bind('transaction-updated', async (data: any) => {
       console.log('[TransactionList Soketi] Update received, silently refreshing:', data);
       try {
         await silentRefresh();
@@ -196,32 +228,22 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
       } catch (err) {
         console.error('[TransactionList Soketi] Failed to refresh data:', err);
       }
-    };
-
-    const transactionChannel = pusher.subscribe('transactions');
-
-    transactionChannel.bind('pusher:subscription_succeeded', () => {
-      console.log('[TransactionList Soketi] Successfully subscribed to transactions channel');
-    });
-    transactionChannel.bind('pusher:subscription_error', (error: any) => {
-      console.error('[TransactionList Soketi] Subscription error:', error);
     });
 
-    transactionChannel.bind('transaction-updated', handleUpdate);
-
-    // Re-subscribe on reconnection
+    // Log connection state for debugging
     const stateHandler = (states: { previous: string; current: string }) => {
       console.log(`[TransactionList Soketi] Connection state: ${states.previous} -> ${states.current}`);
-      if (states.current === 'connected' && transactionChannel.subscribed !== true) {
+      if (states.current === 'connected' && channel.subscribed !== true) {
+        console.log('[TransactionList Soketi] Reconnected, re-subscribing...');
         pusher.subscribe('transactions');
       }
     };
     pusher.connection.bind('state_change', stateHandler);
 
     return () => {
-      transactionChannel.unbind('pusher:subscription_succeeded');
-      transactionChannel.unbind('pusher:subscription_error');
-      transactionChannel.unbind('transaction-updated', handleUpdate);
+      channel.unbind('pusher:subscription_succeeded');
+      channel.unbind('pusher:subscription_error');
+      channel.unbind('transaction-updated');
       pusher.connection.unbind('state_change', stateHandler);
       pusher.unsubscribe('transactions');
     };
@@ -1077,8 +1099,104 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
             >
               <Filter className="h-5 w-5" />
             </button>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
+              style={{
+                backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
+              }}
+              onMouseEnter={(e) => {
+                if (!loading && colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading && colorPalette?.primary) {
+                  e.currentTarget.style.backgroundColor = colorPalette.primary;
+                }
+              }}
+            >
+              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
         </div>
+
+        {/* Active Funnel Filters Row */}
+        {Object.keys(activeFilters || {}).length > 0 && (
+          <div className={`px-4 py-2 border-b flex flex-wrap items-center gap-2 overflow-x-auto no-scrollbar ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+              Active Filters:
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(activeFilters || {}).map(([key, filter]: [string, any]) => {
+                const column = allColumns.find(c => c.key === key);
+                const label = column?.label || key;
+
+                let displayValue = '';
+                if (filter.type === 'text' || filter.type === 'boolean') {
+                  displayValue = String(filter.value);
+                } else if (filter.type === 'checklist') {
+                  displayValue = Array.isArray(filter.selectedOptions)
+                    ? filter.selectedOptions.join(', ')
+                    : String(filter.value || '');
+                } else if (filter.type === 'number' || filter.type === 'date') {
+                  if (filter.from && filter.to) displayValue = `${filter.from} - ${filter.to}`;
+                  else if (filter.from) displayValue = `> ${filter.from}`;
+                  else if (filter.to) displayValue = `< ${filter.to}`;
+                }
+
+                return (
+                  <div
+                    key={key}
+                    className={`group flex items-center h-7 pl-2 pr-1 rounded-full text-xs font-medium transition-all`}
+                    style={{
+                      backgroundColor: hexToRgba(colorPalette?.primary || '#7c3aed', isDarkMode ? 0.1 : 0.05),
+                      color: colorPalette?.primary || '#7c3aed',
+                      border: `1px solid ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.2)}`
+                    }}
+                  >
+                    <span className="opacity-70 mr-1">{label}:</span>
+                    <span className="truncate max-w-[150px]">{displayValue}</span>
+                    <button
+                      onClick={() => removeFilter(key)}
+                      className={`ml-1 p-0.5 rounded-full transition-colors`}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.primary) {
+                          e.currentTarget.style.backgroundColor = hexToRgba(colorPalette.primary, 0.2);
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                );
+              })}
+              <button
+                onClick={() => {
+                  setActiveFilters({});
+                  localStorage.removeItem('transactionFunnelFilters');
+                }}
+                className={`text-[10px] font-bold uppercase tracking-wider underline-offset-4 hover:underline transition-colors px-2 py-1 rounded-md`}
+                style={{ color: colorPalette?.primary || '#7c3aed' }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = hexToRgba(colorPalette.primary, 0.1);
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                Clear all
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 overflow-hidden flex flex-col">
           <div className="flex-1 overflow-y-auto" ref={scrollRef}>
             {loading ? (

@@ -90,7 +90,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotEmail) {
-      setError('Please enter your email address');
+      setError('Please enter your email or account number');
       return;
     }
 
@@ -103,7 +103,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         setForgotMessage(response.message);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to send reset instructions.');
+      setError(err.response?.data?.message || 'Failed to send credentials.');
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +137,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               marginBottom: '10px',
               fontWeight: '600'
             }}>
-              Reset Password
+              Retrieve Credentials
             </h2>
           </div>
 
@@ -180,7 +180,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <form onSubmit={handleForgotPassword}>
               <div style={{ marginBottom: '20px' }}>
                 <input
-                  type="email"
+                  type="text"
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
                   style={{
@@ -192,7 +192,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     color: '#111827',
                     fontSize: '16px'
                   }}
-                  placeholder="Enter your email address"
+                  placeholder="Enter your email or account number"
                 />
               </div>
 
@@ -223,7 +223,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   fontWeight: '600'
                 }}
               >
-                {isLoading ? 'Sending...' : 'Send Reset Instructions'}
+                {isLoading ? 'Sending...' : 'Send Credentials'}
               </button>
 
               <button
@@ -461,7 +461,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     margin: '0 auto'
                   }}
                 >
-                  Forgot Password?
+                  Retrieve Credentials?
                 </button>
               </div>
             </form>
