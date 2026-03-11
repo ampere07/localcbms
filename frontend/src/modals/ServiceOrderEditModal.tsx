@@ -530,7 +530,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         port: normalizePort(serviceOrderData.port || serviceOrderData.PORT),
         vlan: serviceOrderData.vlan || '',
         supportStatus: serviceOrderData.supportStatus || serviceOrderData.support_status || 'In Progress',
-        visitStatus: serviceOrderData.visitStatus || serviceOrderData.visit_status || '',
+        visitStatus: serviceOrderData.visitStatus || serviceOrderData.visit_status || 'In Progress',
         repairCategory: serviceOrderData.repairCategory || serviceOrderData.repair_category || '',
         visitBy: serviceOrderData.visitBy || serviceOrderData.visit_by || '',
         visitWith: serviceOrderData.visitWith || serviceOrderData.visit_with || '',
