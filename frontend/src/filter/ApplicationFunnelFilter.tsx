@@ -44,7 +44,9 @@ export const allColumns: Column[] = [
   { key: 'first_name', label: 'First Name', dataType: 'varchar' },
   { key: 'middle_initial', label: 'Middle Initial', dataType: 'varchar' },
   { key: 'last_name', label: 'Last Name', dataType: 'varchar' },
-  { key: 'mobile_number', label: 'Mobile Number', dataType: 'varchar' },
+  { key: 'customer_name', label: 'Customer Name', dataType: 'varchar' },
+  { key: 'mobile_number', label: 'Mobile Number (Primary)', dataType: 'varchar' },
+  { key: 'secondary_mobile_number', label: 'Mobile Number (Secondary)', dataType: 'varchar' },
   { key: 'location', label: 'Address Coordinates', dataType: 'varchar' },
   { key: 'landmark', label: 'Landmark', dataType: 'varchar' },
   { key: 'desired_plan', label: 'Desired Plan', dataType: 'checklist' },
@@ -277,7 +279,10 @@ const ApplicationFunnelFilter: React.FC<ApplicationFunnelFilterProps> = ({
           { label: 'No Slot', value: 'no slot' },
           { label: 'Cancelled', value: 'cancelled' },
           { label: 'No Facility', value: 'no facility' },
-          { label: 'Pending', value: 'pending' }
+          { label: 'Pending', value: 'pending' },
+          { label: 'Confirmed', value: 'confirmed' },
+          { label: 'In Progress', value: 'in progress' },
+          { label: 'Completed', value: 'completed' }
         ];
       } else if (selectedColumn.key === 'terms_agreed') {
         options = [{ label: 'Agreed', value: 'true' }];

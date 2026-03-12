@@ -69,6 +69,7 @@ export const allColumns: Column[] = [
   { key: 'billingAccountCreatedBy', label: 'Billing Account Created By', dataType: 'bigint' },
   { key: 'billingAccountUpdatedAt', label: 'Billing Account Updated At', dataType: 'datetime' },
   { key: 'billingAccountUpdatedBy', label: 'Billing Account Updated By', dataType: 'varchar' },
+  { key: 'totalPaid', label: 'Total Paid', dataType: 'decimal' },
 
   // Technical Details Table
   { key: 'username', label: 'Username', dataType: 'varchar' },
@@ -341,8 +342,15 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
       } else if (selectedColumn.key === 'region') {
         options = regions.map(r => ({ label: r, value: r }));
       } else if (selectedColumn.key === 'billingStatus') {
-        const statusList = ['Active', 'Blacklisted', 'Freeze', 'Inactive', 'Pullout', 'Service Account', 'VIP'];
-        options = statusList.map(s => ({ label: s, value: s.toLowerCase().replace(' ', ' ') })); // Keeping space as is in 'Service Account'
+        if (billingStatuses.length > 0) {
+          options = billingStatuses.map(s => ({ 
+            label: s.name, 
+            value: s.name.toLowerCase() 
+          }));
+        } else {
+          const statusList = ['Active', 'Blacklisted', 'Freeze', 'Inactive', 'Pullout', 'Service Account', 'VIP'];
+          options = statusList.map(s => ({ label: s, value: s.toLowerCase() }));
+        }
       } else if (selectedColumn.key === 'lcp') {
         options = lcpNames.map(o => ({ label: o, value: o }));
       } else if (selectedColumn.key === 'nap') {

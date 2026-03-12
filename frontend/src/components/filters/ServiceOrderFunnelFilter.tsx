@@ -34,6 +34,7 @@ interface Column {
 const STORAGE_KEY = 'serviceOrderFunnelFilters';
 
 export const allColumns: Column[] = [
+  { key: 'ticketId', label: 'Ticket ID', dataType: 'varchar' },
   { key: 'emailAddress', label: 'Email Address', dataType: 'varchar' },
   { key: 'referredBy', label: 'Referred By', dataType: 'varchar' },
   { key: 'fullName', label: 'Full Name', dataType: 'varchar' },
@@ -46,7 +47,9 @@ export const allColumns: Column[] = [
   { key: 'contractTemplate', label: 'Contract Template', dataType: 'varchar' },
   { key: 'billingDay', label: 'Billing Day', dataType: 'varchar' },
   { key: 'onsiteRemarks', label: 'Onsite Remarks', dataType: 'varchar' },
-  { key: 'status', label: 'Status', dataType: 'checklist' }, // Table status field
+  { key: 'supportStatus', label: 'Support Status', dataType: 'checklist' },
+  { key: 'repairCategory', label: 'Repair Category', dataType: 'checklist' },
+  { key: 'priorityLevel', label: 'Priority Level', dataType: 'checklist' },
   { key: 'routerModemSN', label: 'Modem SN', dataType: 'varchar' },
   { key: 'lcp', label: 'LCP', dataType: 'checklist' },
   { key: 'nap', label: 'NAP', dataType: 'checklist' },
@@ -320,20 +323,40 @@ const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({
         options = cities.map(c => ({ label: c, value: c }));
       } else if (selectedColumn.key === 'region') {
         options = regions.map(r => ({ label: r, value: r }));
-      } else if (selectedColumn.key === 'status') {
-        options = [
-          { label: 'Confirmed', value: 'Confirmed' },
-          { label: 'Cancelled', value: 'Cancelled' },
-          { label: 'For Confirmation', value: 'For Confirmation' },
-          { label: 'Pending', value: 'Pending' }
-        ];
       } else if (selectedColumn.key === 'visitStatus') {
         options = [
           { label: 'Done', value: 'Done' },
           { label: 'Failed', value: 'Failed' },
           { label: 'Reschedule', value: 'Reschedule' },
           { label: 'In Progress', value: 'In Progress' },
-          { label: 'Empty', value: '' }
+          { label: 'None', value: '' }
+        ];
+      } else if (selectedColumn.key === 'supportStatus' || selectedColumn.key === 'status') {
+        options = [
+          { label: 'Resolved', value: 'Resolved' },
+          { label: 'Pending', value: 'Pending' },
+          { label: 'In-Progress', value: 'In-Progress' },
+          { label: 'Cancelled', value: 'Cancelled' },
+          { label: 'Closed', value: 'Closed' },
+          { label: 'For Confirmation', value: 'For Confirmation' }
+        ];
+      } else if (selectedColumn.key === 'priorityLevel') {
+        options = [
+          { label: 'Low', value: 'Low' },
+          { label: 'Medium', value: 'Medium' },
+          { label: 'High', value: 'High' },
+          { label: 'Urgent', value: 'Urgent' }
+        ];
+      } else if (selectedColumn.key === 'repairCategory') {
+        // These can be fetched but for now using common ones
+        options = [
+          { label: 'No Link', value: 'No Link' },
+          { label: 'Intermittent', value: 'Intermittent' },
+          { label: 'Relocation', value: 'Relocation' },
+          { label: 'Reconfiguration', value: 'Reconfiguration' },
+          { label: 'Optical Loss', value: 'Optical Loss' },
+          { label: 'Cable Break', value: 'Cable Break' },
+          { label: 'SDR Outage', value: 'SDR Outage' }
         ];
       } else if (selectedColumn.key === 'lcp' || selectedColumn.key === 'newLcp') {
         options = lcpNames.map(o => ({ label: o, value: o }));

@@ -455,17 +455,25 @@ const ServiceOrderPage: React.FC = () => {
       case 'routerModemSN': return item.routerModemSN;
       case 'referredBy': return item.referredBy;
       case 'status': return item.status;
-      case 'billingDay': return item.billingDay;
-      case 'onsiteRemarks': return item.onsiteRemarks;
-      case 'statusRemarks': return item.statusRemarks;
-      case 'contractTemplate': return item.contractTemplate;
-      case 'ipAddress': return item.ipAddress;
-      case 'usageType': return item.usageType;
-      case 'houseFrontPicture': return item.houseFrontPicture;
-      case 'visitBy': return item.visitBy;
-      case 'visitWith': return item.visitWith;
-      case 'visitWithOther': return item.visitWithOther;
-      default: return (item as any)[key];
+      case 'billingDay': return item.billingDay ?? (item as any).billing_day ?? '';
+      case 'repairCategory': return item.repairCategory ?? (item as any).repair_category ?? '';
+      case 'supportStatus': return item.supportStatus ?? (item as any).support_status ?? '';
+      case 'visitRemarks': return item.visitRemarks ?? (item as any).visit_remarks ?? '';
+      case 'supportRemarks': return item.supportRemarks ?? (item as any).support_remarks ?? '';
+      case 'priorityLevel': return item.priorityLevel ?? (item as any).priority_level ?? '';
+      case 'newRouterSn': return item.newRouterSn ?? (item as any).new_router_sn ?? '';
+      case 'newPlan': return item.newPlan ?? (item as any).new_plan ?? '';
+      case 'ticketId': return item.ticketId ?? (item as any).ticket_id ?? '';
+      case 'accountNumber': return item.accountNumber ?? (item as any).account_no ?? '';
+      case 'contactAddress': return item.contactAddress ?? (item as any).contact_address ?? '';
+      case 'fullAddress': return item.fullAddress ?? (item as any).full_address ?? '';
+      case 'routerModemSN': return item.routerModemSN ?? (item as any).router_modem_sn ?? '';
+      case 'modifiedBy': return item.modifiedBy ?? (item as any).updated_by_user ?? '';
+      case 'modifiedDate': return item.modifiedDate ?? (item as any).updated_at ?? '';
+      default: {
+        const val = (item as any)[key];
+        return val !== undefined && val !== null ? val : '';
+      }
     }
   };
 
@@ -480,18 +488,26 @@ const ServiceOrderPage: React.FC = () => {
         if (filter.type === 'checklist') {
           if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
 
+          const valStr = String(orderValue || '').toLowerCase().trim();
+
           if (key === 'barangay' || key === 'city' || key === 'region') {
             const address = String(order.fullAddress || '').toLowerCase();
-            return filter.value.some((val: string) => address.includes(val.toLowerCase()));
+            return filter.value.some((val: string) => {
+              const filterVal = String(val).toLowerCase().trim();
+              return address.includes(filterVal);
+            });
           }
 
-          if (key === 'plan') {
-            // Plan filter value in checklist is just the name part, but order has full plan string
-            const pVal = String(orderValue || '').toLowerCase();
-            return filter.value.some((val: string) => pVal.includes(val.toLowerCase()));
-          }
-
-          return filter.value.includes(String(orderValue || ''));
+          return filter.value.some((val: string) => {
+            const filterVal = String(val).toLowerCase().trim();
+            if (['supportStatus', 'visitStatus', 'status', 'usageType', 'routerModel'].includes(key)) {
+              return valStr === filterVal;
+            }
+            if (key === 'plan') {
+              return valStr.includes(filterVal);
+            }
+            return valStr === filterVal;
+          });
         }
 
         if (filter.type === 'text') {

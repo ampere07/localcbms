@@ -35,6 +35,7 @@ interface Column {
 const STORAGE_KEY = 'jobOrderFunnelFilters';
 
 export const allColumns: Column[] = [
+  { key: 'application_id', label: 'Application ID', dataType: 'varchar' },
   { key: 'emailAddress', label: 'Email Address', dataType: 'varchar' },
   { key: 'referredBy', label: 'Referred By', dataType: 'varchar' },
   { key: 'fullName', label: 'Full Name', dataType: 'varchar' },
@@ -319,7 +320,7 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
           { label: 'Failed', value: 'Failed' },
           { label: 'Reschedule', value: 'Reschedule' },
           { label: 'In Progress', value: 'In Progress' },
-          { label: 'Empty', value: '' }
+          { label: 'None', value: '' }
         ];
       } else if (selectedColumn.key === 'lcp') {
         options = lcpNames.map(o => ({ label: o, value: o }));

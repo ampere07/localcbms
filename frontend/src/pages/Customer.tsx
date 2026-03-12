@@ -120,7 +120,13 @@ const allColumns = [
   { key: 'referredBy', label: 'Referred By', width: 'min-w-36' },
   { key: 'secondContactNumber', label: 'Second Contact Number', width: 'min-w-40' },
   { key: 'mikrotikId', label: 'Mikrotik ID', width: 'min-w-32' },
-  { key: 'sessionIP', label: 'Session IP', width: 'min-w-32' }
+  { key: 'sessionIP', label: 'Session IP', width: 'min-w-32' },
+  { key: 'housingStatus', label: 'Housing Status', width: 'min-w-32' },
+  { key: 'addressCoordinates', label: 'Address Coordinates', width: 'min-w-36' },
+  { key: 'location', label: 'Location', width: 'min-w-32' },
+  { key: 'customerCreatedAt', label: 'Customer Created At', width: 'min-w-36' },
+  { key: 'billingAccountCreatedAt', label: 'Billing Account Created At', width: 'min-w-36' },
+  { key: 'techCreatedAt', label: 'Technical Details Created At', width: 'min-w-36' }
 ];
 
 interface CustomerProps {
@@ -542,7 +548,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       case 'accountBalance': return item.balance;
       case 'status': return item.status;
       case 'onlineStatus': return item.onlineStatus;
-      case 'billingStatus': return item.billingStatus;
+      case 'billingStatus': return item.billingStatus || 'Active';
       case 'dateInstalled': return item.dateInstalled;
       case 'username': return item.username;
       case 'connectionType': return item.connectionType;
@@ -578,9 +584,9 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       case 'techCreatedBy': return (item as any).techCreatedBy;
       case 'techUpdatedAt': return (item as any).techUpdatedAt;
       case 'techUpdatedBy': return (item as any).techUpdatedBy;
-      case 'desiredPlan': return item.plan;
-      case 'groupName': return item.provider;
-      case 'usernameStatus': return (item as any).usernameStatus;
+      case 'desiredPlan': return item.desiredPlan || item.plan;
+      case 'groupName': return item.groupName || item.provider;
+      case 'usernameStatus': return item.usernameStatus;
       default: return (item as any)[key];
     }
   };
@@ -597,7 +603,14 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
           if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
 
           const valStr = String(recordValue || '').toLowerCase();
-          return filter.value.some((v: string) => valStr.includes(v.toLowerCase()));
+          return filter.value.some((v: string) => {
+            const filterVal = String(v).toLowerCase();
+            // Use partial match for plans, exact match for others to avoid "Active" matching "Inactive"
+            if (key === 'plan' || key === 'desiredPlan') {
+              return valStr.includes(filterVal);
+            }
+            return valStr === filterVal;
+          });
         }
 
         if (filter.type === 'text') {
@@ -968,6 +981,18 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
         return (record as any).mikrotikId || '-';
       case 'sessionIP':
         return (record as any).sessionIP || '-';
+      case 'housingStatus':
+        return (record as any).housingStatus || '-';
+      case 'addressCoordinates':
+        return (record as any).addressCoordinates || '-';
+      case 'location':
+        return (record as any).location || '-';
+      case 'customerCreatedAt':
+        return (record as any).customerCreatedAt || '-';
+      case 'billingAccountCreatedAt':
+        return (record as any).billingAccountCreatedAt || '-';
+      case 'techCreatedAt':
+        return (record as any).techCreatedAt || '-';
 
       // Related records - placeholders
       case 'relatedInvoices':

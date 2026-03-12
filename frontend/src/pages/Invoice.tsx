@@ -388,16 +388,47 @@ const Invoice: React.FC = () => {
     if (activeFilters && Object.keys(activeFilters).length > 0) {
       filtered = filtered.filter(record => {
         return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
-          const recordValue = (record as any)[key];
+          let recordValue = (record as any)[key];
+          
+          // Helper to resolve property names if needed
+          const getVal = (item: any, k: string) => {
+             switch(k) {
+                case 'accountNo': return item.accountNo ?? item.account_no;
+                case 'fullName': return item.fullName ?? item.full_name;
+                case 'invoiceDateRaw': return item.invoiceDateRaw ?? item.invoice_date;
+                case 'invoiceBalance': return item.invoiceBalance ?? item.invoice_balance;
+                default: return item[k];
+             }
+          };
+
+          const val = getVal(record, key);
+
+          if (filter.type === 'checklist') {
+            if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
+            
+            const valStr = String(val || '').toLowerCase().trim();
+            
+            if (key === 'barangay' || key === 'city' || key === 'region') {
+               const directVal = String((record as any)[key] || '').toLowerCase().trim();
+               const address = String(record.address || '').toLowerCase();
+               
+               return (filter.value as string[]).some(option => {
+                  const opt = option.toLowerCase().trim();
+                  return directVal === opt || address.includes(opt);
+               });
+            }
+            
+            return (filter.value as string[]).some(option => valStr === option.toLowerCase().trim());
+          }
 
           if (filter.type === 'text') {
             if (!filter.value) return true;
-            const value = String(recordValue || '').toLowerCase();
-            return value.includes(filter.value.toLowerCase());
+            const value = String(val || '').toLowerCase();
+            return value.includes(String(filter.value).toLowerCase());
           }
 
           if (filter.type === 'number') {
-            const numValue = Number(recordValue);
+            const numValue = Number(val);
             if (isNaN(numValue)) return false;
             if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
             if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
@@ -405,8 +436,8 @@ const Invoice: React.FC = () => {
           }
 
           if (filter.type === 'date') {
-            if (!recordValue) return false;
-            const dateValue = new Date(recordValue).getTime();
+            if (!val) return false;
+            const dateValue = new Date(val).getTime();
             if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
             if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
             return true;
@@ -1005,6 +1036,9 @@ const Invoice: React.FC = () => {
                   ? `Active Filters:\n${Object.entries(activeFilters).map(([key, filter]: [string, any]) => {
                     const colName = filterColumns.find(c => c.key === key)?.label || key;
                     if (filter.type === 'text') return `${colName}: ${filter.value}`;
+                    if (filter.type === 'checklist') {
+                      return `${colName}: ${Array.isArray(filter.value) ? filter.value.join(', ') : filter.value}`;
+                    }
                     if (filter.type === 'number') {
                       if (filter.from && filter.to) return `${colName}: ${filter.from} - ${filter.to}`;
                       if (filter.from) return `${colName}: > ${filter.from}`;

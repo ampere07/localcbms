@@ -73,6 +73,9 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     'visitWith',
     'visitWithOther',
     'onsiteStatus',
+    'startTime',
+    'endTime',
+    'duration',
     'jobOrderItems',
 
     'modifiedBy',
@@ -89,15 +92,31 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
 
   const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>(() => {
     const saved = localStorage.getItem(FIELD_VISIBILITY_KEY);
+    const initialVisibility = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
     if (saved) {
-      return JSON.parse(saved);
+      try {
+        const parsed = JSON.parse(saved);
+        return { ...initialVisibility, ...parsed };
+      } catch (e) {
+        return initialVisibility;
+      }
     }
-    return defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
+    return initialVisibility;
   });
 
   const [fieldOrder, setFieldOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem(FIELD_ORDER_KEY);
-    return saved ? JSON.parse(saved) : defaultFields;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Ensure new fields are added to the end of the order if they're not in the saved order
+        const missingFields = defaultFields.filter(f => !parsed.includes(f));
+        return [...parsed, ...missingFields];
+      } catch (e) {
+        return defaultFields;
+      }
+    }
+    return defaultFields;
   });
 
   useEffect(() => {
@@ -245,6 +264,30 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       return new Date(dateStr).toLocaleDateString();
     } catch (e) {
       return dateStr;
+    }
+  };
+
+  const calculateDuration = (start?: string | null, end?: string | null): string => {
+    if (!start || !end) return 'N/A';
+    try {
+      const startTime = new Date(start);
+      const endTime = new Date(end);
+      const diffMs = endTime.getTime() - startTime.getTime();
+      
+      if (diffMs < 0) return 'Invalid duration';
+
+      const diffHrs = Math.floor(diffMs / 3600000);
+      const diffMins = Math.floor((diffMs % 3600000) / 60000);
+      const diffSecs = Math.floor((diffMs % 60000) / 1000);
+
+      const parts = [];
+      if (diffHrs > 0) parts.push(`${diffHrs}h`);
+      if (diffMins > 0) parts.push(`${diffMins}m`);
+      if (diffSecs > 0 || parts.length === 0) parts.push(`${diffSecs}s`);
+
+      return parts.join(' ');
+    } catch (e) {
+      return 'N/A';
     }
   };
 
@@ -567,6 +610,9 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       visitWith: 'Visit With',
       visitWithOther: 'Visit With Other',
       onsiteStatus: 'Onsite Status',
+      startTime: 'Start Time',
+      endTime: 'End Time',
+      duration: 'Duration',
       jobOrderItems: 'Item Used',
 
       modifiedBy: 'Modified By',
@@ -929,6 +975,37 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             <div className={`${getStatusColor(onsiteStatus, 'onsite')} flex-1 capitalize`}>
               {onsiteStatus === 'inprogress' ? 'In Progress' : onsiteStatus}
             </div>
+          </div>
+        );
+
+      case 'startTime':
+        const startTime = jobOrder.start_time;
+        if (!startTime) return null;
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Start Time:</div>
+            <div className={valueClass}>{formatDate(startTime)}</div>
+          </div>
+        );
+
+      case 'endTime':
+        const endTime = jobOrder.end_time;
+        if (!endTime) return null;
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>End Time:</div>
+            <div className={valueClass}>{formatDate(endTime)}</div>
+          </div>
+        );
+
+      case 'duration':
+        const st = jobOrder.start_time;
+        const et = jobOrder.end_time;
+        if (!st || !et) return null;
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Duration:</div>
+            <div className={valueClass}>{calculateDuration(st, et)}</div>
           </div>
         );
 

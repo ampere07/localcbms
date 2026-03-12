@@ -386,21 +386,45 @@ const SOA: React.FC = () => {
     if (activeFilters && Object.keys(activeFilters).length > 0) {
       filtered = filtered.filter(record => {
         return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
-          let recordValue = (record as any)[key];
+          // Helper to resolve property names
+          const getVal = (item: any, k: string) => {
+            switch (k) {
+              case 'fullName': return item.fullName ?? item.full_name;
+              case 'accountNo': return item.accountNo ?? item.account_no;
+              case 'invoiceStatus': return item.invoiceStatus ?? item.status;
+              default: return item[k];
+            }
+          };
 
-          // Special handling for nested or differently named fields
-          if (key === 'statementDateRaw') recordValue = record.statementDateRaw;
-          if (key === 'statementNo') recordValue = record.statementNo;
-          if (key === 'dateInstalled') recordValue = record.dateInstalled;
+          const val = getVal(record, key);
+
+          if (filter.type === 'checklist') {
+            if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
+            
+            const valStr = String(val || '').toLowerCase().trim();
+            
+            // Special handling for locations - match against record fields OR address
+            if (key === 'barangay' || key === 'city' || key === 'region') {
+               const directVal = String(record[key] || '').toLowerCase().trim();
+               const address = String(record.address || '').toLowerCase();
+               
+               return (filter.value as string[]).some(option => {
+                  const opt = option.toLowerCase().trim();
+                  return directVal === opt || address.includes(opt);
+               });
+            }
+            
+            return (filter.value as string[]).some(option => valStr === option.toLowerCase().trim());
+          }
 
           if (filter.type === 'text') {
             if (!filter.value) return true;
-            const value = String(recordValue || '').toLowerCase();
-            return value.includes(filter.value.toLowerCase());
+            const value = String(val || '').toLowerCase();
+            return value.includes(String(filter.value).toLowerCase());
           }
 
           if (filter.type === 'number') {
-            const numValue = Number(recordValue);
+            const numValue = Number(val);
             if (isNaN(numValue)) return false;
             if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
             if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
@@ -408,9 +432,8 @@ const SOA: React.FC = () => {
           }
 
           if (filter.type === 'date') {
-            if (!recordValue || recordValue === 'N/A') return false;
-            // recordValue might be a formatted date string "MM/DD/YYYY"
-            const dateValue = new Date(recordValue).getTime();
+            if (!val || val === 'N/A') return false;
+            const dateValue = new Date(val).getTime();
             if (isNaN(dateValue)) return false;
 
             if (filter.from) {
@@ -422,11 +445,6 @@ const SOA: React.FC = () => {
               if (dateValue > toDate) return false;
             }
             return true;
-          }
-
-          if (filter.type === 'checklist') {
-            if (!filter.selectedOptions || filter.selectedOptions.length === 0) return true;
-            return filter.selectedOptions.includes(String(recordValue || ''));
           }
 
           return true;
@@ -1088,7 +1106,7 @@ const SOA: React.FC = () => {
                       if (filter.to) return `${colName}: Before ${filter.to}`;
                     }
                     if (filter.type === 'checklist') {
-                      return `${colName}: ${filter.selectedOptions.join(', ')}`;
+                      return `${colName}: ${Array.isArray(filter.value) ? filter.value.join(', ') : filter.value}`;
                     }
                     return colName;
                   }).join('\n')}`
@@ -1229,8 +1247,8 @@ const SOA: React.FC = () => {
                   if (filter.type === 'text' || filter.type === 'boolean') {
                     displayValue = String(filter.value);
                   } else if (filter.type === 'checklist') {
-                    displayValue = Array.isArray(filter.selectedOptions)
-                      ? filter.selectedOptions.join(', ')
+                    displayValue = Array.isArray(filter.value)
+                      ? filter.value.join(', ')
                       : String(filter.value || '');
                   } else if (filter.type === 'number' || filter.type === 'date') {
                     if (filter.from && filter.to) displayValue = `${filter.from} - ${filter.to}`;

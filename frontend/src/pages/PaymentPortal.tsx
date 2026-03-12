@@ -386,24 +386,48 @@ const PaymentPortal: React.FC = () => {
 
       return matchesLocation && matchesSearch;
     });
-
     // Apply funnel filters
     if (activeFilters && Object.keys(activeFilters).length > 0) {
       filtered = filtered.filter((record: any) => {
         return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
-          let recordValue = (record as any)[key];
+          // Helper to resolve property names if needed
+          const getVal = (item: any, k: string) => {
+            switch (k) {
+              case 'fullName': return item.fullName ?? item.full_name;
+              case 'accountNo': return item.accountNo ?? item.account_no;
+              case 'reference_no': return item.reference_no ?? item.referenceNo;
+              default: return item[k];
+            }
+          };
 
-          // Map filter keys to record fields if they differ
-          if (key === 'fullName') recordValue = record.fullName;
+          const val = getVal(record, key);
+
+          if (filter.type === 'checklist') {
+            if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
+            
+            const valStr = String(val || '').toLowerCase().trim();
+            
+            if (key === 'barangay' || key === 'city' || key === 'region') {
+               const directVal = String(record[key] || '').toLowerCase().trim();
+               const address = String(record.address || '').toLowerCase();
+               
+               return (filter.value as string[]).some(option => {
+                  const opt = option.toLowerCase().trim();
+                  return directVal === opt || address.includes(opt);
+               });
+            }
+            
+            return (filter.value as string[]).some(option => valStr === option.toLowerCase().trim());
+          }
 
           if (filter.type === 'text') {
             if (!filter.value) return true;
-            const value = String(recordValue || '').toLowerCase();
-            return value.includes(filter.value.toLowerCase());
+            const value = String(val || '').toLowerCase();
+            return value.includes(String(filter.value).toLowerCase());
           }
 
           if (filter.type === 'number') {
-            const numValue = Number(recordValue);
+            const numValue = Number(val);
             if (isNaN(numValue)) return false;
             if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
             if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
@@ -411,8 +435,8 @@ const PaymentPortal: React.FC = () => {
           }
 
           if (filter.type === 'date') {
-            if (!recordValue) return false;
-            const dateValue = new Date(recordValue).getTime();
+            if (!val) return false;
+            const dateValue = new Date(val).getTime();
             if (isNaN(dateValue)) return false;
 
             if (filter.from) {
@@ -426,15 +450,11 @@ const PaymentPortal: React.FC = () => {
             return true;
           }
 
-          if (filter.type === 'checklist') {
-            if (!filter.selectedOptions || filter.selectedOptions.length === 0) return true;
-            return filter.selectedOptions.includes(String(recordValue || ''));
-          }
-
           return true;
         });
       });
     }
+
 
     return filtered;
   }, [records, selectedLocation, searchQuery, cities, regions, activeFilters]);
@@ -799,6 +819,9 @@ const PaymentPortal: React.FC = () => {
                   ? `Active Filters:\n${Object.entries(activeFilters).map(([key, filter]: [string, any]) => {
                     const colName = filterColumns.find(c => c.key === key)?.label || key;
                     if (filter.type === 'text') return `${colName}: ${filter.value}`;
+                    if (filter.type === 'checklist') {
+                      return `${colName}: ${Array.isArray(filter.value) ? filter.value.join(', ') : filter.value}`;
+                    }
                     if (filter.type === 'number') {
                       if (filter.from && filter.to) return `${colName}: ${filter.from} - ${filter.to}`;
                       if (filter.from) return `${colName}: > ${filter.from}`;
@@ -808,9 +831,6 @@ const PaymentPortal: React.FC = () => {
                       if (filter.from && filter.to) return `${colName}: ${filter.from} to ${filter.to}`;
                       if (filter.from) return `${colName}: After ${filter.from}`;
                       if (filter.to) return `${colName}: Before ${filter.to}`;
-                    }
-                    if (filter.type === 'checklist') {
-                      return `${colName}: ${filter.selectedOptions.join(', ')}`;
                     }
                     return colName;
                   }).join('\n')}`
@@ -843,8 +863,8 @@ const PaymentPortal: React.FC = () => {
                   if (filter.type === 'text' || filter.type === 'boolean') {
                     displayValue = String(filter.value);
                   } else if (filter.type === 'checklist') {
-                    displayValue = Array.isArray(filter.selectedOptions)
-                      ? filter.selectedOptions.join(', ')
+                    displayValue = Array.isArray(filter.value)
+                      ? filter.value.join(', ')
                       : String(filter.value || '');
                   } else if (filter.type === 'number' || filter.type === 'date') {
                     if (filter.from && filter.to) displayValue = `${filter.from} - ${filter.to}`;

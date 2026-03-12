@@ -495,6 +495,7 @@ const JobOrderPage: React.FC = () => {
   const getVal = (jo: JobOrder, key: string) => {
     switch (key) {
       case 'timestamp': return jo.Timestamp || jo.timestamp || '';
+      case 'application_id': return jo.Application_ID || jo.application_id || '';
       case 'billingStatus': return jo.billing_status || jo.Billing_Status || '';
       case 'onsiteStatus': return jo.Onsite_Status || jo.onsite_status || '';
       case 'dateInstalled': return jo.Date_Installed || jo.date_installed || '';
@@ -516,18 +517,18 @@ const JobOrderPage: React.FC = () => {
       case 'visitWithOther': return jo.Visit_With_Other || jo.visit_with_other || '';
       case 'onsiteRemarks': return jo.Onsite_Remarks || jo.onsite_remarks || '';
       case 'statusRemarks': return jo.Status_Remarks || jo.status_remarks || '';
-      case 'fullName': return getClientFullName(jo) || jo.Full_Name || jo.full_name || '';
-      case 'emailAddress': return jo.Email_Address || jo.email_address || '';
+      case 'fullName': return getClientFullName(jo);
+      case 'emailAddress': return jo.Email_Address || jo.email_address || jo.Applicant_Email_Address || jo.applicant_email_address || '';
       case 'referredBy': return jo.Referred_By || jo.referred_by || '';
       case 'contactNumber': return jo.Contact_Number || jo.contact_number || jo.Mobile_Number || jo.mobile_number || '';
       case 'barangay': return jo.Barangay || jo.barangay || '';
       case 'city': return jo.City || jo.city || '';
       case 'region': return jo.Region || jo.region || '';
       case 'choosePlan': return jo.Choose_Plan || jo.Desired_Plan || jo.choose_plan || jo.desired_plan || '';
-      case 'contractTemplate': return jo.Contract_Template || jo.contract_link || '';
+      case 'contractTemplate': return jo.Contract_Template || jo.contract_template || (jo as any).contract_link || '';
       case 'Account_No': return jo.Account_No || jo.Account_Number || jo.account_no || jo.account_number || '';
       case 'houseFrontPictureUrl': return jo.house_front_picture_url || jo.House_Front_Picture || '';
-      case 'address': return getClientFullAddress(jo) || jo.Address || '';
+      case 'address': return getClientFullAddress(jo);
       case 'assignedEmail': return jo.Assigned_Email || jo.assigned_email || '';
       case 'createdAt': return jo.created_at || jo.Created_At || '';
       case 'updatedAt': return jo.updated_at || jo.Updated_At || '';
@@ -560,7 +561,15 @@ const JobOrderPage: React.FC = () => {
         } else if (filter.type === 'checklist') {
           if (!filter.value || filter.value.length === 0) match = true;
           else {
-            match = filter.value.includes(String(orderValue || ''));
+            const valStr = String(orderValue || '').toLowerCase();
+            match = filter.value.some((v: string) => {
+              const filterVal = String(v).toLowerCase();
+              // Use exact match for critical statuses, partial for plans/others
+              if (['billingStatus', 'onsiteStatus', 'barangay', 'city', 'region'].includes(key)) {
+                return valStr === filterVal;
+              }
+              return valStr.includes(filterVal);
+            });
           }
         } else if (filter.type === 'date') {
           if (!orderValue) match = false;

@@ -51,6 +51,8 @@ interface ServiceOrderDetailsProps {
     image1Url?: string;
     image2Url?: string;
     image3Url?: string;
+    start_time?: string | null;
+    end_time?: string | null;
   };
   onClose: () => void;
   onRefresh?: () => void;
@@ -112,20 +114,38 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
     'image2Url',
     'image3Url',
     'clientSignatureUrl',
+    'startTime',
+    'endTime',
+    'duration',
     'serviceCharge'
   ];
 
   const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>(() => {
     const saved = localStorage.getItem(FIELD_VISIBILITY_KEY);
+    const initialVisibility = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
     if (saved) {
-      return JSON.parse(saved);
+      try {
+        const parsed = JSON.parse(saved);
+        return { ...initialVisibility, ...parsed };
+      } catch (e) {
+        return initialVisibility;
+      }
     }
-    return defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
+    return initialVisibility;
   });
 
   const [fieldOrder, setFieldOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem(FIELD_ORDER_KEY);
-    return saved ? JSON.parse(saved) : defaultFields;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const missingFields = defaultFields.filter(f => !parsed.includes(f));
+        return [...parsed, ...missingFields];
+      } catch (e) {
+        return defaultFields;
+      }
+    }
+    return defaultFields;
   });
 
   useEffect(() => {
@@ -248,6 +268,9 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       image2Url: 'Modem Setup Image',
       image3Url: 'Time Out Image',
       clientSignatureUrl: 'Client Signature',
+      startTime: 'Start Time',
+      endTime: 'End Time',
+      duration: 'Duration',
       serviceCharge: 'Service Charge'
     };
     return labels[fieldKey] || fieldKey;
@@ -292,6 +315,39 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
     const allVisible: Record<string, boolean> = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
     setFieldVisibility(allVisible);
     setFieldOrder(defaultFields);
+  };
+
+  const formatDateTime = (dateStr?: string | null): string => {
+    if (!dateStr) return 'N/A';
+    try {
+      return new Date(dateStr).toLocaleString();
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const calculateDuration = (start?: string | null, end?: string | null): string => {
+    if (!start || !end) return 'N/A';
+    try {
+      const startTime = new Date(start);
+      const endTime = new Date(end);
+      const diffMs = endTime.getTime() - startTime.getTime();
+      
+      if (diffMs < 0) return 'Invalid duration';
+
+      const diffHrs = Math.floor(diffMs / 3600000);
+      const diffMins = Math.floor((diffMs % 3600000) / 60000);
+      const diffSecs = Math.floor((diffMs % 60000) / 1000);
+
+      const parts = [];
+      if (diffHrs > 0) parts.push(`${diffHrs}h`);
+      if (diffMins > 0) parts.push(`${diffMins}m`);
+      if (diffSecs > 0 || parts.length === 0) parts.push(`${diffSecs}s`);
+
+      return parts.join(' ');
+    } catch (e) {
+      return 'N/A';
+    }
   };
 
   const getStatusColor = (status: string | undefined, type: 'support' | 'visit'): string => {
@@ -510,6 +566,13 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
         return renderImageField('Time Out Image', serviceOrder.image3Url, 'View Image');
       case 'clientSignatureUrl':
         return renderImageField('Client Signature', serviceOrder.clientSignatureUrl, 'View Signature');
+      case 'startTime':
+        return renderField('Start Time', formatDateTime(serviceOrder.start_time));
+      case 'endTime':
+        return renderField('End Time', formatDateTime(serviceOrder.end_time));
+      case 'duration':
+        if (!serviceOrder.start_time || !serviceOrder.end_time) return null;
+        return renderField('Duration', calculateDuration(serviceOrder.start_time, serviceOrder.end_time));
       case 'serviceCharge':
         const sCharge = serviceOrder.serviceCharge;
         if (!sCharge || sCharge === '-' || sCharge === '0' || sCharge === '0.00' || sCharge === '₱0.00') return null;

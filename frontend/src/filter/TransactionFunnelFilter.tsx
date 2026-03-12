@@ -20,10 +20,9 @@ interface TransactionFunnelFilterProps {
 export interface FilterValues {
     [key: string]: {
         type: 'text' | 'number' | 'date' | 'checklist';
-        value?: string;
+        value?: string | string[];
         from?: string | number;
         to?: string | number;
-        selectedOptions?: string[];
     };
 }
 
@@ -50,6 +49,7 @@ export const allColumns: Column[] = [
     { key: 'transaction_type', label: 'Transaction Type', dataType: 'checklist' },
     { key: 'barangay', label: 'Barangay', dataType: 'checklist' },
     { key: 'city', label: 'City', dataType: 'checklist' },
+    { key: 'region', label: 'Region', dataType: 'checklist' },
 ];
 
 const TransactionFunnelFilter: React.FC<TransactionFunnelFilterProps> = ({
@@ -69,6 +69,7 @@ const TransactionFunnelFilter: React.FC<TransactionFunnelFilterProps> = ({
     const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
     const [barangays, setBarangays] = useState<string[]>([]);
     const [cities, setCities] = useState<string[]>([]);
+    const [regions, setRegions] = useState<string[]>([]);
     const [statusOptions] = useState(['Done', 'Failed', 'Pending', 'Approved']);
 
     useEffect(() => {
@@ -113,7 +114,7 @@ const TransactionFunnelFilter: React.FC<TransactionFunnelFilterProps> = ({
                     const [pmRes, ttRes, locRes] = await Promise.all([
                         apiClient.get<{ success: boolean; data: any[] }>('/lookup/payment-methods'),
                         apiClient.get<{ success: boolean; data: string[] }>('/lookup/transaction-types'),
-                        apiClient.get<{ success: boolean; data: { barangays: string[], cities: string[] } }>('/lookup/customer-locations')
+                        apiClient.get<{ success: boolean; data: { barangays: string[], cities: string[], regions: string[] } }>('/lookup/customer-locations')
                     ]);
 
                     if (pmRes.data.success) {
@@ -125,6 +126,7 @@ const TransactionFunnelFilter: React.FC<TransactionFunnelFilterProps> = ({
                     if (locRes.data.success) {
                         setBarangays(locRes.data.data.barangays);
                         setCities(locRes.data.data.cities);
+                        setRegions(locRes.data.data.regions);
                     }
                 } catch (err) {
                     console.error('Failed to fetch checklist data:', err);
@@ -219,8 +221,8 @@ const TransactionFunnelFilter: React.FC<TransactionFunnelFilterProps> = ({
 
     const toggleOption = (columnKey: string, option: string) => {
         setFilterValues(prev => {
-            const current = prev[columnKey] || { type: 'checklist', selectedOptions: [] };
-            const selectedOptions = current.selectedOptions || [];
+            const current = prev[columnKey] || { type: 'checklist', value: [] };
+            const selectedOptions = (current.value as string[]) || [];
 
             const nextOptions = selectedOptions.includes(option)
                 ? selectedOptions.filter(o => o !== option)
@@ -235,9 +237,8 @@ const TransactionFunnelFilter: React.FC<TransactionFunnelFilterProps> = ({
             return {
                 ...prev,
                 [columnKey]: {
-                    ...current,
                     type: 'checklist',
-                    selectedOptions: nextOptions
+                    value: nextOptions
                 }
             };
         });
@@ -255,6 +256,7 @@ const TransactionFunnelFilter: React.FC<TransactionFunnelFilterProps> = ({
             else if (selectedColumn.key === 'status') options = statusOptions;
             else if (selectedColumn.key === 'barangay') options = barangays;
             else if (selectedColumn.key === 'city') options = cities;
+            else if (selectedColumn.key === 'region') options = regions;
 
             const filteredOptions = options.filter(opt =>
                 opt.toLowerCase().includes(searchTerm.toLowerCase())
@@ -287,7 +289,7 @@ const TransactionFunnelFilter: React.FC<TransactionFunnelFilterProps> = ({
                     <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map((option, idx) => {
-                                const isSelected = currentValue?.selectedOptions?.includes(option);
+                                const isSelected = (currentValue?.value as string[])?.includes(option);
                                 return (
                                     <button
                                         key={idx}

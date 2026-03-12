@@ -19,10 +19,9 @@ interface SOAFunnelFilterProps {
 export interface FilterValues {
     [key: string]: {
         type: 'text' | 'number' | 'date' | 'checklist';
-        value?: string;
+        value?: string | string[];
         from?: string | number;
         to?: string | number;
-        selectedOptions?: string[];
     };
 }
 
@@ -44,6 +43,9 @@ export const allColumns: Column[] = [
     { key: 'dateProcessed', label: 'Date Processed', dataType: 'date' },
     { key: 'dueDate', label: 'Due Date', dataType: 'date' },
     { key: 'invoiceStatus', label: 'Invoice Status', dataType: 'checklist' },
+    { key: 'barangay', label: 'Barangay', dataType: 'checklist' },
+    { key: 'city', label: 'City', dataType: 'checklist' },
+    { key: 'region', label: 'Region', dataType: 'checklist' },
     { key: 'referenceNo', label: 'Reference No', dataType: 'varchar' },
     { key: 'orNo', label: 'OR No', dataType: 'varchar' },
     { key: 'modifiedBy', label: 'Modified By', dataType: 'varchar' },
@@ -107,7 +109,10 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
         if (isOpen) {
             const fetchChecklistData = async () => {
                 try {
-                    const planData = await planService.getAllPlans();
+                    const [planData, locRes] = await Promise.all([
+                        planService.getAllPlans(),
+                        apiClient.get<{ success: boolean; data: { barangays: string[], cities: string[], regions: string[] } }>('/lookup/customer-locations')
+                    ]);
 
                     if (planData) {
                         const formattedPlans = planData.map(p => {
@@ -116,6 +121,12 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                             return `${name} ${price}`;
                         });
                         setPlans(formattedPlans);
+                    }
+
+                    if (locRes.data.success) {
+                        setBarangays(locRes.data.data.barangays);
+                        setCities(locRes.data.data.cities);
+                        setRegions(locRes.data.data.regions);
                     }
                 } catch (err) {
                     console.error('Failed to fetch checklist data:', err);
@@ -209,8 +220,8 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
 
     const toggleOption = (columnKey: string, option: string) => {
         setFilterValues(prev => {
-            const current = prev[columnKey] || { type: 'checklist', selectedOptions: [] };
-            const selectedOptions = current.selectedOptions || [];
+            const current = prev[columnKey] || { type: 'checklist', value: [] };
+            const selectedOptions = (current.value as string[]) || [];
 
             const nextOptions = selectedOptions.includes(option)
                 ? selectedOptions.filter(o => o !== option)
@@ -225,9 +236,8 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
             return {
                 ...prev,
                 [columnKey]: {
-                    ...current,
                     type: 'checklist',
-                    selectedOptions: nextOptions
+                    value: nextOptions
                 }
             };
         });
@@ -241,12 +251,7 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
         if (selectedColumn.dataType === 'checklist') {
             let options: { label: string, value: string }[] = [];
             if (selectedColumn.key === 'plan') {
-                options = plans.map(p => {
-                    const parts = p.split(' ');
-                    const price = parts.pop();
-                    const name = parts.join(' ');
-                    return { label: p, value: name };
-                });
+                options = plans.map(p => ({ label: p, value: p }));
             } else if (selectedColumn.key === 'invoiceStatus') {
                 options = [
                     { label: 'Paid', value: 'Paid' },
@@ -254,6 +259,12 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                     { label: 'Pending', value: 'Pending' },
                     { label: 'Partial', value: 'Partial' }
                 ];
+            } else if (selectedColumn.key === 'barangay') {
+                options = barangays.map(b => ({ label: b, value: b }));
+            } else if (selectedColumn.key === 'city') {
+                options = cities.map(c => ({ label: c, value: c }));
+            } else if (selectedColumn.key === 'region') {
+                options = regions.map(r => ({ label: r, value: r }));
             }
 
             const filteredOptions = options.filter(opt =>
@@ -287,7 +298,7 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                     <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map((option, idx) => {
-                                const isSelected = currentValue?.selectedOptions?.includes(option.value);
+                                const isSelected = (currentValue?.value as string[])?.includes(option.value);
                                 return (
                                     <button
                                         key={idx}

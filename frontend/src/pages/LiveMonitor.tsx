@@ -623,6 +623,11 @@ const LiveMonitor: React.FC = () => {
                 <div className={`font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-800'}`} style={{ fontSize: `${fontSize * 4}px` }}>
                   {timeString}
                 </div>
+                {meta.available_time_str && (
+                  <div className={`mt-1 opacity-80 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} style={{ fontSize: `${fontSize * 0.9}px` }}>
+                    Availability: <span className="font-bold">{meta.available_time_str}</span>
+                  </div>
+                )}
               </div>
 
               {/* Details - Bottom */}

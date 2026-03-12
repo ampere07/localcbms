@@ -407,10 +407,21 @@ const ApplicationManagement: React.FC = () => {
             }
           }
           else if (typedFilter.type === 'checklist' && typedFilter.selectedOptions && typedFilter.selectedOptions.length > 0) {
-            const normalizedValue = String(appValue || '').toLowerCase().trim();
-            const isMatch = typedFilter.selectedOptions.some((opt: string) =>
-              opt.toLowerCase().trim() === normalizedValue || String(appValue) === opt
-            );
+            let appVal = (application as any)[key];
+            if (key === 'status') {
+              const status = String(appVal || '').toLowerCase();
+              appVal = status === 'schedule' ? 'scheduled' : status;
+            }
+            
+            const normalizedValue = String(appVal || '').toLowerCase().trim();
+            const isMatch = typedFilter.selectedOptions.some((opt: string) => {
+              const filterVal = String(opt).toLowerCase().trim();
+              // Use exact match for critical statuses and locations
+              if (['status', 'barangay', 'city', 'region', 'terms_agreed'].includes(key)) {
+                return normalizedValue === filterVal;
+              }
+              return normalizedValue.includes(filterVal);
+            });
 
             if (!isMatch) {
               matchesFunnel = false;

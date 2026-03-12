@@ -19,10 +19,9 @@ interface PaymentPortalFunnelFilterProps {
 export interface FilterValues {
     [key: string]: {
         type: 'text' | 'number' | 'date' | 'checklist';
-        value?: string;
+        value?: string | string[];
         from?: string | number;
         to?: string | number;
-        selectedOptions?: string[];
     };
 }
 
@@ -45,9 +44,11 @@ export const allColumns: Column[] = [
     { key: 'ewallet_type', label: 'E-Wallet Type', dataType: 'varchar' },
     { key: 'payment_method', label: 'Payment Method', dataType: 'varchar' },
     { key: 'payment_channel', label: 'Payment Channel', dataType: 'varchar' },
+    { key: 'total_amount', label: 'Received Payment', dataType: 'decimal' },
     { key: 'fullName', label: 'Name', dataType: 'varchar' },
     { key: 'barangay', label: 'Barangay', dataType: 'checklist' },
     { key: 'city', label: 'City', dataType: 'checklist' },
+    { key: 'region', label: 'Region', dataType: 'checklist' },
 ];
 
 const PaymentPortalFunnelFilter: React.FC<PaymentPortalFunnelFilterProps> = ({
@@ -68,6 +69,7 @@ const PaymentPortalFunnelFilter: React.FC<PaymentPortalFunnelFilterProps> = ({
     const [plans, setPlans] = useState<string[]>([]);
     const [barangays, setBarangays] = useState<string[]>([]);
     const [cities, setCities] = useState<string[]>([]);
+    const [regions, setRegions] = useState<string[]>([]);
 
     useEffect(() => {
         if (isOpen) {
@@ -111,7 +113,7 @@ const PaymentPortalFunnelFilter: React.FC<PaymentPortalFunnelFilterProps> = ({
                     const [ppRes, planData, locRes] = await Promise.all([
                         apiClient.get<{ success: boolean; data: { statuses: string[], transaction_statuses: string[] } }>('/lookup/payment-portal'),
                         planService.getAllPlans(),
-                        apiClient.get<{ success: boolean; data: { barangays: string[], cities: string[] } }>('/lookup/customer-locations')
+                        apiClient.get<{ success: boolean; data: { barangays: string[], cities: string[], regions: string[] } }>('/lookup/customer-locations')
                     ]);
 
                     if (ppRes.data.success) {
@@ -131,6 +133,7 @@ const PaymentPortalFunnelFilter: React.FC<PaymentPortalFunnelFilterProps> = ({
                     if (locRes.data.success) {
                         setBarangays(locRes.data.data.barangays);
                         setCities(locRes.data.data.cities);
+                        setRegions(locRes.data.data.regions);
                     }
                 } catch (err) {
                     console.error('Failed to fetch checklist data:', err);
@@ -224,8 +227,8 @@ const PaymentPortalFunnelFilter: React.FC<PaymentPortalFunnelFilterProps> = ({
 
     const toggleOption = (columnKey: string, option: string) => {
         setFilterValues(prev => {
-            const current = prev[columnKey] || { type: 'checklist', selectedOptions: [] };
-            const selectedOptions = current.selectedOptions || [];
+            const current = prev[columnKey] || { type: 'checklist', value: [] };
+            const selectedOptions = (current.value as string[]) || [];
 
             const nextOptions = selectedOptions.includes(option)
                 ? selectedOptions.filter(o => o !== option)
@@ -240,9 +243,8 @@ const PaymentPortalFunnelFilter: React.FC<PaymentPortalFunnelFilterProps> = ({
             return {
                 ...prev,
                 [columnKey]: {
-                    ...current,
                     type: 'checklist',
-                    selectedOptions: nextOptions
+                    value: nextOptions
                 }
             };
         });
@@ -256,20 +258,27 @@ const PaymentPortalFunnelFilter: React.FC<PaymentPortalFunnelFilterProps> = ({
         if (selectedColumn.dataType === 'checklist') {
             let options: { label: string, value: string }[] = [];
             if (selectedColumn.key === 'status') {
-                options = statuses.map(s => ({ label: s, value: s }));
+                options = statuses.length > 0 ? statuses.map(s => ({ label: s, value: s })) : [
+                   { label: 'Pending', value: 'Pending' },
+                   { label: 'Success', value: 'Success' },
+                   { label: 'Failed', value: 'Failed' },
+                   { label: 'Cancelled', value: 'Cancelled' }
+                ];
             } else if (selectedColumn.key === 'transaction_status') {
-                options = transactionStatuses.map(s => ({ label: s, value: s }));
+                options = transactionStatuses.length > 0 ? transactionStatuses.map(s => ({ label: s, value: s })) : [
+                   { label: 'Completed', value: 'Completed' },
+                   { label: 'Pending', value: 'Pending' },
+                   { label: 'Processing', value: 'Processing' },
+                   { label: 'Failed', value: 'Failed' }
+                ];
             } else if (selectedColumn.key === 'plan') {
-                options = plans.map(p => {
-                    const parts = p.split(' ');
-                    const price = parts.pop();
-                    const name = parts.join(' ');
-                    return { label: p, value: name };
-                });
+                options = plans.map(p => ({ label: p, value: p }));
             } else if (selectedColumn.key === 'barangay') {
                 options = barangays.map(b => ({ label: b, value: b }));
             } else if (selectedColumn.key === 'city') {
                 options = cities.map(c => ({ label: c, value: c }));
+            } else if (selectedColumn.key === 'region') {
+                options = regions.map(r => ({ label: r, value: r }));
             }
 
             const filteredOptions = options.filter(opt =>
@@ -303,7 +312,7 @@ const PaymentPortalFunnelFilter: React.FC<PaymentPortalFunnelFilterProps> = ({
                     <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map((option, idx) => {
-                                const isSelected = currentValue?.selectedOptions?.includes(option.value);
+                                const isSelected = (currentValue?.value as string[])?.includes(option.value);
                                 return (
                                     <button
                                         key={idx}

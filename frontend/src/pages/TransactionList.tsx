@@ -437,26 +437,48 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     if (activeFilters && Object.keys(activeFilters).length > 0) {
       filtered = filtered.filter(transaction => {
         return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
-          let recordValue: any;
+          const getVal = (item: any, k: string) => {
+            switch (k) {
+              case 'full_name': return item.account?.customer?.full_name;
+              case 'barangay': return item.account?.customer?.barangay;
+              case 'city': return item.account?.customer?.city;
+              case 'region': return item.account?.customer?.region;
+              case 'account_balance': return item.account?.account_balance;
+              case 'contact_no': return item.account?.customer?.contact_number_primary;
+              case 'payment_method': return item.payment_method_info?.payment_method || item.payment_method;
+              default: return item[k];
+            }
+          };
 
-          // Data mapping for nested fields
-          if (key === 'full_name') recordValue = transaction.account?.customer?.full_name;
-          else if (key === 'barangay') recordValue = transaction.account?.customer?.barangay;
-          else if (key === 'city') recordValue = transaction.account?.customer?.city;
-          else if (key === 'region') recordValue = transaction.account?.customer?.region;
-          else if (key === 'account_balance') recordValue = transaction.account?.account_balance;
-          else if (key === 'contact_no') recordValue = transaction.account?.customer?.contact_number_primary;
-          else if (key === 'payment_method') recordValue = transaction.payment_method_info?.payment_method || transaction.payment_method;
-          else recordValue = (transaction as any)[key];
+          const val = getVal(transaction, key);
+
+          if (filter.type === 'checklist') {
+            if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
+            
+            const valStr = String(val || '').toLowerCase().trim();
+            
+            // Special handling for locations - match against record fields OR address
+            if (key === 'barangay' || key === 'city' || key === 'region') {
+               const directVal = String(val || '').toLowerCase().trim();
+               const address = String(transaction.account?.customer?.address || '').toLowerCase();
+               
+               return (filter.value as string[]).some(option => {
+                  const opt = option.toLowerCase().trim();
+                  return directVal === opt || address.includes(opt);
+               });
+            }
+            
+            return (filter.value as string[]).some(option => valStr === option.toLowerCase().trim());
+          }
 
           if (filter.type === 'text') {
             if (!filter.value) return true;
-            const value = String(recordValue || '').toLowerCase();
-            return value.includes(filter.value.toLowerCase());
+            const value = String(val || '').toLowerCase();
+            return value.includes(String(filter.value).toLowerCase());
           }
 
           if (filter.type === 'number') {
-            const numValue = Number(recordValue);
+            const numValue = Number(val);
             if (isNaN(numValue)) return false;
             if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
             if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
@@ -464,16 +486,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
           }
 
           if (filter.type === 'date') {
-            if (!recordValue) return false;
-            const dateValue = new Date(recordValue).getTime();
+            if (!val) return false;
+            const dateValue = new Date(val).getTime();
+            if (isNaN(dateValue)) return false;
             if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
             if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
             return true;
-          }
-
-          if (filter.type === 'checklist') {
-            if (!filter.selectedOptions || filter.selectedOptions.length === 0) return true;
-            return filter.selectedOptions.includes(String(recordValue || ''));
           }
 
           return true;
@@ -1083,8 +1101,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                     if (filter.to) return `${colName}: Before ${filter.to}`;
                   }
                   if (filter.type === 'checklist') {
-                    const options = filter.selectedOptions?.join(', ');
-                    return `${colName}: ${options?.length > 20 ? options.substring(0, 20) + '...' : options}`;
+                    return `${colName}: ${Array.isArray(filter.value) ? filter.value.join(', ') : filter.value}`;
                   }
                   return colName;
                 }).join('\n')}`
@@ -1137,8 +1154,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                 if (filter.type === 'text' || filter.type === 'boolean') {
                   displayValue = String(filter.value);
                 } else if (filter.type === 'checklist') {
-                  displayValue = Array.isArray(filter.selectedOptions)
-                    ? filter.selectedOptions.join(', ')
+                  displayValue = Array.isArray(filter.value)
+                    ? filter.value.join(', ')
                     : String(filter.value || '');
                 } else if (filter.type === 'number' || filter.type === 'date') {
                   if (filter.from && filter.to) displayValue = `${filter.from} - ${filter.to}`;
