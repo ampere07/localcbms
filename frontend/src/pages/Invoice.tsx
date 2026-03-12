@@ -135,18 +135,20 @@ const Invoice: React.FC = () => {
   const filterDropdownRef = useRef<HTMLDivElement>(null);
 
   const allColumns = [
-    { key: 'id', label: 'ID', width: 'min-w-20' },
-    { key: 'accountNo', label: 'Account Number', width: 'min-w-36' },
     { key: 'invoiceDate', label: 'Invoice Date', width: 'min-w-36' },
+    { key: 'status', label: 'Invoice Status', width: 'min-w-36' },
+    { key: 'accountNo', label: 'Account No', width: 'min-w-36' },
     { key: 'invoiceBalance', label: 'Invoice Balance', width: 'min-w-36' },
+    { key: 'totalAmount', label: 'Total Amount', width: 'min-w-36' },
+    { key: 'dueDate', label: 'Due Date', width: 'min-w-32' },
+    { key: 'paymentMethod', label: 'Payment Method', width: 'min-w-40' },
+    { key: 'dateProcessed', label: 'Date Processed', width: 'min-w-40' },
+    { key: 'processedBy', label: 'Processed By', width: 'min-w-40' },
     { key: 'serviceCharge', label: 'Service Charge', width: 'min-w-36' },
     { key: 'rebate', label: 'Rebate', width: 'min-w-28' },
     { key: 'discounts', label: 'Discounts', width: 'min-w-28' },
     { key: 'staggered', label: 'Staggered', width: 'min-w-28' },
-    { key: 'totalAmount', label: 'Total Amount', width: 'min-w-32' },
     { key: 'receivedPayment', label: 'Received Payment', width: 'min-w-36' },
-    { key: 'dueDate', label: 'Due Date', width: 'min-w-32' },
-    { key: 'status', label: 'Status', width: 'min-w-28' },
     { key: 'paymentPortalLogRef', label: 'Payment Portal Log Ref', width: 'min-w-44' },
     { key: 'transactionId', label: 'Transaction ID', width: 'min-w-36' },
     { key: 'createdAt', label: 'Created At', width: 'min-w-40' },
@@ -342,14 +344,10 @@ const Invoice: React.FC = () => {
   // Initialize column order and visibility
   useEffect(() => {
     if (displayColumns.length > 0) {
-      if (columnOrder.length === 0) {
-        setColumnOrder(displayColumns.map(col => col.key));
-      }
-      if (visibleColumns.length === 0) {
-        setVisibleColumns(displayColumns.map(col => col.key));
-      }
+      setColumnOrder(displayColumns.map(col => col.key));
+      setVisibleColumns(displayColumns.map(col => col.key));
     }
-  }, [displayColumns, columnOrder.length, visibleColumns.length]);
+  }, [displayColumns]);
 
   // Handle click outside for filter dropdown
   useEffect(() => {
@@ -903,6 +901,12 @@ const Invoice: React.FC = () => {
         return `₱ ${(record.receivedPayment ?? 0).toFixed(2)}`;
       case 'dueDate':
         return record.dueDate || '-';
+      case 'paymentMethod':
+        return record.paymentMethod || 'N/A';
+      case 'dateProcessed':
+        return record.dateProcessed || 'N/A';
+      case 'processedBy':
+        return record.processedBy || 'N/A';
       case 'paymentPortalLogRef':
         return record.paymentPortalLogRef || 'NULL';
       case 'transactionId':

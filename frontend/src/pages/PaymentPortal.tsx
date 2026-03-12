@@ -955,19 +955,15 @@ const PaymentPortal: React.FC = () => {
                       </th>
                       <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                        Status
-                      </th>
-                      <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
-                        Transaction Status
-                      </th>
-                      <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
                         Account No
                       </th>
                       <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                        Received Payment
+                        Total Amount
+                      </th>
+                      <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                        Status
                       </th>
                       <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
@@ -975,15 +971,11 @@ const PaymentPortal: React.FC = () => {
                       </th>
                       <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                        Contact No
+                        Contact Number
                       </th>
                       <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                        Balance Before
-                      </th>
-                      <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
-                        Current Balance
+                        Account Balance
                       </th>
                       <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
@@ -991,7 +983,7 @@ const PaymentPortal: React.FC = () => {
                       </th>
                       <th scope="col" className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
-                        Provider
+                        Transaction Status
                       </th>
                     </tr>
                   </thead>
@@ -1010,39 +1002,30 @@ const PaymentPortal: React.FC = () => {
                             }`}>
                             {record.date_time || 'N/A'}
                           </td>
-                          {/* Status */}
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <StatusText status={record.status || 'N/A'} />
-                          </td>
-                          {/* Transaction Status */}
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <StatusText status={record.transaction_status || 'N/A'} />
-                          </td>
                           {/* Account No */}
                           <td className={`px-4 py-3 whitespace-nowrap text-red-400 font-medium`}>
                             {record.accountNo || record.account_id || 'N/A'}
                           </td>
-                          {/* Received Payment */}
+                          {/* Total Amount */}
                           <td className={`px-4 py-3 whitespace-nowrap font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                             }`}>
                             {formatCurrency(record.total_amount || 0)}
+                          </td>
+                          {/* Status */}
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <StatusText status={record.status || 'N/A'} />
                           </td>
                           {/* Reference No */}
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>
                             {record.reference_no || 'N/A'}
                           </td>
-                          {/* Contact No */}
+                          {/* Contact Number */}
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>
                             {record.contactNo || 'N/A'}
                           </td>
-                          {/* Balance Before */}
-                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>
-                            {formatCurrency(record.account_balance_before || 0)}
-                          </td>
-                          {/* Current Balance */}
+                          {/* Account Balance */}
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>
                             {formatCurrency(record.accountBalance || 0)}
@@ -1052,16 +1035,15 @@ const PaymentPortal: React.FC = () => {
                             }`}>
                             {record.checkout_id || 'N/A'}
                           </td>
-                          {/* Provider */}
-                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>
-                            {record.provider || 'N/A'}
+                          {/* Transaction Status */}
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <StatusText status={record.transaction_status || 'N/A'} />
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={10} className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        <td colSpan={9} className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                           }`}>
                           {filteredRecords.length > 0
                             ? 'No payment portal records found matching your filters'

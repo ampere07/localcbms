@@ -73,6 +73,9 @@ export const allColumns: Column[] = [
   { key: 'houseFrontPicture', label: 'House Front Image', dataType: 'varchar' },
   { key: 'fullAddress', label: 'Full Address', dataType: 'varchar' },
   { key: 'serviceCharge', label: 'Service Charge', dataType: 'decimal' },
+  { key: 'startTime', label: 'Start Time', dataType: 'datetime' },
+  { key: 'endTime', label: 'End Time', dataType: 'datetime' },
+  { key: 'duration', label: 'Duration', dataType: 'varchar' },
 ];
 
 const ServiceOrderFunnelFilter: React.FC<ServiceOrderFunnelFilterProps> = ({

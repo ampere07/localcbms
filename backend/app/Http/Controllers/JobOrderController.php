@@ -109,6 +109,8 @@ class JobOrderController extends Controller
                         'Status' => $jobOrder->status,
                         'status' => $jobOrder->status,
                         'updated_at' => $jobOrder->updated_at ? $jobOrder->updated_at->format('Y-m-d H:i:s') : null,
+                        'start_time' => $jobOrder->start_time,
+                        'end_time' => $jobOrder->end_time,
                     ];
                 });
 

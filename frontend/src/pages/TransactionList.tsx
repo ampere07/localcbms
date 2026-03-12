@@ -1260,8 +1260,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Date Processed</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Status</th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Account No.</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Received Payment</th>
@@ -1278,29 +1276,23 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Remarks</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Transaction Type</th>
+                      }`}>Status</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Image</th>
+                      }`}>Transaction Type</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Barangay</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Transaction ID</th>
+                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Contact No</th>
+                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Modified By</th>
+                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Modified Date</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Payment Date</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>City</th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Plan</th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Balance Before</th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Approved By</th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Account Balance</th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Created At</th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Updated At</th>
                   </tr>
                 </thead>
                 <tbody className={`${isDarkMode ? 'bg-gray-900 divide-y divide-gray-800' : 'bg-white divide-y divide-gray-200'
@@ -1344,7 +1336,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                           )}
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{formatDate(transaction.date_processed)}</td>
-                          <td className="px-4 py-3 whitespace-nowrap"><StatusText status={transaction.status} /></td>
                           <td className="px-4 py-3 whitespace-nowrap text-red-400 font-medium">{transaction.account?.account_no || '-'}</td>
                           <td className={`px-4 py-3 whitespace-nowrap font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                             }`}>{formatCurrency(transaction.received_payment)}</td>
@@ -1360,36 +1351,29 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                             }`}>{transaction.reference_no}</td>
                           <td className={`px-4 py-3 max-w-xs truncate ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{transaction.remarks || 'No remarks'}</td>
+                          <td className="px-4 py-3 whitespace-nowrap"><StatusText status={transaction.status} /></td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{transaction.transaction_type}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{transaction.image_url ? 'Yes' : '-'}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{transaction.account?.customer?.barangay || '-'}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>{transaction.id}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{transaction.account?.customer?.contact_number_primary || '-'}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{formatDate(transaction.payment_date)}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{transaction.account?.customer?.city || '-'}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{transaction.account?.customer?.desired_plan || '-'}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{formatCurrency(transaction.account_balance_before || 0)}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{transaction.approved_by || '-'}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{formatCurrency(transaction.account?.account_balance || 0)}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{formatDate(transaction.created_at)}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{formatDate(transaction.updated_at)}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>{formatDate(transaction.payment_date)}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>{formatCurrency(transaction.account?.account_balance || 0)}</td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={isBatchApproveMode ? 21 : 20} className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      <td colSpan={isBatchApproveMode ? 19 : 18} className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
                         {filteredTransactions.length > 0
                           ? 'No transactions found matching your filters'

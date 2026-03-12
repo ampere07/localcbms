@@ -227,6 +227,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
     }, 100);
   };
 
+
   const getFieldLabel = (fieldKey: string): string => {
     const labels: Record<string, string> = {
       ticketId: 'Ticket ID',
@@ -639,8 +640,9 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
         </div>
 
         <div className="flex items-center space-x-3">
+
           <button
-            className="text-white px-3 py-1 rounded-sm flex items-center"
+            className="text-white px-3 py-1 rounded-sm flex items-center disabled:opacity-50"
             style={{
               backgroundColor: colorPalette?.primary || '#7c3aed'
             }}

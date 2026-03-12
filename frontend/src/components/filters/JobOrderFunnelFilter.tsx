@@ -66,6 +66,9 @@ export const allColumns: Column[] = [
   { key: 'Account_No', label: 'Account No', dataType: 'varchar' },
   { key: 'houseFrontPictureUrl', label: 'House Front Image', dataType: 'varchar' },
   { key: 'address', label: 'Full Address', dataType: 'varchar' },
+  { key: 'startTimestamp', label: 'Start Time', dataType: 'datetime' },
+  { key: 'endTimestamp', label: 'End Time', dataType: 'datetime' },
+  { key: 'duration', label: 'Duration', dataType: 'varchar' },
 ];
 
 const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({

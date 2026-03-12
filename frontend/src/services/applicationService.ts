@@ -30,7 +30,8 @@ export const getApplications = async (
   fastMode: boolean = false,
   page: number = 1,
   limit: number = 50,
-  search?: string
+  search?: string,
+  since?: string
 ): Promise<ApiResponse<Application[]>> => {
   try {
     const response = await apiClient.get<ApplicationResponse>('/applications', {
@@ -38,7 +39,8 @@ export const getApplications = async (
         fast: fastMode ? '1' : '0',
         page,
         limit,
-        search
+        search,
+        since
       }
     });
 

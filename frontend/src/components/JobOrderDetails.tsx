@@ -429,6 +429,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     setIsEditModalOpen(false);
   };
 
+
   const handleApproveClick = () => {
     setIsApprovalModalOpen(true);
   };
@@ -980,7 +981,6 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
 
       case 'startTime':
         const startTime = jobOrder.start_time;
-        if (!startTime) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Start Time:</div>
@@ -990,7 +990,6 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
 
       case 'endTime':
         const endTime = jobOrder.end_time;
-        if (!endTime) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>End Time:</div>
@@ -1001,7 +1000,6 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       case 'duration':
         const st = jobOrder.start_time;
         const et = jobOrder.end_time;
-        if (!st || !et) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Duration:</div>
@@ -1252,6 +1250,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         </div>
 
         <div className="flex items-center space-x-3">
+
           {shouldShowApproveButton() && (
             <button
               className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-sm flex items-center"

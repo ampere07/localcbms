@@ -75,6 +75,8 @@ export interface ServiceOrderData {
   contract_template?: string;
   ip_address?: string;
   usage_type?: string;
+  start_time?: string | null;
+  end_time?: string | null;
 }
 
 export const createServiceOrder = async (serviceOrderData: Partial<ServiceOrderData>) => {

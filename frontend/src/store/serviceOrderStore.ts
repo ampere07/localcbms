@@ -66,6 +66,8 @@ export interface ServiceOrder {
     contractTemplate?: string;
     ipAddress?: string;
     usageType?: string;
+    start_time?: string | null;
+    end_time?: string | null;
 }
 
 export const transformServiceOrder = (order: ServiceOrderData): ServiceOrder => {
@@ -134,6 +136,8 @@ export const transformServiceOrder = (order: ServiceOrderData): ServiceOrder => 
         contractTemplate: (order as any).contract_template || '',
         ipAddress: (order as any).ip_address || '',
         usageType: (order as any).usage_type || '',
+        start_time: order.start_time || null,
+        end_time: order.end_time || null,
     };
 };
 

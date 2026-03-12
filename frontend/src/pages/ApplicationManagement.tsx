@@ -203,12 +203,31 @@ const ApplicationManagement: React.FC = () => {
     });
 
     channel.bind('new-application', async (data: any) => {
-      console.log('[ApplicationManagement Soketi] New application detected, silently refreshing:', data);
+      console.log('[ApplicationManagement Soketi] New application event RECEIVED:', data);
+      
+      const appId = data.id || (data.application && data.application.id);
+      
+      if (appId) {
+        try {
+          // 1. Try to fetch the full details for this specific application for immediate UI update
+          const { getApplication } = await import('../services/applicationService');
+          const fullApp = await getApplication(String(appId));
+          console.log('[ApplicationManagement Soketi] Full application details fetched:', fullApp);
+          
+          // 2. Add/Update in store immediately
+          const { addNotificationRecord } = useApplicationStore.getState();
+          addNotificationRecord(fullApp);
+        } catch (err) {
+          console.warn('[ApplicationManagement Soketi] Failed to fetch individual app details, fallback to silent refresh:', err);
+        }
+      }
+
+      // Always trigger a silent refresh to ensure counts and filters are synced
       try {
         await silentRefresh();
-        console.log('[ApplicationManagement Soketi] Data refreshed successfully');
+        console.log('[ApplicationManagement Soketi] Silent refresh completed');
       } catch (err) {
-        console.error('[ApplicationManagement Soketi] Failed to refresh data:', err);
+        console.error('[ApplicationManagement Soketi] Silent refresh failed:', err);
       }
     });
 
@@ -231,7 +250,26 @@ const ApplicationManagement: React.FC = () => {
     };
   }, [silentRefresh]);
 
-  // Polling removed - Pusher/Soketi handles real-time updates; idle detection handles 15-min refresh
+  // Silent polling every 5 seconds to ensure latest data is always fetched
+  useEffect(() => {
+    const POLL_INTERVAL = 5000; // 5 seconds
+    
+    const pollData = async () => {
+      console.log('[ApplicationManagement] Polling latest data (5s interval)...');
+      try {
+        await silentRefresh();
+      } catch (err) {
+        console.error('[ApplicationManagement] Polling refresh failed:', err);
+      }
+    };
+
+    const intervalId = setInterval(pollData, POLL_INTERVAL);
+
+    // Initial silent refresh
+    pollData();
+
+    return () => clearInterval(intervalId);
+  }, [silentRefresh]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {

@@ -27,7 +27,6 @@ type MobileView = 'locations' | 'orders' | 'details';
 const allColumns = [
   { key: 'timestamp', label: 'Timestamp', width: 'min-w-40' },
   { key: 'supportStatus', label: 'Support Status', width: 'min-w-32' },
-  { key: 'visitStatus', label: 'Visit Status', width: 'min-w-32' },
   { key: 'fullName', label: 'Full Name', width: 'min-w-40' },
   { key: 'contactNumber', label: 'Contact Number', width: 'min-w-36' },
   { key: 'fullAddress', label: 'Full Address', width: 'min-w-56' },
@@ -37,10 +36,47 @@ const allColumns = [
   { key: 'assignedEmail', label: 'Assigned Email', width: 'min-w-48' },
   { key: 'repairCategory', label: 'Repair Category', width: 'min-w-36' },
   { key: 'modifiedBy', label: 'Modified By', width: 'min-w-32' },
-  { key: 'modifiedDate', label: 'Modified Date', width: 'min-w-40' }
+  { key: 'modifiedDate', label: 'Modified Date', width: 'min-w-40' },
+  { key: 'startTime', label: 'Start Time', width: 'min-w-40' },
+  { key: 'endTime', label: 'End Time', width: 'min-w-40' },
+  { key: 'duration', label: 'Duration', width: 'min-w-28' },
+  { key: 'visitStatus', label: 'Visit Status', width: 'min-w-32' }
 ];
 
 const ServiceOrderPage: React.FC = () => {
+  const calculateDuration = (start?: string | null, end?: string | null): string => {
+    if (!start || !end) return '-';
+    try {
+      const startTime = new Date(start);
+      const endTime = new Date(end);
+      const diffMs = endTime.getTime() - startTime.getTime();
+
+      if (diffMs < 0) return 'Invalid duration';
+
+      const diffHrs = Math.floor(diffMs / 3600000);
+      const diffMins = Math.floor((diffMs % 3600000) / 60000);
+      const diffSecs = Math.floor((diffMs % 60000) / 1000);
+
+      const parts = [];
+      if (diffHrs > 0) parts.push(`${diffHrs}h`);
+      if (diffMins > 0) parts.push(`${diffMins}m`);
+      if (diffSecs > 0 || parts.length === 0) parts.push(`${diffSecs}s`);
+
+      return parts.join(' ');
+    } catch (e) {
+      return '-';
+    }
+  };
+
+  const formatDateTime = (dateStr?: string | null): string => {
+    if (!dateStr) return '-';
+    try {
+      return new Date(dateStr).toLocaleString();
+    } catch (e) {
+      return '-';
+    }
+  };
+
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -56,7 +92,11 @@ const ServiceOrderPage: React.FC = () => {
   const [displayMode, setDisplayMode] = useState<DisplayMode>('table');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(allColumns.map(col => col.key));
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    allColumns
+      .map(col => col.key)
+      .filter(key => key !== 'supportStatus' && key !== 'startTime' && key !== 'endTime' && key !== 'duration')
+  );
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
@@ -470,6 +510,9 @@ const ServiceOrderPage: React.FC = () => {
       case 'routerModemSN': return item.routerModemSN ?? (item as any).router_modem_sn ?? '';
       case 'modifiedBy': return item.modifiedBy ?? (item as any).updated_by_user ?? '';
       case 'modifiedDate': return item.modifiedDate ?? (item as any).updated_at ?? '';
+      case 'startTime': return item.start_time;
+      case 'endTime': return item.end_time;
+      case 'duration': return calculateDuration(item.start_time, item.end_time);
       default: {
         const val = (item as any)[key];
         return val !== undefined && val !== null ? val : '';
@@ -928,6 +971,12 @@ const ServiceOrderPage: React.FC = () => {
         return serviceOrder.modifiedBy || '-';
       case 'modifiedDate':
         return serviceOrder.modifiedDate;
+      case 'startTime':
+        return formatDateTime(serviceOrder.start_time);
+      case 'endTime':
+        return formatDateTime(serviceOrder.end_time);
+      case 'duration':
+        return calculateDuration(serviceOrder.start_time, serviceOrder.end_time);
       default:
         return '-';
     }

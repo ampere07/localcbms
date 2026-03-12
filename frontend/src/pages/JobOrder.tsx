@@ -23,13 +23,17 @@ type DisplayMode = 'card' | 'table';
 
 const allColumns = [
   { key: 'timestamp', label: 'Timestamp', width: 'min-w-40' },
-  { key: 'billingStatus', label: 'Billing Status', width: 'min-w-32' },
-  { key: 'onsiteStatus', label: 'Onsite Status', width: 'min-w-32' },
   { key: 'dateInstalled', label: 'Date Installed', width: 'min-w-36' },
+  { key: 'referredBy', label: 'Referred By', width: 'min-w-32' },
   { key: 'fullName', label: 'Full Name of Client', width: 'min-w-48' },
   { key: 'address', label: 'Full Address of Client', width: 'min-w-56' },
+  { key: 'onsiteStatus', label: 'Onsite Status', width: 'min-w-32' },
+  { key: 'billingStatus', label: 'Billing Status', width: 'min-w-32' },
+  { key: 'assignedEmail', label: 'Assigned Email', width: 'min-w-48' },
   { key: 'billingDay', label: 'Billing Day', width: 'min-w-28' },
   { key: 'installationFee', label: 'Installation Fee', width: 'min-w-32' },
+  { key: 'modifiedBy', label: 'Modified By', width: 'min-w-32' },
+  { key: 'modifiedDate', label: 'Modified Date', width: 'min-w-40' },
   { key: 'modemRouterSN', label: 'Modem/Router SN', width: 'min-w-36' },
   { key: 'routerModel', label: 'Router Model', width: 'min-w-32' },
   { key: 'groupName', label: 'Group Name', width: 'min-w-32' },
@@ -60,13 +64,10 @@ const allColumns = [
   { key: 'createdByUserEmail', label: 'Created By User Email', width: 'min-w-48' },
   { key: 'updatedAt', label: 'Updated At', width: 'min-w-40' },
   { key: 'updatedByUserEmail', label: 'Updated By User Email', width: 'min-w-48' },
-  { key: 'assignedEmail', label: 'Assigned Email', width: 'min-w-48' },
   { key: 'pppoeUsername', label: 'PPPoE Username', width: 'min-w-36' },
   { key: 'pppoePassword', label: 'PPPoE Password', width: 'min-w-36' },
   { key: 'location', label: 'Location', width: 'min-w-40' },
   { key: 'contractTemplate', label: 'Contract Template', width: 'min-w-36' },
-  { key: 'modifiedBy', label: 'Modified By', width: 'min-w-32' },
-  { key: 'modifiedDate', label: 'Modified Date', width: 'min-w-40' },
   { key: 'firstName', label: 'First Name', width: 'min-w-32' },
   { key: 'middleInitial', label: 'Middle Initial', width: 'min-w-28' },
   { key: 'lastName', label: 'Last Name', width: 'min-w-32' },
@@ -77,7 +78,6 @@ const allColumns = [
   { key: 'city', label: 'City', width: 'min-w-28' },
   { key: 'barangay', label: 'Barangay', width: 'min-w-32' },
   { key: 'choosePlan', label: 'Choose Plan', width: 'min-w-36' },
-  { key: 'referredBy', label: 'Referred By', width: 'min-w-32' },
   { key: 'startTimestamp', label: 'Start Timestamp', width: 'min-w-40' },
   { key: 'endTimestamp', label: 'End Timestamp', width: 'min-w-40' },
   { key: 'duration', label: 'Duration', width: 'min-w-28' }
@@ -97,7 +97,7 @@ const JobOrderPage: React.FC = () => {
   const [displayMode, setDisplayMode] = useState<DisplayMode>('table');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(allColumns.map(col => col.key));
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(['timestamp', 'dateInstalled', 'referredBy', 'fullName', 'address', 'onsiteStatus', 'billingStatus', 'assignedEmail', 'billingDay', 'installationFee', 'modifiedBy', 'modifiedDate']);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
@@ -200,6 +200,39 @@ const JobOrderPage: React.FC = () => {
     if (!dateStr) return '-';
     try {
       return new Date(dateStr).toLocaleDateString();
+    } catch (e) {
+      return '-';
+    }
+  };
+
+  const formatDateTime = (dateStr?: string | null): string => {
+    if (!dateStr) return '-';
+    try {
+      return new Date(dateStr).toLocaleString();
+    } catch (e) {
+      return '-';
+    }
+  };
+
+  const calculateDuration = (start?: string | null, end?: string | null): string => {
+    if (!start || !end) return '-';
+    try {
+      const startTime = new Date(start);
+      const endTime = new Date(end);
+      const diffMs = endTime.getTime() - startTime.getTime();
+      
+      if (diffMs < 0) return 'Invalid duration';
+
+      const diffHrs = Math.floor(diffMs / 3600000);
+      const diffMins = Math.floor((diffMs % 3600000) / 60000);
+      const diffSecs = Math.floor((diffMs % 60000) / 1000);
+
+      const parts = [];
+      if (diffHrs > 0) parts.push(`${diffHrs}h`);
+      if (diffMins > 0) parts.push(`${diffMins}m`);
+      if (diffSecs > 0 || parts.length === 0) parts.push(`${diffSecs}s`);
+
+      return parts.join(' ');
     } catch (e) {
       return '-';
     }
@@ -397,6 +430,16 @@ const JobOrderPage: React.FC = () => {
       });
     };
   }, [silentRefresh]);
+  
+  // Update selectedJobOrder with fresh data after refresh
+  useEffect(() => {
+    if (selectedJobOrder) {
+      const updatedOrder = jobOrders.find(order => order.id === selectedJobOrder.id);
+      if (updatedOrder && JSON.stringify(updatedOrder) !== JSON.stringify(selectedJobOrder)) {
+        setSelectedJobOrder(updatedOrder);
+      }
+    }
+  }, [jobOrders]);
 
   const getClientFullName = (jobOrder: JobOrder): string => {
     return [
@@ -534,6 +577,12 @@ const JobOrderPage: React.FC = () => {
       case 'updatedAt': return jo.updated_at || jo.Updated_At || '';
       case 'lcp': return jo.LCP || jo.lcp || '';
       case 'nap': return jo.NAP || jo.nap || '';
+      case 'startTimestamp': return jo.StartTimeStamp || jo.start_timestamp || jo.start_time || '';
+      case 'endTimestamp': return jo.EndTimeStamp || jo.end_timestamp || jo.end_time || '';
+      case 'duration':
+        const start = jo.start_time || jo.StartTimeStamp || jo.start_timestamp;
+        const end = jo.end_time || jo.EndTimeStamp || jo.end_timestamp;
+        return calculateDuration(start, end);
       default: return (jo as any)[key] || '';
     }
   };
@@ -1098,11 +1147,13 @@ const JobOrderPage: React.FC = () => {
       case 'referredBy':
         return getValue(jobOrder.Referred_By || jobOrder.referred_by);
       case 'startTimestamp':
-        return formatDate(jobOrder.StartTimeStamp || jobOrder.start_timestamp);
+        return formatDate(jobOrder.StartTimeStamp || jobOrder.start_timestamp || jobOrder.start_time);
       case 'endTimestamp':
-        return formatDate(jobOrder.EndTimeStamp || jobOrder.end_timestamp);
+        return formatDate(jobOrder.EndTimeStamp || jobOrder.end_timestamp || jobOrder.end_time);
       case 'duration':
-        return getValue(jobOrder.Duration || jobOrder.duration);
+        const start = jobOrder.start_time || jobOrder.StartTimeStamp || jobOrder.start_timestamp;
+        const end = jobOrder.end_time || jobOrder.EndTimeStamp || jobOrder.end_timestamp;
+        return getValue(calculateDuration(start, end));
       default:
         return '-';
     }

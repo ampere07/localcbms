@@ -142,32 +142,30 @@ const SOA: React.FC = () => {
   };
 
   const allColumns = [
-    { key: 'id', label: 'ID', width: 'min-w-20' },
-    { key: 'accountNo', label: 'Account Number', width: 'min-w-36' },
     { key: 'statementDate', label: 'Statement Date', width: 'min-w-36' },
-    { key: 'balanceFromPreviousBill', label: 'Balance from Previous Bill', width: 'min-w-48' },
-    { key: 'paymentReceivedPrevious', label: 'Payment Received Previous', width: 'min-w-48' },
-    { key: 'remainingBalancePrevious', label: 'Remaining Balance Previous', width: 'min-w-48' },
+    { key: 'accountNo', label: 'Account No', width: 'min-w-36' },
+    { key: 'dateInstalled', label: 'Date Installed', width: 'min-w-32' },
+    { key: 'fullName', label: 'Full Name', width: 'min-w-40' },
+    { key: 'contactNumber', label: 'Contact No', width: 'min-w-36' },
+    { key: 'emailAddress', label: 'Email Address', width: 'min-w-48' },
+    { key: 'plan', label: 'Plan', width: 'min-w-32' },
+    { key: 'balanceFromPreviousBill', label: 'Balance From Previous Bill', width: 'min-w-48' },
+    { key: 'statementNo', label: 'Statement No', width: 'min-w-36' },
+    { key: 'paymentReceivedPrevious', label: 'Payment Received From Previous Bill', width: 'min-w-64' },
+    { key: 'remainingBalancePrevious', label: 'Remaining Balance From Previous Bill', width: 'min-w-64' },
     { key: 'monthlyServiceFee', label: 'Monthly Service Fee', width: 'min-w-40' },
+    { key: 'staggered', label: 'Staggered Installation', width: 'min-w-40' },
     { key: 'serviceCharge', label: 'Service Charge', width: 'min-w-36' },
-    { key: 'rebate', label: 'Rebate', width: 'min-w-28' },
     { key: 'discounts', label: 'Discounts', width: 'min-w-28' },
-    { key: 'staggered', label: 'Staggered', width: 'min-w-28' },
+    { key: 'rebate', label: 'Rebates', width: 'min-w-28' },
     { key: 'vat', label: 'VAT', width: 'min-w-28' },
     { key: 'dueDate', label: 'Due Date', width: 'min-w-32' },
+    { key: 'disconnectionDate', label: 'Disconnection Date', width: 'min-w-40' },
     { key: 'amountDue', label: 'Amount Due', width: 'min-w-32' },
     { key: 'totalAmountDue', label: 'Total Amount Due', width: 'min-w-36' },
+    { key: 'updatedBy', label: 'Modified By', width: 'min-w-32' },
+    { key: 'updatedAt', label: 'Modified Date', width: 'min-w-40' },
     { key: 'printLink', label: 'Print Link', width: 'min-w-28' },
-    { key: 'createdAt', label: 'Created At', width: 'min-w-40' },
-    { key: 'createdBy', label: 'Created By', width: 'min-w-32' },
-    { key: 'updatedAt', label: 'Updated At', width: 'min-w-40' },
-    { key: 'updatedBy', label: 'Updated By', width: 'min-w-32' },
-    { key: 'fullName', label: 'Full Name', width: 'min-w-40' },
-    { key: 'contactNumber', label: 'Contact Number', width: 'min-w-36' },
-    { key: 'emailAddress', label: 'Email Address', width: 'min-w-48' },
-    { key: 'address', label: 'Address', width: 'min-w-56' },
-    { key: 'plan', label: 'Plan', width: 'min-w-32' },
-    { key: 'dateInstalled', label: 'Date Installed', width: 'min-w-32' },
     { key: 'barangay', label: 'Barangay', width: 'min-w-32' },
     { key: 'city', label: 'City', width: 'min-w-32' },
     { key: 'region', label: 'Region', width: 'min-w-32' },
@@ -351,14 +349,10 @@ const SOA: React.FC = () => {
   // Initialize column order and visibility
   useEffect(() => {
     if (displayColumns.length > 0) {
-      if (columnOrder.length === 0) {
-        setColumnOrder(displayColumns.map(col => col.key));
-      }
-      if (visibleColumns.length === 0) {
-        setVisibleColumns(displayColumns.map(col => col.key));
-      }
+      setColumnOrder(displayColumns.map(col => col.key));
+      setVisibleColumns(displayColumns.map(col => col.key));
     }
-  }, [displayColumns, columnOrder.length, visibleColumns.length]);
+  }, [displayColumns]);
 
   // Removed automatic silent refresh on mount to favor session storage
   // and context-managed initial fetch.
@@ -910,10 +904,14 @@ const SOA: React.FC = () => {
     switch (columnKey) {
       case 'id':
         return record.id;
+      case 'statementNo':
+        return record.statementNo || `SOA-${record.id}`;
       case 'accountNo':
         return <span className="text-red-400">{record.accountNo}</span>;
       case 'statementDate':
         return record.statementDate;
+      case 'disconnectionDate':
+        return '-';
       case 'action':
         return (
           <button

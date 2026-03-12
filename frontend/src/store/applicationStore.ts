@@ -27,9 +27,11 @@ interface ApplicationState {
     hasMore: boolean;
     currentPage: number;
 
-    fetchApplications: (page?: number, limit?: number, search?: string, silent?: boolean) => Promise<void>;
+    fetchApplications: (page?: number, limit?: number, search?: string, silent?: boolean, since?: string) => Promise<void>;
     refreshApplications: () => Promise<void>;
     silentRefresh: () => Promise<void>;
+    addNotificationRecord: (app: Application) => void;
+    lastSyncTime: string | null;
 }
 
 export const useApplicationStore = create<ApplicationState>((set, get) => ({
@@ -39,8 +41,9 @@ export const useApplicationStore = create<ApplicationState>((set, get) => ({
     error: null,
     hasMore: true,
     currentPage: 1,
+    lastSyncTime: null,
 
-    fetchApplications: async (page = 1, limit = 50, search = '', silent = false) => {
+    fetchApplications: async (page = 1, limit = 50, search = '', silent = false, since?: string) => {
         const { applications } = get();
 
         // Only show loading if not silent OR if we have no data
@@ -55,7 +58,7 @@ export const useApplicationStore = create<ApplicationState>((set, get) => ({
 
             if (!skipFastMode) {
                 // Fetch fast data first (only for initial load or explicit refresh)
-                const fastResponse = await getApplications(true, page, limit, search);
+                const fastResponse = await getApplications(true, page, limit, search, since);
 
                 if (fastResponse.success) {
                     const newAppsData = fastResponse.applications || [];
@@ -87,20 +90,28 @@ export const useApplicationStore = create<ApplicationState>((set, get) => ({
             }
 
             // Fetch full data for consistency (always runs)
-            const fullResponse = await getApplications(false, page, limit, search);
+            const fullResponse = await getApplications(false, page, limit, search, since);
 
             if (fullResponse.success && fullResponse.applications) {
                 const fullApps = fullResponse.applications.map(transformApplication);
                 set((state) => {
-                    const currentMap = new Map(state.applications.map(a => [a.id, a]));
+                    const currentMap = new Map<string, Application>(state.applications.map(a => [a.id, a]));
                     fullApps.forEach(app => currentMap.set(app.id, app));
 
+                    // Update last sync time to now
+                    const now = new Date();
+                    // Format to MySQL DATETIME format (YYYY-MM-DD HH:MM:SS)
+                    const mysqlTime = now.toISOString().slice(0, 19).replace('T', ' ');
+
+                    const sortedApps = Array.from(currentMap.values()).sort((a, b) => {
+                        const idA = parseInt(a.id) || 0;
+                        const idB = parseInt(b.id) || 0;
+                        return idB - idA;
+                    });
+
                     return {
-                        applications: Array.from(currentMap.values()).sort((a, b) => {
-                            const idA = parseInt(a.id) || 0;
-                            const idB = parseInt(b.id) || 0;
-                            return idB - idA;
-                        }),
+                        applications: sortedApps,
+                        lastSyncTime: mysqlTime,
                         isLoading: false
                     };
                 });
@@ -117,6 +128,25 @@ export const useApplicationStore = create<ApplicationState>((set, get) => ({
     },
 
     silentRefresh: async () => {
-        await get().fetchApplications(1, 10000, '', true);
+        const { lastSyncTime } = get();
+        // If we have a sync time, only get records updated AFTER that
+        await get().fetchApplications(1, 50, '', true, lastSyncTime || undefined);
+    },
+
+    addNotificationRecord: (app: Application) => {
+        const transformed = transformApplication(app);
+        set((state) => {
+            const exists = state.applications.some(a => a.id === transformed.id);
+            if (exists) return state; // Already in list
+
+            return {
+                applications: [transformed, ...state.applications].sort((a, b) => {
+                    const idA = parseInt(a.id) || 0;
+                    const idB = parseInt(b.id) || 0;
+                    return idB - idA;
+                }),
+                totalCount: state.totalCount + 1
+            };
+        });
     }
 }));
