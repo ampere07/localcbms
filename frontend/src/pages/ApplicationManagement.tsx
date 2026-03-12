@@ -252,7 +252,7 @@ const ApplicationManagement: React.FC = () => {
 
   // Silent polling every 5 seconds to ensure latest data is always fetched
   useEffect(() => {
-    const POLL_INTERVAL = 5000; // 5 seconds
+    const POLL_INTERVAL = 3000; // 5 seconds
     
     const pollData = async () => {
       console.log('[ApplicationManagement] Polling latest data (5s interval)...');

@@ -317,6 +317,84 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
               </div>
             )}
 
+            {/* Reading Image */}
+            {location.reading_image_url && (
+              <div className={`flex flex-col border-b pb-4 gap-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+                }`}>
+                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>Reading Image:</div>
+                <div className="relative group">
+                  <img
+                    src={getDriveDirectUrl(location.reading_image_url)}
+                    alt="Reading Image"
+                    className="w-full h-auto max-h-64 object-cover rounded-lg border border-gray-300 dark:border-gray-700 shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
+                    onClick={() => window.open(location.reading_image_url)}
+                  />
+                  <button
+                    className={`absolute top-2 right-2 p-1.5 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all opacity-0 group-hover:opacity-100`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(location.reading_image_url);
+                    }}
+                  >
+                    <ExternalLink size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Image 1 */}
+            {location.image1_url && (
+              <div className={`flex flex-col border-b pb-4 gap-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+                }`}>
+                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>Image 1:</div>
+                <div className="relative group">
+                  <img
+                    src={getDriveDirectUrl(location.image1_url)}
+                    alt="Location Image 1"
+                    className="w-full h-auto max-h-64 object-cover rounded-lg border border-gray-300 dark:border-gray-700 shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
+                    onClick={() => window.open(location.image1_url)}
+                  />
+                  <button
+                    className={`absolute top-2 right-2 p-1.5 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all opacity-0 group-hover:opacity-100`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(location.image1_url);
+                    }}
+                  >
+                    <ExternalLink size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Image 2 */}
+            {location.image2_url && (
+              <div className={`flex flex-col border-b pb-4 gap-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+                }`}>
+                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>Image 2:</div>
+                <div className="relative group">
+                  <img
+                    src={getDriveDirectUrl(location.image2_url)}
+                    alt="Location Image 2"
+                    className="w-full h-auto max-h-64 object-cover rounded-lg border border-gray-300 dark:border-gray-700 shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
+                    onClick={() => window.open(location.image2_url)}
+                  />
+                  <button
+                    className={`absolute top-2 right-2 p-1.5 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all opacity-0 group-hover:opacity-100`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(location.image2_url);
+                    }}
+                  >
+                    <ExternalLink size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Session Status */}
             <div className={`border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
               }`}>
@@ -479,84 +557,6 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
               </div>
 
             </div>
-
-            {/* Reading Image */}
-            {location.reading_image_url && (
-              <div className={`flex flex-col border-b pb-4 gap-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
-                }`}>
-                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>Reading Image:</div>
-                <div className="relative group">
-                  <img
-                    src={getDriveDirectUrl(location.reading_image_url)}
-                    alt="Reading Image"
-                    className="w-full h-auto max-h-64 object-cover rounded-lg border border-gray-300 dark:border-gray-700 shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
-                    onClick={() => window.open(location.reading_image_url)}
-                  />
-                  <button
-                    className={`absolute top-2 right-2 p-1.5 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all opacity-0 group-hover:opacity-100`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open(location.reading_image_url);
-                    }}
-                  >
-                    <ExternalLink size={14} />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Image 1 */}
-            {location.image1_url && (
-              <div className={`flex flex-col border-b pb-4 gap-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
-                }`}>
-                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>Image 1:</div>
-                <div className="relative group">
-                  <img
-                    src={getDriveDirectUrl(location.image1_url)}
-                    alt="Location Image 1"
-                    className="w-full h-auto max-h-64 object-cover rounded-lg border border-gray-300 dark:border-gray-700 shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
-                    onClick={() => window.open(location.image1_url)}
-                  />
-                  <button
-                    className={`absolute top-2 right-2 p-1.5 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all opacity-0 group-hover:opacity-100`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open(location.image1_url);
-                    }}
-                  >
-                    <ExternalLink size={14} />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Image 2 */}
-            {location.image2_url && (
-              <div className={`flex flex-col border-b pb-4 gap-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
-                }`}>
-                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>Image 2:</div>
-                <div className="relative group">
-                  <img
-                    src={getDriveDirectUrl(location.image2_url)}
-                    alt="Location Image 2"
-                    className="w-full h-auto max-h-64 object-cover rounded-lg border border-gray-300 dark:border-gray-700 shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
-                    onClick={() => window.open(location.image2_url)}
-                  />
-                  <button
-                    className={`absolute top-2 right-2 p-1.5 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all opacity-0 group-hover:opacity-100`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open(location.image2_url);
-                    }}
-                  >
-                    <ExternalLink size={14} />
-                  </button>
-                </div>
-              </div>
-            )}
 
             {/* Modified By */}
             {location.modified_by && (
