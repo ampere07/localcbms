@@ -81,7 +81,7 @@ interface TransactionListProps {
 }
 
 const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
-  const { transactions, totalCount, isLoading: loading, error, silentRefresh, fetchTransactions } = useTransactionStore();
+  const { transactions, totalCount, isLoading: loading, error, silentRefresh, fetchTransactions, fetchUpdates } = useTransactionStore();
 
   // Fetch data on mount if empty
   useEffect(() => {
@@ -249,7 +249,20 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     };
   }, [silentRefresh]);
 
-  // Polling removed - Pusher/Soketi handles real-time updates; idle detection handles 15-min refresh
+  // Polling for updates every 3 seconds - Incremental fetch
+  useEffect(() => {
+    const POLLING_INTERVAL = 3000; // 3 seconds
+    const intervalId = setInterval(async () => {
+      console.log('[TransactionList Page] Polling for updates...');
+      try {
+        await fetchUpdates();
+      } catch (err) {
+        console.error('[TransactionList Page] Polling failed:', err);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [fetchUpdates]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {

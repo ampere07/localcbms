@@ -89,7 +89,7 @@ const JobOrderPage: React.FC = () => {
   const [expandedStatuses, setExpandedStatuses] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedJobOrder, setSelectedJobOrder] = useState<JobOrder | null>(null);
-  const { jobOrders, isLoading, error, fetchJobOrders, refreshJobOrders, silentRefresh, hasMore } = useJobOrderStore();
+  const { jobOrders, isLoading, error, fetchJobOrders, refreshJobOrders, silentRefresh, hasMore, fetchUpdates } = useJobOrderStore();
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -412,7 +412,30 @@ const JobOrderPage: React.FC = () => {
     };
   }, [silentRefresh]);
 
-  // Polling removed - Pusher/Soketi handles real-time updates; idle detection handles 15-min refresh
+  // Polling for updates every 3 seconds - Incremental fetch
+  useEffect(() => {
+    const POLLING_INTERVAL = 3000; // 3 seconds
+    const intervalId = setInterval(async () => {
+      console.log('[JobOrder Page] Polling for updates...');
+      try {
+        const authData = localStorage.getItem('authData');
+        let email: string | undefined;
+        if (authData) {
+          try {
+            const userData = JSON.parse(authData);
+            if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
+              email = userData.email;
+            }
+          } catch (err) { }
+        }
+        await fetchUpdates(email);
+      } catch (err) {
+        console.error('[JobOrder Page] Polling failed:', err);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [fetchUpdates]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {

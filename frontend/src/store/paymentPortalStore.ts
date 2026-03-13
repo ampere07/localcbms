@@ -11,6 +11,8 @@ interface PaymentPortalStore {
     fetchPaymentPortalRecords: (force?: boolean) => Promise<void>;
     refreshPaymentPortalRecords: () => Promise<void>;
     silentRefresh: () => Promise<void>;
+    fetchUpdates: () => Promise<void>;
+    lastUpdated: Date | null;
 }
 
 export const usePaymentPortalStore = create<PaymentPortalStore>((set, get) => ({
@@ -18,6 +20,7 @@ export const usePaymentPortalStore = create<PaymentPortalStore>((set, get) => ({
     totalCount: 0,
     isLoading: false,
     error: null,
+    lastUpdated: null,
 
     fetchPaymentPortalRecords: async (force = false) => {
         const { paymentPortalRecords, isLoading } = get();
@@ -44,7 +47,8 @@ export const usePaymentPortalStore = create<PaymentPortalStore>((set, get) => ({
             set({
                 paymentPortalRecords: allFetchedRecords,
                 totalCount: dbTotal,
-                isLoading: false
+                isLoading: false,
+                lastUpdated: new Date()
             });
 
             // Progressive background loading
@@ -94,6 +98,53 @@ export const usePaymentPortalStore = create<PaymentPortalStore>((set, get) => ({
         // Just triggers a background fetch if empty
         if (get().paymentPortalRecords.length === 0) {
             get().fetchPaymentPortalRecords();
+        }
+    },
+
+    fetchUpdates: async () => {
+        const { lastUpdated, paymentPortalRecords } = get();
+        if (!lastUpdated) {
+            await get().silentRefresh();
+            return;
+        }
+
+        try {
+            const formattedDate = lastUpdated.toISOString().slice(0, 19).replace('T', ' ');
+            console.log(`[PaymentPortalStore] Polling for updates since: ${formattedDate}`);
+
+            const result = await paymentPortalLogsService.getAllLogs({
+                updated_since: formattedDate,
+                limit: 1000
+            });
+
+            if (result && result.success && result.data && result.data.length > 0) {
+                console.log(`[PaymentPortalStore] Received ${result.data.length} updates`);
+                const updatedRecords = result.data;
+
+                set((state) => {
+                    const currentMap = new Map();
+                    state.paymentPortalRecords.forEach((r: PaymentPortalLog) => currentMap.set(r.id, r));
+                    
+                    updatedRecords.forEach((r: PaymentPortalLog) => {
+                        currentMap.set(r.id, r);
+                    });
+
+                    return {
+                        paymentPortalRecords: Array.from(currentMap.values()).sort((a: any, b: any) => {
+                            const dateA = new Date(a.date_time || 0).getTime();
+                            const dateB = new Date(b.date_time || 0).getTime();
+                            return dateB - dateA;
+                        }),
+                        totalCount: result.total || 
+                                   (state.totalCount + updatedRecords.filter((r: PaymentPortalLog) => !state.paymentPortalRecords.find((o: PaymentPortalLog) => o.id === r.id)).length),
+                        lastUpdated: new Date()
+                    };
+                });
+            } else {
+                set({ lastUpdated: new Date() });
+            }
+        } catch (err) {
+            console.error('[PaymentPortalStore] Polling failed:', err);
         }
     }
 }));

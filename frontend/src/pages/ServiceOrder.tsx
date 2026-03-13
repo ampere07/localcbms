@@ -26,13 +26,13 @@ type MobileView = 'locations' | 'orders' | 'details';
 
 const allColumns = [
   { key: 'timestamp', label: 'Timestamp', width: 'min-w-40' },
-  { key: 'supportStatus', label: 'Support Status', width: 'min-w-32' },
   { key: 'fullName', label: 'Full Name', width: 'min-w-40' },
   { key: 'contactNumber', label: 'Contact Number', width: 'min-w-36' },
   { key: 'fullAddress', label: 'Full Address', width: 'min-w-56' },
   { key: 'concern', label: 'Concern', width: 'min-w-36' },
   { key: 'concernRemarks', label: 'Concern Remarks', width: 'min-w-48' },
   { key: 'requestedBy', label: 'Requested By', width: 'min-w-36' },
+  { key: 'supportStatus', label: 'Support Status', width: 'min-w-32' },
   { key: 'assignedEmail', label: 'Assigned Email', width: 'min-w-48' },
   { key: 'repairCategory', label: 'Repair Category', width: 'min-w-36' },
   { key: 'modifiedBy', label: 'Modified By', width: 'min-w-32' },
@@ -81,7 +81,7 @@ const ServiceOrderPage: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedServiceOrder, setSelectedServiceOrder] = useState<ServiceOrder | null>(null);
-  const { serviceOrders, isLoading, error, fetchServiceOrders, refreshServiceOrders, silentRefresh, hasMore } = useServiceOrderStore();
+  const { serviceOrders, isLoading, error, fetchServiceOrders, refreshServiceOrders, silentRefresh, hasMore, fetchUpdates } = useServiceOrderStore();
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [cities, setCities] = useState<City[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
@@ -95,7 +95,7 @@ const ServiceOrderPage: React.FC = () => {
   const [visibleColumns, setVisibleColumns] = useState<string[]>(
     allColumns
       .map(col => col.key)
-      .filter(key => key !== 'supportStatus' && key !== 'startTime' && key !== 'endTime' && key !== 'duration')
+      .filter(key => key !== 'startTime' && key !== 'endTime' && key !== 'duration')
   );
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -292,7 +292,20 @@ const ServiceOrderPage: React.FC = () => {
     };
   }, [silentRefresh]);
 
-  // Polling removed - Pusher/Soketi handles real-time updates; idle detection handles 15-min refresh
+  // Polling for updates every 3 seconds - Incremental fetch
+  useEffect(() => {
+    const POLLING_INTERVAL = 3000; // 3 seconds
+    const intervalId = setInterval(async () => {
+      console.log('[ServiceOrder Page] Polling for updates...');
+      try {
+        await fetchUpdates();
+      } catch (err) {
+        console.error('[ServiceOrder Page] Polling failed:', err);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [fetchUpdates]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {

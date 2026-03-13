@@ -154,6 +154,7 @@ interface ServiceOrderState {
     fetchServiceOrders: (force?: boolean, silent?: boolean) => Promise<void>;
     refreshServiceOrders: () => Promise<void>;
     silentRefresh: () => Promise<void>;
+    fetchUpdates: () => Promise<void>;
 }
 
 export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
@@ -273,5 +274,62 @@ export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
 
     silentRefresh: async () => {
         await get().fetchServiceOrders(true, true);
+    },
+
+    fetchUpdates: async () => {
+        const { serviceOrders, lastUpdated } = get();
+        if (!lastUpdated) {
+            await get().silentRefresh();
+            return;
+        }
+
+        try {
+            const authData = localStorage.getItem('authData');
+            let assignedEmail: string | undefined;
+
+            if (authData) {
+                try {
+                    const userData = JSON.parse(authData);
+                    if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
+                        assignedEmail = userData.email;
+                    }
+                } catch (err) { }
+            }
+
+            // Format date for MySQL: YYYY-MM-DD HH:mm:ss
+            const formattedDate = lastUpdated.toISOString().slice(0, 19).replace('T', ' ');
+            
+            console.log(`[ServiceOrderStore] Fetching updates since: ${formattedDate}`);
+            const result = await getServiceOrders(assignedEmail, 1, 1000, '', formattedDate) as any;
+
+            if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
+                console.log(`[ServiceOrderStore] Received ${result.data.length} updates/new records`);
+                const updatedTransformed = result.data.map(transformServiceOrder);
+                
+                // Merge updates into existing serviceOrders
+                // We overwrite existing items with same ID and prepend/append new ones
+                const mergedOrders = [...serviceOrders];
+                
+                updatedTransformed.forEach((newOrder: ServiceOrder) => {
+                    const existingIndex = mergedOrders.findIndex(o => o.id === newOrder.id);
+                    if (existingIndex !== -1) {
+                        mergedOrders[existingIndex] = newOrder;
+                    } else {
+                        // Prepend new orders (assuming they are latest)
+                        mergedOrders.unshift(newOrder);
+                    }
+                });
+
+                set({ 
+                    serviceOrders: mergedOrders,
+                    lastUpdated: new Date(),
+                    totalCount: result.pagination?.total || (get().totalCount + updatedTransformed.filter((n: ServiceOrder) => !serviceOrders.find(o => o.id === n.id)).length)
+                });
+            } else {
+                set({ lastUpdated: new Date() });
+            }
+        } catch (err) {
+            console.error('[ServiceOrderStore] Failed to fetch updates:', err);
+        }
     }
 }));

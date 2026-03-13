@@ -347,7 +347,20 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     };
   }, [refreshLatestData]);
 
-  // Polling removed - Pusher/Soketi handles real-time updates; idle detection handles 15-min refresh
+  // Polling for updates every 3 seconds - Incremental fetch
+  useEffect(() => {
+    const POLLING_INTERVAL = 3000; // 3 seconds
+    const intervalId = setInterval(async () => {
+      console.log('[Customer Page] Polling for updates...');
+      try {
+        await refreshLatestData();
+      } catch (err) {
+        console.error('[Customer Page] Polling failed:', err);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [refreshLatestData]);
 
   // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {

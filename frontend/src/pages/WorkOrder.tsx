@@ -14,7 +14,7 @@ const WorkOrderPage: React.FC = () => {
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
-  const { workOrders, isLoading, fetchWorkOrders, error } = useWorkOrderStore();
+  const { workOrders, isLoading, fetchWorkOrders, fetchUpdates, error } = useWorkOrderStore();
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [deletingItems, setDeletingItems] = useState<Set<number>>(new Set());
@@ -125,6 +125,21 @@ const WorkOrderPage: React.FC = () => {
       pusher.unsubscribe('work-orders');
     };
   }, [fetchWorkOrders]);
+
+  // Polling for updates every 3 seconds - Incremental fetch
+  useEffect(() => {
+    const POLLING_INTERVAL = 3000; // 3 seconds
+    const intervalId = setInterval(async () => {
+      console.log('[WorkOrder Page] Polling for updates...');
+      try {
+        await fetchUpdates('');
+      } catch (err) {
+        console.error('[WorkOrder Page] Polling failed:', err);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [fetchUpdates]);
 
 
   const handleDelete = async (workOrder: WorkOrder) => {

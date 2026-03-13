@@ -34,14 +34,16 @@ export const getWorkOrders = async (
   page: number = 1,
   limit: number = 50,
   search?: string,
-  status?: string
+  status?: string,
+  updatedSince?: string
 ) => {
   try {
     const params: any = {
       page,
       limit,
       search,
-      status
+      status,
+      updated_since: updatedSince
     };
 
     const response = await apiClient.get<ApiResponse<WorkOrderData[]>>('/work-orders', { params });

@@ -84,7 +84,8 @@ const PaymentPortal: React.FC = () => {
     error,
     fetchPaymentPortalRecords,
     refreshPaymentPortalRecords,
-    silentRefresh
+    silentRefresh,
+    fetchUpdates
   } = usePaymentPortalStore();
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
@@ -229,7 +230,20 @@ const PaymentPortal: React.FC = () => {
     };
   }, [fetchPaymentPortalRecords]);
 
-  // Polling removed - Pusher/Soketi handles real-time updates; idle detection handles 15-min refresh
+  // Polling for updates every 3 seconds - Incremental fetch
+  useEffect(() => {
+    const POLLING_INTERVAL = 3000; // 3 seconds
+    const intervalId = setInterval(async () => {
+      console.log('[PaymentPortal Page] Polling for updates...');
+      try {
+        await fetchUpdates();
+      } catch (err) {
+        console.error('[PaymentPortal Page] Polling failed:', err);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [fetchUpdates]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {

@@ -36,14 +36,16 @@ export const getJobOrders = async (
   page: number = 1,
   limit: number = 50,
   search?: string,
-  assignedEmail?: string
+  assignedEmail?: string,
+  updatedSince?: string
 ) => {
   try {
     const params: any = {
       fast: fastMode ? '1' : '0',
       page,
       limit,
-      search
+      search,
+      updated_since: updatedSince
     };
 
     if (assignedEmail) {

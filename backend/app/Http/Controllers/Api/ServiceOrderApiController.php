@@ -43,6 +43,13 @@ class ServiceOrderApiController extends Controller
                 $query->where('so.support_status', $request->input('support_status'));
             }
 
+            if ($request->has('updated_since')) {
+                $query->where('so.updated_at', '>', $request->input('updated_since'));
+                // When fetching only updates, we typically want everything since the last sync
+                // instead of paged chunks, if limit isn't explicitly set low.
+                $limit = $request->input('limit', 1000); 
+            }
+
             $userRole = strtolower($request->query('user_role', ''));
             $userEmail = $request->query('user_email', '');
 

@@ -63,6 +63,7 @@ export const paymentPortalLogsService = {
     search?: string;
     limit?: number;
     offset?: number;
+    updated_since?: string;
   }): Promise<any> => {
     try {
       const authData = localStorage.getItem('authData');

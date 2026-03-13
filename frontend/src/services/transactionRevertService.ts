@@ -93,9 +93,11 @@ export const transactionRevertService = {
         }
     },
 
-    getAllRevertRequests: async (): Promise<{ success: boolean; data: TransactionRevert[]; count: number }> => {
+    getAllRevertRequests: async (updatedSince?: string): Promise<{ success: boolean; data: TransactionRevert[]; count: number }> => {
         try {
-            const response = await apiClient.get<ApiResponse>('/transaction-reverts');
+            const response = await apiClient.get<ApiResponse>('/transaction-reverts', {
+                params: { updated_since: updatedSince }
+            });
             return {
                 success: true,
                 data: response.data.data || [],

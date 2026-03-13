@@ -3,16 +3,22 @@ import { Search, RefreshCw, Loader2, ChevronsLeft, ChevronsRight } from 'lucide-
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { transactionRevertService, TransactionRevert } from '../services/transactionRevertService';
 import TransactionsRevertDetails from '../components/TransactionsRevertDetails';
+import { useTransactionRevertStore } from '../store/transactionRevertStore';
 
 const TransactionsRevert: React.FC = () => {
     const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+    const { 
+        revertRequests, 
+        isLoading, 
+        error, 
+        fetchRevertRequests, 
+        fetchUpdates 
+    } = useTransactionRevertStore();
+
     const [searchQuery, setSearchQuery] = useState('');
     const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
     const scrollRef = React.useRef<HTMLDivElement>(null);
 
-    const [revertRequests, setRevertRequests] = useState<TransactionRevert[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [selectedRevert, setSelectedRevert] = useState<TransactionRevert | null>(null);
     const [mobileView, setMobileView] = useState<'list' | 'details'>('list');
 
@@ -61,26 +67,24 @@ const TransactionsRevert: React.FC = () => {
         return () => observer.disconnect();
     }, []);
 
-    const fetchRevertRequests = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const result = await transactionRevertService.getAllRevertRequests();
-            if (result.success) {
-                setRevertRequests(result.data);
-            } else {
-                setError('Failed to load revert requests.');
-            }
-        } catch (err) {
-            setError('Failed to load revert requests.');
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
     useEffect(() => {
         fetchRevertRequests();
     }, [fetchRevertRequests]);
+
+    // Polling for updates every 3 seconds - Incremental fetch
+    useEffect(() => {
+        const POLLING_INTERVAL = 3000; // 3 seconds
+        const intervalId = setInterval(async () => {
+            console.log('[TransactionsRevert Page] Polling for updates...');
+            try {
+                await fetchUpdates();
+            } catch (err) {
+                console.error('[TransactionsRevert Page] Polling failed:', err);
+            }
+        }, POLLING_INTERVAL);
+
+        return () => clearInterval(intervalId);
+    }, [fetchUpdates]);
 
     const handleRowClick = (revert: TransactionRevert) => {
         setSelectedRevert(revert);
@@ -107,7 +111,7 @@ const TransactionsRevert: React.FC = () => {
     const filteredReverts = useMemo(() => {
         if (!searchQuery) return revertRequests;
         const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
-        return revertRequests.filter(r => {
+        return revertRequests.filter((r: TransactionRevert) => {
             const checkValue = (val: any): boolean => {
                 if (val === null || val === undefined) return false;
                 return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
@@ -248,7 +252,7 @@ const TransactionsRevert: React.FC = () => {
                                 </h1>
                                 <div className="flex items-center gap-3">
                                     <button
-                                        onClick={fetchRevertRequests}
+                                        onClick={() => fetchRevertRequests()}
                                         disabled={isLoading}
                                         className={`p-2 rounded ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'}`}
                                         title="Refresh"
@@ -290,7 +294,7 @@ const TransactionsRevert: React.FC = () => {
                             <div className="text-center py-20 text-red-500">{error}</div>
                         ) : filteredReverts.length > 0 ? (
                             <div className="space-y-0">
-                                {paginatedReverts.map((revert) => (
+                                {paginatedReverts.map((revert: TransactionRevert) => (
                                     <div
                                         key={revert.id}
                                         onClick={() => handleRowClick(revert)}

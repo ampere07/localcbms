@@ -1126,7 +1126,7 @@ const EmailTemplates: React.FC = () => {
                         container.style.cssText = `
                           font-family: Helvetica, Arial, sans-serif;
                           font-size: 10pt;
-                          width: 215.9mm;
+                          width: 210mm;
                           padding: 0;
                           margin: 0;
                           background-color: #fff;
@@ -1156,7 +1156,7 @@ const EmailTemplates: React.FC = () => {
                           filename: `${templateCode}.pdf`,
                           image: { type: 'jpeg' as const, quality: 0.98 },
                           html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-                          jsPDF: { unit: 'mm' as const, format: 'letter' as const, orientation: 'portrait' as const }
+                          jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
                         };
 
                         html2pdf().set(opt).from(container).save().then(() => {
@@ -1178,8 +1178,8 @@ const EmailTemplates: React.FC = () => {
                     body { 
                       font-family: Helvetica, Arial, sans-serif; 
                       font-size: 10pt; 
-                      width: 215.9mm;
-                      min-height: 279.4mm; 
+                      width: 210mm;
+                      min-height: 297mm; 
                       margin: 0 auto;    
                       padding: 0px;      
                       background-color: #fff;

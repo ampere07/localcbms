@@ -110,10 +110,10 @@ export const transactionService = {
     }
   },
 
-  getAllTransactions: async (limit?: number, offset?: number): Promise<any> => {
+  getAllTransactions: async (limit?: number, offset?: number, updatedSince?: string): Promise<any> => {
     try {
       const response = await apiClient.get<ApiResponse>('/transactions', {
-        params: { limit, offset }
+        params: { limit, offset, updated_since: updatedSince }
       });
       return {
         success: true,
