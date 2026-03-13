@@ -94,6 +94,8 @@ const JobOrderPage: React.FC = () => {
   const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [userRole, setUserRole] = useState<string>('');
+  const [roleId, setRoleId] = useState<string | number | null>(null);
+  const [agentName, setAgentName] = useState<string>('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('table');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
@@ -220,7 +222,7 @@ const JobOrderPage: React.FC = () => {
       const startTime = new Date(start);
       const endTime = new Date(end);
       const diffMs = endTime.getTime() - startTime.getTime();
-      
+
       if (diffMs < 0) return 'Invalid duration';
 
       const diffHrs = Math.floor(diffMs / 3600000);
@@ -272,7 +274,44 @@ const JobOrderPage: React.FC = () => {
     if (authData) {
       try {
         const userData = JSON.parse(authData);
-        setUserRole(userData.role || '');
+        const role = userData.role || '';
+        const id = userData.role_id || null;
+        setUserRole(role);
+        setRoleId(id);
+
+        const isAgent = role.toLowerCase() === 'agent' || String(id) === '4';
+        if (isAgent) {
+          setVisibleColumns([
+            'timestamp',
+            'referredBy',
+            'fullName',
+            'contactNumber',
+            'emailAddress',
+            'address',
+            'installationFee',
+            'billingStatus',
+            'billingDay',
+            'dateInstalled',
+            'onsiteStatus'
+          ]);
+        }
+
+        // Try getting full_name directly first, then fallback to parts
+        let fullName = userData.full_name || '';
+
+        if (!fullName) {
+          const firstName = userData.first_name || '';
+          const middleInitial = userData.middle_initial ? userData.middle_initial.trim() : '';
+          const lastName = userData.last_name || '';
+
+          fullName = [
+            firstName,
+            middleInitial ? `${middleInitial}.` : '',
+            lastName
+          ].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+        }
+
+        setAgentName(fullName);
       } catch (error) {
         console.error('Failed to parse auth data:', error);
       }
@@ -430,16 +469,28 @@ const JobOrderPage: React.FC = () => {
       });
     };
   }, [silentRefresh]);
-  
+
+  const accessibleJobOrders = useMemo(() => {
+    const isAgent = userRole?.toLowerCase() === 'agent' || String(roleId) === '4';
+    if (isAgent && agentName) {
+      const lowerAgentName = agentName.toLowerCase().trim();
+      return jobOrders.filter((jo: JobOrder) => {
+        const referredBy = (jo.Referred_By || jo.referred_by || '').toLowerCase().trim();
+        return referredBy === lowerAgentName;
+      });
+    }
+    return jobOrders;
+  }, [jobOrders, userRole, roleId, agentName]);
+
   // Update selectedJobOrder with fresh data after refresh
   useEffect(() => {
     if (selectedJobOrder) {
-      const updatedOrder = jobOrders.find(order => order.id === selectedJobOrder.id);
+      const updatedOrder = accessibleJobOrders.find(order => order.id === selectedJobOrder.id);
       if (updatedOrder && JSON.stringify(updatedOrder) !== JSON.stringify(selectedJobOrder)) {
         setSelectedJobOrder(updatedOrder);
       }
     }
-  }, [jobOrders]);
+  }, [accessibleJobOrders]);
 
   const getClientFullName = (jobOrder: JobOrder): string => {
     return [
@@ -491,7 +542,7 @@ const JobOrderPage: React.FC = () => {
       tree[s.value] = { count: 0, billingStatuses: {} };
     });
 
-    jobOrders.forEach((job: JobOrder) => {
+    accessibleJobOrders.forEach((job: JobOrder) => {
       let onsite = (job.Onsite_Status || job.onsite_status || '').toLowerCase().trim();
 
       // Normalize common variations and handle unknown as 'empty'
@@ -530,9 +581,9 @@ const JobOrderPage: React.FC = () => {
           }))
         }))
       })),
-      total: jobOrders.length
+      total: accessibleJobOrders.length
     };
-  }, [jobOrders]);
+  }, [accessibleJobOrders]);
 
   // Helper function to apply funnel filters
   const getVal = (jo: JobOrder, key: string) => {
@@ -638,7 +689,7 @@ const JobOrderPage: React.FC = () => {
     });
   };
 
-  let filteredJobOrders = jobOrders.filter((jobOrder: JobOrder) => {
+  let filteredJobOrders = accessibleJobOrders.filter((jobOrder: JobOrder) => {
     let matchesLocation = selectedLocation === 'all';
 
     if (!matchesLocation) {
@@ -1715,7 +1766,7 @@ const JobOrderPage: React.FC = () => {
                 >
                   <Filter className="h-5 w-5" />
                 </button>
-                {displayMode === 'table' && (
+                {!(userRole.toLowerCase() === 'agent' || String(roleId) === '4') && displayMode === 'table' && (
                   <div className="relative" ref={filterDropdownRef}>
                     <button
                       className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode

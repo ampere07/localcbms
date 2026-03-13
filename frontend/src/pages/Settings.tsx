@@ -37,7 +37,15 @@ const Settings: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState<boolean>(false);
+
+  const convertGoogleDriveUrl = (url: string): string => {
+    if (!url) return '';
+    if (url.startsWith('blob:')) return url;
+    const apiUrl = process.env.REACT_APP_API_URL || 'https://backend.atssfiber.ph/api';
+    return `${apiUrl}/proxy/image?url=${encodeURIComponent(url)}`;
+  };
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -63,6 +71,14 @@ const Settings: React.FC = () => {
 
     loadLogo();
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (logoPreviewUrl) {
+        URL.revokeObjectURL(logoPreviewUrl);
+      }
+    };
+  }, [logoPreviewUrl]);
 
   useEffect(() => {
     const loadUserPreferences = async () => {
@@ -315,7 +331,13 @@ const Settings: React.FC = () => {
         setTimeout(() => setShowError(false), 3000);
         return;
       }
+      
+      if (logoPreviewUrl) {
+        URL.revokeObjectURL(logoPreviewUrl);
+      }
+      
       setLogoFile(file);
+      setLogoPreviewUrl(URL.createObjectURL(file));
     }
   };
 
@@ -335,6 +357,10 @@ const Settings: React.FC = () => {
       if (result.success && result.data) {
         setLogoUrl(result.data.logo_url);
         setLogoFile(null);
+        if (logoPreviewUrl) {
+          URL.revokeObjectURL(logoPreviewUrl);
+          setLogoPreviewUrl(null);
+        }
         localStorage.setItem('logoUpdated', Date.now().toString());
         window.dispatchEvent(new Event('storage'));
         setSuccessMessage('Logo uploaded successfully!');
@@ -391,19 +417,70 @@ const Settings: React.FC = () => {
       <div className="space-y-6">
         {(userRoleId === 7 || userRoleName.toLowerCase() === 'superadmin') && (
           <div className={`pb-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}>
-            <div className="flex items-center gap-3 mb-4">
-              <Image className="h-5 w-5" style={{ color: colorPalette?.primary || '#7c3aed' }} />
+            <div className="mb-4">
               <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 System Logo
               </h3>
             </div>
 
             <div className={`p-6 rounded border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-300'}`}>
-              {logoUrl ? (
+              {logoFile ? (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-center p-4 bg-white rounded">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="flex items-center justify-center p-4 bg-white rounded border border-gray-300 w-full max-w-md">
+                      {logoPreviewUrl && (
+                        <img
+                          src={logoPreviewUrl}
+                          alt="Logo Preview"
+                          className="max-h-32 object-contain"
+                        />
+                      )}
+                    </div>
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Selected: {logoFile.name}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleUploadLogo}
+                      disabled={isUploadingLogo}
+                      className="px-4 py-2 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                      style={{
+                        backgroundColor: isUploadingLogo ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isUploadingLogo && colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isUploadingLogo) {
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                        }
+                      }}
+                    >
+                      {isUploadingLogo ? 'Uploading...' : 'Upload Logo'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setLogoFile(null);
+                        if (logoPreviewUrl) {
+                          URL.revokeObjectURL(logoPreviewUrl);
+                          setLogoPreviewUrl(null);
+                        }
+                      }}
+                      disabled={isUploadingLogo}
+                      className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : logoUrl ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-center p-4 bg-white rounded border border-gray-200">
                     <img
-                      src={logoUrl}
+                      src={convertGoogleDriveUrl(logoUrl)}
                       alt="System Logo"
                       className="max-h-32 object-contain"
                       onError={(e) => {
@@ -454,65 +531,28 @@ const Settings: React.FC = () => {
                       Supported formats: JPEG, PNG, GIF, SVG (Max 5MB)
                     </p>
                   </div>
-                  {logoFile ? (
-                    <div className="space-y-2">
-                      <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        Selected: {logoFile.name}
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleUploadLogo}
-                          disabled={isUploadingLogo}
-                          className="px-4 py-2 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                          style={{
-                            backgroundColor: isUploadingLogo ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isUploadingLogo && colorPalette?.accent) {
-                              e.currentTarget.style.backgroundColor = colorPalette.accent;
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!isUploadingLogo) {
-                              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
-                            }
-                          }}
-                        >
-                          {isUploadingLogo ? 'Uploading...' : 'Upload Logo'}
-                        </button>
-                        <button
-                          onClick={() => setLogoFile(null)}
-                          disabled={isUploadingLogo}
-                          className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <label
-                      className="px-4 py-2 text-white rounded transition-colors cursor-pointer inline-block text-sm"
-                      style={{
-                        backgroundColor: colorPalette?.primary || '#7c3aed'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (colorPalette?.accent) {
-                          e.currentTarget.style.backgroundColor = colorPalette.accent;
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
-                      }}
-                    >
-                      Select Logo
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleLogoFileChange}
-                        className="hidden"
-                      />
-                    </label>
-                  )}
+                  <label
+                    className="px-4 py-2 text-white rounded transition-colors cursor-pointer inline-block text-sm"
+                    style={{
+                      backgroundColor: colorPalette?.primary || '#7c3aed'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                    }}
+                  >
+                    Select Logo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoFileChange}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
               )}
             </div>
@@ -521,8 +561,7 @@ const Settings: React.FC = () => {
 
         <div className={`pb-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-300'
           }`}>
-          <div className="flex items-center gap-3 mb-4">
-            <Sun className="h-5 w-5" style={{ color: colorPalette?.primary || '#7c3aed' }} />
+          <div className="mb-4">
             <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>
               Theme Mode
@@ -566,8 +605,7 @@ const Settings: React.FC = () => {
 
         {(userRoleId === 7 || userRoleName.toLowerCase() === 'superadmin') && (
           <div className="pt-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Palette className="h-5 w-5" style={{ color: colorPalette?.primary || '#7c3aed' }} />
+            <div className="mb-4">
               <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Color Palette
               </h3>
@@ -639,15 +677,6 @@ const Settings: React.FC = () => {
                       <div className="flex-1">
                         <div
                           className="h-10 rounded"
-                          style={{ backgroundColor: palette.secondary }}
-                        />
-                        <p className="text-xs text-gray-400 mt-1 text-center">
-                          Secondary
-                        </p>
-                      </div>
-                      <div className="flex-1">
-                        <div
-                          className="h-10 rounded"
                           style={{ backgroundColor: palette.accent }}
                         />
                         <p className="text-xs text-gray-400 mt-1 text-center">
@@ -677,8 +706,7 @@ const Settings: React.FC = () => {
 
         {(userRoleId === 7 || userRoleName.toLowerCase() === 'superadmin') && (
           <div className={`pt-6 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}>
-            <div className="flex items-center gap-3 mb-4">
-              <Image className="h-5 w-5" style={{ color: colorPalette?.primary || '#7c3aed' }} />
+            <div className="mb-4">
               <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Image Upload Size
               </h3>

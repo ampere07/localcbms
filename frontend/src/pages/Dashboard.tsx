@@ -85,17 +85,21 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             const authData = localStorage.getItem('authData');
             if (authData) {
                 const user = JSON.parse(authData);
-                if (user.role === 'customer' || String(user.role_id) === '3') {
+                const normalizedRole = user.role?.toLowerCase().replace(/\s+/g, '') || '';
+                if (normalizedRole === 'customer' || String(user.role_id) === '3') {
                     return 'customer-dashboard';
                 }
-                if (user.role?.toLowerCase() === 'technician' || String(user.role_id) === '2') {
+                if (normalizedRole === 'technician' || String(user.role_id) === '2' || normalizedRole === 'agent' || String(user.role_id) === '4') {
                     return 'job-order';
                 }
-                if (user.role?.toLowerCase() === 'administrator' || String(user.role_id) === '1' || String(user.role_id) === '7') {
+                if (normalizedRole === 'administrator' || String(user.role_id) === '1' || String(user.role_id) === '7') {
                     return 'live-monitor';
                 }
-                if (user.role?.toLowerCase() === 'osp' || String(user.role_id) === '6') {
+                if (normalizedRole === 'osp' || String(user.role_id) === '6') {
                     return 'work-order';
+                }
+                if (normalizedRole === 'inventorystaff' || String(user.role_id) === '5') {
+                    return 'inventory';
                 }
             }
         } catch (e) {

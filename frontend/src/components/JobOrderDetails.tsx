@@ -161,8 +161,43 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     if (authData) {
       try {
         const userData = JSON.parse(authData);
-        setUserRole(userData.role?.toLowerCase() || '');
-        setRoleId(userData.role_id || null);
+        const role = userData.role?.toLowerCase() || '';
+        const id = userData.role_id || null;
+        setUserRole(role);
+        setRoleId(id);
+
+        const isAgent = role === 'agent' || String(id) === '4';
+        const isTechnician = role === 'technician' || String(id) === '2';
+        
+        if (isAgent) {
+          const agentAllowedFields = [
+            'timestamp',
+            'jobOrderNumber',
+            'referredBy',
+            'fullName',
+            'contactNumber',
+            'emailAddress',
+            'fullAddress',
+            'installationFee',
+            'billingStatus',
+            'billingDay',
+            'dateInstalled',
+            'onsiteStatus'
+          ];
+          setFieldOrder(agentAllowedFields);
+          const newVisibility: Record<string, boolean> = {};
+          defaultFields.forEach(f => {
+            newVisibility[f] = agentAllowedFields.includes(f);
+          });
+          setFieldVisibility(newVisibility);
+        } else if (isTechnician) {
+          setFieldOrder(defaultFields);
+          const allVisible: Record<string, boolean> = {};
+          defaultFields.forEach(f => {
+            allVisible[f] = true;
+          });
+          setFieldVisibility(allVisible);
+        }
       } catch (error) {
         console.error('Error parsing auth data:', error);
       }
@@ -1281,84 +1316,86 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             </button>
           )}
 
-          <div className="relative">
-            <button
-              onClick={() => setShowFieldSettings(!showFieldSettings)}
-              className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
-              title="Field Settings"
-            >
-              <Settings size={16} />
-            </button>
-            {showFieldSettings && (
-              <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${isDarkMode
-                ? 'bg-gray-800 border-gray-700'
-                : 'bg-white border-gray-200'
-                }`}>
-                <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          {!(userRole === 'agent' || String(roleId) === '4') && (
+            <div className="relative">
+              <button
+                onClick={() => setShowFieldSettings(!showFieldSettings)}
+                className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
+                title="Field Settings"
+              >
+                <Settings size={16} />
+              </button>
+              {showFieldSettings && (
+                <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-200'
                   }`}>
-                  <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}>Field Visibility & Order</h3>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={selectAllFields}
-                      className="text-blue-600 hover:text-blue-700 text-xs"
-                    >
-                      Show All
-                    </button>
-                    <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
-                    <button
-                      onClick={deselectAllFields}
-                      className="text-blue-600 hover:text-blue-700 text-xs"
-                    >
-                      Hide All
-                    </button>
-                    <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
-                    <button
-                      onClick={resetFieldSettings}
-                      className="text-blue-600 hover:text-blue-700 text-xs"
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-                <div className="p-2">
-                  <div className={`text-xs mb-2 px-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
                     }`}>
-                    Drag to reorder fields
-                  </div>
-                  {fieldOrder.map((fieldKey, index) => (
-                    <div
-                      key={fieldKey}
-                      draggable
-                      onDragStart={() => handleDragStart(index)}
-                      onDragOver={handleDragOver}
-                      onDrop={() => handleDrop(index)}
-                      onDragEnd={handleDragEnd}
-                      className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-move transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                        } ${draggedIndex === index
-                          ? isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
-                          : ''
-                        }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={fieldVisibility[fieldKey]}
-                        onChange={() => toggleFieldVisibility(fieldKey)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                        }`}>☰</span>
-                      <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>
-                        {getFieldLabel(fieldKey)}
-                      </span>
+                    <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>Field Visibility & Order</h3>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={selectAllFields}
+                        className="text-blue-600 hover:text-blue-700 text-xs"
+                      >
+                        Show All
+                      </button>
+                      <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
+                      <button
+                        onClick={deselectAllFields}
+                        className="text-blue-600 hover:text-blue-700 text-xs"
+                      >
+                        Hide All
+                      </button>
+                      <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
+                      <button
+                        onClick={resetFieldSettings}
+                        className="text-blue-600 hover:text-blue-700 text-xs"
+                      >
+                        Reset
+                      </button>
                     </div>
-                  ))}
+                  </div>
+                  <div className="p-2">
+                    <div className={`text-xs mb-2 px-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`}>
+                      Drag to reorder fields
+                    </div>
+                    {fieldOrder.map((fieldKey, index) => (
+                      <div
+                        key={fieldKey}
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={handleDragOver}
+                        onDrop={() => handleDrop(index)}
+                        onDragEnd={handleDragEnd}
+                        className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-move transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                          } ${draggedIndex === index
+                            ? isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
+                            : ''
+                          }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={fieldVisibility[fieldKey]}
+                          onChange={() => toggleFieldVisibility(fieldKey)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                          }`}>☰</span>
+                        <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>
+                          {getFieldLabel(fieldKey)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <button
             onClick={onClose}
