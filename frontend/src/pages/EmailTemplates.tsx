@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../config/api';
-import { Editor } from '@tinymce/tinymce-react';
+import TiptapEditor from '../components/TiptapEditor';
 import html2pdf from 'html2pdf.js';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
@@ -207,12 +207,25 @@ const EmailTemplates: React.FC = () => {
     try {
       setOperationLoading(true);
 
-      // For SOA_TEMPLATE, always read the latest HTML content directly from the TinyMCE editor instance
-      // since border/style changes are applied via direct DOM manipulation
+      // For all templates, read the latest HTML content from the Tiptap editor
+      // For SOA_TEMPLATE we also capture the page padding settings
       let bodyHtml = formData.Body_HTML;
-      if (formData.Template_Code === 'SOA_TEMPLATE' && editorRef.current) {
-        bodyHtml = editorRef.current.getContent();
-        console.log('[EmailTemplates] SOA_TEMPLATE Body_HTML length from editor:', bodyHtml.length);
+      if (editorRef.current) {
+        let html = editorRef.current.getHTML();
+        
+        // Use getPagePadding to capture the margin settings
+        const padding = editorRef.current.getPagePadding ? editorRef.current.getPagePadding() : '40px';
+        
+        // Remove existing .content-wrap if it's the root element to prevent nesting
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        if (temp.children.length === 1 && temp.firstElementChild?.classList.contains('content-wrap')) {
+          html = temp.firstElementChild.innerHTML;
+        }
+        
+        // Wrap in a div that matches backend and frontend expectations for margins
+        bodyHtml = `<div class="content-wrap" style="padding: ${padding}" data-page-padding="${padding}">${html}</div>`;
+        console.log(`[EmailTemplates] ${formData.Template_Code} Body_HTML length from editor:`, bodyHtml.length);
       }
 
       const payload = {
@@ -342,21 +355,21 @@ const EmailTemplates: React.FC = () => {
 
   const insertTag = (tag: string) => {
     if (editorRef.current) {
-      editorRef.current.insertContent(tag);
+      editorRef.current.commands.insertContent(tag);
     }
   };
 
   const insertHeader = () => {
     const html = '<img src="https://via.placeholder.com/800x150?text=FULL+BLEED+HEADER" alt="Header" style="width: 100%; height: auto; display: block; margin: 0; border: 0;">';
     if (editorRef.current) {
-      editorRef.current.insertContent(html);
+      editorRef.current.commands.insertContent(html);
     }
   };
 
   const insertFooter = () => {
     const html = '<img src="https://via.placeholder.com/800x100?text=FULL+BLEED+FOOTER" alt="Footer" style="width: 100%; height: auto; display: block; margin: 0; border: 0;">';
     if (editorRef.current) {
-      editorRef.current.insertContent(html);
+      editorRef.current.commands.insertContent(html);
     }
   };
 
@@ -900,302 +913,18 @@ const EmailTemplates: React.FC = () => {
 
         {/* Editor */}
         <div className="flex-1 overflow-auto p-4">
-          {(selectedTemplate || isCreating) && formData.Template_Code === 'SOA_TEMPLATE' ? (
+          {(selectedTemplate || isCreating) ? (
             <div className="max-w-5xl mx-auto">
-              <Editor
+              <TiptapEditor
                 key={formData.Template_Code + '-' + (selectedTemplate?.Template_Code || 'new')}
-                apiKey="koft0pszyzdf8zd077qxchxr3welx07gfttfzgexnte5qx4z"
-                onInit={(evt, editor) => editorRef.current = editor}
-                initialValue={formData.Body_HTML}
-                disabled={!isEditing && !isCreating}
-                init={{
-                  height: 800,
-                  menubar: false,
-                  plugins: [
-                    'table', 'code', 'preview', 'image', 'searchreplace', 'lists'
-                  ],
-                  toolbar: 'undo redo | fontfamily fontsize | bold italic underline | alignleft aligncenter alignright | table | borderwidth | bullist numlist | code preview | downloadpdf',
-                  setup: (editor: any) => {
-                    editor.ui.registry.addButton('borderwidth', {
-                      text: 'Border Width',
-                      tooltip: 'Set border width for specific sides',
-                      onAction: () => {
-                        // Get the currently selected element (td, th, div, p, etc.)
-                        const node = editor.selection.getNode();
-                        // Try to find the closest table cell first (td/th), then fall back to other block elements
-                        let targetNode = node;
-                        // Always try to find the nearest td/th first since this is primarily for table borders
-                        const findTarget = (el: any): any => {
-                          if (!el || el === editor.getBody()) return null;
-                          // If the element itself is a td/th, use it
-                          if (el.nodeName === 'TD' || el.nodeName === 'TH') return el;
-                          // Try closest td/th first
-                          const cell = el.closest ? el.closest('td, th') : (el.parentElement?.closest('td, th'));
-                          if (cell) return cell;
-                          // Fall back to closest block element (div, table, p)
-                          const block = el.closest ? el.closest('div, table, p') : (el.parentElement?.closest('div, table, p'));
-                          return block || el.parentElement;
-                        };
-                        targetNode = findTarget(node);
-
-                        if (!targetNode || targetNode === editor.getBody()) {
-                          editor.notificationManager.open({
-                            text: 'Please place your cursor inside an element (table cell, div, etc.) first.',
-                            type: 'warning',
-                            timeout: 3000
-                          });
-                          return;
-                        }
-
-                        // Read current border values using computed styles from the iframe
-                        const iframeWin = editor.getWin();
-                        const computed = iframeWin.getComputedStyle(targetNode);
-                        const curTopW = (computed.borderTopWidth || '0px').replace('px', '');
-                        const curRightW = (computed.borderRightWidth || '0px').replace('px', '');
-                        const curBottomW = (computed.borderBottomWidth || '0px').replace('px', '');
-                        const curLeftW = (computed.borderLeftWidth || '0px').replace('px', '');
-                        const curTopS = computed.borderTopStyle || 'none';
-                        const curRightS = computed.borderRightStyle || 'none';
-                        const curBottomS = computed.borderBottomStyle || 'none';
-                        const curLeftS = computed.borderLeftStyle || 'none';
-
-                        // Convert rgb color to hex for display
-                        const rgbToHex = (rgb: string) => {
-                          const match = rgb.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-                          if (match) {
-                            const r = parseInt(match[1]).toString(16).padStart(2, '0');
-                            const g = parseInt(match[2]).toString(16).padStart(2, '0');
-                            const b = parseInt(match[3]).toString(16).padStart(2, '0');
-                            return `#${r}${g}${b}`;
-                          }
-                          return rgb;
-                        };
-                        const curColor = rgbToHex(computed.borderTopColor || '#000000');
-
-                        editor.windowManager.open({
-                          title: 'Border Width — Select Sides',
-                          body: {
-                            type: 'panel',
-                            items: [
-                              {
-                                type: 'htmlpanel',
-                                html: `<div style="margin:0 0 12px;font-size:12px;color:#555;line-height:1.5;">
-                                  <strong>Current borders:</strong><br/>
-                                  Top: <b>${curTopW}px ${curTopS}</b> &nbsp;|&nbsp; Right: <b>${curRightW}px ${curRightS}</b><br/>
-                                  Bottom: <b>${curBottomW}px ${curBottomS}</b> &nbsp;|&nbsp; Left: <b>${curLeftW}px ${curLeftS}</b>
-                                </div>
-                                <p style="margin:0 0 8px;font-size:12px;color:#666;">Check which border sides to change. Only checked sides will be updated.</p>`
-                              },
-                              {
-                                type: 'grid',
-                                columns: 2,
-                                items: [
-                                  { type: 'checkbox', name: 'applyTop', label: '✦ Top Border' },
-                                  { type: 'checkbox', name: 'applyRight', label: '✦ Right Border' },
-                                  { type: 'checkbox', name: 'applyBottom', label: '✦ Bottom Border' },
-                                  { type: 'checkbox', name: 'applyLeft', label: '✦ Left Border' }
-                                ]
-                              },
-                              {
-                                type: 'input',
-                                name: 'borderWidth',
-                                label: 'Width (px)',
-                                inputMode: 'numeric'
-                              },
-                              {
-                                type: 'selectbox',
-                                name: 'borderStyle',
-                                label: 'Border Style',
-                                items: [
-                                  { text: 'Solid', value: 'solid' },
-                                  { text: 'Dashed', value: 'dashed' },
-                                  { text: 'Dotted', value: 'dotted' },
-                                  { text: 'Double', value: 'double' },
-                                  { text: 'Groove', value: 'groove' },
-                                  { text: 'Ridge', value: 'ridge' },
-                                  { text: 'None (remove border)', value: 'none' }
-                                ]
-                              },
-                              {
-                                type: 'colorinput',
-                                name: 'borderColor',
-                                label: 'Border Color'
-                              }
-                            ]
-                          },
-                          initialData: {
-                            applyTop: false,
-                            applyRight: false,
-                            applyBottom: false,
-                            applyLeft: false,
-                            borderWidth: curTopW !== '0' ? curTopW : '1',
-                            borderStyle: curTopS !== 'none' ? curTopS : 'solid',
-                            borderColor: curColor
-                          },
-                          buttons: [
-                            { type: 'cancel', text: 'Cancel' },
-                            { type: 'submit', text: 'Apply', primary: true }
-                          ],
-                          onSubmit: (dialogApi: any) => {
-                            const data = dialogApi.getData();
-                            const width = parseInt(data.borderWidth) || 0;
-                            const style = data.borderStyle || 'solid';
-                            const color = data.borderColor || '#000000';
-                            const borderValue = style === 'none' ? '0px solid transparent !important' : `${width}px ${style} ${color} !important`;
-
-                            const hasSelection = data.applyTop || data.applyRight || data.applyBottom || data.applyLeft;
-
-                            if (!hasSelection) {
-                              editor.notificationManager.open({
-                                text: 'Please check at least one border side (Top, Right, Bottom, or Left).',
-                                type: 'warning',
-                                timeout: 3000
-                              });
-                              return;
-                            }
-
-                            
-                            // Use TinyMCE's DOM API and undoManager to mutate the DOM so it picks up the change
-                            editor.undoManager.transact(() => {
-                              const sides = [
-                                { apply: data.applyTop, name: 'top' },
-                                { apply: data.applyRight, name: 'right' },
-                                { apply: data.applyBottom, name: 'bottom' },
-                                { apply: data.applyLeft, name: 'left' }
-                              ];
-
-                              // First, reset existing border styles for the selected sides
-                              sides.forEach(({ apply, name }) => {
-                                if (apply) {
-                                  targetNode.style[`border${name.charAt(0).toUpperCase() + name.slice(1)}` as any] = '';
-                                  targetNode.style[`border${name.charAt(0).toUpperCase() + name.slice(1)}Width` as any] = '';
-                                  targetNode.style[`border${name.charAt(0).toUpperCase() + name.slice(1)}Style` as any] = '';
-                                  targetNode.style[`border${name.charAt(0).toUpperCase() + name.slice(1)}Color` as any] = '';
-                                  
-                                  // Apply new styles
-                                  if (style === 'none' || width === 0) {
-                                    targetNode.style.setProperty(`border-${name}`, '0px solid transparent', 'important');
-                                  } else {
-                                    targetNode.style.setProperty(`border-${name}`, `${width}px ${style} ${color}`, 'important');
-                                  }
-                                }
-                              });
-
-                              // Set a visual cue flag in case the table uses CSS cascades
-                              if (style === 'none' || width === 0) {
-                                editor.dom.addClass(targetNode, 'no-border');
-                              } else {
-                                editor.dom.removeClass(targetNode, 'no-border');
-                              }
-                            });
-                            
-                            editor.nodeChanged();
-                            editor.fire('change'); // explicitly force generic change event if transact is suppressed
-
-                            dialogApi.close();
-                          }
-                        });
-                      }
-                    });
-
-                    // Download as PDF button
-                    editor.ui.registry.addButton('downloadpdf', {
-                      text: 'Download PDF',
-                      tooltip: 'Download editor content as PDF',
-                      onAction: () => {
-                        const content = editor.getContent();
-                        // Create a temporary container styled like the editor
-                        const container = document.createElement('div');
-                        container.innerHTML = content;
-                        
-                        // Force html2canvas to respect hidden borders by explicitly adding !important
-                        // to inline border styles set to 0px
-                        const cells = container.querySelectorAll('td, th');
-                        cells.forEach(cell => {
-                          const styleStr = cell.getAttribute('style') || '';
-                          if (styleStr.includes('border-')) {
-                            const newStyle = styleStr
-                              .replace(/border-top:\s*0px[^;]*;?/g, 'border-top: none !important;')
-                              .replace(/border-right:\s*0px[^;]*;?/g, 'border-right: none !important;')
-                              .replace(/border-bottom:\s*0px[^;]*;?/g, 'border-bottom: none !important;')
-                              .replace(/border-left:\s*0px[^;]*;?/g, 'border-left: none !important;');
-                            cell.setAttribute('style', newStyle);
-                          }
-                        });
-
-                        container.style.cssText = `
-                          font-family: Helvetica, Arial, sans-serif;
-                          font-size: 10pt;
-                          width: 210mm;
-                          padding: 0;
-                          margin: 0;
-                          background-color: #fff;
-                          color: #000;
-                        `;
-                        // Apply table styling
-                        const style = document.createElement('style');
-                        style.textContent = `
-                          table { width: 100%; border-collapse: collapse; border-spacing: 0; }
-                          td, th { padding: 4px; vertical-align: top; }
-                          table[border='1'] td, table[border='1'] th { 
-                            border-top: 1px solid #000;
-                            border-right: 1px solid #000;
-                            border-bottom: 1px solid #000;
-                            border-left: 1px solid #000;
-                          }
-                          p { margin: 0 0 8px 0; }
-                          img { max-width: 100%; height: auto; }
-                        `;
-                        container.prepend(style);
-                        document.body.appendChild(container);
-
-                        const templateCode = formData.Template_Code || 'email_template';
-
-                        const opt = {
-                          margin: 0,
-                          filename: `${templateCode}.pdf`,
-                          image: { type: 'jpeg' as const, quality: 0.98 },
-                          html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-                          jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
-                        };
-
-                        html2pdf().set(opt).from(container).save().then(() => {
-                          document.body.removeChild(container);
-                        }).catch((err: any) => {
-                          console.error('PDF generation error:', err);
-                          document.body.removeChild(container);
-                          editor.notificationManager.open({
-                            text: 'Failed to generate PDF. Please try again.',
-                            type: 'error',
-                            timeout: 3000
-                          });
-                        });
-                      }
-                    });
-                  },
-                  content_style: `
-                    html { background-color: #444; padding: 20px; display: flex; justify-content: center; }
-                    body { 
-                      font-family: Helvetica, Arial, sans-serif; 
-                      font-size: 10pt; 
-                      width: 210mm;
-                      min-height: 297mm; 
-                      margin: 0 auto;    
-                      padding: 0px;      
-                      background-color: #fff;
-                      box-shadow: 0 0 15px rgba(0,0,0,0.5); 
-                    }
-                    p { margin: 0 0 8px 0; }
-                    table { width: 100%; border-collapse: collapse; border-spacing: 0; }
-                    td, th { padding: 4px; vertical-align: top; border: 1px dashed #eee; }
-                    table[border='1'] td, table[border='1'] th { 
-                      border-top: 1px solid #000;
-                      border-right: 1px solid #000;
-                      border-bottom: 1px solid #000;
-                      border-left: 1px solid #000;
-                    }
-                    .no-border td { border: none; }
-                  `
+                content={formData.Body_HTML}
+                onChange={(content) => handleInputChange('Body_HTML', content)}
+                editable={isEditing || isCreating}
+                isDarkMode={isDarkMode}
+                colorPalette={colorPalette}
+                templateCode={formData.Template_Code}
+                onInit={(editor) => {
+                  editorRef.current = editor;
                 }}
               />
             </div>

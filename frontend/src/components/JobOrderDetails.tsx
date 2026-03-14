@@ -416,15 +416,22 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         case 'done':
         case 'active':
         case 'completed':
+        case 'vip':
+        case 'service account':
           return 'text-green-400';
         case 'pending':
         case 'in progress':
           return 'text-orange-400';
         case 'suspended':
         case 'overdue':
-          return 'text-red-500';
         case 'cancelled':
+        case 'blacklisted':
+        case 'pullout':
           return 'text-red-500';
+        case 'freeze':
+          return 'text-blue-400';
+        case 'inactive':
+          return 'text-gray-400';
         default:
           return 'text-gray-400';
       }

@@ -140,7 +140,7 @@ const ServiceOrderPage: React.FC = () => {
   };
 
   // Pagination State - Managed by store
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState<number>(50);
 
 
   useEffect(() => {
@@ -161,7 +161,7 @@ const ServiceOrderPage: React.FC = () => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection]);
+  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection, itemsPerPage]);
 
   // Scroll to top on page change
   useEffect(() => {
@@ -1566,10 +1566,7 @@ const ServiceOrderPage: React.FC = () => {
                   placeholder="Search service orders..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 border focus:outline-none ${isDarkMode
-                    ? 'bg-gray-800 text-white border-gray-700'
-                    : 'bg-gray-100 text-gray-900 border-gray-300'
-                    }`}
+                  className={`w-full rounded pl-10 pr-10 py-2 focus:outline-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-100 text-gray-900 border-gray-300'} border`}
                   onFocus={(e) => {
                     if (colorPalette?.primary) {
                       e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1583,6 +1580,15 @@ const ServiceOrderPage: React.FC = () => {
                 />
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`} />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
               <div className="hidden md:flex space-x-2">
                 <button
@@ -2006,8 +2012,26 @@ const ServiceOrderPage: React.FC = () => {
             {/* Pagination Controls */}
             {!isLoading && filteredServiceOrders.length > 0 && totalPages > 1 && (
               <div className={`border-t p-4 flex items-center justify-between ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
-                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredServiceOrders.length)}</span> of <span className="font-medium">{filteredServiceOrders.length}</span> results
+                <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <div className="flex items-center gap-2">
+                    <span>Show</span>
+                    <select
+                      value={itemsPerPage}
+                      onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                      className={`px-2 py-1 rounded border focus:outline-none text-xs transition-colors ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white focus:border-orange-500'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-orange-500'
+                        }`}
+                    >
+                      {[10, 25, 50, 100, 250, 500].map(v => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
+                    </select>
+                    <span>entries</span>
+                  </div>
+                  <div>
+                    Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredServiceOrders.length)}</span> of <span className="font-medium">{filteredServiceOrders.length}</span> results
+                  </div>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button

@@ -109,7 +109,7 @@ const ApplicationManagement: React.FC = () => {
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(50);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -187,8 +187,8 @@ const ApplicationManagement: React.FC = () => {
 
   // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
-    silentRefresh();
-  }, [silentRefresh]);
+    refreshApplications();
+  }, [refreshApplications]);
 
   // Global Soketi/Pusher connection for real-time application data
   useEffect(() => {
@@ -590,7 +590,7 @@ const ApplicationManagement: React.FC = () => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLocation, searchQuery, sortColumn, sortDirection, funnelFilters, itemsPerPage]);
+  }, [selectedLocation, searchQuery, funnelFilters, sortColumn, sortDirection, itemsPerPage]);
 
   // Scroll to top on page change
   useEffect(() => {
@@ -1067,7 +1067,7 @@ const ApplicationManagement: React.FC = () => {
                   placeholder="Search applications..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${isDarkMode
+                  className={`w-full rounded pl-10 pr-10 py-2 focus:outline-none ${isDarkMode
                     ? 'bg-gray-800 text-white border border-gray-700'
                     : 'bg-white text-gray-900 border border-gray-300'
                     }`}
@@ -1084,6 +1084,15 @@ const ApplicationManagement: React.FC = () => {
                 />
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`} />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
               <div className="hidden md:flex space-x-2">
                 <button
@@ -1433,7 +1442,7 @@ const ApplicationManagement: React.FC = () => {
                   <div className="flex-1 overflow-auto" ref={tableScrollRef}>
                     <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
                       <thead>
-                        <tr className={`border-b sticky top-0 z-20 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
+                        <tr className={`border-b sticky top-0 z-20 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-100 bg-gray-100'
                           }`}>
                           {filteredColumns.map((column, index) => (
                             <th
@@ -1529,18 +1538,20 @@ const ApplicationManagement: React.FC = () => {
                     <select
                       value={itemsPerPage}
                       onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                      className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                      className={`px-2 py-1 rounded border focus:outline-none text-xs transition-colors ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white focus:border-orange-500'
+                        : 'bg-white border-gray-300 text-gray-900 focus:border-orange-500'
+                        }`}
                     >
-                      <option value={10}>10</option>
-                      <option value={25}>25</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
+                      {[10, 25, 50, 100, 250, 500].map(v => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
                     </select>
                     <span>entries</span>
                   </div>
-                  <span>
+                  <div>
                     Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredApplications.length)}</span> of <span className="font-medium">{filteredApplications.length}</span> results
-                  </span>
+                  </div>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button

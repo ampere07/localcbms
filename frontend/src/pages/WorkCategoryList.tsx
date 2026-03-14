@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, Filter, Loader2 } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Filter, Loader2, X } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import AddWorkCategoryModal from '../modals/AddWorkCategoryModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -322,7 +322,7 @@ const WorkCategoryList: React.FC = () => {
               placeholder="Search Work Category List"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none ${isDarkMode
+              className={`w-full pl-10 pr-10 py-2 rounded-lg border focus:outline-none ${isDarkMode
                 ? 'bg-gray-800 text-white border-gray-700'
                 : 'bg-gray-100 text-gray-900 border-gray-300'
                 }`}
@@ -337,6 +337,15 @@ const WorkCategoryList: React.FC = () => {
                 e.currentTarget.style.boxShadow = 'none';
               }}
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
         </div>
       </div>

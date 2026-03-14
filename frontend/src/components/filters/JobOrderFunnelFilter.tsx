@@ -48,7 +48,7 @@ export const allColumns: Column[] = [
   { key: 'contractTemplate', label: 'Contract Template', dataType: 'varchar' },
   { key: 'billingDay', label: 'Billing Day', dataType: 'varchar' },
   { key: 'onsiteRemarks', label: 'Onsite Remarks', dataType: 'varchar' },
-  { key: 'billingStatus', label: 'Status', dataType: 'checklist' },
+  { key: 'billingStatus', label: 'Billing Status', dataType: 'checklist' },
   { key: 'modemRouterSN', label: 'Modem SN', dataType: 'varchar' },
   { key: 'lcp', label: 'LCP', dataType: 'checklist' },
   { key: 'nap', label: 'NAP', dataType: 'checklist' },
@@ -312,10 +312,8 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
         options = regions.map(r => ({ label: r, value: r }));
       } else if (selectedColumn.key === 'billingStatus') {
         options = [
-          { label: 'Confirmed', value: 'Confirmed' },
-          { label: 'Cancelled', value: 'Cancelled' },
-          { label: 'For Confirmation', value: 'For Confirmation' },
-          { label: 'Pending', value: 'Pending' }
+          { label: 'Done', value: 'Done' },
+          { label: 'In Progress', value: 'In Progress' }
         ];
       } else if (selectedColumn.key === 'onsiteStatus') {
         options = [
@@ -571,9 +569,9 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
                               {column.label}
                             </div>
                             {isActive && (
-                              <div 
-                                className="absolute -left-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full" 
-                                style={{ 
+                              <div
+                                className="absolute -left-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
+                                style={{
                                   backgroundColor: colorPalette?.primary || '#7c3aed',
                                   boxShadow: `0 0 8px ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.6)}`
                                 }}
@@ -583,7 +581,7 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
                         </div>
                         <div className="flex items-center space-x-3">
                           {isActive && (
-                            <span 
+                            <span
                               className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider`}
                               style={{
                                 backgroundColor: hexToRgba(colorPalette?.primary || '#7c3aed', isDarkMode ? 0.2 : 0.1),
@@ -618,7 +616,7 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
                 <button
                   onClick={handleApply}
                   className="flex-1 px-4 py-3 rounded-2xl font-bold text-sm text-white transition-all duration-200 active:scale-[0.98]"
-                  style={{ 
+                  style={{
                     backgroundColor: colorPalette?.primary || '#7c3aed',
                     boxShadow: `0 4px 12px ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.2)}`
                   }}

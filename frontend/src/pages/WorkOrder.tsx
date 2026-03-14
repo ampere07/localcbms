@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Edit2, Trash2, Loader2, RefreshCw, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Loader2, RefreshCw, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { useWorkOrderStore } from '../store/workOrderStore';
@@ -393,7 +393,7 @@ const WorkOrderPage: React.FC = () => {
                     placeholder="Search work orders..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-100 text-gray-900 border-gray-300'} border`}
+                    className={`w-full rounded pl-10 pr-10 py-2 focus:outline-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-100 text-gray-900 border-gray-300'} border`}
                     onFocus={(e) => {
                       if (colorPalette?.primary) {
                         e.currentTarget.style.borderColor = colorPalette.primary;
@@ -406,6 +406,15 @@ const WorkOrderPage: React.FC = () => {
                     }}
                   />
                   <Search className={`absolute left-3 top-2.5 h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                        }`}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
 
 

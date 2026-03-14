@@ -321,7 +321,11 @@ const Reports: React.FC = () => {
                                 style={{ '--tw-ring-color': primary } as any}
                             />
                             {searchQuery && (
-                                <button onClick={() => setSearchQuery('')} className={`absolute right-2.5 top-2.5 ${subText} hover:text-red-400`}>
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className={`absolute right-2.5 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                                        }`}
+                                >
                                     <X size={14} />
                                 </button>
                             )}
