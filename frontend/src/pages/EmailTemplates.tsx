@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Editor } from '@tinymce/tinymce-react';
 import apiClient from '../config/api';
-import TiptapEditor from '../components/TiptapEditor';
-import html2pdf from 'html2pdf.js';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface EmailTemplateData {
@@ -43,9 +42,10 @@ const EmailTemplates: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState<boolean>(false);
+  const tinymceRef = useRef<any>(null);
+  const [paperPadding, setPaperPadding] = useState('1in');
 
-  const editorRef = useRef<any>(null);
-
+  
   const [formData, setFormData] = useState({
     Template_Code: '',
     Subject_Line: '',
@@ -122,6 +122,7 @@ const EmailTemplates: React.FC = () => {
 
   useEffect(() => {
     fetchTemplates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -155,6 +156,7 @@ const EmailTemplates: React.FC = () => {
 
   const handleTemplateSelect = (template: EmailTemplateData) => {
     setSelectedTemplate(template);
+    setPaperPadding('1in'); // Reset to default when switching
     setFormData({
       Template_Code: template.Template_Code,
       Subject_Line: template.Subject_Line,
@@ -207,30 +209,14 @@ const EmailTemplates: React.FC = () => {
     try {
       setOperationLoading(true);
 
-      // For all templates, read the latest HTML content from the Tiptap editor
-      // For SOA_TEMPLATE we also capture the page padding settings
-      let bodyHtml = formData.Body_HTML;
-      if (editorRef.current) {
-        let html = editorRef.current.getHTML();
-        
-        // Use getPagePadding to capture the margin settings
-        const padding = editorRef.current.getPagePadding ? editorRef.current.getPagePadding() : '40px';
-        
-        // Remove existing .content-wrap if it's the root element to prevent nesting
-        const temp = document.createElement('div');
-        temp.innerHTML = html;
-        if (temp.children.length === 1 && temp.firstElementChild?.classList.contains('content-wrap')) {
-          html = temp.firstElementChild.innerHTML;
-        }
-        
-        // Wrap in a div that matches backend and frontend expectations for margins
-        bodyHtml = `<div class="content-wrap" style="padding: ${padding}" data-page-padding="${padding}">${html}</div>`;
-        console.log(`[EmailTemplates] ${formData.Template_Code} Body_HTML length from editor:`, bodyHtml.length);
+      let currentBodyHtml = formData.Body_HTML;
+      if (formData.Template_Code === 'SOA_TEMPLATE' && tinymceRef.current) {
+        currentBodyHtml = tinymceRef.current.getContent();
       }
 
       const payload = {
         ...formData,
-        Body_HTML: bodyHtml
+        Body_HTML: currentBodyHtml
       };
 
       if (isCreating) {
@@ -354,22 +340,28 @@ const EmailTemplates: React.FC = () => {
   };
 
   const insertTag = (tag: string) => {
-    if (editorRef.current) {
-      editorRef.current.commands.insertContent(tag);
+    if (formData.Template_Code === 'SOA_TEMPLATE' && (isEditing || isCreating) && tinymceRef.current) {
+      tinymceRef.current.insertContent(tag);
+    } else {
+      insertVariableToBody(tag);
     }
   };
 
   const insertHeader = () => {
     const html = '<img src="https://via.placeholder.com/800x150?text=FULL+BLEED+HEADER" alt="Header" style="width: 100%; height: auto; display: block; margin: 0; border: 0;">';
-    if (editorRef.current) {
-      editorRef.current.commands.insertContent(html);
+    if (formData.Template_Code === 'SOA_TEMPLATE' && (isEditing || isCreating) && tinymceRef.current) {
+      tinymceRef.current.insertContent(html);
+    } else {
+      insertVariableToBody(html);
     }
   };
 
   const insertFooter = () => {
     const html = '<img src="https://via.placeholder.com/800x100?text=FULL+BLEED+FOOTER" alt="Footer" style="width: 100%; height: auto; display: block; margin: 0; border: 0;">';
-    if (editorRef.current) {
-      editorRef.current.commands.insertContent(html);
+    if (formData.Template_Code === 'SOA_TEMPLATE' && (isEditing || isCreating) && tinymceRef.current) {
+      tinymceRef.current.insertContent(html);
+    } else {
+      insertVariableToBody(html);
     }
   };
 
@@ -777,36 +769,6 @@ const EmailTemplates: React.FC = () => {
                         : 'bg-white border-gray-300 text-gray-900'
                         }`}
                     />
-                    <div className="mb-4">
-                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        Available Variables
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {availableVariables.map(variable => (
-                          <button
-                            key={variable}
-                            type="button"
-                            onClick={() => insertVariableToBody(variable)}
-                            className={`px-3 py-1 rounded text-xs font-mono transition-colors ${isDarkMode
-                              ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                              }`}
-                          >
-                            {variable}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <textarea
-                      value={formData.email_body}
-                      onChange={(e) => handleInputChange('email_body', e.target.value)}
-                      placeholder="Email Body. Click variables above to insert them."
-                      rows={6}
-                      className={`w-full px-3 py-2 text-sm border rounded resize-none ${isDarkMode
-                        ? 'bg-gray-700 border-gray-600 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
-                        }`}
-                    />
 
                   </div>
                 ) : selectedTemplate ? (
@@ -914,19 +876,245 @@ const EmailTemplates: React.FC = () => {
         {/* Editor */}
         <div className="flex-1 overflow-auto p-4">
           {(selectedTemplate || isCreating) ? (
-            <div className="max-w-5xl mx-auto">
-              <TiptapEditor
-                key={formData.Template_Code + '-' + (selectedTemplate?.Template_Code || 'new')}
-                content={formData.Body_HTML}
-                onChange={(content) => handleInputChange('Body_HTML', content)}
-                editable={isEditing || isCreating}
-                isDarkMode={isDarkMode}
-                colorPalette={colorPalette}
-                templateCode={formData.Template_Code}
-                onInit={(editor) => {
-                  editorRef.current = editor;
-                }}
-              />
+            <div className="max-w-5xl mx-auto h-full flex flex-col">
+              {formData.Template_Code === 'SOA_TEMPLATE' ? (
+                <div className="flex-1 flex flex-col">
+                  {isEditing || isCreating ? (
+                    <div className="flex-1 min-h-[600px] border rounded overflow-hidden">
+                      <Editor
+                        key="main-editor"
+                        apiKey="f539el807y6kwefdib0nm8ml3wq8efjee4nzc9i79rplyld5"
+                        onInit={(evt, editor) => tinymceRef.current = editor}
+                        initialValue={formData.Body_HTML}
+                        disabled={false}
+                        init={{
+                          height: '100%',
+                          menubar: true,
+                          plugins: [
+                            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                            'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                            'insertdatetime', 'media', 'table', 'help', 'wordcount'
+                          ],
+                          toolbar: 'undo redo | blocks | ' +
+                            'bold italic forecolor | alignleft aligncenter ' +
+                            'alignright alignjustify | bullist numlist outdent indent | ' +
+                            'removeformat | table cell_props page_margins | image | help',
+                          content_style: `
+                            body { 
+                              font-family:Helvetica,Arial,sans-serif; 
+                              font-size:14px;
+                              width: 8.5in;
+                              min-height: 11in;
+                              margin: 2cm auto;
+                              padding: ${paperPadding};
+                              background: white;
+                              box-shadow: 0 0 20px rgba(0,0,0,0.15);
+                            }
+                            html {
+                              background-color: #f0f0f0;
+                            }
+                          `,
+                          branding: false,
+                          contextmenu: 'link image table',
+                          table_cell_advtab: true,
+                          table_advtab: true,
+                          table_row_advtab: true,
+                          table_cell_styles: [
+                            { title: 'Black Top Border', value: { 'border-top': '1px solid black' } },
+                            { title: 'White Top Border', value: { 'border-top': '1px solid white' } },
+                            { title: 'Black Bottom Border', value: { 'border-bottom': '1px solid black' } },
+                            { title: 'White Bottom Border', value: { 'border-bottom': '1px solid white' } },
+                            { title: 'Black Left Border', value: { 'border-left': '1px solid black' } },
+                            { title: 'White Left Border', value: { 'border-left': '1px solid white' } },
+                            { title: 'Black Right Border', value: { 'border-right': '1px solid black' } },
+                            { title: 'White Right Border', value: { 'border-right': '1px solid white' } },
+                            { title: 'All White Borders', value: { 'border': '1px solid white' } },
+                            { title: 'All Black Borders', value: { 'border': '1px solid black' } }
+                          ],
+                          setup: (editor: any) => {
+                            editor.ui.registry.addMenuButton('page_margins', {
+                              text: 'Page Margins',
+                              tooltip: 'Adjust Paper Margins',
+                              fetch: (callback: (items: any[]) => void) => {
+                                const setMargin = (padding: string) => {
+                                  setPaperPadding(padding);
+                                  editor.dom.setStyle(editor.getBody(), 'padding', padding);
+                                };
+
+                                const items = [
+                                  { type: 'menuitem', text: 'Normal (1 inch)', onAction: () => setMargin('1in') },
+                                  { type: 'menuitem', text: 'Narrow (0.5 inch)', onAction: () => setMargin('0.5in') },
+                                  { type: 'menuitem', text: 'Moderate (0.75 inch)', onAction: () => setMargin('0.75in') },
+                                  { type: 'menuitem', text: 'Wide (2 inches)', onAction: () => setMargin('2in') },
+                                  { type: 'menuitem', text: 'None', onAction: () => setMargin('0in') },
+                                  { 
+                                    type: 'menuitem', 
+                                    text: 'Custom...', 
+                                    onAction: () => {
+                                      editor.windowManager.open({
+                                        title: 'Custom Margins',
+                                        body: {
+                                          type: 'panel',
+                                          items: [
+                                            {
+                                              type: 'input',
+                                              name: 'margin',
+                                              label: 'Margin (e.g., 1.5in, 20px, 3cm)'
+                                            }
+                                          ]
+                                        },
+                                        buttons: [
+                                          {
+                                            type: 'cancel',
+                                            text: 'Cancel'
+                                          },
+                                          {
+                                            type: 'submit',
+                                            text: 'Apply',
+                                            primary: true
+                                          }
+                                        ],
+                                        onSubmit: (api: any) => {
+                                          const data = api.getData();
+                                          if (data.margin) {
+                                            setMargin(data.margin);
+                                          }
+                                          api.close();
+                                        }
+                                      });
+                                    }
+                                  },
+                                ];
+                                callback(items as any);
+                              }
+                            });
+
+                            editor.ui.registry.addMenuButton('cell_props', {
+                              text: 'Cell Props',
+                              tooltip: 'Table Cell Borders',
+                              fetch: (callback: (items: any[]) => void) => {
+                                const toggleBorder = (side: string) => {
+                                  editor.undoManager.transact(() => {
+                                    const selectedCells = editor.dom.select('td[data-mce-selected], th[data-mce-selected]');
+                                    const targetCells = selectedCells.length > 0 
+                                      ? selectedCells 
+                                      : [editor.dom.getParent(editor.selection.getStart(), 'td,th')];
+
+                                    targetCells.forEach((cell: any) => {
+                                      if (!cell) return;
+                                      const styleName = `border-${side}`;
+                                      const currentStyle = editor.dom.getStyle(cell, styleName);
+                                      
+                                      // If it is black or anything else, turn it white.
+                                      // If it is already white or none, turn it black.
+                                      if (currentStyle && !currentStyle.includes('white') && currentStyle !== 'none' && currentStyle !== '') {
+                                        editor.dom.setStyle(cell, styleName, '1px solid white');
+                                      } else {
+                                        editor.dom.setStyle(cell, styleName, '1px solid black');
+                                      }
+                                    });
+                                  });
+                                };
+
+                                const items = [
+                                  { type: 'menuitem', text: 'Top Border', onAction: () => toggleBorder('top') },
+                                  { type: 'menuitem', text: 'Bottom Border', onAction: () => toggleBorder('bottom') },
+                                  { type: 'menuitem', text: 'Left Border', onAction: () => toggleBorder('left') },
+                                  { type: 'menuitem', text: 'Right Border', onAction: () => toggleBorder('right') },
+                                ];
+                                callback(items as any);
+                              }
+                            });
+                          }
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className={`w-full flex-1 border rounded shadow-sm overflow-hidden flex flex-col ${isDarkMode
+                      ? 'bg-gray-900 border-gray-700'
+                      : 'bg-gray-100 border-gray-300'
+                      }`}>
+                      <Editor
+                        key="preview-editor"
+                        apiKey="f539el807y6kwefdib0nm8ml3wq8efjee4nzc9i79rplyld5"
+                        value={selectedTemplate?.Body_HTML || ''}
+                        disabled={true}
+                        init={{
+                          height: '100%',
+                          menubar: false,
+                          toolbar: false,
+                          statusbar: false,
+                          plugins: [],
+                          content_style: `
+                            body { 
+                              font-family:Helvetica,Arial,sans-serif; 
+                              font-size:14px;
+                              width: 8.5in;
+                              min-height: 11in;
+                              margin: 2cm auto;
+                              padding: ${paperPadding};
+                              background: white;
+                              box-shadow: 0 0 20px rgba(0,0,0,0.15);
+                            }
+                            html {
+                              background-color: #f0f0f0;
+                            }
+                          `,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                isEditing || isCreating ? (
+                  <div className="flex flex-col flex-1">
+                    <div className="mb-4">
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Available Variables
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {availableVariables.map(variable => (
+                          <button
+                            key={variable}
+                            type="button"
+                            onClick={() => insertVariableToBody(variable)}
+                            className={`px-3 py-1 rounded text-xs font-mono transition-colors ${isDarkMode
+                              ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                              }`}
+                          >
+                            {variable}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex-1 flex flex-col">
+                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Email Content
+                      </label>
+                      <textarea
+                        value={formData.email_body}
+                        onChange={(e) => handleInputChange('email_body', e.target.value)}
+                        placeholder="Email Body. Click variables in the sidebar or above to insert them."
+                        className={`w-full flex-1 p-4 text-sm border rounded min-h-[400px] resize-none font-mono ${isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`w-full flex-1 p-6 border rounded shadow-sm ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}>
+                    <h3 className="text-sm font-semibold mb-4 border-b pb-2 uppercase tracking-wide">Email Body Preview</h3>
+                    <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
+                      {selectedTemplate?.email_body || 'No content defined for this template.'}
+                    </div>
+                  </div>
+                )
+              )}
             </div>
           ) : (
             <div className="flex items-center justify-center h-full">
