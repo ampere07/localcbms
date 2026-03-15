@@ -36,7 +36,6 @@ import {
   Minus
 } from 'lucide-react';
 import { Responsive } from 'react-grid-layout';
-// WidthProvider was moved to legacy in v2.0
 // @ts-ignore - Ignore type issues with legacy import if any
 import { WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
@@ -126,7 +125,17 @@ const LiveMonitor: React.FC = () => {
     Object.keys(WIDGETS).forEach(id => {
       const savedState = localStorage.getItem(`widget_state_${id}`);
       if (savedState) {
-        initialStates[id] = JSON.parse(savedState);
+        let state = JSON.parse(savedState);
+
+        // Sanitize view types for widgets that don't allow table/grid anymore
+        if (state.viewType === 'table' && !id.includes('detailed_queue')) {
+          state.viewType = 'bar';
+        }
+        if (state.viewType === 'grid' && id !== 'tech_availability') {
+          state.viewType = 'bar';
+        }
+
+        initialStates[id] = state;
       } else {
         initialStates[id] = {
           viewType: id === 'tech_availability' ? 'grid' : (id.includes('detailed_queue') ? 'table' : 'bar'),
@@ -724,8 +733,8 @@ const LiveMonitor: React.FC = () => {
       );
     }
 
-    // Handler for table view
-    if (state.viewType === 'table') {
+    // Handler for table view - only for detailed queues
+    if (state.viewType === 'table' && (id === 'team_detailed_queue' || id === 'agent_detailed_queue')) {
       return (
         <div className="h-full overflow-y-auto custom-scrollbar">
           {renderTable(widget.data, id, fontSize)}
@@ -733,9 +742,14 @@ const LiveMonitor: React.FC = () => {
       );
     }
 
-    // Special handler for generic lists like technician availability
-    if (state.viewType === 'grid') return renderGridView(widget.data, id, fontSize);
-    if (state.viewType === 'list' || id === 'technician_availability') return renderListView(widget.data, id, fontSize);
+    // Grid view - only for tech availability
+    if (state.viewType === 'grid' && id === 'tech_availability') return renderGridView(widget.data, id, fontSize);
+
+    // Default list view fallback for tech availability if not grid
+    if (id === 'tech_availability') return renderListView(widget.data, id, fontSize);
+
+    // Regular list view
+    if (state.viewType === 'list') return renderListView(widget.data, id, fontSize);
 
     const chartData = generateChartData(widget.data, id, state.viewType);
     if (!chartData) {
@@ -1030,7 +1044,7 @@ const LiveMonitor: React.FC = () => {
 
             <button
               onClick={() => setIsDraggable(!isDraggable)}
-              className={`px-4 py-2 rounded text-white text-sm flex items-center gap-2 ${isDraggable ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+              className={`px-4 py-2 rounded text-white text-sm flex items-center gap-2 ${isDraggable ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-700'}`}
               title={isDraggable ? "Lock Layout" : "Edit Layout"}
             >
               <Move size={16} />
@@ -1154,21 +1168,17 @@ const LiveMonitor: React.FC = () => {
       <div className={`${isFullscreen ? 'max-w-none px-2' : 'container mx-auto px-4'} py-6`}>
         <ResponsiveGridLayout
           className="layout"
-          layouts={Object.fromEntries(
-            Object.entries(layouts).map(([bp, layout]: [string, any]) => [
-              bp,
-              Array.isArray(layout) ? layout.map((item: any) => ({ ...item, static: !isDraggable })) : layout
-            ])
-          )}
+          layouts={layouts}
           breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
           cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
           rowHeight={60}
           isDraggable={isDraggable}
-
           isResizable={isDraggable}
           onLayoutChange={(currentLayout: any, allLayouts: any) => {
-            setLayouts(allLayouts);
-            localStorage.setItem('dashboard_layouts', JSON.stringify(allLayouts));
+            if (isDraggable) { // Only save if in edit mode to avoid saving 'static' states if any
+              setLayouts(allLayouts);
+              localStorage.setItem('dashboard_layouts', JSON.stringify(allLayouts));
+            }
           }}
           draggableHandle=".drag-handle"
         >
@@ -1178,160 +1188,169 @@ const LiveMonitor: React.FC = () => {
             return (
               <div
                 key={id}
-                className={`rounded-lg border-l-4 shadow-lg flex flex-col ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} ${isDraggable ? 'ring-2 ring-opacity-50' : ''}`}
-                style={{
-                  borderLeftColor: colorPalette?.primary || '#7c3aed',
-                  ...((isDraggable && colorPalette?.primary) ? { '--tw-ring-color': colorPalette.primary } as React.CSSProperties : {})
-                }}
+                className={`shadow-lg transition-shadow ${isDraggable ? 'ring-2 ring-opacity-50' : ''}`}
+                style={isDraggable && colorPalette?.primary ? { '--tw-ring-color': colorPalette.primary } as React.CSSProperties : {}}
               >
-                <div className="p-4 flex-1 flex flex-col overflow-hidden">
-                  <div className="flex items-center justify-between mb-4 flex-wrap gap-2 slide-header">
-                    <div className="flex items-center gap-2">
-                      {isDraggable && (
-                        <div className="drag-handle cursor-move p-1 rounded hover:bg-white/10" title="Drag to move">
-                          <Move size={14} className="text-gray-400" />
-                        </div>
+                <div className={`h-full w-full rounded-lg border-l-4 flex flex-col ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
+                  style={{
+                    borderLeftColor: colorPalette?.primary || '#7c3aed',
+                  }}
+                >
+                  <div className="p-4 flex-1 flex flex-col overflow-hidden">
+                    <div className="flex items-center justify-between mb-4 flex-wrap gap-2 slide-header">
+                      <div className="flex items-center gap-2">
+                        {isDraggable && (
+                          <div className="drag-handle cursor-move p-1 rounded hover:bg-white/10" title="Drag to move">
+                            <Move size={14} className="text-gray-400" />
+                          </div>
+                        )}
+                        <h3
+                          className="font-bold uppercase tracking-wide truncate"
+                          style={{ fontSize: `${(widgetStates[id]?.fontSize || 12) + 2}px`, color: colorPalette?.primary || '#7c3aed' }}
+                        >
+                          {config.title}
+                        </h3>
+                      </div>
+
+                      <div className="flex items-center gap-2 ml-auto">
+                        {renderFilters(id, config)}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-1 mb-3 flex-wrap">
+                      <div className={`flex items-center rounded p-0.5 mr-2 border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'}`}>
+                        <button
+                          onClick={() => updateWidgetState(id, { fontSize: Math.max(8, (widgetStates[id]?.fontSize || 12) - 1) })}
+                          className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-200 text-gray-600 hover:text-black'}`}
+                          title="Decrease Font Size"
+                        >
+                          <Minus size={12} />
+                        </button>
+                        <span className={`text-[10px] px-1 min-w-[20px] text-center font-mono opacity-70 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {widgetStates[id]?.fontSize || 12}
+                        </span>
+                        <button
+                          onClick={() => updateWidgetState(id, { fontSize: (widgetStates[id]?.fontSize || 12) + 1 })}
+                          className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-200 text-gray-600 hover:text-black'}`}
+                          title="Increase Font Size"
+                        >
+                          <Plus size={12} />
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => updateWidgetState(id, { viewType: 'bar' })}
+                        className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'bar'
+                          ? 'text-white'
+                          : isDarkMode
+                            ? 'bg-gray-800 hover:bg-gray-700'
+                            : 'bg-gray-100 hover:bg-gray-200'
+                          }`}
+                        style={widgetStates[id]?.viewType === 'bar' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                        title="Bar Chart"
+                      >
+                        <BarChart3 size={14} />
+                      </button>
+
+                      <button
+                        onClick={() => updateWidgetState(id, { viewType: 'line' })}
+                        className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'line'
+                          ? 'text-white'
+                          : isDarkMode
+                            ? 'bg-gray-800 hover:bg-gray-700'
+                            : 'bg-gray-100 hover:bg-gray-200'
+                          }`}
+                        style={widgetStates[id]?.viewType === 'line' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                        title="Line Chart"
+                      >
+                        <LineChart size={14} />
+                      </button>
+
+                      <button
+                        onClick={() => updateWidgetState(id, { viewType: 'pie' })}
+                        className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'pie'
+                          ? 'text-white'
+                          : isDarkMode
+                            ? 'bg-gray-800 hover:bg-gray-700'
+                            : 'bg-gray-100 hover:bg-gray-200'
+                          }`}
+                        style={widgetStates[id]?.viewType === 'pie' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                        title="Pie Chart"
+                      >
+                        <PieChart size={14} />
+                      </button>
+
+                      <button
+                        onClick={() => updateWidgetState(id, { viewType: 'list' })}
+                        className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'list'
+                          ? 'text-white'
+                          : isDarkMode
+                            ? 'bg-gray-800 hover:bg-gray-700'
+                            : 'bg-gray-100 hover:bg-gray-200'
+                          }`}
+                        style={widgetStates[id]?.viewType === 'list' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                        title="List View"
+                      >
+                        <List size={14} />
+                      </button>
+
+                      {(id === 'team_detailed_queue' || id === 'agent_detailed_queue') && (
+                        <button
+                          onClick={() => updateWidgetState(id, { viewType: 'table' })}
+                          className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'table'
+                            ? 'text-white'
+                            : isDarkMode
+                              ? 'bg-gray-800 hover:bg-gray-700'
+                              : 'bg-gray-100 hover:bg-gray-200'
+                            }`}
+                          style={widgetStates[id]?.viewType === 'table' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                          title="Table View"
+                        >
+                          <Table size={14} />
+                        </button>
                       )}
-                      <h3
-                        className="font-bold uppercase tracking-wide truncate"
-                        style={{ fontSize: `${(widgetStates[id]?.fontSize || 12) + 2}px`, color: colorPalette?.primary || '#7c3aed' }}
-                      >
-                        {config.title}
-                      </h3>
+
+                      {id === 'tech_availability' && (
+                        <button
+                          onClick={() => updateWidgetState(id, { viewType: 'grid' })}
+                          className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'grid'
+                            ? 'text-white'
+                            : isDarkMode
+                              ? 'bg-gray-800 hover:bg-gray-700'
+                              : 'bg-gray-100 hover:bg-gray-200'
+                            }`}
+                          style={widgetStates[id]?.viewType === 'grid' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                          title="Grid View"
+                        >
+                          <LayoutGrid size={14} />
+                        </button>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-2 ml-auto">
-                      {renderFilters(id, config)}
-                    </div>
+                    {renderWidget(id)}
                   </div>
-
-                  <div className="flex gap-1 mb-3 flex-wrap">
-                    <div className={`flex items-center rounded p-0.5 mr-2 border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'}`}>
-                      <button
-                        onClick={() => updateWidgetState(id, { fontSize: Math.max(8, (widgetStates[id]?.fontSize || 12) - 1) })}
-                        className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-200 text-gray-600 hover:text-black'}`}
-                        title="Decrease Font Size"
-                      >
-                        <Minus size={12} />
-                      </button>
-                      <span className={`text-[10px] px-1 min-w-[20px] text-center font-mono opacity-70 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        {widgetStates[id]?.fontSize || 12}
-                      </span>
-                      <button
-                        onClick={() => updateWidgetState(id, { fontSize: (widgetStates[id]?.fontSize || 12) + 1 })}
-                        className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-200 text-gray-600 hover:text-black'}`}
-                        title="Increase Font Size"
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={() => updateWidgetState(id, { viewType: 'bar' })}
-                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'bar'
-                        ? 'text-white'
-                        : isDarkMode
-                          ? 'bg-gray-800 hover:bg-gray-700'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      style={widgetStates[id]?.viewType === 'bar' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
-                      title="Bar Chart"
-                    >
-                      <BarChart3 size={14} />
-                    </button>
-
-                    <button
-                      onClick={() => updateWidgetState(id, { viewType: 'line' })}
-                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'line'
-                        ? 'text-white'
-                        : isDarkMode
-                          ? 'bg-gray-800 hover:bg-gray-700'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      style={widgetStates[id]?.viewType === 'line' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
-                      title="Line Chart"
-                    >
-                      <LineChart size={14} />
-                    </button>
-
-                    <button
-                      onClick={() => updateWidgetState(id, { viewType: 'pie' })}
-                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'pie'
-                        ? 'text-white'
-                        : isDarkMode
-                          ? 'bg-gray-800 hover:bg-gray-700'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      style={widgetStates[id]?.viewType === 'pie' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
-                      title="Pie Chart"
-                    >
-                      <PieChart size={14} />
-                    </button>
-
-                    <button
-                      onClick={() => updateWidgetState(id, { viewType: 'list' })}
-                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'list'
-                        ? 'text-white'
-                        : isDarkMode
-                          ? 'bg-gray-800 hover:bg-gray-700'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      style={widgetStates[id]?.viewType === 'list' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
-                      title="List View"
-                    >
-                      <List size={14} />
-                    </button>
-
-                    <button
-                      onClick={() => updateWidgetState(id, { viewType: 'table' })}
-                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'table'
-                        ? 'text-white'
-                        : isDarkMode
-                          ? 'bg-gray-800 hover:bg-gray-700'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      style={widgetStates[id]?.viewType === 'table' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
-                      title="Table View"
-                    >
-                      <Table size={14} />
-                    </button>
-
-                    <button
-                      onClick={() => updateWidgetState(id, { viewType: 'grid' })}
-                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'grid'
-                        ? 'text-white'
-                        : isDarkMode
-                          ? 'bg-gray-800 hover:bg-gray-700'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      style={widgetStates[id]?.viewType === 'grid' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
-                      title="Grid View"
-                    >
-                      <LayoutGrid size={14} />
-                    </button>
-                  </div>
-
-                  {renderWidget(id)}
                 </div>
               </div>
             );
           })}
         </ResponsiveGridLayout>
 
-        {Object.values(widgetStates).length > 0 && Object.values(widgetStates).every(state => !state.visible) && (
-          <div className="text-center py-20">
-            <Activity size={48} className="mx-auto mb-4 text-gray-400" />
-            <h3 className="text-lg font-semibold mb-2">No Widgets Visible</h3>
-            <p className="text-gray-500 mb-4">Enable some widgets to start monitoring your system</p>
-            <button
-              onClick={() => setShowWidgetMenu(true)}
-              className="px-6 py-3 rounded text-white font-semibold transition-opacity hover:opacity-90"
-              style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
-            >
-              Open Widget Settings
-            </button>
-          </div>
-        )}
+        {
+          Object.values(widgetStates).length > 0 && Object.values(widgetStates).every(state => !state.visible) && (
+            <div className="text-center py-20">
+              <Activity size={48} className="mx-auto mb-4 text-gray-400" />
+              <h3 className="text-lg font-semibold mb-2">No Widgets Visible</h3>
+              <p className="text-gray-500 mb-4">Enable some widgets to start monitoring your system</p>
+              <button
+                onClick={() => setShowWidgetMenu(true)}
+                className="px-6 py-3 rounded text-white font-semibold transition-opacity hover:opacity-90"
+                style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
+              >
+                Open Widget Settings
+              </button>
+            </div>
+          )
+        }
       </div>
     </div>
   );

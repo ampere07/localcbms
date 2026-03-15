@@ -175,7 +175,7 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
         className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
         onMouseDown={handleMouseDownResize}
         style={{
-          backgroundColor: isResizing ? (colorPalette?.primary || '#f97316') : 'transparent'
+          backgroundColor: isResizing ? (colorPalette?.primary || '#7c3aed') : 'transparent'
         }}
         onMouseEnter={(e) => {
           if (!isResizing && colorPalette?.accent) {

@@ -34,7 +34,8 @@ class TransactionRevertController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $reverts,
-                'count' => $reverts->count()
+                'count' => $reverts->count(),
+                'server_time' => now()->toISOString()
             ]);
         } catch (\Exception $e) {
             \Log::error('Error fetching transaction reverts: ' . $e->getMessage());

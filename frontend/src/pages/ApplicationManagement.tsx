@@ -204,16 +204,16 @@ const ApplicationManagement: React.FC = () => {
 
     channel.bind('new-application', async (data: any) => {
       console.log('[ApplicationManagement Soketi] New application event RECEIVED:', data);
-      
+
       const appId = data.id || (data.application && data.application.id);
-      
+
       if (appId) {
         try {
           // 1. Try to fetch the full details for this specific application for immediate UI update
           const { getApplication } = await import('../services/applicationService');
           const fullApp = await getApplication(String(appId));
           console.log('[ApplicationManagement Soketi] Full application details fetched:', fullApp);
-          
+
           // 2. Add/Update in store immediately
           const { addNotificationRecord } = useApplicationStore.getState();
           addNotificationRecord(fullApp);
@@ -253,7 +253,7 @@ const ApplicationManagement: React.FC = () => {
   // Silent polling every 5 seconds to ensure latest data is always fetched
   useEffect(() => {
     const POLL_INTERVAL = 3000; // 5 seconds
-    
+
     const pollData = async () => {
       console.log('[ApplicationManagement] Polling latest data (5s interval)...');
       try {
@@ -333,53 +333,9 @@ const ApplicationManagement: React.FC = () => {
     localStorage.setItem('applicationFunnelFilters', JSON.stringify(newFilters));
   };
 
-  const statusItems = useMemo(() => {
-    const statuses = [
-      { name: 'Scheduled', value: 'scheduled' },
-      { name: 'No Slot', value: 'no slot' },
-      { name: 'No Facility', value: 'no facility' },
-      { name: 'Duplicate', value: 'duplicate' },
-      { name: 'Cancelled', value: 'cancelled' },
-      { name: 'Confirmed', value: 'confirmed' },
-      { name: 'Pending', value: 'pending' }
-    ];
-
-    const counts: Record<string, number> = {};
-    statuses.forEach(s => counts[s.value] = 0);
-
-    applications.forEach(app => {
-      const status = (app.status || '').toLowerCase();
-      // Handle 'schedule' vs 'scheduled' mapping if necessary
-      const normalizedStatus = status === 'schedule' ? 'scheduled' : status;
-      if (counts[normalizedStatus] !== undefined) {
-        counts[normalizedStatus]++;
-      }
-    });
-
-    return {
-      items: statuses.map(s => ({
-        id: `status:${s.value}`,
-        name: s.name,
-        count: counts[s.value] || 0
-      })),
-      total: applications.length
-    };
-  }, [applications]);
-
-  const filteredApplications = useMemo(() => {
+  // 1. Initial search and funnel filtering (Global filtered set for sidebar counts)
+  const globalFilteredApplications = useMemo(() => {
     let filtered = applications.filter(application => {
-      let matchesLocation = selectedLocation === 'all';
-
-      if (!matchesLocation) {
-        if (selectedLocation.startsWith('status:')) {
-          const statusValue = selectedLocation.substring(7);
-          const appStatus = (application.status || '').toLowerCase();
-          // Map 'schedule' to 'scheduled' for filtering consistency
-          const normalizedAppStatus = appStatus === 'schedule' ? 'scheduled' : appStatus;
-          matchesLocation = normalizedAppStatus === statusValue;
-        }
-      }
-
       const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
       const checkValue = (val: any): boolean => {
         if (val === null || val === undefined) return false;
@@ -450,11 +406,10 @@ const ApplicationManagement: React.FC = () => {
               const status = String(appVal || '').toLowerCase();
               appVal = status === 'schedule' ? 'scheduled' : status;
             }
-            
+
             const normalizedValue = String(appVal || '').toLowerCase().trim();
             const isMatch = typedFilter.selectedOptions.some((opt: string) => {
               const filterVal = String(opt).toLowerCase().trim();
-              // Use exact match for critical statuses and locations
               if (['status', 'barangay', 'city', 'region', 'terms_agreed'].includes(key)) {
                 return normalizedValue === filterVal;
               }
@@ -469,7 +424,55 @@ const ApplicationManagement: React.FC = () => {
         }
       }
 
-      return matchesLocation && matchesSearch && matchesFunnel;
+      return matchesSearch && matchesFunnel;
+    });
+
+    return filtered;
+  }, [applications, searchQuery, funnelFilters]);
+
+  const statusItems = useMemo(() => {
+    const statuses = [
+      { name: 'Scheduled', value: 'scheduled' },
+      { name: 'No Slot', value: 'no slot' },
+      { name: 'No Facility', value: 'no facility' },
+      { name: 'Duplicate', value: 'duplicate' },
+      { name: 'Cancelled', value: 'cancelled' },
+      { name: 'Confirmed', value: 'confirmed' },
+      { name: 'Pending', value: 'pending' }
+    ];
+
+    const counts: Record<string, number> = {};
+    statuses.forEach(s => counts[s.value] = 0);
+
+    globalFilteredApplications.forEach(app => {
+      const status = (app.status || '').toLowerCase();
+      const normalizedStatus = status === 'schedule' ? 'scheduled' : status;
+      if (counts[normalizedStatus] !== undefined) {
+        counts[normalizedStatus]++;
+      }
+    });
+
+    return {
+      items: statuses.map(s => ({
+        id: `status:${s.value}`,
+        name: s.name,
+        count: counts[s.value] || 0
+      })),
+      total: globalFilteredApplications.length
+    };
+  }, [globalFilteredApplications]);
+
+  const filteredApplications = useMemo(() => {
+    let filtered = globalFilteredApplications.filter(application => {
+      if (selectedLocation === 'all') return true;
+
+      if (selectedLocation.startsWith('status:')) {
+        const statusValue = selectedLocation.substring(7);
+        const appStatus = (application.status || '').toLowerCase();
+        const normalizedAppStatus = appStatus === 'schedule' ? 'scheduled' : appStatus;
+        return normalizedAppStatus === statusValue;
+      }
+      return true;
     });
 
     filtered.sort((a, b) => {
@@ -577,7 +580,7 @@ const ApplicationManagement: React.FC = () => {
     }
 
     return filtered;
-  }, [applications, selectedLocation, searchQuery, sortColumn, sortDirection, funnelFilters]);
+  }, [globalFilteredApplications, selectedLocation, sortColumn, sortDirection]);
 
   // Derived paginated records
   const paginatedApplications = useMemo(() => {
@@ -858,7 +861,7 @@ const ApplicationManagement: React.FC = () => {
             <button
               onClick={() => window.open('https://apply.atssfiber.ph', '_blank', 'noopener,noreferrer')}
               className="px-2.5 py-1 text-xs font-medium rounded flex items-center transition-colors shadow-sm text-white hover:opacity-90"
-              style={{ backgroundColor: colorPalette?.primary || '#f97316' }}
+              style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
               title="Open Application Form"
             >
               <ExternalLink className="h-3.5 w-3.5 mr-1" />
@@ -884,9 +887,9 @@ const ApplicationManagement: React.FC = () => {
               <span>All Applications</span>
             </div>
             <span
-              className={`px-2 py-1 rounded-full text-xs ${selectedLocation === 'all'
+              className={`px-2 py-1 rounded text-xs transition-colors ${selectedLocation === 'all'
                 ? 'text-white'
-                : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
                 }`}
               style={selectedLocation === 'all' ? {
                 backgroundColor: colorPalette?.primary || '#7c3aed'
@@ -945,7 +948,7 @@ const ApplicationManagement: React.FC = () => {
           className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
           onMouseDown={handleMouseDownSidebarResize}
           style={{
-            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#f97316') : 'transparent'
+            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#7c3aed') : 'transparent'
           }}
           onMouseEnter={(e) => {
             if (!isResizingSidebar && colorPalette?.accent) {
@@ -1030,10 +1033,9 @@ const ApplicationManagement: React.FC = () => {
                       <span>{status.name}</span>
                     </div>
                     {status.count > 0 && (
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isSelected ? '' : 'bg-gray-700 text-gray-500'}`}
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${isSelected ? 'text-white' : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'}`}
                         style={isSelected ? {
-                          backgroundColor: colorPalette?.primary || '#7c3aed',
-                          color: 'white'
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
                         } : {}}>
                         {status.count}
                       </span>
@@ -1148,7 +1150,7 @@ const ApplicationManagement: React.FC = () => {
                               onClick={handleSelectAllColumns}
                               className="text-xs"
                               style={{
-                                color: colorPalette?.primary || '#f97316'
+                                color: colorPalette?.primary || '#7c3aed'
                               }}
                               onMouseEnter={(e) => {
                                 if (colorPalette?.accent) {
@@ -1168,7 +1170,7 @@ const ApplicationManagement: React.FC = () => {
                               onClick={handleDeselectAllColumns}
                               className="text-xs"
                               style={{
-                                color: colorPalette?.primary || '#f97316'
+                                color: colorPalette?.primary || '#7c3aed'
                               }}
                               onMouseEnter={(e) => {
                                 if (colorPalette?.accent) {
@@ -1228,7 +1230,7 @@ const ApplicationManagement: React.FC = () => {
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                           }`}
                         style={displayMode === 'card' ? {
-                          color: colorPalette?.primary || '#f97316'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {
                           color: isDarkMode ? 'white' : '#111827'
                         }}
@@ -1243,7 +1245,7 @@ const ApplicationManagement: React.FC = () => {
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                           }`}
                         style={displayMode === 'table' ? {
-                          color: colorPalette?.primary || '#f97316'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {
                           color: isDarkMode ? 'white' : '#111827'
                         }}
@@ -1543,7 +1545,7 @@ const ApplicationManagement: React.FC = () => {
                         : 'bg-white border-gray-300 text-gray-900 focus:border-orange-500'
                         }`}
                     >
-                      {[10, 25, 50, 100, 250, 500].map(v => (
+                      {[10, 25, 50, 100].map(v => (
                         <option key={v} value={v}>{v}</option>
                       ))}
                     </select>
@@ -1655,13 +1657,13 @@ const ApplicationManagement: React.FC = () => {
                 <div className={`h-2.5 w-2.5 rounded-full mb-1 ${getStatusColor(statusValue).replace('text-', 'bg-')}`} />
                 <span className="whitespace-nowrap">{status.name}</span>
                 {status.count > 0 && (
-                  <span className="mt-1 px-2 py-0.5 rounded-full text-[10px]"
+                  <span className={`mt-1 px-2 py-0.5 rounded text-[10px] transition-colors`}
                     style={selectedLocation === status.id ? {
                       backgroundColor: colorPalette?.primary || '#7c3aed',
                       color: 'white'
                     } : {
-                      backgroundColor: '#374151',
-                      color: '#d1d5db'
+                      backgroundColor: isDarkMode ? '#1f2937' : '#f3f4f6',
+                      color: isDarkMode ? '#9ca3af' : '#6b7280'
                     }}>
                     {status.count}
                   </span>

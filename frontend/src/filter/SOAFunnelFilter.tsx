@@ -14,6 +14,7 @@ interface SOAFunnelFilterProps {
     onClose: () => void;
     onApplyFilters: (filters: FilterValues) => void;
     currentFilters?: FilterValues;
+    records?: any[];
 }
 
 export interface FilterValues {
@@ -56,7 +57,8 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
     isOpen,
     onClose,
     onApplyFilters,
-    currentFilters
+    currentFilters,
+    records = []
 }) => {
     const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
     const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
@@ -271,6 +273,21 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                 opt.label.toLowerCase().includes(searchTerm.toLowerCase())
             );
 
+            // Calculate counts for each option based on records
+            const getOptionCount = (optionValue: string) => {
+                const key = selectedColumn.key;
+                return records.filter(record => {
+                    const recordVal = key === 'invoiceStatus' ? (record.invoiceStatus ?? record.status) : record[key];
+                    if (key === 'barangay' || key === 'city' || key === 'region') {
+                        const directVal = String(recordVal || '').toLowerCase().trim();
+                        const address = String(record.address || '').toLowerCase();
+                        const opt = optionValue.toLowerCase().trim();
+                        return directVal === opt || address.includes(opt);
+                    }
+                    return String(recordVal || '').toLowerCase().trim() === optionValue.toLowerCase().trim();
+                }).length;
+            };
+
             return (
                 <div className="flex flex-col h-full overflow-hidden">
                     <div className="relative mb-4">
@@ -281,8 +298,8 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm focus:outline-none transition-all ${isDarkMode
-                                    ? 'bg-gray-800 border-gray-700 text-white'
-                                    : 'bg-gray-50 border-gray-200 text-gray-900'
+                                ? 'bg-gray-800 border-gray-700 text-white'
+                                : 'bg-gray-50 border-gray-200 text-gray-900'
                                 }`}
                             style={{ borderColor: 'transparent' }}
                             onFocus={(e) => {
@@ -299,6 +316,7 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map((option, idx) => {
                                 const isSelected = (currentValue?.value as string[])?.includes(option.value);
+                                const count = getOptionCount(option.value);
                                 return (
                                     <button
                                         key={idx}
@@ -306,14 +324,27 @@ const SOAFunnelFilter: React.FC<SOAFunnelFilterProps> = ({
                                         className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${isSelected
                                             ? ''
                                             : (isDarkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-50 text-gray-700')
-                                        }`}
+                                            }`}
                                         style={isSelected ? {
                                             backgroundColor: hexToRgba(colorPalette?.primary || '#7c3aed', 0.1),
                                             color: colorPalette?.primary || '#7c3aed'
                                         } : {}}
                                     >
-                                        <span className="text-sm font-medium">{option.label}</span>
-                                        {isSelected && <Check className="h-4 w-4" />}
+                                        <div className="flex items-center">
+                                            <span className="text-sm font-medium">{option.label}</span>
+                                            {count > 0 && !isSelected && (
+                                                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded-full ${isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                                                    }`}>
+                                                    {count}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {isSelected && (
+                                            <div className="flex items-center">
+                                                <span className="mr-2 text-xs opacity-60">{count}</span>
+                                                <Check className="h-4 w-4" />
+                                            </div>
+                                        )}
                                     </button>
                                 );
                             })

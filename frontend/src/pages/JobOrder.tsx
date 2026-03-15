@@ -551,63 +551,6 @@ const JobOrderPage: React.FC = () => {
     setIsRefreshing(false);
   };
 
-  const statusItems = useMemo(() => {
-    const statuses = [
-      { name: 'Done', value: 'done' },
-      { name: 'Failed', value: 'failed' },
-      { name: 'In Progress', value: 'inprogress' },
-      { name: 'Reschedule', value: 'reschedule' },
-      { name: 'Empty', value: 'empty' }
-    ];
-
-    const tree: Record<string, { count: number, billingStatuses: Record<string, { count: number, barangays: Record<string, number> }> }> = {};
-    statuses.forEach(s => {
-      tree[s.value] = { count: 0, billingStatuses: {} };
-    });
-
-    accessibleJobOrders.forEach((job: JobOrder) => {
-      let onsite = (job.Onsite_Status || job.onsite_status || '').toLowerCase().trim();
-
-      // Normalize common variations and handle unknown as 'empty'
-      if (onsite === 'completed' || onsite === 'finish' || onsite === 'done') onsite = 'done';
-      else if (onsite === 'in progress' || onsite === 'inprogress') onsite = 'inprogress';
-      else if (onsite === 'cancelled' || onsite === 'failed') onsite = 'failed';
-      else if (onsite === 'reschedule') onsite = 'reschedule';
-      else onsite = 'empty';
-
-      if (tree[onsite]) {
-        tree[onsite].count++;
-        const billing = job.billing_status || job.Billing_Status || 'Pending';
-        const brgy = job.Barangay || job.barangay || 'No Barangay';
-
-        if (!tree[onsite].billingStatuses[billing]) {
-          tree[onsite].billingStatuses[billing] = { count: 0, barangays: {} };
-        }
-        tree[onsite].billingStatuses[billing].count++;
-        tree[onsite].billingStatuses[billing].barangays[brgy] = (tree[onsite].billingStatuses[billing].barangays[brgy] || 0) + 1;
-      }
-    });
-
-    return {
-      items: statuses.map(s => ({
-        id: `status:${s.value}`,
-        name: s.name,
-        count: tree[s.value].count,
-        billingStatuses: Object.entries(tree[s.value].billingStatuses).sort().map(([bName, bData]) => ({
-          id: `status:${s.value}:billing:${bName}`,
-          name: bName,
-          count: bData.count,
-          barangays: Object.entries(bData.barangays).sort().map(([brgyName, brgyCount]) => ({
-            id: `status:${s.value}:billing:${bName}:brgy:${brgyName}`,
-            name: brgyName,
-            count: brgyCount
-          }))
-        }))
-      })),
-      total: accessibleJobOrders.length
-    };
-  }, [accessibleJobOrders]);
-
   // Helper function to apply funnel filters
   const getVal = (jo: JobOrder, key: string) => {
     switch (key) {
@@ -687,7 +630,6 @@ const JobOrderPage: React.FC = () => {
             const valStr = String(orderValue || '').toLowerCase();
             match = filter.value.some((v: string) => {
               const filterVal = String(v).toLowerCase();
-              // Use exact match for critical statuses, partial for plans/others
               if (['billingStatus', 'onsiteStatus', 'barangay', 'city', 'region'].includes(key)) {
                 return valStr === filterVal;
               }
@@ -715,24 +657,96 @@ const JobOrderPage: React.FC = () => {
           }
         }
 
-        if (!match) {
-          console.log(`[applyFunnelFilters] Order ${order.id} failed filter ${key}: value=${orderValue}, filter=`, filter);
-        }
         return match;
       });
     });
   };
 
-  let filteredJobOrders = accessibleJobOrders.filter((jobOrder: JobOrder) => {
-    let matchesLocation = selectedLocation === 'all';
+  // 1. Initial search and funnel filtering (Global filtered set for sidebar counts)
+  const globalFilteredJobOrders = useMemo(() => {
+    let filtered = accessibleJobOrders.filter((jobOrder: JobOrder) => {
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => checkValue(v));
+        }
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
+      };
 
-    if (!matchesLocation) {
+      return searchQuery === '' || checkValue(jobOrder);
+    });
+
+    return applyFunnelFilters(filtered, activeFilters);
+  }, [accessibleJobOrders, searchQuery, activeFilters]);
+
+  // Derive statusItems components from the search-filtered set
+  const statusItems = useMemo(() => {
+    const statuses = [
+      { name: 'Done', value: 'done' },
+      { name: 'Failed', value: 'failed' },
+      { name: 'In Progress', value: 'inprogress' },
+      { name: 'Reschedule', value: 'reschedule' },
+      { name: 'Empty', value: 'empty' }
+    ];
+
+    const tree: Record<string, { count: number, billingStatuses: Record<string, { count: number, barangays: Record<string, number> }> }> = {};
+    statuses.forEach(s => {
+      tree[s.value] = { count: 0, billingStatuses: {} };
+    });
+
+    globalFilteredJobOrders.forEach((job: JobOrder) => {
+      let onsite = (job.Onsite_Status || job.onsite_status || '').toLowerCase().trim();
+
+      // Normalize onsite status
+      if (onsite === 'completed' || onsite === 'finish' || onsite === 'done') onsite = 'done';
+      else if (onsite === 'in progress' || onsite === 'inprogress') onsite = 'inprogress';
+      else if (onsite === 'cancelled' || onsite === 'failed') onsite = 'failed';
+      else if (onsite === 'reschedule') onsite = 'reschedule';
+      else onsite = 'empty';
+
+      if (tree[onsite]) {
+        tree[onsite].count++;
+        const billing = job.billing_status || job.Billing_Status || 'Pending';
+        const brgy = job.Barangay || job.barangay || 'No Barangay';
+
+        if (!tree[onsite].billingStatuses[billing]) {
+          tree[onsite].billingStatuses[billing] = { count: 0, barangays: {} };
+        }
+        tree[onsite].billingStatuses[billing].count++;
+        tree[onsite].billingStatuses[billing].barangays[brgy] = (tree[onsite].billingStatuses[billing].barangays[brgy] || 0) + 1;
+      }
+    });
+
+    return {
+      items: statuses.map(s => ({
+        id: `status:${s.value}`,
+        name: s.name,
+        count: tree[s.value].count,
+        billingStatuses: Object.entries(tree[s.value].billingStatuses).sort().map(([bName, bData]) => ({
+          id: `status:${s.value}:billing:${bName}`,
+          name: bName,
+          count: bData.count,
+          barangays: Object.entries(bData.barangays).sort().map(([brgyName, brgyCount]) => ({
+            id: `status:${s.value}:billing:${bName}:brgy:${brgyName}`,
+            name: brgyName,
+            count: brgyCount
+          }))
+        }))
+      })),
+      total: globalFilteredJobOrders.length
+    };
+  }, [globalFilteredJobOrders]);
+
+  const sortedJobOrders = useMemo(() => {
+    let filtered = globalFilteredJobOrders.filter((jobOrder: JobOrder) => {
+      if (selectedLocation === 'all') return true;
+
       if (selectedLocation.startsWith('status:')) {
         const parts = selectedLocation.split(':');
         const onsiteValue = parts[1];
         let appOnsite = (jobOrder.Onsite_Status || jobOrder.onsite_status || '').toLowerCase().trim();
 
-        // Normalize appOnsite for comparison
         if (appOnsite === 'completed' || appOnsite === 'finish' || appOnsite === 'done') appOnsite = 'done';
         else if (appOnsite === 'in progress' || appOnsite === 'inprogress') appOnsite = 'inprogress';
         else if (appOnsite === 'cancelled' || appOnsite === 'failed') appOnsite = 'failed';
@@ -754,51 +768,34 @@ const JobOrderPage: React.FC = () => {
             if (recordBrgy !== brgyName) return false;
           }
         }
-        matchesLocation = true;
+        return true;
       }
+      return true;
+    });
+
+    const presorted = [...filtered].sort((a, b) => {
+      const idA = parseInt(String(a.id)) || 0;
+      const idB = parseInt(String(b.id)) || 0;
+      return idB - idA;
+    });
+
+    if (sortColumn) {
+      return [...presorted].sort((a, b) => {
+        let aValue = getVal(a, sortColumn);
+        let bValue = getVal(b, sortColumn);
+
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          aValue = aValue.toLowerCase();
+          bValue = bValue.toLowerCase();
+        }
+
+        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
     }
-
-    const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
-    const checkValue = (val: any): boolean => {
-      if (val === null || val === undefined) return false;
-      if (typeof val === 'object') {
-        return Object.values(val).some(v => checkValue(v));
-      }
-      return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
-    };
-
-    const matchesSearch = searchQuery === '' || checkValue(jobOrder);
-
-    return matchesLocation && matchesSearch;
-  });
-
-  // Apply funnel filters
-  filteredJobOrders = applyFunnelFilters(filteredJobOrders, activeFilters);
-
-  const presortedJobOrders = [...filteredJobOrders].sort((a, b) => {
-    const idA = parseInt(String(a.id)) || 0;
-    const idB = parseInt(String(b.id)) || 0;
-    return idB - idA;
-  });
-
-  const sortedJobOrders = [...presortedJobOrders].sort((a, b) => {
-    if (!sortColumn) return 0;
-
-    let aValue: any = '';
-    let bValue: any = '';
-
-    aValue = getVal(a, sortColumn);
-    bValue = getVal(b, sortColumn);
-
-    if (typeof aValue === 'string' && typeof bValue === 'string') {
-      aValue = aValue.toLowerCase();
-      bValue = bValue.toLowerCase();
-    }
-
-    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-    return 0;
-  });
+    return presorted;
+  }, [globalFilteredJobOrders, selectedLocation, sortColumn, sortDirection]);
 
   // Derived paginated records
   const paginatedJobOrders = React.useMemo(() => {
@@ -1284,7 +1281,14 @@ const JobOrderPage: React.FC = () => {
               <div className="flex items-center">
                 <span className="capitalize text-base">All Job Orders</span>
               </div>
-              <span className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300">
+              <span className={`px-2 py-1 rounded text-sm transition-colors ${selectedLocation === 'all'
+                ? 'text-white'
+                : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
+                }`}
+                style={selectedLocation === 'all' ? {
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
+                } : {}}
+              >
                 {statusItems.total}
               </span>
             </button>
@@ -1325,10 +1329,9 @@ const JobOrderPage: React.FC = () => {
                     </div>
                     <div className="flex items-center space-x-3">
                       {status.count > 0 && (
-                        <span className={`px-3 py-1 rounded-full text-sm ${selectedLocation === status.id ? '' : 'bg-gray-700 text-gray-300'}`}
+                        <span className={`px-2 py-0.5 rounded text-sm transition-colors ${selectedLocation === status.id ? 'text-white' : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'}`}
                           style={selectedLocation === status.id ? {
-                            backgroundColor: colorPalette?.primary || '#7c3aed',
-                            color: 'white'
+                            backgroundColor: colorPalette?.primary || '#7c3aed'
                           } : {}}>
                           {status.count}
                         </span>
@@ -1375,10 +1378,9 @@ const JobOrderPage: React.FC = () => {
                         >
                           <span className="truncate flex-1 text-left">{billing.name}</span>
                           <div className="flex items-center space-x-3">
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${selectedLocation === billing.id ? '' : 'bg-gray-800 text-gray-500'}`}
+                            <span className={`text-xs px-1.5 py-0.5 rounded transition-colors ${selectedLocation === billing.id ? 'text-white bg-white/20' : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'}`}
                               style={selectedLocation === billing.id ? {
-                                backgroundColor: colorPalette?.primary || '#7c3aed',
-                                color: 'white'
+                                backgroundColor: colorPalette?.primary || '#7c3aed'
                               } : {}}>
                               {billing.count}
                             </span>
@@ -1423,10 +1425,9 @@ const JobOrderPage: React.FC = () => {
                               }}
                             >
                               <span className="truncate flex-1 text-left">{brgy.name}</span>
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedLocation === brgy.id ? '' : 'bg-gray-800 text-gray-600'}`}
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${selectedLocation === brgy.id ? 'text-white bg-white/20' : isDarkMode ? 'bg-gray-800 text-gray-600' : 'bg-gray-100 text-gray-400'}`}
                                 style={selectedLocation === brgy.id ? {
-                                  backgroundColor: colorPalette?.primary || '#7c3aed',
-                                  color: 'white'
+                                  backgroundColor: colorPalette?.primary || '#7c3aed'
                                 } : {}}>
                                 {brgy.count}
                               </span>
@@ -1564,9 +1565,9 @@ const JobOrderPage: React.FC = () => {
                 <span>All Job Orders</span>
               </div>
               <span
-                className={`px-2 py-1 rounded-full text-xs ${selectedLocation === 'all'
+                className={`px-2 py-0.5 rounded text-xs transition-colors ${selectedLocation === 'all'
                   ? 'text-white'
-                  : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                  : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
                   }`}
                 style={selectedLocation === 'all' ? {
                   backgroundColor: colorPalette?.primary || '#7c3aed'
@@ -1609,10 +1610,9 @@ const JobOrderPage: React.FC = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       {status.count > 0 && (
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${selectedLocation === status.id ? '' : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'}`}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${selectedLocation === status.id ? 'text-white' : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'}`}
                           style={selectedLocation === status.id ? {
-                            backgroundColor: colorPalette?.primary || '#7c3aed',
-                            color: 'white'
+                            backgroundColor: colorPalette?.primary || '#7c3aed'
                           } : {}}>
                           {status.count}
                         </span>
@@ -1657,10 +1657,9 @@ const JobOrderPage: React.FC = () => {
                         >
                           <span className="truncate flex-1 text-left">{billing.name}</span>
                           <div className="flex items-center space-x-2">
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] ${selectedLocation === billing.id ? '' : 'bg-gray-800 text-gray-500'}`}
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] ${selectedLocation === billing.id ? 'text-white bg-white/20' : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'}`}
                               style={selectedLocation === billing.id ? {
-                                backgroundColor: colorPalette?.primary || '#7c3aed',
-                                color: 'white'
+                                backgroundColor: colorPalette?.primary || '#7c3aed'
                               } : {}}>
                               {billing.count}
                             </span>
@@ -1703,10 +1702,9 @@ const JobOrderPage: React.FC = () => {
                               }}
                             >
                               <span className="truncate flex-1 text-left">{brgy.name}</span>
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] ${selectedLocation === brgy.id ? '' : 'bg-gray-800 text-gray-600'}`}
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] transition-colors ${selectedLocation === brgy.id ? 'text-white bg-white/20' : isDarkMode ? 'bg-gray-800 text-gray-600' : 'bg-gray-100 text-gray-400'}`}
                                 style={selectedLocation === brgy.id ? {
-                                  backgroundColor: colorPalette?.primary || '#7c3aed',
-                                  color: 'white'
+                                  backgroundColor: colorPalette?.primary || '#7c3aed'
                                 } : {}}>
                                 {brgy.count}
                               </span>

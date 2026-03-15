@@ -532,7 +532,7 @@ const WorkOrderDoneFormModal: React.FC<WorkOrderDoneFormModalProps> = ({
       {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
           <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px]`}>
-            <Loader2 className="w-20 h-20 animate-spin" style={{ color: colorPalette?.primary || '#f97316' }} />
+            <Loader2 className="w-20 h-20 animate-spin" style={{ color: colorPalette?.primary || '#7c3aed' }} />
             <div className="text-center">
               <p className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-4xl font-bold`}>{loadingPercentage}%</p>
             </div>

@@ -432,7 +432,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     if (lower === 'online') return { label: 'ONLINE', color: 'text-green-500', hex: '#22c55e', fillColor: 'bg-green-500', hollow: false };
     if (lower === 'offline') return { label: 'OFFLINE', color: 'text-yellow-400', hex: '#facc15', hollow: true };
     if (lower === 'not found') return { label: 'NOT FOUND', color: 'text-red-600', hex: '#dc2626', fillColor: 'bg-red-600', hollow: false };
-    if (lower === 'blocked') return { label: 'BLOCKED', color: 'text-orange-500', hex: '#f97316', hollow: true };
+    if (lower === 'blocked') return { label: 'BLOCKED', color: 'text-orange-500', hex: '#7c3aed', hollow: true };
     if (lower === 'inactive') return { label: 'INACTIVE', color: 'text-gray-400', hex: '#9ca3af', fillColor: 'bg-gray-400', hollow: false };
     return { label: bucket.toUpperCase(), color: 'text-blue-500', hex: '#3b82f6', fillColor: 'bg-blue-500', hollow: false };
   };
@@ -1766,13 +1766,13 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
         {/* Other Sections */}
         {[{ key: 'serviceOrders', label: 'Related Service Orders', dataKey: 'serviceOrders' },
-          { key: 'reconnectionLogs', label: 'Related Reconnection Logs', dataKey: 'reconnectionLogs' },
-          { key: 'disconnectedLogs', label: 'Related Disconnected Logs', dataKey: 'disconnectedLogs' },
-          { key: 'detailsUpdateLogs', label: 'Related Details Update Logs', dataKey: 'detailsUpdateLogs' },
-          { key: 'planChangeLogs', label: 'Related Plan Change Logs', dataKey: 'planChangeLogs' },
-          { key: 'serviceChargeLogs', label: 'Related Service Charge Logs', dataKey: 'serviceChargeLogs' },
-          { key: 'changeDueLogs', label: 'Related Change Due Logs', dataKey: 'changeDueLogs' },
-          { key: 'securityDeposits', label: 'Related Security Deposits', dataKey: 'securityDeposits' }
+        { key: 'reconnectionLogs', label: 'Related Reconnection Logs', dataKey: 'reconnectionLogs' },
+        { key: 'disconnectedLogs', label: 'Related Disconnected Logs', dataKey: 'disconnectedLogs' },
+        { key: 'detailsUpdateLogs', label: 'Related Details Update Logs', dataKey: 'detailsUpdateLogs' },
+        { key: 'planChangeLogs', label: 'Related Plan Change Logs', dataKey: 'planChangeLogs' },
+        { key: 'serviceChargeLogs', label: 'Related Service Charge Logs', dataKey: 'serviceChargeLogs' },
+        { key: 'changeDueLogs', label: 'Related Change Due Logs', dataKey: 'changeDueLogs' },
+        { key: 'securityDeposits', label: 'Related Security Deposits', dataKey: 'securityDeposits' }
         ].map((section) => (
           <div key={section.key} className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
             }`}>

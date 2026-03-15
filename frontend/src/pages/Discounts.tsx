@@ -240,20 +240,31 @@ const Discounts: React.FC = () => {
     };
   }, [cities]);
 
-  // Generate hierarchical location items
+  // 1. Initial search filtering (Global filtered set for sidebar counts)
+  const searchFilteredRecords = useMemo(() => {
+    let filtered = discountRecords;
+
+    if (searchQuery) {
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
+      filtered = filtered.filter(record => 
+        record.fullName.toLowerCase().replace(/\s+/g, '').includes(normalizedQuery) ||
+        record.address.toLowerCase().replace(/\s+/g, '').includes(normalizedQuery) ||
+        record.accountNo.replace(/\s+/g, '').includes(normalizedQuery)
+      );
+    }
+
+    return filtered;
+  }, [discountRecords, searchQuery]);
+
+  // Generate hierarchical location items (Derive counts from search results)
   const locationItems = useMemo(() => {
     // Counts for each level
     const regionCounts: Record<string, number> = {};
     const cityCounts: Record<string, number> = {};
     const barangayCounts: Record<string, number> = {};
 
-    // Initialize counts
-    regions.forEach(r => regionCounts[r.name] = 0);
-    cities.forEach(c => cityCounts[`${c.region_id}_${c.name}`] = 0);
-    barangays.forEach(b => barangayCounts[`${b.city_id}_${b.barangay}`] = 0);
-
-    // Count appearances in discountRecords
-    discountRecords.forEach(record => {
+    // Count appearances in searchFilteredRecords
+    searchFilteredRecords.forEach(record => {
       const region = record.region;
       const city = record.city;
       const barangay = record.barangay;
@@ -297,37 +308,27 @@ const Discounts: React.FC = () => {
           }))
         }))
       })),
-      total: discountRecords.length
+      total: searchFilteredRecords.length
     };
-  }, [regions, cities, barangays, discountRecords]);
+  }, [regions, cities, barangays, searchFilteredRecords]);
 
 
   const filteredDiscountRecords = useMemo(() => {
-    return discountRecords.filter(record => {
-      let matchesLocation = selectedLocation === 'all';
+    return searchFilteredRecords.filter(record => {
+      if (selectedLocation === 'all') return true;
 
-      if (!matchesLocation) {
-        if (selectedLocation.startsWith('reg:')) {
-          matchesLocation = record.region === selectedLocation.substring(4);
-        } else if (selectedLocation.startsWith('city:')) {
-          matchesLocation = record.city === selectedLocation.substring(5);
-        } else if (selectedLocation.startsWith('brgy:')) {
-          matchesLocation = record.barangay === selectedLocation.substring(5);
-        } else {
-          // Fallback for old numeric city IDs if any
-          matchesLocation = record.cityId === Number(selectedLocation);
-        }
+      if (selectedLocation.startsWith('reg:')) {
+        return record.region === selectedLocation.substring(4);
+      } else if (selectedLocation.startsWith('city:')) {
+        return record.city === selectedLocation.substring(5);
+      } else if (selectedLocation.startsWith('brgy:')) {
+        return record.barangay === selectedLocation.substring(5);
+      } else {
+        // Fallback for old numeric city IDs if any
+        return record.cityId === Number(selectedLocation);
       }
-
-      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
-      const matchesSearch = searchQuery === '' ||
-        record.fullName.toLowerCase().replace(/\s+/g, '').includes(normalizedQuery) ||
-        record.address.toLowerCase().replace(/\s+/g, '').includes(normalizedQuery) ||
-        record.accountNo.replace(/\s+/g, '').includes(normalizedQuery);
-
-      return matchesLocation && matchesSearch;
     });
-  }, [discountRecords, selectedLocation, searchQuery]);
+  }, [searchFilteredRecords, selectedLocation]);
 
 
   // Reset page when search or location changes
@@ -567,9 +568,9 @@ const Discounts: React.FC = () => {
               <span>All Discounts</span>
             </div>
             <span
-              className={`px-2 py-1 rounded-full text-xs ${selectedLocation === 'all'
+              className={`px-2 py-1 rounded text-xs transition-colors ${selectedLocation === 'all'
                 ? 'text-white'
-                : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
                 }`}
               style={selectedLocation === 'all' ? {
                 backgroundColor: colorPalette?.primary || '#7c3aed'
@@ -610,9 +611,9 @@ const Discounts: React.FC = () => {
                 </div>
                 {region.count > 0 && (
                   <span
-                    className={`px-2 py-1 rounded-full text-xs ${selectedLocation === region.id
+                    className={`px-2 py-1 rounded text-xs transition-colors ${selectedLocation === region.id
                       ? 'text-white'
-                      : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                      : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
                       }`}
                     style={selectedLocation === region.id ? {
                       backgroundColor: colorPalette?.primary || '#7c3aed'
@@ -652,7 +653,12 @@ const Discounts: React.FC = () => {
                       <span>{city.name}</span>
                     </div>
                     {city.count > 0 && (
-                      <span className="text-xs opacity-60">{city.count}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${selectedLocation === city.id
+                        ? 'text-white bg-white/20'
+                        : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                        }`}>
+                        {city.count}
+                      </span>
                     )}
                   </button>
 
@@ -676,7 +682,12 @@ const Discounts: React.FC = () => {
                         <span>{barangay.name}</span>
                       </div>
                       {barangay.count > 0 && (
-                        <span className="text-[10px] opacity-50">{barangay.count}</span>
+                        <span className={`px-1 py-0.5 rounded text-[9px] transition-colors ${selectedLocation === barangay.id
+                          ? 'text-white bg-white/20'
+                          : isDarkMode ? 'bg-gray-800 text-gray-600' : 'bg-gray-100 text-gray-400'
+                          }`}>
+                          {barangay.count}
+                        </span>
                       )}
                     </button>
                   ))}

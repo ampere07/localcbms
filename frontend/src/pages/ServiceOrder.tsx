@@ -154,10 +154,7 @@ const ServiceOrderPage: React.FC = () => {
     };
 
     fetchColorPalette();
-    fetchColorPalette();
   }, []);
-
-  // Reset page logic handled by fetchServiceOrders on triggers where necessary
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -380,101 +377,6 @@ const ServiceOrderPage: React.FC = () => {
     });
   };
 
-  const locationItems = useMemo(() => {
-    // Define main categories
-    const categories = [
-      { id: 'resolved', name: 'Resolved' },
-      { id: 'failed', name: 'Failed' },
-      { id: 'inprogress', name: 'In Progress' },
-      { id: 'forvisit', name: 'For Visit' },
-      { id: 'open', name: 'Open' }
-    ];
-
-    const tree: Record<string, {
-      count: number,
-      visits: Record<string, {
-        count: number,
-        barangays: Record<string, number>
-      }>
-    }> = {};
-
-    categories.forEach(c => {
-      tree[c.id] = { count: 0, visits: {} };
-    });
-
-    serviceOrders.forEach(so => {
-      const s = (so.supportStatus || '').toLowerCase().trim();
-      const v = (so.visitStatus || '').toLowerCase().trim();
-
-      // Determine Category
-      let category = 'open';
-      if (s === 'resolved' || s === 'completed') category = 'resolved';
-      else if (v === 'failed' || v === 'cancelled') category = 'failed';
-      else if (s === 'in-progress' || s === 'in progress') category = 'inprogress';
-      else if (v === 'scheduled' || v === 'reschedule') category = 'forvisit';
-      else category = 'open';
-
-      const catNode = tree[category];
-      if (catNode) {
-        catNode.count++;
-
-        // Determine Visit Status
-        let visitKey = v || 'empty';
-        if (visitKey === 'completed') visitKey = 'done';
-        if (visitKey === 'in progress') visitKey = 'inprogress';
-
-        if (!catNode.visits[visitKey]) {
-          catNode.visits[visitKey] = { count: 0, barangays: {} };
-        }
-        const visitNode = catNode.visits[visitKey];
-        visitNode.count++;
-
-        // Determine Barangay (match address)
-        const address = (so.fullAddress || '').toLowerCase();
-        let matchedBrgy = 'Unknown';
-
-        // Try to find a matching barangay
-        // Optimization: Stop at first match or collect all? 
-        // User implied "the barangay value", usually unique.
-        const foundBrgy = barangays.find(b => address.includes(b.barangay.toLowerCase()));
-        if (foundBrgy) {
-          matchedBrgy = foundBrgy.barangay;
-        }
-
-        visitNode.barangays[matchedBrgy] = (visitNode.barangays[matchedBrgy] || 0) + 1;
-      }
-    });
-
-    return {
-      items: categories.map(c => ({
-        id: `status:${c.id}`,
-        name: c.name,
-        count: tree[c.id].count,
-        visits: Object.entries(tree[c.id].visits).sort().map(([vKey, vData]) => {
-          let vName = vKey;
-          if (vKey === 'done') vName = 'Done';
-          else if (vKey === 'inprogress') vName = 'In Progress';
-          else if (vKey === 'reschedule') vName = 'Reschedule';
-          else if (vKey === 'empty') vName = '(Empty)';
-          else vName = vKey.charAt(0).toUpperCase() + vKey.slice(1);
-
-          return {
-            id: `status:${c.id}:visit:${vKey}`,
-            name: vName,
-            originalKey: vKey,
-            count: vData.count,
-            barangays: Object.entries(vData.barangays).sort().map(([bName, bCount]) => ({
-              id: `status:${c.id}:visit:${vKey}:brgy:${bName}`,
-              name: bName,
-              count: bCount
-            }))
-          };
-        })
-      })),
-      total: serviceOrders.length
-    };
-  }, [serviceOrders, barangays]);
-
   const getVal = (item: ServiceOrder, key: string): any => {
     switch (key) {
       case 'id': return item.id;
@@ -533,7 +435,6 @@ const ServiceOrderPage: React.FC = () => {
     }
   };
 
-  // Helper function to apply funnel filters
   const applyFunnelFilters = (orders: ServiceOrder[], filters: any): ServiceOrder[] => {
     if (!filters || Object.keys(filters).length === 0) return orders;
 
@@ -593,26 +494,21 @@ const ServiceOrderPage: React.FC = () => {
     });
   };
 
-  const filteredServiceOrders = useMemo(() => {
+  // 1. Initial search and funnel filtering (Global filtered set for sidebar counts)
+  const globalFilteredServiceOrders = useMemo(() => {
     const isTechnician = roleId === 2 || userRole.toLowerCase() === 'technician';
 
     let filtered = serviceOrders.filter(serviceOrder => {
       // 1. Technician 7-Day Filter for 'Resolved' tickets
       if (isTechnician) {
         const supportStatus = (serviceOrder.supportStatus || '').toLowerCase().trim();
-
-        // Only filter if status is 'Resolved'
         if (supportStatus === 'resolved') {
           const updatedAt = serviceOrder.rawUpdatedAt;
-
-          // If we have a date, check if it's older than 7 days
           if (updatedAt) {
             const updatedDate = new Date(updatedAt);
             if (!isNaN(updatedDate.getTime())) {
               const sevenDaysAgo = new Date();
               sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-              // If older than 7 days, HIDE it (return false)
               if (updatedDate < sevenDaysAgo) {
                 return false;
               }
@@ -620,49 +516,6 @@ const ServiceOrderPage: React.FC = () => {
           }
         }
       }
-
-      const matchesLocation = selectedLocation === 'all' || (() => {
-        if (selectedLocation.startsWith('status:')) {
-          const parts = selectedLocation.split(':');
-          const catId = parts[1];
-
-          const s = (serviceOrder.supportStatus || '').toLowerCase().trim();
-          const v = (serviceOrder.visitStatus || '').toLowerCase().trim();
-
-          let category = 'open';
-          if (s === 'resolved' || s === 'completed') category = 'resolved';
-          else if (v === 'failed' || v === 'cancelled') category = 'failed';
-          else if (s === 'in-progress' || s === 'in progress') category = 'inprogress';
-          else if (v === 'scheduled' || v === 'reschedule') category = 'forvisit';
-          else category = 'open';
-
-          if (category !== catId) return false;
-
-          // Check Visit Status
-          if (parts.length > 2 && parts[2] === 'visit') {
-            const visitKeyFilter = parts[3];
-            let visitKey = v || 'empty';
-            if (visitKey === 'completed') visitKey = 'done';
-            if (visitKey === 'in progress') visitKey = 'inprogress';
-
-            if (visitKey !== visitKeyFilter) return false;
-
-            // Check Barangay
-            if (parts.length > 4 && parts[4] === 'brgy') {
-              const brgyName = parts[5];
-              // Use same matching logic logic as in useMemo
-              const address = (serviceOrder.fullAddress || '').toLowerCase();
-              let matchedBrgy = 'Unknown';
-              const foundBrgy = barangays.find(b => address.includes(b.barangay.toLowerCase()));
-              if (foundBrgy) matchedBrgy = foundBrgy.barangay;
-
-              if (matchedBrgy !== brgyName) return false;
-            }
-          }
-          return true;
-        }
-        return false;
-      })();
 
       const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
       const checkValue = (val: any): boolean => {
@@ -673,13 +526,142 @@ const ServiceOrderPage: React.FC = () => {
         return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
       };
 
-      const matchesSearch = searchQuery === '' || checkValue(serviceOrder);
-
-      return matchesLocation && matchesSearch;
+      return searchQuery === '' || checkValue(serviceOrder);
     });
 
-    // Apply funnel filters
-    filtered = applyFunnelFilters(filtered, activeFilters);
+    return applyFunnelFilters(filtered, activeFilters);
+  }, [serviceOrders, searchQuery, activeFilters, userRole, roleId]);
+
+  const locationItems = useMemo(() => {
+    const categories = [
+      { id: 'resolved', name: 'Resolved' },
+      { id: 'failed', name: 'Failed' },
+      { id: 'inprogress', name: 'In Progress' },
+      { id: 'forvisit', name: 'For Visit' },
+      { id: 'open', name: 'Open' }
+    ];
+
+    const tree: Record<string, {
+      count: number,
+      visits: Record<string, {
+        count: number,
+        barangays: Record<string, number>
+      }>
+    }> = {};
+
+    categories.forEach(c => {
+      tree[c.id] = { count: 0, visits: {} };
+    });
+
+    globalFilteredServiceOrders.forEach(so => {
+      const s = (so.supportStatus || '').toLowerCase().trim();
+      const v = (so.visitStatus || '').toLowerCase().trim();
+
+      let category = 'open';
+      if (s === 'resolved' || s === 'completed') category = 'resolved';
+      else if (v === 'failed' || v === 'cancelled') category = 'failed';
+      else if (s === 'in-progress' || s === 'in progress') category = 'inprogress';
+      else if (v === 'scheduled' || v === 'reschedule') category = 'forvisit';
+      else category = 'open';
+
+      const catNode = tree[category];
+      if (catNode) {
+        catNode.count++;
+
+        let visitKey = v || 'empty';
+        if (visitKey === 'completed') visitKey = 'done';
+        if (visitKey === 'in progress') visitKey = 'inprogress';
+
+        if (!catNode.visits[visitKey]) {
+          catNode.visits[visitKey] = { count: 0, barangays: {} };
+        }
+        const visitNode = catNode.visits[visitKey];
+        visitNode.count++;
+
+        const address = (so.fullAddress || '').toLowerCase();
+        let matchedBrgy = 'Unknown';
+        const foundBrgy = barangays.find(b => address.includes(b.barangay.toLowerCase()));
+        if (foundBrgy) {
+          matchedBrgy = foundBrgy.barangay;
+        }
+
+        visitNode.barangays[matchedBrgy] = (visitNode.barangays[matchedBrgy] || 0) + 1;
+      }
+    });
+
+    return {
+      items: categories.map(c => ({
+        id: `status:${c.id}`,
+        name: c.name,
+        count: tree[c.id].count,
+        visits: Object.entries(tree[c.id].visits).sort().map(([vKey, vData]) => {
+          let vName = vKey;
+          if (vKey === 'done') vName = 'Done';
+          else if (vKey === 'inprogress') vName = 'In Progress';
+          else if (vKey === 'reschedule') vName = 'Reschedule';
+          else if (vKey === 'empty') vName = '(Empty)';
+          else vName = vKey.charAt(0).toUpperCase() + vKey.slice(1);
+
+          return {
+            id: `status:${c.id}:visit:${vKey}`,
+            name: vName,
+            originalKey: vKey,
+            count: vData.count,
+            barangays: Object.entries(vData.barangays).sort().map(([bName, bCount]) => ({
+              id: `status:${c.id}:visit:${vKey}:brgy:${bName}`,
+              name: bName,
+              count: bCount
+            }))
+          };
+        })
+      })),
+      total: globalFilteredServiceOrders.length
+    };
+  }, [globalFilteredServiceOrders, barangays]);
+
+  const filteredServiceOrders = useMemo(() => {
+    let filtered = globalFilteredServiceOrders.filter(serviceOrder => {
+      if (selectedLocation === 'all') return true;
+
+      // Extract location match logic
+      if (selectedLocation.startsWith('status:')) {
+        const parts = selectedLocation.split(':');
+        const catId = parts[1];
+
+        const s = (serviceOrder.supportStatus || '').toLowerCase().trim();
+        const v = (serviceOrder.visitStatus || '').toLowerCase().trim();
+
+        let category = 'open';
+        if (s === 'resolved' || s === 'completed') category = 'resolved';
+        else if (v === 'failed' || v === 'cancelled') category = 'failed';
+        else if (s === 'in-progress' || s === 'in progress') category = 'inprogress';
+        else if (v === 'scheduled' || v === 'reschedule') category = 'forvisit';
+        else category = 'open';
+
+        if (category !== catId) return false;
+
+        if (parts.length > 2 && parts[2] === 'visit') {
+          const visitKeyFilter = parts[3];
+          let visitKey = v || 'empty';
+          if (visitKey === 'completed') visitKey = 'done';
+          if (visitKey === 'in progress') visitKey = 'inprogress';
+
+          if (visitKey !== visitKeyFilter) return false;
+
+          if (parts.length > 4 && parts[4] === 'brgy') {
+            const brgyName = parts[5];
+            const address = (serviceOrder.fullAddress || '').toLowerCase();
+            let matchedBrgy = 'Unknown';
+            const foundBrgy = barangays.find(b => address.includes(b.barangay.toLowerCase()));
+            if (foundBrgy) matchedBrgy = foundBrgy.barangay;
+
+            if (matchedBrgy !== brgyName) return false;
+          }
+        }
+        return true;
+      }
+      return false;
+    });
 
     filtered.sort((a, b) => {
       const idA = parseInt(a.id) || 0;
@@ -704,13 +686,13 @@ const ServiceOrderPage: React.FC = () => {
     }
 
     return filtered;
-  }, [serviceOrders, selectedLocation, searchQuery, sortColumn, sortDirection, activeFilters, userRole]);
+  }, [globalFilteredServiceOrders, selectedLocation, sortColumn, sortDirection, barangays]);
 
   // Derived paginated records
   const paginatedServiceOrders = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredServiceOrders.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredServiceOrders, currentPage]);
+  }, [filteredServiceOrders, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(filteredServiceOrders.length / itemsPerPage);
 
@@ -1027,9 +1009,9 @@ const ServiceOrderPage: React.FC = () => {
                 <span>All Service Orders</span>
               </div>
               <span
-                className={`px-2 py-1 rounded-full text-xs ${selectedLocation === 'all'
+                className={`px-2 py-1 rounded text-xs transition-colors ${selectedLocation === 'all'
                   ? 'text-white'
-                  : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                  : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
                   }`}
                 style={selectedLocation === 'all' ? {
                   backgroundColor: colorPalette?.primary || '#7c3aed'
@@ -1074,10 +1056,12 @@ const ServiceOrderPage: React.FC = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       {category.count > 0 && (
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${selectedLocation === category.id ? '' : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'}`}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${selectedLocation === category.id
+                          ? 'text-white'
+                          : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                          }`}
                           style={selectedLocation === category.id ? {
-                            backgroundColor: colorPalette?.primary || '#7c3aed',
-                            color: 'white'
+                            backgroundColor: colorPalette?.primary || '#7c3aed'
                           } : {}}>
                           {category.count}
                         </span>
@@ -1115,10 +1099,12 @@ const ServiceOrderPage: React.FC = () => {
                         >
                           <span className="truncate flex-1 text-left">{visit.name}</span>
                           <div className="flex items-center space-x-2">
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] ${selectedLocation === visit.id ? '' : 'bg-gray-800 text-gray-500'}`}
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${selectedLocation === visit.id
+                              ? 'text-white'
+                              : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                              }`}
                               style={selectedLocation === visit.id ? {
-                                backgroundColor: colorPalette?.primary || '#7c3aed',
-                                color: 'white'
+                                backgroundColor: colorPalette?.primary || '#7c3aed'
                               } : {}}>
                               {visit.count}
                             </span>
@@ -1152,10 +1138,12 @@ const ServiceOrderPage: React.FC = () => {
                               }}
                             >
                               <span className="truncate flex-1 text-left">{brgy.name}</span>
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] ${selectedLocation === brgy.id ? '' : 'bg-gray-800 text-gray-600'}`}
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] transition-colors ${selectedLocation === brgy.id
+                                ? 'text-white'
+                                : isDarkMode ? 'bg-gray-800 text-gray-600' : 'bg-gray-100 text-gray-500'
+                                }`}
                                 style={selectedLocation === brgy.id ? {
-                                  backgroundColor: colorPalette?.primary || '#7c3aed',
-                                  color: 'white'
+                                  backgroundColor: colorPalette?.primary || '#7c3aed'
                                 } : {}}>
                                 {brgy.count}
                               </span>
@@ -1205,10 +1193,12 @@ const ServiceOrderPage: React.FC = () => {
                 <FileText className="h-5 w-5 mr-3" />
                 <span className="capitalize text-base">All Service Orders</span>
               </div>
-              <span className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300"
+              <span className={`px-3 py-1 rounded text-sm transition-colors ${selectedLocation === 'all'
+                ? 'text-white'
+                : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
+                }`}
                 style={selectedLocation === 'all' ? {
-                  backgroundColor: colorPalette?.primary || '#7c3aed',
-                  color: 'white'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 } : {}}>
                 {locationItems.total}
               </span>
@@ -1257,10 +1247,12 @@ const ServiceOrderPage: React.FC = () => {
                       <span className="capitalize text-base">{category.name}</span>
                     </div>
                     {category.count > 0 && (
-                      <span className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300"
+                      <span className={`px-3 py-1 rounded text-sm transition-colors ${selectedLocation === category.id
+                        ? 'text-white'
+                        : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
+                        }`}
                         style={selectedLocation === category.id ? {
-                          backgroundColor: colorPalette?.primary || '#7c3aed',
-                          color: 'white'
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
                         } : {}}>
                         {category.count}
                       </span>
@@ -1298,18 +1290,15 @@ const ServiceOrderPage: React.FC = () => {
                             <span className="text-base">{visit.name}</span>
                           </div>
                           {visit.count > 0 && (
-                            <span className="text-xs opacity-60"
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${selectedLocation === visit.id
+                              ? 'text-white'
+                              : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                              }`}
                               style={selectedLocation === visit.id ? {
-                                backgroundColor: colorPalette?.primary || '#7c3aed',
-                                color: 'white',
-                                padding: '2px 6px',
-                                borderRadius: '9999px'
-                              } : {
-                                padding: '2px 6px',
-                                borderRadius: '9999px',
-                                backgroundColor: '#374151'
-                              }}
-                            >{visit.count}</span>
+                                backgroundColor: colorPalette?.primary || '#7c3aed'
+                              } : {}}>
+                              {visit.count}
+                            </span>
                           )}
                         </button>
 
@@ -1332,18 +1321,15 @@ const ServiceOrderPage: React.FC = () => {
                               <span className="text-base">{brgy.name}</span>
                             </div>
                             {brgy.count > 0 && (
-                              <span className="text-xs opacity-50"
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${selectedLocation === brgy.id
+                                ? 'text-white'
+                                : isDarkMode ? 'bg-gray-800 text-gray-600' : 'bg-gray-100 text-gray-500'
+                                }`}
                                 style={selectedLocation === brgy.id ? {
-                                  backgroundColor: colorPalette?.primary || '#7c3aed',
-                                  color: 'white',
-                                  padding: '2px 6px',
-                                  borderRadius: '9999px'
-                                } : {
-                                  padding: '2px 6px',
-                                  borderRadius: '9999px',
-                                  backgroundColor: '#374151'
-                                }}
-                              >{brgy.count}</span>
+                                  backgroundColor: colorPalette?.primary || '#7c3aed'
+                                } : {}}>
+                                {brgy.count}
+                              </span>
                             )}
                           </button>
                         ))}
@@ -1391,10 +1377,12 @@ const ServiceOrderPage: React.FC = () => {
                 <div className="flex items-center">
                   <span>All Service Orders</span>
                 </div>
-                <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300"
+                <span className={`px-2 py-1 rounded text-xs transition-colors ${selectedLocation === 'all'
+                  ? 'text-white'
+                  : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
+                  }`}
                   style={selectedLocation === 'all' ? {
-                    backgroundColor: colorPalette?.primary || '#7c3aed',
-                    color: 'white'
+                    backgroundColor: colorPalette?.primary || '#7c3aed'
                   } : {}}>
                   {locationItems.total}
                 </span>
@@ -1444,10 +1432,12 @@ const ServiceOrderPage: React.FC = () => {
                         <span>{category.name}</span>
                       </div>
                       {category.count > 0 && (
-                        <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300"
+                        <span className={`px-2 py-1 rounded text-xs transition-colors ${selectedLocation === category.id
+                          ? 'text-white'
+                          : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
+                          }`}
                           style={selectedLocation === category.id ? {
-                            backgroundColor: colorPalette?.primary || '#7c3aed',
-                            color: 'white'
+                            backgroundColor: colorPalette?.primary || '#7c3aed'
                           } : {}}>
                           {category.count}
                         </span>
@@ -1484,18 +1474,15 @@ const ServiceOrderPage: React.FC = () => {
                               <span>{visit.name}</span>
                             </div>
                             {visit.count > 0 && (
-                              <span className="text-xs opacity-60"
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${selectedLocation === visit.id
+                                ? 'text-white'
+                                : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                                }`}
                                 style={selectedLocation === visit.id ? {
-                                  backgroundColor: colorPalette?.primary || '#7c3aed',
-                                  color: 'white',
-                                  padding: '2px 6px',
-                                  borderRadius: '9999px'
-                                } : {
-                                  padding: '2px 6px',
-                                  borderRadius: '9999px',
-                                  backgroundColor: '#374151'
-                                }}
-                              >{visit.count}</span>
+                                  backgroundColor: colorPalette?.primary || '#7c3aed'
+                                } : {}}>
+                                {visit.count}
+                              </span>
                             )}
                           </button>
 
@@ -1518,18 +1505,15 @@ const ServiceOrderPage: React.FC = () => {
                                 <span>{brgy.name}</span>
                               </div>
                               {brgy.count > 0 && (
-                                <span className="text-[10px] opacity-50"
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${selectedLocation === brgy.id
+                                  ? 'text-white'
+                                  : isDarkMode ? 'bg-gray-800 text-gray-600' : 'bg-gray-100 text-gray-400'
+                                  }`}
                                   style={selectedLocation === brgy.id ? {
-                                    backgroundColor: colorPalette?.primary || '#7c3aed',
-                                    color: 'white',
-                                    padding: '2px 6px',
-                                    borderRadius: '9999px'
-                                  } : {
-                                    padding: '2px 6px',
-                                    borderRadius: '9999px',
-                                    backgroundColor: '#374151'
-                                  }}
-                                >{brgy.count}</span>
+                                    backgroundColor: colorPalette?.primary || '#7c3aed'
+                                  } : {}}>
+                                  {brgy.count}
+                                </span>
                               )}
                             </button>
                           ))}
@@ -2023,7 +2007,7 @@ const ServiceOrderPage: React.FC = () => {
                         : 'bg-white border-gray-300 text-gray-900 focus:border-orange-500'
                         }`}
                     >
-                      {[10, 25, 50, 100, 250, 500].map(v => (
+                      {[10, 25, 50, 100].map(v => (
                         <option key={v} value={v}>{v}</option>
                       ))}
                     </select>

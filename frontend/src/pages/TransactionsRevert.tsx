@@ -252,7 +252,7 @@ const TransactionsRevert: React.FC = () => {
                                 </h1>
                                 <div className="flex items-center gap-3">
                                     <button
-                                        onClick={() => fetchRevertRequests()}
+                                        onClick={() => fetchRevertRequests(true)}
                                         disabled={isLoading}
                                         className={`p-2 rounded ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'}`}
                                         title="Refresh"

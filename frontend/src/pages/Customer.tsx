@@ -84,6 +84,108 @@ interface LocationItem {
   count: number;
 }
 
+interface PaginationControlsProps {
+  totalPages: number;
+  itemsPerPage: number;
+  setItemsPerPage: (val: number) => void;
+  isDarkMode: boolean;
+  currentPage: number;
+  totalDisplayCount: number;
+  handlePageChange: (page: number) => void;
+}
+
+const PaginationControls: React.FC<PaginationControlsProps> = ({
+  totalPages,
+  itemsPerPage,
+  setItemsPerPage,
+  isDarkMode,
+  currentPage,
+  totalDisplayCount,
+  handlePageChange
+}) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className={`flex items-center justify-between px-4 py-3 border-t relative z-20 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+      <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        <div className="flex items-center gap-2">
+          <span>Show</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode
+              ? 'bg-gray-800 border-gray-700 text-white'
+              : 'bg-white border-gray-300 text-gray-900'
+              }`}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span>entries</span>
+        </div>
+        <span>
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        </span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => handlePageChange(1)}
+          disabled={currentPage === 1}
+          className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+          title="First Page"
+        >
+          <ChevronsLeft size={16} />
+        </button>
+
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Previous
+        </button>
+
+        <div className="flex items-center space-x-1">
+          <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Page {currentPage} of {totalPages}
+          </span>
+        </div>
+
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Next
+        </button>
+
+        <button
+          onClick={() => handlePageChange(totalPages)}
+          disabled={currentPage === totalPages}
+          className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+          title="Last Page"
+        >
+          <ChevronsRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 type DisplayMode = 'card' | 'table';
 
 // All available columns for the table - extended list to match BillingListView
@@ -488,61 +590,10 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     if (lower === 'online') return { label: 'ONLINE', color: 'text-green-500', hex: '#22c55e', fillColor: 'bg-green-500', hollow: false };
     if (lower === 'offline') return { label: 'OFFLINE', color: 'text-yellow-400', hex: '#facc15', hollow: true };
     if (lower === 'not found') return { label: 'NOT FOUND', color: 'text-red-600', hex: '#dc2626', fillColor: 'bg-red-600', hollow: false };
-    if (lower === 'blocked') return { label: 'BLOCKED', color: 'text-orange-500', hex: '#f97316', hollow: true };
+    if (lower === 'blocked') return { label: 'BLOCKED', color: 'text-orange-500', hex: '#7c3aed', hollow: true };
     if (lower === 'inactive') return { label: 'INACTIVE', color: 'text-gray-400', hex: '#9ca3af', fillColor: 'bg-gray-400', hollow: false };
     return { label: bucket.toUpperCase(), color: 'text-blue-500', hex: '#3b82f6', fillColor: 'bg-blue-500', hollow: false };
   };
-  // Memoize status tree (Status > Billing Status > Barangay)
-  const statusTree = useMemo(() => {
-    const tree: Record<string, { count: number, bStatuses: Record<string, { count: number, barangays: Record<string, number> }> }> = {};
-
-    billingRecords.forEach(record => {
-      const accessStatus = record.status || 'inactive';
-      let bucket = 'offline';
-
-      const lowerStatus = accessStatus.toLowerCase();
-      const lowerOnlineStatus = (record.onlineStatus || '').toLowerCase();
-
-      if (lowerStatus.includes('block') || lowerOnlineStatus.includes('block')) bucket = 'Blocked';
-      else if (lowerStatus === 'not found' || lowerOnlineStatus === 'not found') bucket = 'not found';
-      else if (lowerStatus === 'inactive' || lowerOnlineStatus === 'inactive') bucket = 'inactive';
-      else if (['online', 'active', 'connected'].includes(lowerOnlineStatus)) bucket = 'online';
-      else if (lowerOnlineStatus && lowerOnlineStatus !== 'offline') bucket = lowerOnlineStatus;
-
-      if (!tree[bucket]) {
-        tree[bucket] = { count: 0, bStatuses: {} };
-      }
-
-      tree[bucket].count++;
-      const bStatus = record.billingStatus || 'Regular';
-      const brgy = record.barangay || 'No Barangay';
-
-      if (!tree[bucket].bStatuses[bStatus]) {
-        tree[bucket].bStatuses[bStatus] = { count: 0, barangays: {} };
-      }
-      tree[bucket].bStatuses[bStatus].count++;
-      tree[bucket].bStatuses[bStatus].barangays[brgy] = (tree[bucket].bStatuses[bStatus].barangays[brgy] || 0) + 1;
-    });
-
-    return {
-      items: Object.keys(tree).map(name => ({
-        id: `status:${name}`,
-        name: name,
-        count: tree[name].count,
-        bStatuses: Object.entries(tree[name].bStatuses).sort().map(([bName, bData]) => ({
-          id: `status:${name}:billing:${bName}`,
-          name: bName,
-          count: bData.count,
-          barangays: Object.entries(bData.barangays).sort().map(([brgyName, brgyCount]) => ({
-            id: `status:${name}:billing:${bName}:brgy:${brgyName}`,
-            name: brgyName,
-            count: brgyCount
-          }))
-        }))
-      })),
-      total: totalCount || billingRecords.length
-    };
-  }, [billingRecords, totalCount]);
 
   const getVal = (item: BillingRecord, key: string): any => {
     switch (key) {
@@ -657,10 +708,75 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     });
   };
 
-  // Memoize filtered and sorted records for performance
-  const filteredBillingRecords = useMemo(() => {
+  // 1. Initial search/funnel filtering (Global filtered set for sidebar counts)
+  const globalFilteredRecords = useMemo(() => {
+    const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
     let filtered = billingRecords.filter(record => {
-      // 1. Location hierarchy filter (Now using the 5-category status buckets)
+      return searchQuery === '' || Object.values(record).some(value => {
+        if (value === null || value === undefined) return false;
+        return String(value).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
+      });
+    });
+
+    return applyFunnelFilters(filtered, activeFilters);
+  }, [billingRecords, searchQuery, activeFilters]);
+
+  // Memoize status tree (Status > Billing Status > Barangay) - Now using globalFilteredRecords
+  const statusTree = useMemo(() => {
+    const tree: Record<string, { count: number, bStatuses: Record<string, { count: number, barangays: Record<string, number> }> }> = {};
+
+    globalFilteredRecords.forEach((record: BillingRecord) => {
+      const accessStatus = record.status || 'inactive';
+      let bucket = 'offline';
+
+      const lowerStatus = accessStatus.toLowerCase();
+      const lowerOnlineStatus = (record.onlineStatus || '').toLowerCase();
+
+      if (lowerStatus.includes('block') || lowerOnlineStatus.includes('block')) bucket = 'Blocked';
+      else if (lowerStatus === 'not found' || lowerOnlineStatus === 'not found') bucket = 'not found';
+      else if (lowerStatus === 'inactive' || lowerOnlineStatus === 'inactive') bucket = 'inactive';
+      else if (['online', 'active', 'connected'].includes(lowerOnlineStatus)) bucket = 'online';
+      else if (lowerOnlineStatus && lowerOnlineStatus !== 'offline') bucket = lowerOnlineStatus;
+
+      if (!tree[bucket]) {
+        tree[bucket] = { count: 0, bStatuses: {} };
+      }
+
+      tree[bucket].count++;
+      const bStatus = record.billingStatus || 'Regular';
+      const brgy = record.barangay || 'No Barangay';
+
+      if (!tree[bucket].bStatuses[bStatus]) {
+        tree[bucket].bStatuses[bStatus] = { count: 0, barangays: {} };
+      }
+      tree[bucket].bStatuses[bStatus].count++;
+      tree[bucket].bStatuses[bStatus].barangays[brgy] = (tree[bucket].bStatuses[bStatus].barangays[brgy] || 0) + 1;
+    });
+
+    return {
+      items: Object.keys(tree).map(name => ({
+        id: `status:${name}`,
+        name: name,
+        count: tree[name].count,
+        bStatuses: Object.entries(tree[name].bStatuses).sort().map(([bName, bData]) => ({
+          id: `status:${name}:billing:${bName}`,
+          name: bName,
+          count: bData.count,
+          barangays: Object.entries(bData.barangays).sort().map(([brgyName, brgyCount]) => ({
+            id: `status:${name}:billing:${bName}:brgy:${brgyName}`,
+            name: brgyName,
+            count: brgyCount
+          }))
+        }))
+      })),
+      total: globalFilteredRecords.length
+    };
+  }, [globalFilteredRecords]);
+
+  // Memoize filtered and sorted records for performance - Building on globalFilteredRecords
+  const filteredBillingRecords = useMemo(() => {
+    let filtered = globalFilteredRecords.filter((record: BillingRecord) => {
+      // Location hierarchy filter
       let matchesLocation = selectedLocation === 'all';
       if (!matchesLocation) {
         if (selectedLocation.startsWith('status:')) {
@@ -700,18 +816,8 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
         }
       }
 
-      // 2. Global search query - normalize spaces to fix search issues with full names
-      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
-      const matchesSearch = searchQuery === '' || Object.values(record).some(value => {
-        if (value === null || value === undefined) return false;
-        return String(value).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
-      });
-
-      return matchesLocation && matchesSearch;
+      return matchesLocation;
     });
-
-    // Apply funnel filters
-    filtered = applyFunnelFilters(filtered, activeFilters);
 
     // Sorting logic
     if (sortColumn) {
@@ -731,7 +837,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     }
 
     return filtered;
-  }, [billingRecords, selectedLocation, searchQuery, sortColumn, sortDirection, activeFilters]);
+  }, [globalFilteredRecords, selectedLocation, sortColumn, sortDirection]);
 
   const totalDisplayCount = useMemo(() => {
     if (selectedLocation === 'all' && searchQuery === '' && Object.keys(activeFilters).length === 0) {
@@ -799,90 +905,6 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     }
   }, [paginatedRecords]);
 
-  // Pagination Controls Component
-  const PaginationControls = () => {
-    if (totalPages <= 1) return null;
-
-    return (
-      <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          <div className="flex items-center gap-2">
-            <span>Show</span>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode
-                ? 'bg-gray-800 border-gray-700 text-white'
-                : 'bg-white border-gray-300 text-gray-900'
-                }`}
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-            <span>entries</span>
-          </div>
-          <span>
-            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
-          </span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => handlePageChange(1)}
-            disabled={currentPage === 1}
-            className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === 1
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-            title="First Page"
-          >
-            <ChevronsLeft size={16} />
-          </button>
-
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Previous
-          </button>
-
-          <div className="flex items-center space-x-1">
-            <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Page {currentPage} of {totalPages}
-            </span>
-          </div>
-
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Next
-          </button>
-
-          <button
-            onClick={() => handlePageChange(totalPages)}
-            disabled={currentPage === totalPages}
-            className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === totalPages
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-            title="Last Page"
-          >
-            <ChevronsRight size={16} />
-          </button>
-        </div>
-      </div>
-    );
-  };
 
 
   const handleRecordClick = async (record: BillingRecord) => {
@@ -1602,11 +1624,10 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${
-                      isDarkMode 
-                        ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
+                    className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode
+                        ? 'text-gray-400 hover:text-white hover:bg-gray-700'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                    }`}
+                      }`}
                     title="Clear search"
                   >
                     <X size={16} />
@@ -1672,7 +1693,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                             <button
                               onClick={handleSelectAllColumns}
                               className="text-xs"
-                              style={{ color: colorPalette?.primary || '#f97316' }}
+                              style={{ color: colorPalette?.primary || '#7c3aed' }}
                               onMouseEnter={(e) => {
                                 if (colorPalette?.accent) {
                                   e.currentTarget.style.color = colorPalette.accent;
@@ -1690,7 +1711,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                             <button
                               onClick={handleDeselectAllColumns}
                               className="text-xs"
-                              style={{ color: colorPalette?.primary || '#f97316' }}
+                              style={{ color: colorPalette?.primary || '#7c3aed' }}
                               onMouseEnter={(e) => {
                                 if (colorPalette?.accent) {
                                   e.currentTarget.style.color = colorPalette.accent;
@@ -1758,7 +1779,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                         }}
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                           } ${displayMode === 'card' ? '' : isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                        style={displayMode === 'card' ? { color: colorPalette?.primary || '#f97316' } : {}}
+                        style={displayMode === 'card' ? { color: colorPalette?.primary || '#7c3aed' } : {}}
                       >
                         Card View
                       </button>
@@ -1769,7 +1790,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                         }}
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                           } ${displayMode === 'table' ? '' : isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                        style={displayMode === 'table' ? { color: colorPalette?.primary || '#f97316' } : {}}
+                        style={displayMode === 'table' ? { color: colorPalette?.primary || '#7c3aed' } : {}}
                       >
                         Table View
                       </button>
@@ -1860,8 +1881,8 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                     localStorage.removeItem('customerFilters');
                   }}
                   className={`text-xs font-medium px-2 h-7 rounded-full transition-colors ${isDarkMode
-                      ? 'text-gray-500 hover:text-white hover:bg-gray-800'
-                      : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'
+                    ? 'text-gray-500 hover:text-white hover:bg-gray-800'
+                    : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'
                     }`}
                 >
                   Clear all
@@ -2070,7 +2091,17 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                 </>
               )}
             </div>
-            {!isLoading && !error && filteredBillingRecords.length > 0 && <PaginationControls />}
+            {!isLoading && !error && filteredBillingRecords.length > 0 && (
+              <PaginationControls
+                totalPages={totalPages}
+                itemsPerPage={itemsPerPage}
+                setItemsPerPage={setItemsPerPage}
+                isDarkMode={isDarkMode}
+                currentPage={currentPage}
+                totalDisplayCount={totalDisplayCount}
+                handlePageChange={handlePageChange}
+              />
+            )}
           </div>
         </div>
       </div>

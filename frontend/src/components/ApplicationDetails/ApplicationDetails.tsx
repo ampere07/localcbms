@@ -848,26 +848,28 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         </div>
 
         <div className="flex items-center space-x-3">
-          <button
-            className="px-3 py-1 rounded-sm flex items-center text-white"
-            style={{
-              backgroundColor: colorPalette?.primary || '#7c3aed'
-            }}
-            onMouseEnter={(e) => {
-              if (colorPalette?.accent) {
-                e.currentTarget.style.backgroundColor = colorPalette.accent;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (colorPalette?.primary) {
-                e.currentTarget.style.backgroundColor = colorPalette.primary;
-              }
-            }}
-            onClick={handleMoveToJO}
-            disabled={loading}
-          >
-            <span>Move to JO</span>
-          </button>
+          {detailedApplication?.status?.toLowerCase() !== 'scheduled' && detailedApplication?.status?.toLowerCase() !== 'schedule' && (
+            <button
+              className="px-3 py-1 rounded-sm flex items-center text-white"
+              style={{
+                backgroundColor: colorPalette?.primary || '#7c3aed'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.backgroundColor = colorPalette.primary;
+                }
+              }}
+              onClick={handleMoveToJO}
+              disabled={loading}
+            >
+              <span>Move to JO</span>
+            </button>
+          )}
           {/* <button
             className="px-3 py-1 rounded-sm flex items-center text-white"
             style={{

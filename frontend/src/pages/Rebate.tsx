@@ -92,9 +92,54 @@ const Rebate: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const dateItems = [
-    { date: 'All', id: '' },
-  ];
+  // 1. Initial search filtering (Global filtered set for sidebar counts)
+  const globalFilteredRecords = React.useMemo(() => {
+    let filtered = rebateRecords;
+
+    if (searchQuery) {
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => checkValue(v));
+        }
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
+      };
+
+      filtered = filtered.filter(record => checkValue(record));
+    }
+
+    return filtered;
+  }, [rebateRecords, searchQuery]);
+
+  // Derive date items from context data instead of fetching separately or static
+  const dateItems = React.useMemo(() => {
+    const monthCounts: Record<string, number> = {};
+    const months = new Set<string>();
+
+    globalFilteredRecords.forEach(record => {
+      if (record.month) {
+        monthCounts[record.month] = (monthCounts[record.month] || 0) + 1;
+        months.add(record.month);
+      }
+    });
+
+    // Sort months (assuming standard month/year format or chronological)
+    const sortedMonths = Array.from(months)
+      .sort((a, b) => {
+        // Simple sort, could be improved if months are in specific formats
+        return b.localeCompare(a);
+      })
+      .map(month => ({
+        date: month,
+        count: monthCounts[month]
+      }));
+
+    return {
+      all: globalFilteredRecords.length,
+      dates: sortedMonths
+    };
+  }, [globalFilteredRecords]);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -235,19 +280,12 @@ const Rebate: React.FC = () => {
     }
   };
 
-  const filteredRecords = rebateRecords.filter(record => {
-    const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
-    const checkValue = (val: any): boolean => {
-      if (val === null || val === undefined) return false;
-      if (typeof val === 'object') {
-        return Object.values(val).some(v => checkValue(v));
-      }
-      return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
-    };
-
-    const matchesSearch = searchQuery === '' || checkValue(record);
-    return matchesSearch;
-  });
+  const filteredRecords = React.useMemo(() => {
+    return globalFilteredRecords.filter(record => {
+      if (selectedDate === 'All') return true;
+      return record.month === selectedDate;
+    });
+  }, [globalFilteredRecords, selectedDate]);
 
   // Reset page when search or date filter changes
   useEffect(() => {
@@ -422,11 +460,41 @@ const Rebate: React.FC = () => {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {dateItems.map((item, index) => (
+          {/* All Level */}
+          <button
+            onClick={() => setSelectedDate('All')}
+            className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${selectedDate === 'All'
+                ? ''
+                : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}
+            style={selectedDate === 'All' ? {
+              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+              color: colorPalette?.primary || '#7c3aed'
+            } : {}}
+          >
+            <div className="flex items-center">
+              <span>All Records</span>
+            </div>
+            <span
+              className={`px-2 py-1 rounded text-xs transition-colors ${selectedDate === 'All'
+                ? 'text-white'
+                : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
+                }`}
+              style={selectedDate === 'All' ? {
+                backgroundColor: colorPalette?.primary || '#7c3aed'
+              } : {}}
+            >
+              {dateItems.all}
+            </span>
+          </button>
+
+          {/* Date Levels */}
+          {dateItems.dates.map((item, index) => (
             <button
               key={index}
               onClick={() => setSelectedDate(item.date)}
-              className={`w-full flex items-center px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
                 } ${selectedDate === item.date
                   ? ''
                   : isDarkMode ? 'text-gray-300' : 'text-gray-700'
@@ -436,14 +504,23 @@ const Rebate: React.FC = () => {
                 color: colorPalette?.primary || '#7c3aed'
               } : {}}
             >
-              <span className="text-sm font-medium flex items-center">
-                {item.date !== 'All' && (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                  </svg>
-                )}
-                {item.date}
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span>{item.date}</span>
+              </div>
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${selectedDate === item.date
+                  ? 'text-white'
+                  : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                  }`}
+                style={selectedDate === item.date ? {
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
+                } : {}}
+              >
+                {item.count}
               </span>
             </button>
           ))}

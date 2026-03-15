@@ -93,7 +93,7 @@ export const transactionRevertService = {
         }
     },
 
-    getAllRevertRequests: async (updatedSince?: string): Promise<{ success: boolean; data: TransactionRevert[]; count: number }> => {
+    getAllRevertRequests: async (updatedSince?: string): Promise<{ success: boolean; data: TransactionRevert[]; count: number; serverTime?: string }> => {
         try {
             const response = await apiClient.get<ApiResponse>('/transaction-reverts', {
                 params: { updated_since: updatedSince }
@@ -101,7 +101,8 @@ export const transactionRevertService = {
             return {
                 success: true,
                 data: response.data.data || [],
-                count: response.data.count || 0
+                count: response.data.count || 0,
+                serverTime: (response.data as any).server_time
             };
         } catch (error: any) {
             console.error('Error fetching revert requests:', error);

@@ -92,8 +92,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 if (normalizedRole === 'technician' || String(user.role_id) === '2' || normalizedRole === 'agent' || String(user.role_id) === '4') {
                     return 'job-order';
                 }
-                if (normalizedRole === 'administrator' || String(user.role_id) === '1' || String(user.role_id) === '7') {
+                if (String(user.role_id) === '7' || normalizedRole === 'superadmin') {
                     return 'live-monitor';
+                }
+                if (normalizedRole === 'administrator' || String(user.role_id) === '1') {
+                    return 'customer';
                 }
                 if (normalizedRole === 'osp' || String(user.role_id) === '6') {
                     return 'work-order';

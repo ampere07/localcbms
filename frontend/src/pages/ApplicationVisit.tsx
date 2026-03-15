@@ -1141,7 +1141,7 @@ const ApplicationVisitPage: React.FC = () => {
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                           }`}
                         style={displayMode === 'card' ? {
-                          color: colorPalette?.primary || '#f97316'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {
                           color: isDarkMode ? '#ffffff' : '#111827'
                         }}
@@ -1156,7 +1156,7 @@ const ApplicationVisitPage: React.FC = () => {
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                           }`}
                         style={displayMode === 'table' ? {
-                          color: colorPalette?.primary || '#f97316'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {
                           color: isDarkMode ? '#ffffff' : '#111827'
                         }}
@@ -1313,7 +1313,7 @@ const ApplicationVisitPage: React.FC = () => {
                               <div
                                 className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize group-hover:bg-gray-600"
                                 style={{
-                                  backgroundColor: hoveredColumn === column.key ? (colorPalette?.primary || '#f97316') : undefined
+                                  backgroundColor: hoveredColumn === column.key ? (colorPalette?.primary || '#7c3aed') : undefined
                                 }}
                                 onMouseDown={(e) => handleMouseDownResize(e, column.key)}
                               />

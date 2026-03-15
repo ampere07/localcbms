@@ -22,7 +22,7 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
   onSave
 }) => {
   const [paletteName, setPaletteName] = useState('');
-  const [primaryColor, setPrimaryColor] = useState('#f97316');
+  const [primaryColor, setPrimaryColor] = useState('#7c3aed');
   const [accentColor, setAccentColor] = useState('#7c3aed');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -128,7 +128,7 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
     if (isLoading) return;
 
     setPaletteName('');
-    setPrimaryColor('#f97316');
+    setPrimaryColor('#7c3aed');
     setAccentColor('#7c3aed');
     setErrors({});
     setShowError(false);
@@ -254,7 +254,7 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
                         setPrimaryColor(e.target.value);
                         if (errors.primary) setErrors({ ...errors, primary: '' });
                       }}
-                      placeholder="#f97316"
+                      placeholder="#7c3aed"
                       disabled={isLoading}
                       onFocus={() => setFocusedField('primary')}
                       onBlur={() => setFocusedField(null)}

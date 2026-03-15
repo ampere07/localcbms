@@ -5,8 +5,8 @@ interface TransactionRevertState {
     revertRequests: TransactionRevert[];
     isLoading: boolean;
     error: string | null;
-    lastUpdated: Date | null;
-    fetchRevertRequests: (silent?: boolean) => Promise<void>;
+    lastUpdated: string | null;
+    fetchRevertRequests: (force?: boolean) => Promise<void>;
     fetchUpdates: () => Promise<void>;
 }
 
@@ -16,14 +16,19 @@ export const useTransactionRevertStore = create<TransactionRevertState>((set, ge
     error: null,
     lastUpdated: null,
 
-    fetchRevertRequests: async (silent = false) => {
-        if (!silent) set({ isLoading: true });
+    fetchRevertRequests: async (force = false) => {
+        const { revertRequests, isLoading } = get();
+        
+        // If data exists and not forcing, skip full fetch
+        if (revertRequests.length > 0 && !force) return;
+
+        if (!isLoading) set({ isLoading: true });
         try {
             const result = await transactionRevertService.getAllRevertRequests();
             if (result.success) {
                 set({
                     revertRequests: result.data,
-                    lastUpdated: new Date(),
+                    lastUpdated: result.serverTime || new Date().toISOString(),
                     error: null
                 });
             } else {
@@ -37,18 +42,19 @@ export const useTransactionRevertStore = create<TransactionRevertState>((set, ge
     },
 
     fetchUpdates: async () => {
-        const { lastUpdated, revertRequests } = get();
+        const { lastUpdated } = get();
         if (!lastUpdated) {
             await get().fetchRevertRequests(true);
             return;
         }
 
         try {
-            const formattedDate = lastUpdated.toISOString().slice(0, 19).replace('T', ' ');
-            const result = await transactionRevertService.getAllRevertRequests(formattedDate);
+            // Using the timestamp directly from serverTime
+            const result = await transactionRevertService.getAllRevertRequests(lastUpdated);
 
             if (result && result.success && result.data && result.data.length > 0) {
                 const updatedRequests = result.data;
+                const now = result.serverTime || new Date().toISOString();
                 
                 set((state) => {
                     const currentMap = new Map();
@@ -64,11 +70,11 @@ export const useTransactionRevertStore = create<TransactionRevertState>((set, ge
                             const dateB = new Date(b.created_at || 0).getTime();
                             return dateB - dateA;
                         }),
-                        lastUpdated: new Date()
+                        lastUpdated: now
                     };
                 });
-            } else {
-                set({ lastUpdated: new Date() });
+            } else if (result && result.success) {
+                set({ lastUpdated: result.serverTime || new Date().toISOString() });
             }
         } catch (err) {
             console.error('[TransactionRevertStore] Polling failed:', err);

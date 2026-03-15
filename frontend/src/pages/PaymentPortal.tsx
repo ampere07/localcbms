@@ -76,6 +76,105 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
   };
 };
 
+interface PaginationControlsProps {
+  totalPages: number;
+  itemsPerPage: number;
+  setItemsPerPage: (val: number) => void;
+  isDarkMode: boolean;
+  currentPage: number;
+  totalDisplayCount: number;
+  handlePageChange: (page: number) => void;
+}
+
+const PaginationControls: React.FC<PaginationControlsProps> = ({
+  totalPages,
+  itemsPerPage,
+  setItemsPerPage,
+  isDarkMode,
+  currentPage,
+  totalDisplayCount,
+  handlePageChange
+}) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className={`flex items-center justify-between px-4 py-3 border-t relative z-20 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+      <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        <div className="flex items-center gap-2">
+          <span>Show</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span>entries</span>
+        </div>
+        <span>
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        </span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => handlePageChange(1)}
+          disabled={currentPage === 1}
+          className={`p-1 rounded transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+            : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+            }`}
+          title="First Page"
+        >
+          <ChevronsLeft className="h-5 w-5" />
+        </button>
+
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Previous
+        </button>
+
+        <div className="flex items-center space-x-1">
+          <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Page {currentPage} of {totalPages}
+          </span>
+        </div>
+
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Next
+        </button>
+
+        <button
+          onClick={() => handlePageChange(totalPages)}
+          disabled={currentPage === totalPages}
+          className={`p-1 rounded transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+            : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+            }`}
+          title="Last Page"
+        >
+          <ChevronsRight className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const PaymentPortal: React.FC = () => {
   const {
     paymentPortalRecords: records,
@@ -305,89 +404,10 @@ const PaymentPortal: React.FC = () => {
   };
 
 
-  // Generate location items with hierarchy
-  const locationItems = useMemo(() => {
-    // Counts for each level
-    const regionCounts: Record<string, number> = {};
-    const cityCounts: Record<string, number> = {};
-    const barangayCounts: Record<string, number> = {};
-
-    // Initialize counts
-    regions.forEach(r => regionCounts[r.name] = 0);
-    cities.forEach(c => cityCounts[`${c.region_id}_${c.name}`] = 0);
-    barangays.forEach(b => barangayCounts[`${b.city_id}_${b.barangay}`] = 0);
-
-    // Count appearances in records
-    records.forEach(record => {
-      const city = record.city;
-      const barangay = record.barangay;
-
-      // Find matched city to get region
-      const matchedCity = cities.find(c => c.name === city);
-      if (matchedCity) {
-        const matchedRegion = regions.find(r => r.id === matchedCity.region_id);
-        if (matchedRegion) {
-          regionCounts[matchedRegion.name] = (regionCounts[matchedRegion.name] || 0) + 1;
-        }
-        cityCounts[`${matchedCity.region_id}_${matchedCity.name}`] = (cityCounts[`${matchedCity.region_id}_${matchedCity.name}`] || 0) + 1;
-      }
-
-      if (barangay) {
-        const matchedBarangay = barangays.find(b =>
-          b.barangay === barangay &&
-          (!city || cities.find(c => c.id === b.city_id)?.name === city)
-        );
-        if (matchedBarangay) {
-          barangayCounts[`${matchedBarangay.city_id}_${matchedBarangay.barangay}`] = (barangayCounts[`${matchedBarangay.city_id}_${matchedBarangay.barangay}`] || 0) + 1;
-        }
-      }
-    });
-
-    return {
-      regions: regions.map(r => ({
-        id: `reg:${r.name}`,
-        name: r.name,
-        count: regionCounts[r.name] || 0,
-        cities: cities.filter(c => c.region_id === r.id).map(c => ({
-          id: `city:${c.name}`,
-          name: c.name,
-          regionName: r.name,
-          count: cityCounts[`${r.id}_${c.name}`] || 0,
-          barangays: barangays.filter(b => b.city_id === c.id).map(b => ({
-            id: `brgy:${b.barangay}`,
-            name: b.barangay,
-            cityName: c.name,
-            regionName: r.name,
-            count: barangayCounts[`${c.id}_${b.barangay}`] || 0
-          }))
-        }))
-      })),
-      total: records.length
-    };
-  }, [regions, cities, barangays, records]);
-
-  // Filter records based on location and search query
-  const filteredRecords = useMemo(() => {
+  // 1. Initial search/funnel filtering (Global filtered set for sidebar counts)
+  const globalFilteredRecords = useMemo(() => {
+    const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
     let filtered = records.filter(record => {
-      let matchesLocation = selectedLocation === 'all';
-
-      if (!matchesLocation) {
-        if (selectedLocation.startsWith('reg:')) {
-          const regionName = selectedLocation.substring(4);
-          // Try to match region via city lookup since record doesn't have region field directly
-          const matchedCity = cities.find(c => c.name === record.city);
-          const matchedRegion = regions.find(r => r.id === matchedCity?.region_id);
-          matchesLocation = matchedRegion?.name === regionName;
-        } else if (selectedLocation.startsWith('city:')) {
-          const cityName = selectedLocation.substring(5);
-          matchesLocation = record.city === cityName;
-        } else if (selectedLocation.startsWith('brgy:')) {
-          const barangayName = selectedLocation.substring(5);
-          matchesLocation = record.barangay === barangayName;
-        }
-      }
-
-      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
       const checkValue = (val: any): boolean => {
         if (val === null || val === undefined) return false;
         if (typeof val === 'object') {
@@ -396,16 +416,14 @@ const PaymentPortal: React.FC = () => {
         return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
       };
 
-      const matchesSearch = searchQuery === '' || checkValue(record);
-
-      return matchesLocation && matchesSearch;
+      return searchQuery === '' || checkValue(record);
     });
+
     // Apply funnel filters
     if (activeFilters && Object.keys(activeFilters).length > 0) {
       filtered = filtered.filter((record: any) => {
         return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
-          // Helper to resolve property names if needed
-          const getVal = (item: any, k: string) => {
+          const getValForFilter = (item: any, k: string) => {
             switch (k) {
               case 'fullName': return item.fullName ?? item.full_name;
               case 'accountNo': return item.accountNo ?? item.account_no;
@@ -414,7 +432,7 @@ const PaymentPortal: React.FC = () => {
             }
           };
 
-          const val = getVal(record, key);
+          const val = getValForFilter(record, key);
 
           if (filter.type === 'checklist') {
             if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
@@ -469,9 +487,94 @@ const PaymentPortal: React.FC = () => {
       });
     }
 
-
     return filtered;
-  }, [records, selectedLocation, searchQuery, cities, regions, activeFilters]);
+  }, [records, searchQuery, activeFilters]);
+
+  // Generate location items with hierarchy - Now using globalFilteredRecords
+  const locationItems = useMemo(() => {
+    // Counts for each level
+    const regionCounts: Record<string, number> = {};
+    const cityCounts: Record<string, number> = {};
+    const barangayCounts: Record<string, number> = {};
+
+    // Initialize counts
+    regions.forEach(r => regionCounts[r.name] = 0);
+    cities.forEach(c => cityCounts[`${c.region_id}_${c.name}`] = 0);
+    barangays.forEach(b => barangayCounts[`${b.city_id}_${b.barangay}`] = 0);
+
+    // Count appearances in records
+    globalFilteredRecords.forEach(record => {
+      const city = record.city;
+      const barangay = record.barangay;
+
+      // Find matched city to get region
+      const matchedCity = cities.find(c => c.name === city);
+      if (matchedCity) {
+        const matchedRegion = regions.find(r => r.id === matchedCity.region_id);
+        if (matchedRegion) {
+          regionCounts[matchedRegion.name] = (regionCounts[matchedRegion.name] || 0) + 1;
+        }
+        cityCounts[`${matchedCity.region_id}_${matchedCity.name}`] = (cityCounts[`${matchedCity.region_id}_${matchedCity.name}`] || 0) + 1;
+      }
+
+      if (barangay) {
+        const matchedBarangay = barangays.find(b =>
+          b.barangay === barangay &&
+          (!city || cities.find(c => c.id === b.city_id)?.name === city)
+        );
+        if (matchedBarangay) {
+          barangayCounts[`${matchedBarangay.city_id}_${matchedBarangay.barangay}`] = (barangayCounts[`${matchedBarangay.city_id}_${matchedBarangay.barangay}`] || 0) + 1;
+        }
+      }
+    });
+
+    return {
+      regions: regions.map(r => ({
+        id: `reg:${r.name}`,
+        name: r.name,
+        count: regionCounts[r.name] || 0,
+        cities: cities.filter(c => c.region_id === r.id).map(c => ({
+          id: `city:${c.name}`,
+          name: c.name,
+          regionName: r.name,
+          count: cityCounts[`${r.id}_${c.name}`] || 0,
+          barangays: barangays.filter(b => b.city_id === c.id).map(b => ({
+            id: `brgy:${b.barangay}`,
+            name: b.barangay,
+            cityName: c.name,
+            regionName: r.name,
+            count: barangayCounts[`${c.id}_${b.barangay}`] || 0
+          }))
+        }))
+      })),
+      total: globalFilteredRecords.length
+    };
+  }, [regions, cities, barangays, globalFilteredRecords]);
+
+  // Filter records based on location
+  const filteredRecords = useMemo(() => {
+    return globalFilteredRecords.filter(record => {
+      let matchesLocation = selectedLocation === 'all';
+
+      if (!matchesLocation) {
+        if (selectedLocation.startsWith('reg:')) {
+          const regionName = selectedLocation.substring(4);
+          // Try to match region via city lookup since record doesn't have region field directly
+          const matchedCity = cities.find(c => c.name === record.city);
+          const matchedRegion = regions.find(r => r.id === matchedCity?.region_id);
+          matchesLocation = matchedRegion?.name === regionName;
+        } else if (selectedLocation.startsWith('city:')) {
+          const cityName = selectedLocation.substring(5);
+          matchesLocation = record.city === cityName;
+        } else if (selectedLocation.startsWith('brgy:')) {
+          const barangayName = selectedLocation.substring(5);
+          matchesLocation = record.barangay === barangayName;
+        }
+      }
+
+      return matchesLocation;
+    });
+  }, [globalFilteredRecords, selectedLocation, cities, regions]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -506,86 +609,6 @@ const PaymentPortal: React.FC = () => {
     }
   };
 
-  const PaginationControls = () => {
-    if (totalPages <= 1) return null;
-
-    return (
-      <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          <div className="flex items-center gap-2">
-            <span>Show</span>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-            <span>entries</span>
-          </div>
-          <span>
-            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
-          </span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => handlePageChange(1)}
-            disabled={currentPage === 1}
-            className={`p-1 rounded transition-colors ${currentPage === 1
-              ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
-              : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
-              }`}
-            title="First Page"
-          >
-            <ChevronsLeft className="h-5 w-5" />
-          </button>
-
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Previous
-          </button>
-
-          <div className="flex items-center space-x-1">
-            <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Page {currentPage} of {totalPages}
-            </span>
-          </div>
-
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Next
-          </button>
-
-          <button
-            onClick={() => handlePageChange(totalPages)}
-            disabled={currentPage === totalPages}
-            className={`p-1 rounded transition-colors ${currentPage === totalPages
-              ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
-              : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
-              }`}
-            title="Last Page"
-          >
-            <ChevronsRight className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   const handleRowClick = (record: PaymentPortalRecord) => {
     setSelectedRecord(record);
@@ -1080,7 +1103,15 @@ const PaymentPortal: React.FC = () => {
                 </table>
               )}
             </div>
-            <PaginationControls />
+            <PaginationControls
+              totalPages={totalPages}
+              itemsPerPage={itemsPerPage}
+              setItemsPerPage={setItemsPerPage}
+              isDarkMode={isDarkMode}
+              currentPage={currentPage}
+              totalDisplayCount={totalDisplayCount}
+              handlePageChange={handlePageChange}
+            />
           </div>
         </div>
       </div>

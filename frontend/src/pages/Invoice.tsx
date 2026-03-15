@@ -70,6 +70,105 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
   };
 };
 
+interface PaginationControlsProps {
+  totalPages: number;
+  itemsPerPage: number;
+  setItemsPerPage: (val: number) => void;
+  isDarkMode: boolean;
+  currentPage: number;
+  totalDisplayCount: number;
+  handlePageChange: (page: number) => void;
+}
+
+const PaginationControls: React.FC<PaginationControlsProps> = ({
+  totalPages,
+  itemsPerPage,
+  setItemsPerPage,
+  isDarkMode,
+  currentPage,
+  totalDisplayCount,
+  handlePageChange
+}) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className={`flex items-center justify-between px-4 py-3 border-t relative z-20 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+      <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        <div className="flex items-center gap-2">
+          <span>Show</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span>entries</span>
+        </div>
+        <span>
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        </span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => handlePageChange(1)}
+          disabled={currentPage === 1}
+          className={`p-1 rounded transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+            : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+            }`}
+          title="First Page"
+        >
+          <ChevronsLeft className="h-5 w-5" />
+        </button>
+
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Previous
+        </button>
+
+        <div className="flex items-center space-x-1">
+          <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Page {currentPage} of {totalPages}
+          </span>
+        </div>
+
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Next
+        </button>
+
+        <button
+          onClick={() => handlePageChange(totalPages)}
+          disabled={currentPage === totalPages}
+          className={`p-1 rounded transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+            : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+            }`}
+          title="Last Page"
+        >
+          <ChevronsRight className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const Invoice: React.FC = () => {
   const { invoiceRecords, totalCount, isLoading, error, fetchInvoiceRecords, refreshInvoiceRecords, silentRefresh } = useInvoiceStore();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
@@ -176,12 +275,96 @@ const Invoice: React.FC = () => {
 
   const displayColumns = userRole === 'customer' ? customerColumns : allColumns;
 
+  // Centralized search and funnel filtering - for sidebar synchronization
+  const globalFilteredInvoices = useMemo(() => {
+    let filtered = invoiceRecords;
+
+    // Search query filtering
+    if (searchQuery) {
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => checkValue(v));
+        }
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
+      };
+      filtered = filtered.filter(record => checkValue(record));
+    }
+
+    // Funnel filtering
+    if (activeFilters && Object.keys(activeFilters).length > 0) {
+      filtered = filtered.filter(record => {
+        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
+          // Helper to resolve property names if needed
+          const getVal = (item: any, k: string) => {
+            switch (k) {
+              case 'accountNo': return item.accountNo ?? item.account_no;
+              case 'fullName': return item.fullName ?? item.full_name;
+              case 'invoiceDateRaw': return item.invoiceDateRaw ?? item.invoice_date;
+              case 'invoiceBalance': return item.invoiceBalance ?? item.invoice_balance;
+              default: return item[k];
+            }
+          };
+
+          const val = getVal(record, key);
+
+          if (filter.type === 'checklist') {
+            if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
+
+            const valStr = String(val || '').toLowerCase().trim();
+
+            if (key === 'barangay' || key === 'city' || key === 'region') {
+              const directVal = String((record as any)[key] || '').toLowerCase().trim();
+              const address = String(record.address || '').toLowerCase();
+
+              return (filter.value as string[]).some(option => {
+                const opt = option.toLowerCase().trim();
+                return directVal === opt || address.includes(opt);
+              });
+            }
+
+            return (filter.value as string[]).some(option => valStr === option.toLowerCase().trim());
+          }
+
+          if (filter.type === 'text') {
+            if (!filter.value) return true;
+            const value = String(val || '').toLowerCase();
+            return value.includes(String(filter.value).toLowerCase());
+          }
+
+          if (filter.type === 'number') {
+            const numValue = Number(val);
+            if (isNaN(numValue)) return false;
+            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
+            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
+            return true;
+          }
+
+          if (filter.type === 'date') {
+            if (!val) return false;
+            const dateValue = new Date(val).getTime();
+            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
+            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
+            return true;
+          }
+
+          return true;
+        });
+      });
+    }
+
+    return filtered;
+  }, [invoiceRecords, searchQuery, activeFilters]);
+
   // Derive date items from context data instead of fetching separately or static
-  const dateItems: Array<{ date: string; id: string }> = useMemo(() => {
+  const dateItems = useMemo(() => {
+    const dateCounts: Record<string, number> = {};
     const dates = new Map<string, string>();
-    invoiceRecords.forEach(record => {
+    
+    globalFilteredInvoices.forEach(record => {
       if (record.invoiceDate && record.invoiceDate !== 'N/A') {
-        // Map formatted date to raw date for sorting
+        dateCounts[record.invoiceDate] = (dateCounts[record.invoiceDate] || 0) + 1;
         dates.set(record.invoiceDate, record.invoiceDateRaw || record.invoiceDate);
       }
     });
@@ -192,10 +375,16 @@ const Invoice: React.FC = () => {
         const timeB = new Date(b[1]).getTime();
         return timeB - timeA;
       })
-      .map(([formatted]) => formatted);
+      .map(([formatted]) => ({
+        date: formatted,
+        count: dateCounts[formatted]
+      }));
 
-    return [{ date: 'All', id: '' }, ...sortedDates.map(d => ({ date: d, id: d }))];
-  }, [invoiceRecords]);
+    return {
+      all: globalFilteredInvoices.length,
+      dates: sortedDates
+    };
+  }, [globalFilteredInvoices]);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -293,7 +482,20 @@ const Invoice: React.FC = () => {
     };
   }, [fetchInvoiceRecords]);
 
-  // Polling removed - Pusher/Soketi handles real-time updates; idle detection handles 15-min refresh
+  // Polling for updates every 3 seconds
+  useEffect(() => {
+    const POLLING_INTERVAL = 3000; // 3 seconds
+    const intervalId = setInterval(async () => {
+      console.log('[Invoice Page] Polling for updates...');
+      try {
+        await silentRefresh();
+      } catch (err) {
+        console.error('[Invoice Page] Polling failed:', err);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [silentRefresh]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -366,85 +568,10 @@ const Invoice: React.FC = () => {
 
 
   const filteredRecords = useMemo(() => {
-    let filtered = invoiceRecords.filter(record => {
+    let filtered = globalFilteredInvoices.filter(record => {
       const matchesDate = selectedDate === 'All' || record.invoiceDate === selectedDate;
-      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
-      const checkValue = (val: any): boolean => {
-        if (val === null || val === undefined) return false;
-        if (typeof val === 'object') {
-          return Object.values(val).some(v => checkValue(v));
-        }
-        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
-      };
-
-      const matchesSearch = searchQuery === '' || checkValue(record);
-
-      return matchesDate && matchesSearch;
+      return matchesDate;
     });
-
-    // Apply funnel filters
-    if (activeFilters && Object.keys(activeFilters).length > 0) {
-      filtered = filtered.filter(record => {
-        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
-          let recordValue = (record as any)[key];
-          
-          // Helper to resolve property names if needed
-          const getVal = (item: any, k: string) => {
-             switch(k) {
-                case 'accountNo': return item.accountNo ?? item.account_no;
-                case 'fullName': return item.fullName ?? item.full_name;
-                case 'invoiceDateRaw': return item.invoiceDateRaw ?? item.invoice_date;
-                case 'invoiceBalance': return item.invoiceBalance ?? item.invoice_balance;
-                default: return item[k];
-             }
-          };
-
-          const val = getVal(record, key);
-
-          if (filter.type === 'checklist') {
-            if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
-            
-            const valStr = String(val || '').toLowerCase().trim();
-            
-            if (key === 'barangay' || key === 'city' || key === 'region') {
-               const directVal = String((record as any)[key] || '').toLowerCase().trim();
-               const address = String(record.address || '').toLowerCase();
-               
-               return (filter.value as string[]).some(option => {
-                  const opt = option.toLowerCase().trim();
-                  return directVal === opt || address.includes(opt);
-               });
-            }
-            
-            return (filter.value as string[]).some(option => valStr === option.toLowerCase().trim());
-          }
-
-          if (filter.type === 'text') {
-            if (!filter.value) return true;
-            const value = String(val || '').toLowerCase();
-            return value.includes(String(filter.value).toLowerCase());
-          }
-
-          if (filter.type === 'number') {
-            const numValue = Number(val);
-            if (isNaN(numValue)) return false;
-            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
-            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
-            return true;
-          }
-
-          if (filter.type === 'date') {
-            if (!val) return false;
-            const dateValue = new Date(val).getTime();
-            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
-            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
-            return true;
-          }
-
-          return true;
-        });
-      });
-    }
 
     // Sorting logic
     if (sortColumn) {
@@ -480,7 +607,7 @@ const Invoice: React.FC = () => {
     }
 
     return filtered;
-  }, [invoiceRecords, selectedDate, searchQuery, sortColumn, sortDirection, activeFilters]);
+  }, [globalFilteredInvoices, selectedDate, sortColumn, sortDirection]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -514,86 +641,6 @@ const Invoice: React.FC = () => {
     }
   };
 
-  const PaginationControls = () => {
-    if (totalPages <= 1) return null;
-
-    return (
-      <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          <div className="flex items-center gap-2">
-            <span>Show</span>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-            <span>entries</span>
-          </div>
-          <span>
-            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
-          </span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => handlePageChange(1)}
-            disabled={currentPage === 1}
-            className={`p-1 rounded transition-colors ${currentPage === 1
-              ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
-              : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
-              }`}
-            title="First Page"
-          >
-            <ChevronsLeft className="h-5 w-5" />
-          </button>
-
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Previous
-          </button>
-
-          <div className="flex items-center space-x-1">
-            <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Page {currentPage} of {totalPages}
-            </span>
-          </div>
-
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Next
-          </button>
-
-          <button
-            onClick={() => handlePageChange(totalPages)}
-            disabled={currentPage === totalPages}
-            className={`p-1 rounded transition-colors ${currentPage === totalPages
-              ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
-              : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
-              }`}
-            title="Last Page"
-          >
-            <ChevronsRight className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   const handleRowClick = (record: InvoiceRecordUI) => {
     if (userRole !== 'customer') {
@@ -956,7 +1003,37 @@ const Invoice: React.FC = () => {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {dateItems.map((item, index) => (
+            {/* All Level */}
+            <button
+              onClick={() => setSelectedDate('All')}
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                } ${selectedDate === 'All'
+                  ? ''
+                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}
+              style={selectedDate === 'All' ? {
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                color: colorPalette?.primary || '#7c3aed'
+              } : {}}
+            >
+              <div className="flex items-center">
+                <span>All Records</span>
+              </div>
+              <span
+                className={`px-2 py-1 rounded text-xs transition-colors ${selectedDate === 'All'
+                  ? 'text-white'
+                  : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
+                  }`}
+                style={selectedDate === 'All' ? {
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
+                } : {}}
+              >
+                {dateItems.all}
+              </span>
+            </button>
+
+            {/* Date Levels */}
+            {dateItems.dates.map((item, index) => (
               <button
                 key={index}
                 onClick={() => setSelectedDate(item.date)}
@@ -970,14 +1047,23 @@ const Invoice: React.FC = () => {
                   color: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
-                <span className="text-sm font-medium flex items-center">
-                  {item.date !== 'All' && (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                    </svg>
-                  )}
-                  {item.date}
+                <div className="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                  </svg>
+                  <span>{item.date}</span>
+                </div>
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${selectedDate === item.date
+                    ? 'text-white'
+                    : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                    }`}
+                  style={selectedDate === item.date ? {
+                    backgroundColor: colorPalette?.primary || '#7c3aed'
+                  } : {}}
+                >
+                  {item.count}
                 </span>
               </button>
             ))}
@@ -1381,7 +1467,17 @@ const Invoice: React.FC = () => {
                 </>
               )}
             </div>
-            {!isLoading && !error && filteredRecords.length > 0 && <PaginationControls />}
+            {!isLoading && !error && filteredRecords.length > 0 && (
+              <PaginationControls
+                totalPages={totalPages}
+                itemsPerPage={itemsPerPage}
+                setItemsPerPage={setItemsPerPage}
+                isDarkMode={isDarkMode}
+                currentPage={currentPage}
+                totalDisplayCount={totalDisplayCount}
+                handlePageChange={handlePageChange}
+              />
+            )}
           </div>
         </div>
       </div>

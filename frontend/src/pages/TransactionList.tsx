@@ -76,6 +76,105 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
   };
 };
 
+interface PaginationControlsProps {
+  totalPages: number;
+  itemsPerPage: number;
+  setItemsPerPage: (val: number) => void;
+  isDarkMode: boolean;
+  currentPage: number;
+  totalDisplayCount: number;
+  handlePageChange: (page: number) => void;
+}
+
+const PaginationControls: React.FC<PaginationControlsProps> = ({
+  totalPages,
+  itemsPerPage,
+  setItemsPerPage,
+  isDarkMode,
+  currentPage,
+  totalDisplayCount,
+  handlePageChange
+}) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className={`flex items-center justify-between px-4 py-3 border-t relative z-20 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+      <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        <div className="flex items-center gap-2">
+          <span>Show</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span>entries</span>
+        </div>
+        <span>
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        </span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => handlePageChange(1)}
+          disabled={currentPage === 1}
+          className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+          title="First Page"
+        >
+          <ChevronsLeft size={16} />
+        </button>
+
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Previous
+        </button>
+
+        <div className="flex items-center space-x-1">
+          <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Page {currentPage} of {totalPages}
+          </span>
+        </div>
+
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Next
+        </button>
+
+        <button
+          onClick={() => handlePageChange(totalPages)}
+          disabled={currentPage === totalPages}
+          className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+          title="Last Page"
+        >
+          <ChevronsRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 interface TransactionListProps {
   onNavigate?: (section: string, extra?: string) => void;
 }
@@ -357,7 +456,90 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
   };
 
 
-  // Generate hierarchical location items
+  // 1. Initial search/funnel filtering (Global filtered set for sidebar counts)
+  const globalFilteredTransactions = useMemo(() => {
+    const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
+    let filtered = transactions.filter(transaction => {
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => checkValue(v));
+        }
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
+      };
+
+      return searchQuery === '' || checkValue(transaction);
+    });
+
+    // Apply funnel filters
+    if (activeFilters && Object.keys(activeFilters).length > 0) {
+      filtered = filtered.filter(transaction => {
+        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
+          const getValForFilter = (item: any, k: string) => {
+            switch (k) {
+              case 'full_name': return item.account?.customer?.full_name;
+              case 'barangay': return item.account?.customer?.barangay;
+              case 'city': return item.account?.customer?.city;
+              case 'region': return item.account?.customer?.region;
+              case 'account_balance': return item.account?.account_balance;
+              case 'contact_no': return item.account?.customer?.contact_number_primary;
+              case 'payment_method': return item.payment_method_info?.payment_method || item.payment_method;
+              default: return item[k];
+            }
+          };
+
+          const val = getValForFilter(transaction, key);
+
+          if (filter.type === 'checklist') {
+            if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
+            
+            const valStr = String(val || '').toLowerCase().trim();
+            
+            if (key === 'barangay' || key === 'city' || key === 'region') {
+               const directVal = String(val || '').toLowerCase().trim();
+               const address = String(transaction.account?.customer?.address || '').toLowerCase();
+               
+               return (filter.value as string[]).some(option => {
+                  const opt = option.toLowerCase().trim();
+                  return directVal === opt || address.includes(opt);
+               });
+            }
+            
+            return (filter.value as string[]).some(option => valStr === option.toLowerCase().trim());
+          }
+
+          if (filter.type === 'text') {
+            if (!filter.value) return true;
+            const value = String(val || '').toLowerCase();
+            return value.includes(String(filter.value).toLowerCase());
+          }
+
+          if (filter.type === 'number') {
+            const numValue = Number(val);
+            if (isNaN(numValue)) return false;
+            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
+            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
+            return true;
+          }
+
+          if (filter.type === 'date') {
+            if (!val) return false;
+            const dateValue = new Date(val).getTime();
+            if (isNaN(dateValue)) return false;
+            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
+            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
+            return true;
+          }
+
+          return true;
+        });
+      });
+    }
+
+    return filtered;
+  }, [transactions, searchQuery, activeFilters]);
+
+  // Generate hierarchical location items - Now using globalFilteredTransactions
   const locationItems = useMemo(() => {
     // Counts for each level
     const regionCounts: Record<string, number> = {};
@@ -370,7 +552,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     barangays.forEach(b => barangayCounts[`${b.city_id}_${b.barangay}`] = 0);
 
     // Count appearances in transactions
-    transactions.forEach(transaction => {
+    globalFilteredTransactions.forEach(transaction => {
       const region = transaction.account?.customer?.region;
       const city = transaction.account?.customer?.city;
       const barangay = transaction.account?.customer?.barangay;
@@ -414,12 +596,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
           }))
         }))
       })),
-      total: transactions.length
+      total: globalFilteredTransactions.length
     };
-  }, [regions, cities, barangays, transactions]);
+  }, [regions, cities, barangays, globalFilteredTransactions]);
 
   const filteredTransactions = useMemo(() => {
-    let filtered = transactions.filter(transaction => {
+    return globalFilteredTransactions.filter(transaction => {
       let matchesLocation = selectedLocation === 'all';
 
       if (!matchesLocation) {
@@ -432,88 +614,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
         }
       }
 
-      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
-      const checkValue = (val: any): boolean => {
-        if (val === null || val === undefined) return false;
-        if (typeof val === 'object') {
-          return Object.values(val).some(v => checkValue(v));
-        }
-        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
-      };
-
-      const matchesSearch = searchQuery === '' || checkValue(transaction);
-
-      return matchesLocation && matchesSearch;
+      return matchesLocation;
     });
-
-    // Apply funnel filters
-    if (activeFilters && Object.keys(activeFilters).length > 0) {
-      filtered = filtered.filter(transaction => {
-        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
-          const getVal = (item: any, k: string) => {
-            switch (k) {
-              case 'full_name': return item.account?.customer?.full_name;
-              case 'barangay': return item.account?.customer?.barangay;
-              case 'city': return item.account?.customer?.city;
-              case 'region': return item.account?.customer?.region;
-              case 'account_balance': return item.account?.account_balance;
-              case 'contact_no': return item.account?.customer?.contact_number_primary;
-              case 'payment_method': return item.payment_method_info?.payment_method || item.payment_method;
-              default: return item[k];
-            }
-          };
-
-          const val = getVal(transaction, key);
-
-          if (filter.type === 'checklist') {
-            if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
-            
-            const valStr = String(val || '').toLowerCase().trim();
-            
-            // Special handling for locations - match against record fields OR address
-            if (key === 'barangay' || key === 'city' || key === 'region') {
-               const directVal = String(val || '').toLowerCase().trim();
-               const address = String(transaction.account?.customer?.address || '').toLowerCase();
-               
-               return (filter.value as string[]).some(option => {
-                  const opt = option.toLowerCase().trim();
-                  return directVal === opt || address.includes(opt);
-               });
-            }
-            
-            return (filter.value as string[]).some(option => valStr === option.toLowerCase().trim());
-          }
-
-          if (filter.type === 'text') {
-            if (!filter.value) return true;
-            const value = String(val || '').toLowerCase();
-            return value.includes(String(filter.value).toLowerCase());
-          }
-
-          if (filter.type === 'number') {
-            const numValue = Number(val);
-            if (isNaN(numValue)) return false;
-            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
-            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
-            return true;
-          }
-
-          if (filter.type === 'date') {
-            if (!val) return false;
-            const dateValue = new Date(val).getTime();
-            if (isNaN(dateValue)) return false;
-            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
-            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
-            return true;
-          }
-
-          return true;
-        });
-      });
-    }
-
-    return filtered;
-  }, [transactions, selectedLocation, searchQuery, activeFilters]);
+  }, [globalFilteredTransactions, selectedLocation]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -548,86 +651,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     }
   };
 
-  const PaginationControls = () => {
-    if (totalPages <= 1) return null;
-
-    return (
-      <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          <div className="flex items-center gap-2">
-            <span>Show</span>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-            <span>entries</span>
-          </div>
-          <span>
-            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
-          </span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => handlePageChange(1)}
-            disabled={currentPage === 1}
-            className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === 1
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-            title="First Page"
-          >
-            <ChevronsLeft size={16} />
-          </button>
-
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Previous
-          </button>
-
-          <div className="flex items-center space-x-1">
-            <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Page {currentPage} of {totalPages}
-            </span>
-          </div>
-
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Next
-          </button>
-
-          <button
-            onClick={() => handlePageChange(totalPages)}
-            disabled={currentPage === totalPages}
-            className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === totalPages
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-            title="Last Page"
-          >
-            <ChevronsRight size={16} />
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   const handleRowClick = (transaction: Transaction) => {
     if (isBatchApproveMode) {
@@ -1409,7 +1432,15 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
               </table>
             )}
           </div>
-          <PaginationControls />
+          <PaginationControls
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            setItemsPerPage={setItemsPerPage}
+            isDarkMode={isDarkMode}
+            currentPage={currentPage}
+            totalDisplayCount={totalDisplayCount}
+            handlePageChange={handlePageChange}
+          />
         </div>
       </div>
 

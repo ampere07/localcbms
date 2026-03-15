@@ -113,6 +113,24 @@ const Inventory: React.FC = () => {
     };
   }, []);
 
+  // Polling for updates every 3 seconds
+  useEffect(() => {
+    const POLLING_INTERVAL = 3000; // 3 seconds
+    const intervalId = setInterval(async () => {
+      console.log('[Inventory Page] Polling for updates...');
+      try {
+        await Promise.all([
+          fetchInventoryData(true),
+          fetchCategories()
+        ]);
+      } catch (err) {
+        console.error('[Inventory Page] Polling failed:', err);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
   // Idle detection and auto-refresh logic
   useEffect(() => {
     const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes

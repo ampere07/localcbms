@@ -265,7 +265,7 @@ const AddLcpNapLocationModal: React.FC<AddLcpNapLocationModalProps> = ({
       icon: {
         path: google.maps.SymbolPath.CIRCLE,
         scale: 10,
-        fillColor: '#f97316',
+        fillColor: '#7c3aed',
         fillOpacity: 1,
         strokeColor: '#ffffff',
         strokeWeight: 2,

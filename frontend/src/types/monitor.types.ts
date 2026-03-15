@@ -62,7 +62,7 @@ export interface DashboardTemplate {
 
 export const CHART_COLORS = [
   '#2563eb', '#16a34a', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6',
-  '#f97316', '#ec4899', '#64748b', '#22c55e', '#3b82f6', '#eab308',
+  '#7c3aed', '#ec4899', '#64748b', '#22c55e', '#3b82f6', '#eab308',
 ];
 
 // Widgets that should display currency formatting in tooltips/list

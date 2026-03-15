@@ -70,6 +70,105 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
   };
 };
 
+interface PaginationControlsProps {
+  totalPages: number;
+  itemsPerPage: number;
+  setItemsPerPage: (val: number) => void;
+  isDarkMode: boolean;
+  currentPage: number;
+  totalDisplayCount: number;
+  handlePageChange: (page: number) => void;
+}
+
+const PaginationControls: React.FC<PaginationControlsProps> = ({
+  totalPages,
+  itemsPerPage,
+  setItemsPerPage,
+  isDarkMode,
+  currentPage,
+  totalDisplayCount,
+  handlePageChange
+}) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className={`flex items-center justify-between px-4 py-3 border-t relative z-20 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+      <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        <div className="flex items-center gap-2">
+          <span>Show</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span>entries</span>
+        </div>
+        <span>
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        </span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => handlePageChange(1)}
+          disabled={currentPage === 1}
+          className={`p-1 rounded transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+            : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+            }`}
+          title="First Page"
+        >
+          <ChevronsLeft className="h-5 w-5" />
+        </button>
+
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Previous
+        </button>
+
+        <div className="flex items-center space-x-1">
+          <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Page {currentPage} of {totalPages}
+          </span>
+        </div>
+
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Next
+        </button>
+
+        <button
+          onClick={() => handlePageChange(totalPages)}
+          disabled={currentPage === totalPages}
+          className={`p-1 rounded transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+            : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+            }`}
+          title="Last Page"
+        >
+          <ChevronsRight className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const SOA: React.FC = () => {
   const { soaRecords, totalCount, isLoading, error, fetchSOARecords, refreshSOARecords, silentRefresh } = useSOAStore();
 
@@ -179,12 +278,94 @@ const SOA: React.FC = () => {
 
   const displayColumns = userRole === 'customer' ? customerColumns : allColumns;
 
-  // Derive date items from context data instead of fetching separately or static
-  const dateItems: Array<{ date: string; id: string }> = useMemo(() => {
+  // 1. Initial search/funnel filtering (Global filtered set for sidebar dates)
+  const globalFilteredRecords = useMemo(() => {
+    let filtered = soaRecords.filter((record: SOARecordUI) => {
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => checkValue(v));
+        }
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
+      };
+
+      return searchQuery === '' || checkValue(record);
+    });
+
+    // Apply funnel filters
+    if (activeFilters && Object.keys(activeFilters).length > 0) {
+      filtered = filtered.filter(record => {
+        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
+          const getVal = (item: any, k: string) => {
+            switch (k) {
+              case 'fullName': return item.fullName ?? item.full_name;
+              case 'accountNo': return item.accountNo ?? item.account_no;
+              case 'invoiceStatus': return item.invoiceStatus ?? item.status;
+              default: return item[k];
+            }
+          };
+
+          const val = getVal(record, key);
+
+          if (filter.type === 'checklist') {
+            if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
+            const valStr = String(val || '').toLowerCase().trim();
+            if (key === 'barangay' || key === 'city' || key === 'region') {
+              const directVal = String(record[key] || '').toLowerCase().trim();
+              const address = String(record.address || '').toLowerCase();
+              return (filter.value as string[]).some(option => {
+                const opt = option.toLowerCase().trim();
+                return directVal === opt || address.includes(opt);
+              });
+            }
+            return (filter.value as string[]).some(option => valStr === option.toLowerCase().trim());
+          }
+
+          if (filter.type === 'text') {
+            if (!filter.value) return true;
+            const value = String(val || '').toLowerCase();
+            return value.includes(String(filter.value).toLowerCase());
+          }
+
+          if (filter.type === 'number') {
+            const numValue = Number(val);
+            if (isNaN(numValue)) return false;
+            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
+            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
+            return true;
+          }
+
+          if (filter.type === 'date') {
+            if (!val || val === 'N/A') return false;
+            const dateValue = new Date(val).getTime();
+            if (isNaN(dateValue)) return false;
+            if (filter.from) {
+              const fromDate = new Date(filter.from).getTime();
+              if (dateValue < fromDate) return false;
+            }
+            if (filter.to) {
+              const toDate = new Date(filter.to).getTime();
+              if (dateValue > toDate) return false;
+            }
+            return true;
+          }
+          return true;
+        });
+      });
+    }
+
+    return filtered;
+  }, [soaRecords, searchQuery, activeFilters]);
+
+  // Derive date items from context data instead of fetching separately or static - Now using globalFilteredRecords
+  const dateItems = useMemo(() => {
+    const dateCounts: Record<string, number> = {};
     const dates = new Map<string, string>();
-    soaRecords.forEach((record: SOARecordUI) => {
+
+    globalFilteredRecords.forEach((record: SOARecordUI) => {
       if (record.statementDate && record.statementDate !== 'N/A') {
-        // Map formatted date to raw date for sorting
+        dateCounts[record.statementDate] = (dateCounts[record.statementDate] || 0) + 1;
         dates.set(record.statementDate, record.statementDateRaw || record.statementDate);
       }
     });
@@ -195,10 +376,16 @@ const SOA: React.FC = () => {
         const timeB = new Date(b[1]).getTime();
         return timeB - timeA;
       })
-      .map(([formatted]) => formatted);
+      .map(([formatted]) => ({
+        date: formatted,
+        count: dateCounts[formatted]
+      }));
 
-    return [{ date: 'All', id: '' }, ...sortedDates.map(d => ({ date: d, id: d }))];
-  }, [soaRecords]);
+    return {
+      all: globalFilteredRecords.length,
+      dates: sortedDates
+    };
+  }, [globalFilteredRecords]);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -300,6 +487,21 @@ const SOA: React.FC = () => {
     };
   }, [silentRefresh]);
 
+  // Polling for updates every 3 seconds
+  useEffect(() => {
+    const POLLING_INTERVAL = 3000; // 3 seconds
+    const intervalId = setInterval(async () => {
+      console.log('[SOA Page] Polling for updates...');
+      try {
+        await silentRefresh();
+      } catch (err) {
+        console.error('[SOA Page] Polling failed:', err);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [silentRefresh]);
+
   // Idle detection and auto-refresh logic
   useEffect(() => {
     const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
@@ -359,92 +561,12 @@ const SOA: React.FC = () => {
 
 
 
+  // 2. Final filtering based on the selected statement date
   const filteredRecords = useMemo(() => {
-    let filtered = soaRecords.filter((record: SOARecordUI) => {
+    let filtered = globalFilteredRecords.filter((record: SOARecordUI) => {
       const matchesDate = selectedDate === 'All' || record.statementDate === selectedDate;
-      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
-      const checkValue = (val: any): boolean => {
-        if (val === null || val === undefined) return false;
-        if (typeof val === 'object') {
-          return Object.values(val).some(v => checkValue(v));
-        }
-        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
-      };
-
-      const matchesSearch = searchQuery === '' || checkValue(record);
-
-      return matchesDate && matchesSearch;
+      return matchesDate;
     });
-
-    // Apply funnel filters
-    if (activeFilters && Object.keys(activeFilters).length > 0) {
-      filtered = filtered.filter(record => {
-        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
-          // Helper to resolve property names
-          const getVal = (item: any, k: string) => {
-            switch (k) {
-              case 'fullName': return item.fullName ?? item.full_name;
-              case 'accountNo': return item.accountNo ?? item.account_no;
-              case 'invoiceStatus': return item.invoiceStatus ?? item.status;
-              default: return item[k];
-            }
-          };
-
-          const val = getVal(record, key);
-
-          if (filter.type === 'checklist') {
-            if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
-            
-            const valStr = String(val || '').toLowerCase().trim();
-            
-            // Special handling for locations - match against record fields OR address
-            if (key === 'barangay' || key === 'city' || key === 'region') {
-               const directVal = String(record[key] || '').toLowerCase().trim();
-               const address = String(record.address || '').toLowerCase();
-               
-               return (filter.value as string[]).some(option => {
-                  const opt = option.toLowerCase().trim();
-                  return directVal === opt || address.includes(opt);
-               });
-            }
-            
-            return (filter.value as string[]).some(option => valStr === option.toLowerCase().trim());
-          }
-
-          if (filter.type === 'text') {
-            if (!filter.value) return true;
-            const value = String(val || '').toLowerCase();
-            return value.includes(String(filter.value).toLowerCase());
-          }
-
-          if (filter.type === 'number') {
-            const numValue = Number(val);
-            if (isNaN(numValue)) return false;
-            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
-            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
-            return true;
-          }
-
-          if (filter.type === 'date') {
-            if (!val || val === 'N/A') return false;
-            const dateValue = new Date(val).getTime();
-            if (isNaN(dateValue)) return false;
-
-            if (filter.from) {
-              const fromDate = new Date(filter.from).getTime();
-              if (dateValue < fromDate) return false;
-            }
-            if (filter.to) {
-              const toDate = new Date(filter.to).getTime();
-              if (dateValue > toDate) return false;
-            }
-            return true;
-          }
-
-          return true;
-        });
-      });
-    }
 
     // Sorting logic
     if (sortColumn) {
@@ -482,7 +604,7 @@ const SOA: React.FC = () => {
     }
 
     return filtered;
-  }, [soaRecords, selectedDate, searchQuery, sortColumn, sortDirection, activeFilters]);
+  }, [globalFilteredRecords, selectedDate, sortColumn, sortDirection]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -517,86 +639,6 @@ const SOA: React.FC = () => {
     }
   };
 
-  const PaginationControls = () => {
-    if (totalPages <= 1) return null;
-
-    return (
-      <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          <div className="flex items-center gap-2">
-            <span>Show</span>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-            <span>entries</span>
-          </div>
-          <span>
-            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
-          </span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => handlePageChange(1)}
-            disabled={currentPage === 1}
-            className={`p-1 rounded transition-colors ${currentPage === 1
-              ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
-              : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
-              }`}
-            title="First Page"
-          >
-            <ChevronsLeft className="h-5 w-5" />
-          </button>
-
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Previous
-          </button>
-
-          <div className="flex items-center space-x-1">
-            <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Page {currentPage} of {totalPages}
-            </span>
-          </div>
-
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Next
-          </button>
-
-          <button
-            onClick={() => handlePageChange(totalPages)}
-            disabled={currentPage === totalPages}
-            className={`p-1 rounded transition-colors ${currentPage === totalPages
-              ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
-              : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
-              }`}
-            title="Last Page"
-          >
-            <ChevronsRight className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   const handleRowClick = (record: SOARecordUI) => {
     if (userRole !== 'customer') {
@@ -1009,7 +1051,37 @@ const SOA: React.FC = () => {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {dateItems.map((item, index) => (
+            {/* All Level */}
+            <button
+              onClick={() => setSelectedDate('All')}
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                } ${selectedDate === 'All'
+                  ? ''
+                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}
+              style={selectedDate === 'All' ? {
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                color: colorPalette?.primary || '#7c3aed'
+              } : {}}
+            >
+              <div className="flex items-center">
+                <span>All Records</span>
+              </div>
+              <span
+                className={`px-2 py-1 rounded text-xs transition-colors ${selectedDate === 'All'
+                  ? 'text-white'
+                  : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
+                  }`}
+                style={selectedDate === 'All' ? {
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
+                } : {}}
+              >
+                {dateItems.all}
+              </span>
+            </button>
+
+            {/* Date Levels */}
+            {dateItems.dates.map((item, index) => (
               <button
                 key={index}
                 onClick={() => setSelectedDate(item.date)}
@@ -1023,14 +1095,23 @@ const SOA: React.FC = () => {
                   color: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
-                <span className="text-sm font-medium flex items-center">
-                  {item.date !== 'All' && (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                    </svg>
-                  )}
-                  {item.date}
+                <div className="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                  </svg>
+                  <span>{item.date}</span>
+                </div>
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${selectedDate === item.date
+                    ? 'text-white'
+                    : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                    }`}
+                  style={selectedDate === item.date ? {
+                    backgroundColor: colorPalette?.primary || '#7c3aed'
+                  } : {}}
+                >
+                  {item.count}
                 </span>
               </button>
             ))}
@@ -1151,7 +1232,7 @@ const SOA: React.FC = () => {
                           <button
                             onClick={handleSelectAllColumns}
                             className="text-xs"
-                            style={{ color: colorPalette?.primary || '#f97316' }}
+                            style={{ color: colorPalette?.primary || '#7c3aed' }}
                           >
                             Select All
                           </button>
@@ -1159,7 +1240,7 @@ const SOA: React.FC = () => {
                           <button
                             onClick={handleDeselectAllColumns}
                             className="text-xs"
-                            style={{ color: colorPalette?.primary || '#f97316' }}
+                            style={{ color: colorPalette?.primary || '#7c3aed' }}
                           >
                             Deselect All
                           </button>
@@ -1432,7 +1513,15 @@ const SOA: React.FC = () => {
                 </>
               )}
             </div>
-            <PaginationControls />
+            <PaginationControls
+              totalPages={totalPages}
+              itemsPerPage={itemsPerPage}
+              setItemsPerPage={setItemsPerPage}
+              isDarkMode={isDarkMode}
+              currentPage={currentPage}
+              totalDisplayCount={totalDisplayCount}
+              handlePageChange={handlePageChange}
+            />
           </div>
         </div>
       </div>
@@ -1703,6 +1792,7 @@ const SOA: React.FC = () => {
           setIsFunnelFilterOpen(false);
         }}
         currentFilters={activeFilters}
+        records={soaRecords}
       />
     </div>
   );
