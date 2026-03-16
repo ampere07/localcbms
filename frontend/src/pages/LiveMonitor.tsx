@@ -539,14 +539,17 @@ const LiveMonitor: React.FC = () => {
               className={`rounded-lg border p-3 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}
               style={{ fontSize: `${fontSize}px` }}
             >
-              <div className={`font-semibold text-sm mb-2 border-b pb-2 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div
+                className={`font-semibold mb-2 border-b pb-2 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
+                style={{ fontSize: `${fontSize * 1.1}px` }}
+              >
                 {row.label}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {Object.entries(row.series || {}).map(([key, value]) => (
                   <div key={key} className={`text-center p-2 rounded ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-                    <div className="text-xs opacity-70">{key}</div>
-                    <div className="text-sm font-bold" style={{ color: colorPalette?.primary || '#7c3aed' }}>
+                    <div className="opacity-70" style={{ fontSize: `${fontSize * 0.8}px` }}>{key}</div>
+                    <div className="font-bold" style={{ fontSize: `${fontSize}px`, color: colorPalette?.primary || '#7c3aed' }}>
                       {isCurrency
                         ? `₱${Number(value).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
                         : Number(value).toLocaleString()}
@@ -567,7 +570,7 @@ const LiveMonitor: React.FC = () => {
             key={idx}
             className={`rounded-lg border p-3 text-center ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}
           >
-            <div className="text-xs opacity-70 truncate" title={row.label}>
+            <div className="opacity-70 truncate" title={row.label} style={{ fontSize: `${fontSize * 0.8}px` }}>
               {row.label}
             </div>
             <div className="font-bold" style={{ fontSize: `${fontSize * 1.5}px`, color: colorPalette?.primary || '#7c3aed' }}>
