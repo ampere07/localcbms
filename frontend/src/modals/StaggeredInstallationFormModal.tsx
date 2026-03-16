@@ -20,7 +20,6 @@ interface StaggeredInstallationFormData {
   emailAddress: string;
   address: string;
   plan: string;
-  provider: string;
   staggeredInstallNo: string;
   staggeredDate: string;
   staggeredBalance: string;
@@ -80,7 +79,6 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
     emailAddress: customerData?.emailAddress || '',
     address: customerData?.address || '',
     plan: customerData?.plan || '',
-    provider: 'SWITCH',
     staggeredInstallNo: generateStaggeredInstallNo(),
     staggeredDate: getCurrentDate(),
     staggeredBalance: '0.00',
@@ -625,20 +623,6 @@ const StaggeredInstallationFormModal: React.FC<StaggeredInstallationFormModalPro
               />
             </div>
 
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
-                Provider
-              </label>
-              <input
-                type="text"
-                value={formData.provider}
-                onChange={(e) => handleInputChange('provider', e.target.value)}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 cursor-not-allowed ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
-                  }`}
-                readOnly
-              />
-            </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
