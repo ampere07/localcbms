@@ -118,6 +118,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     const [billsInitialTab, setBillsInitialTab] = useState<'soa' | 'invoices' | 'payments'>('soa');
     const [customerInitialSearch, setCustomerInitialSearch] = useState('');
     const [customerAutoOpenAccountNo, setCustomerAutoOpenAccountNo] = useState('');
+    const [planInitialSearch, setPlanInitialSearch] = useState('');
     const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
         try {
             const authData = localStorage.getItem('authData');
@@ -233,7 +234,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             case 'group-management':
                 return <GroupManagement />;
             case 'application-management':
-                return <ApplicationManagement />;
+                return <ApplicationManagement onNavigate={handleSectionChange} />;
             case 'customer':
                 return <Customer initialSearchQuery={customerInitialSearch} autoOpenAccountNo={customerAutoOpenAccountNo} />;
             case 'transaction-list':
@@ -257,7 +258,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             case 'location-list':
                 return <LocationList />;
             case 'plan-list':
-                return <PlanList />;
+                return <PlanList onNavigate={handleSectionChange} initialSearchQuery={planInitialSearch} />;
             case 'promo-list':
                 return <PromoList />;
             case 'router-models':
@@ -321,6 +322,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         } else if (section === 'customer') {
             setCustomerInitialSearch(extra || '');
             setCustomerAutoOpenAccountNo(extra || '');
+        } else if (section === 'plan-list') {
+            setPlanInitialSearch(extra || '');
         }
 
         if (window.innerWidth < 768) {

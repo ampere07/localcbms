@@ -1,6 +1,60 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ExternalLink, X, Info } from 'lucide-react';
+import { ExternalLink, X, Info, CircleArrowRight, Loader } from 'lucide-react';
+import { planService, Plan } from '../services/planService';
+import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { BillingDetailRecord } from '../types/billing';
+
+const PlanListDetails = React.lazy(() => import('./PlanListDetails'));
+const CustomerDetails = React.lazy(() => import('./CustomerDetails'));
+
+const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
+  return {
+    id: customerData.billingAccount?.accountNo || '',
+    applicationId: customerData.billingAccount?.accountNo || '',
+    customerName: customerData.fullName,
+    address: customerData.address,
+    status: customerData.billingAccount?.billingStatusId === 2 ? 'Active' : 'Inactive',
+    balance: customerData.billingAccount?.accountBalance || 0,
+    onlineStatus: customerData.billingAccount?.billingStatusId === 2 ? 'Online' : 'Offline',
+    cityId: null,
+    regionId: null,
+    timestamp: customerData.updatedAt || '',
+    billingStatus: customerData.billingAccount?.billingStatusId ? `Status ${customerData.billingAccount.billingStatusId}` : '',
+    dateInstalled: customerData.billingAccount?.dateInstalled || '',
+    contactNumber: customerData.contactNumberPrimary,
+    secondContactNumber: customerData.contactNumberSecondary || '',
+    emailAddress: customerData.emailAddress || '',
+    plan: customerData.desiredPlan || '',
+    username: customerData.technicalDetails?.username || '',
+    connectionType: customerData.technicalDetails?.connectionType || '',
+    routerModel: customerData.technicalDetails?.routerModel || '',
+    routerModemSN: customerData.technicalDetails?.routerModemSn || '',
+    lcpnap: customerData.technicalDetails?.lcpnap || '',
+    port: customerData.technicalDetails?.port || '',
+    vlan: customerData.technicalDetails?.vlan || '',
+    billingDay: customerData.billingAccount?.billingDay || 0,
+    totalPaid: 0,
+    provider: '',
+    lcp: customerData.technicalDetails?.lcp || '',
+    nap: customerData.technicalDetails?.nap || '',
+    modifiedBy: '',
+    modifiedDate: customerData.updatedAt || '',
+    barangay: customerData.barangay || '',
+    city: customerData.city || '',
+    region: customerData.region || '',
+    usageType: customerData.technicalDetails?.usageTypeId ? `Type ${customerData.technicalDetails.usageTypeId}` : '',
+    referredBy: customerData.referredBy || '',
+    referralContactNo: '',
+    groupName: customerData.groupName || '',
+    mikrotikId: '',
+    sessionIp: customerData.technicalDetails?.ipAddress || '',
+    houseFrontPicture: customerData.houseFrontPictureUrl || '',
+    accountBalance: customerData.billingAccount?.accountBalance || 0,
+    housingStatus: customerData.housingStatus || '',
+    addressCoordinates: customerData.addressCoordinates || '',
+  };
+};
 
 interface SOARecord {
   id: string;
@@ -52,6 +106,15 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
+
+  // Overlay states
+  const [loadingPlanOverlay, setLoadingPlanOverlay] = useState(false);
+  const [selectedPlanForOverlay, setSelectedPlanForOverlay] = useState<Plan | null>(null);
+
+  const [loadingCustomerOverlay, setLoadingCustomerOverlay] = useState(false);
+  const [selectedCustomerForOverlay, setSelectedCustomerForOverlay] = useState<BillingDetailRecord | null>(null);
+
+  const hasActiveOverlay = selectedPlanForOverlay || selectedCustomerForOverlay || loadingPlanOverlay || loadingCustomerOverlay;
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -185,17 +248,31 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Account No.</span>
-              <div className="flex items-center">
+              <div className="flex items-center gap-2">
                 <span className="text-red-500">
                   {soaRecord.accountNo}
                 </span>
                 <button
-                  onClick={() => onViewCustomer?.(soaRecord.accountNo)}
-                  className={`ml-2 p-1 rounded transition-colors ${isDarkMode ? 'text-gray-500 hover:text-white hover:bg-gray-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-                    }`}
+                  onClick={async () => {
+                    try {
+                      setLoadingCustomerOverlay(true);
+                      const details = await getCustomerDetail(soaRecord.accountNo);
+                      if (details) {
+                        setSelectedCustomerForOverlay(convertCustomerDataToBillingDetail(details));
+                      } else {
+                        alert('Customer details not found.');
+                      }
+                    } catch (err) {
+                      console.error('Error finding customer', err);
+                    } finally {
+                      setLoadingCustomerOverlay(false);
+                    }
+                  }}
+                  className={`p-1 rounded transition-colors ${loadingCustomerOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
                   title="View Customer Details"
+                  disabled={loadingCustomerOverlay}
                 >
-                  <Info size={16} />
+                  {loadingCustomerOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
                 </button>
               </div>
             </div>
@@ -217,10 +294,36 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Plan</span>
-              <div className="flex items-center">
+              <div className="flex items-center gap-2">
                 <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{soaRecord.plan}</span>
-                <Info size={16} className={`ml-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
-                  }`} />
+                <button
+                  onClick={async () => {
+                    if (!soaRecord.plan || soaRecord.plan === '-') return;
+                    try {
+                      setLoadingPlanOverlay(true);
+                      const allPlans = (await planService.getAllPlans()) || [];
+                      const match = allPlans.find((p: Plan) => 
+                        p.name.toLowerCase() === soaRecord.plan.toLowerCase() ||
+                        p.name.toLowerCase().includes(soaRecord.plan.toLowerCase()) ||
+                        soaRecord.plan.toLowerCase().includes(p.name.toLowerCase())
+                      );
+                      if (match) {
+                        setSelectedPlanForOverlay(match);
+                      } else {
+                        alert('Plan details not found.');
+                      }
+                    } catch (err) {
+                      console.error('Error finding plan', err);
+                    } finally {
+                      setLoadingPlanOverlay(false);
+                    }
+                  }}
+                  className={`p-1 rounded transition-colors ${loadingPlanOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                  title="View Plan Details"
+                  disabled={loadingPlanOverlay || !soaRecord.plan || soaRecord.plan === '-'}
+                >
+                  {loadingPlanOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+                </button>
               </div>
             </div>
 
@@ -315,6 +418,63 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
           </div>
         </div>
       </div>
+
+      {/* Embedded Overlays */}
+      {hasActiveOverlay && (
+        <div className="absolute inset-0 z-50 bg-white dark:bg-gray-900 overflow-hidden flex flex-col h-full w-full">
+          {loadingPlanOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-orange-500" />
+                <p>Loading plan details...</p>
+              </div>
+            </div>
+          )}
+          {loadingCustomerOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-green-500" />
+                <p>Loading customer details...</p>
+              </div>
+            </div>
+          )}
+          {selectedPlanForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
+                  <p>Loading plan overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <PlanListDetails
+                  plan={selectedPlanForOverlay}
+                  onClose={() => setSelectedPlanForOverlay(null)}
+                  isMobile={window.innerWidth < 768}
+                />
+              </div>
+            </React.Suspense>
+          )}
+          {selectedCustomerForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-green-500 border-t-transparent animate-spin" />
+                  <p>Loading customer overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <CustomerDetails
+                  billingRecord={selectedCustomerForOverlay}
+                  onClose={() => setSelectedCustomerForOverlay(null)}
+                />
+              </div>
+            </React.Suspense>
+          )}
+        </div>
+      )}
     </div>
   );
 };

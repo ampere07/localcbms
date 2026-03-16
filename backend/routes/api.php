@@ -1489,6 +1489,108 @@ Route::get('/plans/{id}', [\App\Http\Controllers\Api\PlanApiController::class, '
 Route::put('/plans/{id}', [\App\Http\Controllers\Api\PlanApiController::class, 'update']);
 Route::delete('/plans/{id}', [\App\Http\Controllers\Api\PlanApiController::class, 'destroy']);
 
+// Plan Related Data - fetch applications, job orders, customers by plan name
+Route::get('/plans/{id}/related', function ($id) {
+    try {
+        $plan = \Illuminate\Support\Facades\DB::table('plan_list')->where('id', $id)->first();
+        if (!$plan) {
+            return response()->json(['success' => false, 'message' => 'Plan not found'], 404);
+        }
+        $planName = $plan->plan_name;
+
+        // Related Applications (match by desired_plan string)
+        $applications = collect([]);
+        try {
+            $applications = \Illuminate\Support\Facades\DB::table('applications')
+                ->where(function($query) use ($planName) {
+                    $query->where('desired_plan', $planName)
+                          ->orWhere('desired_plan', 'LIKE', '%' . $planName . '%');
+                })
+                ->select('id', 'first_name', 'last_name', 'desired_plan', 'status', 'installation_address', 'created_at')
+                ->orderBy('created_at', 'desc')
+                ->limit(50)
+                ->get()
+                ->map(function ($app) {
+                    $app->full_name = trim(($app->first_name ?? '') . ' ' . ($app->last_name ?? ''));
+                    return $app;
+                });
+        } catch (\Exception $e) {
+            \Log::warning('Plan related applications query failed: ' . $e->getMessage());
+        }
+
+        // Related Job Orders (go through applications table via application_id FK)
+        $jobOrders = collect([]);
+        try {
+            $applicationIds = $applications->pluck('id')->toArray();
+            if (!empty($applicationIds)) {
+                $jobOrders = \Illuminate\Support\Facades\DB::table('job_orders')
+                    ->join('applications', 'job_orders.application_id', '=', 'applications.id')
+                    ->whereIn('job_orders.application_id', $applicationIds)
+                    ->select(
+                        'job_orders.id',
+                        'job_orders.created_at',
+                        'applications.status as status',
+                        'applications.first_name',
+                        'applications.last_name',
+                        'applications.desired_plan'
+                    )
+                    ->orderBy('job_orders.created_at', 'desc')
+                    ->limit(50)
+                    ->get()
+                    ->map(function($jo) {
+                        $jo->job_order_no = 'JO-' . str_pad($jo->id, 5, '0', STR_PAD_LEFT);
+                        $jo->customer_name = trim(($jo->first_name ?? '') . ' ' . ($jo->last_name ?? ''));
+                        return $jo;
+                    });
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Plan related job orders query failed: ' . $e->getMessage());
+        }
+
+        // Subscribed Customers (desired_plan string matches plan name, OR billing_accounts.plan_id matches)
+        $customers = collect([]);
+        try {
+            $customers = \Illuminate\Support\Facades\DB::table('customers')
+                ->leftJoin('billing_accounts', 'customers.id', '=', 'billing_accounts.customer_id')
+                ->where(function($query) use ($planName, $id) {
+                    $query->where('customers.desired_plan', $planName)
+                          ->orWhere('billing_accounts.plan_id', $id);
+                })
+                ->select('customers.id', 'customers.first_name', 'customers.last_name', 'customers.desired_plan', 'customers.email_address', 'customers.contact_number_primary', 'customers.address', 'customers.created_at', 'billing_accounts.id as account_no')
+                ->distinct()
+                ->orderBy('customers.created_at', 'desc')
+                ->limit(50)
+                ->get()
+                ->map(function ($cust) {
+                    $cust->full_name = trim(($cust->first_name ?? '') . ' ' . ($cust->last_name ?? ''));
+                    return $cust;
+                });
+        } catch (\Exception $e) {
+            \Log::warning('Plan related customers query failed: ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'applications' => $applications,
+                'job_orders' => $jobOrders,
+                'customers' => $customers,
+            ],
+            'counts' => [
+                'applications' => count($applications),
+                'job_orders' => count($jobOrders),
+                'customers' => count($customers),
+            ]
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Plan related data error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error fetching related data: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
 // Promo Management Routes - Direct routes at API root level for maximum compatibility
 Route::get('/promos', [\App\Http\Controllers\Api\PromoApiController::class, 'index']);
 Route::post('/promos', [\App\Http\Controllers\Api\PromoApiController::class, 'store']);

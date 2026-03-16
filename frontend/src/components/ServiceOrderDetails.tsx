@@ -1,11 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  X, ExternalLink, Edit, Settings, CircleArrowRight
+  X, ExternalLink, Edit, Settings, CircleArrowRight, Loader
 } from 'lucide-react';
 import ServiceOrderEditModal from '../modals/ServiceOrderEditModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import BillingDetails from './CustomerDetails';
 import { BillingDetailRecord } from '../types/billing';
+import { planService, Plan } from '../services/planService';
+import { userService } from '../services/userService';
+import { User as UserType } from '../types/api';
+import { getBillingRecords, getBillingRecordDetails } from '../services/billingService';
+import { getAllInventoryItems } from '../services/inventoryItemService';
+
+const PlanListDetails = React.lazy(() => import('./PlanListDetails'));
+const UserDetails = React.lazy(() => import('./UserDetails'));
+const InventoryDetails = React.lazy(() => import('./InventoryDetails'));
 
 interface ServiceOrderDetailsProps {
   serviceOrder: {
@@ -70,6 +79,17 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
   const [showCustomerDetails, setShowCustomerDetails] = useState(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
+
+  const [selectedPlanForOverlay, setSelectedPlanForOverlay] = useState<Plan | null>(null);
+  const [loadingPlanOverlay, setLoadingPlanOverlay] = useState(false);
+  const [selectedUserForOverlay, setSelectedUserForOverlay] = useState<UserType | null>(null);
+  const [loadingUserOverlay, setLoadingUserOverlay] = useState(false);
+  const [selectedCustomerForOverlay, setSelectedCustomerForOverlay] = useState<BillingDetailRecord | null>(null);
+  const [loadingCustomerOverlay, setLoadingCustomerOverlay] = useState(false);
+  const [selectedInventoryForOverlay, setSelectedInventoryForOverlay] = useState<any | null>(null);
+  const [loadingInventoryOverlay, setLoadingInventoryOverlay] = useState(false);
+
+  const hasActiveOverlay = !!selectedPlanForOverlay || !!selectedUserForOverlay || loadingPlanOverlay || loadingUserOverlay || !!selectedCustomerForOverlay || loadingCustomerOverlay || !!selectedInventoryForOverlay || loadingInventoryOverlay;
 
   const FIELD_VISIBILITY_KEY = 'serviceOrderDetailsFieldVisibility';
   const FIELD_ORDER_KEY = 'serviceOrderDetailsFieldOrder';
@@ -484,7 +504,43 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'emailAddress':
         return renderField('Email Address', serviceOrder.emailAddress);
       case 'plan':
-        return renderField('Plan', serviceOrder.plan);
+        const valuePlan = serviceOrder.plan;
+        if (!valuePlan || valuePlan === '-' || valuePlan === 'None' || valuePlan === 'Not specified') return null;
+        return (
+          <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'}`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Plan</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{valuePlan}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingPlanOverlay(true);
+                    const allPlans = await planService.getAllPlans();
+                    const desiredPlanStr = typeof valuePlan === 'string' ? valuePlan.split('-')[0].trim().toLowerCase() : '';
+                    const match = allPlans.find(p => 
+                      p.name.toLowerCase() === desiredPlanStr ||
+                      (typeof valuePlan === 'string' && valuePlan.toLowerCase().includes(p.name.toLowerCase()))
+                    );
+                    if (match) {
+                      setSelectedPlanForOverlay(match);
+                    } else {
+                      alert('Plan details not found.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding plan', err);
+                  } finally {
+                    setLoadingPlanOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingPlanOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View Plan Details"
+                disabled={loadingPlanOverlay}
+              >
+                {loadingPlanOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+              </button>
+            </div>
+          </div>
+        );
       case 'affiliate':
         return renderField('Affiliate', serviceOrder.affiliate);
       case 'username':
@@ -492,7 +548,51 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'connectionType':
         return renderField('Connection Type', serviceOrder.connectionType);
       case 'routerModemSN':
-        return renderField('Router/Modem SN', serviceOrder.routerModemSN);
+        const valueRouterSN = serviceOrder.routerModemSN;
+        if (!valueRouterSN || valueRouterSN === '-' || valueRouterSN === 'None' || valueRouterSN === 'Not specified') return null;
+        return (
+          <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'}`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Router/Modem SN</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{valueRouterSN}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingInventoryOverlay(true);
+                    const allInventoryRes = await getAllInventoryItems('', 1, 1000);
+                    const allInventory = allInventoryRes.data || [];
+                    const match = allInventory.find(inv => 
+                      inv.item_name.toLowerCase() === valueRouterSN.toLowerCase() ||
+                      inv.item_name.toLowerCase().includes(valueRouterSN.toLowerCase()) ||
+                      valueRouterSN.toLowerCase().includes(inv.item_name.toLowerCase())
+                    );
+                    if (match) {
+                      setSelectedInventoryForOverlay({
+                        item_id: match.id,
+                        item_name: match.item_name,
+                        item_description: match.item_description,
+                        category: match.category_id ? String(match.category_id) : 'Item',
+                        quantity_alert: match.quantity_alert,
+                        image: match.image_url,
+                      });
+                    } else {
+                      alert('Inventory details not found for this router/modem SN.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding inventory', err);
+                  } finally {
+                    setLoadingInventoryOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingInventoryOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View Inventory Details"
+                disabled={loadingInventoryOverlay}
+              >
+                {loadingInventoryOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+              </button>
+            </div>
+          </div>
+        );
       case 'lcp':
         return renderField('LCP', serviceOrder.lcp);
       case 'nap':
@@ -520,11 +620,51 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
           </div>
         );
       case 'visitBy':
-        return renderField('Visit By', serviceOrder.visitBy);
       case 'visitWith':
-        return renderField('Visit With', serviceOrder.visitWith);
       case 'visitWithOther':
-        return renderField('Visit With Other', serviceOrder.visitWithOther);
+        let visitValue = '';
+        let visitLabel = '';
+        if (fieldKey === 'visitBy') { visitValue = serviceOrder.visitBy; visitLabel = 'Visit By'; }
+        if (fieldKey === 'visitWith') { visitValue = serviceOrder.visitWith; visitLabel = 'Visit With'; }
+        if (fieldKey === 'visitWithOther') { visitValue = serviceOrder.visitWithOther; visitLabel = 'Visit With Other'; }
+        
+        if (!visitValue || visitValue === '-' || visitValue === 'None' || visitValue === 'Not specified') return null;
+        return (
+          <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'}`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{visitLabel}</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{visitValue}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingUserOverlay(true);
+                    const allUsers = (await userService.getAllUsers()).data || [];
+                    const match = allUsers.find(u => 
+                      String(u.id) === visitValue ||
+                      u.username === visitValue ||
+                      (u.first_name + ' ' + u.last_name).toLowerCase() === visitValue.toLowerCase() ||
+                      (u.first_name + ' ' + (u.middle_initial ? u.middle_initial + ' ' : '') + u.last_name).toLowerCase() === visitValue.toLowerCase()
+                    );
+                    if (match) {
+                      setSelectedUserForOverlay(match);
+                    } else {
+                      alert('User details not found.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding user', err);
+                  } finally {
+                    setLoadingUserOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingUserOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View User Details"
+                disabled={loadingUserOverlay}
+              >
+                {loadingUserOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+              </button>
+            </div>
+          </div>
+        );
       case 'visitRemarks':
         return renderField('Visit Remarks', serviceOrder.visitRemarks);
       case 'modifiedBy':
@@ -534,7 +674,42 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'requestedBy':
         return renderField('Requested by', serviceOrder.requestedBy);
       case 'assignedEmail':
-        return renderField('Assigned Email', serviceOrder.assignedEmail);
+        const assignedEmail = serviceOrder.assignedEmail;
+        if (!assignedEmail || assignedEmail === '-' || assignedEmail === 'Not set' || assignedEmail === 'Not specified') return null;
+        return (
+          <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'}`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Assigned Email</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{assignedEmail}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingUserOverlay(true);
+                    const allUsers = (await userService.getAllUsers()).data || [];
+                    const match = allUsers.find(u => 
+                      u.email_address?.toLowerCase() === assignedEmail.toLowerCase()
+                    );
+                    
+                    if (match) {
+                      setSelectedUserForOverlay(match);
+                    } else {
+                      alert('User details not found for this email.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding user', err);
+                  } finally {
+                    setLoadingUserOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingUserOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View User Details"
+                disabled={loadingUserOverlay}
+              >
+                {loadingUserOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+              </button>
+            </div>
+          </div>
+        );
       case 'supportRemarks':
         return renderField('Support Remarks', serviceOrder.supportRemarks);
       case 'supportStatus':
@@ -554,11 +729,91 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'repairCategory':
         return renderField('Repair Category', serviceOrder.repairCategory);
       case 'newRouterSn':
-        return renderField('New Router SN', serviceOrder.newRouterSn);
+        const valueNewRouterSn = serviceOrder.newRouterSn;
+        if (!valueNewRouterSn || valueNewRouterSn === '-' || valueNewRouterSn === 'None' || valueNewRouterSn === 'Not specified') return null;
+        return (
+          <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'}`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>New Router SN</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{valueNewRouterSn}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingInventoryOverlay(true);
+                    const allInventoryRes = await getAllInventoryItems('', 1, 1000);
+                    const allInventory = allInventoryRes.data || [];
+                    const match = allInventory.find(inv => 
+                      inv.item_name.toLowerCase() === valueNewRouterSn.toLowerCase() ||
+                      inv.item_name.toLowerCase().includes(valueNewRouterSn.toLowerCase()) ||
+                      valueNewRouterSn.toLowerCase().includes(inv.item_name.toLowerCase())
+                    );
+                    if (match) {
+                      setSelectedInventoryForOverlay({
+                        item_id: match.id,
+                        item_name: match.item_name,
+                        item_description: match.item_description,
+                        category: match.category_id ? String(match.category_id) : 'Item',
+                        quantity_alert: match.quantity_alert,
+                        image: match.image_url,
+                      });
+                    } else {
+                      alert('Inventory details not found for this router SN.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding inventory', err);
+                  } finally {
+                    setLoadingInventoryOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingInventoryOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View Inventory Details"
+                disabled={loadingInventoryOverlay}
+              >
+                {loadingInventoryOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+              </button>
+            </div>
+          </div>
+        );
       case 'newLcpnap':
         return renderField('New LCP/NAP', serviceOrder.newLcpnap);
       case 'newPlan':
-        return renderField('New Plan', serviceOrder.newPlan);
+        const valueNewPlan = serviceOrder.newPlan;
+        if (!valueNewPlan || valueNewPlan === '-' || valueNewPlan === 'None' || valueNewPlan === 'Not specified') return null;
+        return (
+          <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'}`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>New Plan</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{valueNewPlan}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingPlanOverlay(true);
+                    const allPlans = await planService.getAllPlans();
+                    const desiredPlanStr = typeof valueNewPlan === 'string' ? valueNewPlan.split('-')[0].trim().toLowerCase() : '';
+                    const match = allPlans.find(p => 
+                      p.name.toLowerCase() === desiredPlanStr ||
+                      (typeof valueNewPlan === 'string' && valueNewPlan.toLowerCase().includes(p.name.toLowerCase()))
+                    );
+                    if (match) {
+                      setSelectedPlanForOverlay(match);
+                    } else {
+                      alert('Plan details not found.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding plan', err);
+                  } finally {
+                    setLoadingPlanOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingPlanOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View Plan Details"
+                disabled={loadingPlanOverlay}
+              >
+                {loadingPlanOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+              </button>
+            </div>
+          </div>
+        );
       case 'image1Url':
         return renderImageField('Time In Image', serviceOrder.image1Url, 'View Image');
       case 'image2Url':
@@ -761,6 +1016,107 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
           </div>
         </div>
       </div>
+      {hasActiveOverlay && (
+        <div className="absolute inset-0 z-50 bg-white dark:bg-gray-900 overflow-hidden flex flex-col h-full w-full">
+          {loadingPlanOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-orange-500" />
+                <p>Loading plan details...</p>
+              </div>
+            </div>
+          )}
+          {loadingUserOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-blue-500" />
+                <p>Loading user details...</p>
+              </div>
+            </div>
+          )}
+          {loadingCustomerOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-green-500" />
+                <p>Loading customer details...</p>
+              </div>
+            </div>
+          )}
+          {loadingInventoryOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-yellow-500" />
+                <p>Loading inventory details...</p>
+              </div>
+            </div>
+          )}
+          {selectedPlanForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
+                  <p>Loading plan overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <PlanListDetails
+                  plan={selectedPlanForOverlay}
+                  onClose={() => setSelectedPlanForOverlay(null)}
+                  isMobile={isMobile}
+                />
+              </div>
+            </React.Suspense>
+          )}
+          {selectedUserForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                  <p>Loading user overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <UserDetails
+                  user={selectedUserForOverlay}
+                  onClose={() => setSelectedUserForOverlay(null)}
+                  onEdit={() => {}}
+                  onDelete={() => {}}
+                  isMobile={isMobile}
+                  isDarkMode={isDarkMode}
+                  colorPalette={colorPalette}
+                />
+              </div>
+            </React.Suspense>
+          )}
+          {selectedCustomerForOverlay && (
+            <div className="w-full h-full relative border-0">
+              <BillingDetails
+                billingRecord={selectedCustomerForOverlay}
+                onClose={() => setSelectedCustomerForOverlay(null)}
+              />
+            </div>
+          )}
+          {selectedInventoryForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-yellow-500 border-t-transparent animate-spin" />
+                  <p>Loading inventory overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <InventoryDetails
+                  item={selectedInventoryForOverlay}
+                  onClose={() => setSelectedInventoryForOverlay(null)}
+                />
+              </div>
+            </React.Suspense>
+          )}
+        </div>
+      )}
 
       {isEditModalOpen && (
         <ServiceOrderEditModal

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, Filter, Loader2, X } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import AddPlanModal from '../modals/AddPlanModal';
+import PlanListDetails from '../components/PlanListDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface Plan {
@@ -16,15 +17,21 @@ interface Plan {
   updated_at?: string;
 }
 
-const PlanList: React.FC = () => {
+interface PlanListProps {
+  onNavigate?: (section: string, extra?: string) => void;
+  initialSearchQuery?: string;
+}
+
+const PlanList: React.FC<PlanListProps> = ({ onNavigate, initialSearchQuery = '' }) => {
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [deletingItems, setDeletingItems] = useState<Set<number>>(new Set());
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -62,6 +69,19 @@ const PlanList: React.FC = () => {
   useEffect(() => {
     loadPlans();
   }, []);
+
+  useEffect(() => {
+    if (initialSearchQuery && plans.length > 0) {
+      // Find exact or partial match to auto-open
+      const matchedPlan = plans.find(p => 
+        p.name.toLowerCase() === initialSearchQuery.toLowerCase() ||
+        p.name.toLowerCase().includes(initialSearchQuery.toLowerCase())
+      );
+      if (matchedPlan) {
+        setSelectedPlan(matchedPlan);
+      }
+    }
+  }, [initialSearchQuery, plans]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -177,6 +197,9 @@ const PlanList: React.FC = () => {
         newSet.delete(plan.id);
         return newSet;
       });
+      if (selectedPlan && selectedPlan.id === plan.id) {
+        setSelectedPlan(null);
+      }
     }
   };
 
@@ -195,8 +218,14 @@ const PlanList: React.FC = () => {
     setEditingPlan(null);
   };
 
-  const handleModalSave = () => {
-    loadPlans();
+  const handleModalSave = async () => {
+    await loadPlans();
+    // Refresh selected plan if it was just edited
+    if (editingPlan && selectedPlan && selectedPlan.id === editingPlan.id) {
+      // Find the fully updated plan object in the next states instead of doing it immediately.
+      // Easiest is to let `loadPlans()` handle the list, then we just wait for it.
+      // We will do a small fetch inside if needed, or update via useEffect on `plans`.
+    }
   };
 
   const formatPrice = (price: number) => {
@@ -229,10 +258,18 @@ const PlanList: React.FC = () => {
 
   const renderListItem = (plan: Plan) => {
     const isActive = plan.is_active !== undefined ? plan.is_active : true;
+    const isSelected = selectedPlan?.id === plan.id;
 
     return (
-      <div key={plan.id} className={`border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-        }`}>
+      <div 
+        key={plan.id} 
+        onClick={() => setSelectedPlan(plan)}
+        className={`border-b cursor-pointer transition-colors ${
+          isSelected 
+            ? (isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-blue-50 border-blue-200')
+            : (isDarkMode ? 'bg-gray-900 border-gray-800 hover:bg-gray-800' : 'bg-white border-gray-200 hover:bg-gray-50')
+        }`}
+      >
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3">
@@ -259,7 +296,10 @@ const PlanList: React.FC = () => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => handleEdit(plan)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEdit(plan);
+              }}
               className={`p-2 rounded transition-colors ${isDarkMode
                 ? 'text-gray-400 hover:text-white hover:bg-gray-700'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -269,7 +309,10 @@ const PlanList: React.FC = () => {
               <Edit2 className="h-4 w-4" />
             </button>
             <button
-              onClick={() => handleDelete(plan)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(plan);
+              }}
               disabled={deletingItems.has(plan.id)}
               className={`p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${isDarkMode
                 ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
@@ -289,18 +332,33 @@ const PlanList: React.FC = () => {
     );
   };
 
+  // Update selectedPlan when plans list changes (e.g. after edit)
+  useEffect(() => {
+    if (selectedPlan) {
+      const updatedPlan = plans.find(p => p.id === selectedPlan.id);
+      if (updatedPlan) {
+        setSelectedPlan(updatedPlan);
+      } else if (!isLoading) {
+        // Only clear if not loading, meaning item truly absent
+        // setSelectedPlan(null); // Optional: clear if deleted, handled in handleDelete mostly
+      }
+    }
+  }, [plans]);
+
   const filteredPlans = getFilteredPlans();
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+    <div className={`min-h-screen flex ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
-      <div className={`border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-        }`}>
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Plan List</h1>
-            <div className="flex items-center gap-3">
+      
+      <div className={`flex flex-col flex-1 min-w-0 ${selectedPlan ? 'hidden min-[900px]:flex' : 'flex'}`}>
+        <div className={`border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+          }`}>
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between mb-4">
+              <h1 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Plan List</h1>
+              <div className="flex items-center gap-3">
               <button
                 onClick={handleAddNew}
                 className="px-4 py-2 text-white rounded-lg flex items-center gap-2 transition-colors"
@@ -380,9 +438,9 @@ const PlanList: React.FC = () => {
             <Loader2 className={`h-8 w-8 animate-spin ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`} />
           </div>
-        ) : filteredPlans.length > 0 ? (
+        ) : getFilteredPlans().length > 0 ? (
           <div>
-            {filteredPlans.map(renderListItem)}
+            {getFilteredPlans().map(renderListItem)}
           </div>
         ) : (
           <div className={`text-center py-20 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
@@ -391,6 +449,18 @@ const PlanList: React.FC = () => {
           </div>
         )}
       </div>
+      </div>
+
+      {selectedPlan && (
+        <div className="flex-shrink-0 w-full min-[900px]:w-auto border-l h-screen sticky top-0" style={{ zIndex: 40, borderColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+          <PlanListDetails
+            plan={selectedPlan}
+            onClose={() => setSelectedPlan(null)}
+            isMobile={typeof window !== 'undefined' ? window.innerWidth < 900 : false}
+            onNavigate={onNavigate}
+          />
+        </div>
+      )}
 
       <AddPlanModal
         isOpen={isModalOpen}

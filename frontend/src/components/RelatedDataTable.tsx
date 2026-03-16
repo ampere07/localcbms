@@ -51,7 +51,12 @@ const RelatedDataTable: React.FC<RelatedDataTableProps> = ({
             <tr
               key={index}
               className={`${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'} ${onRowClick ? 'cursor-pointer' : ''}`}
-              onClick={() => onRowClick && onRowClick(row)}
+              onClick={(e) => {
+                if (onRowClick) {
+                  e.stopPropagation();
+                  onRowClick(row);
+                }
+              }}
             >
               {columns.map((column) => (
                 <td
