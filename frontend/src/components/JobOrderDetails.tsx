@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  X, ExternalLink, Edit, Settings
+  X, ExternalLink, Edit, Settings, Loader, ArrowRightCircle
 } from 'lucide-react';
 import { updateJobOrder, approveJobOrder } from '../services/jobOrderService';
 import { getBillingStatuses, BillingStatus } from '../services/lookupService';
@@ -13,6 +13,16 @@ import ConfirmationModal from '../modals/MoveToJoModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { getApplication } from '../services/applicationService';
 import { Application } from '../types/application';
+import { planService, Plan } from '../services/planService';
+import { userService } from '../services/userService';
+import { User as UserType } from '../types/api';
+import { getBillingRecords, getBillingRecordDetails, BillingDetailRecord } from '../services/billingService';
+import { getAllInventoryItems } from '../services/inventoryItemService';
+
+const PlanListDetails = React.lazy(() => import('./PlanListDetails'));
+const UserDetails = React.lazy(() => import('./UserDetails'));
+const CustomerDetails = React.lazy(() => import('./CustomerDetails'));
+const InventoryDetails = React.lazy(() => import('./InventoryDetails'));
 
 const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, onRefresh, isMobile = false }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -39,6 +49,17 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const startWidthRef = useRef<number>(0);
   const [showFieldSettings, setShowFieldSettings] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const [selectedPlanForOverlay, setSelectedPlanForOverlay] = useState<Plan | null>(null);
+  const [loadingPlanOverlay, setLoadingPlanOverlay] = useState(false);
+  const [selectedUserForOverlay, setSelectedUserForOverlay] = useState<UserType | null>(null);
+  const [loadingUserOverlay, setLoadingUserOverlay] = useState(false);
+  const [selectedCustomerForOverlay, setSelectedCustomerForOverlay] = useState<BillingDetailRecord | null>(null);
+  const [loadingCustomerOverlay, setLoadingCustomerOverlay] = useState(false);
+  const [selectedInventoryForOverlay, setSelectedInventoryForOverlay] = useState<any | null>(null);
+  const [loadingInventoryOverlay, setLoadingInventoryOverlay] = useState(false);
+
+  const hasActiveOverlay = !!selectedPlanForOverlay || !!selectedUserForOverlay || loadingPlanOverlay || loadingUserOverlay || !!selectedCustomerForOverlay || loadingCustomerOverlay || !!selectedInventoryForOverlay || loadingInventoryOverlay;
 
   const FIELD_VISIBILITY_KEY = 'jobOrderDetailsFieldVisibility';
   const FIELD_ORDER_KEY = 'jobOrderDetailsFieldOrder';
@@ -831,8 +852,35 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Choose Plan:</div>
-            <div className={valueClass}>
-              {plan}
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{plan}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingPlanOverlay(true);
+                    const allPlans = await planService.getAllPlans();
+                    const desiredPlanStr = typeof plan === 'string' ? plan.split('-')[0].trim().toLowerCase() : '';
+                    const match = allPlans.find(p => 
+                      p.name.toLowerCase() === desiredPlanStr ||
+                      (typeof plan === 'string' && plan.toLowerCase().includes(p.name.toLowerCase()))
+                    );
+                    if (match) {
+                      setSelectedPlanForOverlay(match);
+                    } else {
+                      alert('Plan details not found.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding plan', err);
+                  } finally {
+                    setLoadingPlanOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingPlanOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View Plan Details"
+                disabled={loadingPlanOverlay}
+              >
+                {loadingPlanOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
+              </button>
             </div>
           </div>
         );
@@ -889,11 +937,48 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
 
       case 'routerModel':
         const model = jobOrder.Router_Model || jobOrder.router_model;
-        if (!model) return null;
+        if (!model || model === 'None') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Router Model:</div>
-            <div className={valueClass}>{model}</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{model}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingInventoryOverlay(true);
+                    const allInventoryRes = await getAllInventoryItems('', 1, 1000);
+                    const allInventory = allInventoryRes.data || [];
+                    const match = allInventory.find(inv => 
+                      inv.item_name.toLowerCase() === model.toLowerCase() ||
+                      inv.item_name.toLowerCase().includes(model.toLowerCase()) ||
+                      model.toLowerCase().includes(inv.item_name.toLowerCase())
+                    );
+                    if (match) {
+                      setSelectedInventoryForOverlay({
+                        item_id: match.id,
+                        item_name: match.item_name,
+                        item_description: match.item_description,
+                        category: match.category_id ? String(match.category_id) : 'Item',
+                        quantity_alert: match.quantity_alert,
+                        image: match.image_url,
+                      });
+                    } else {
+                      alert('Inventory details not found for this router model.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding inventory', err);
+                  } finally {
+                    setLoadingInventoryOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingInventoryOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View Inventory Details"
+                disabled={loadingInventoryOverlay}
+              >
+                {loadingInventoryOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         );
 
@@ -985,7 +1070,37 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Visit By:</div>
-            <div className={valueClass}>{visitBy}</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{visitBy}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingUserOverlay(true);
+                    const allUsers = (await userService.getAllUsers()).data || [];
+                    const match = allUsers.find(u => 
+                      String(u.id) === visitBy ||
+                      u.username === visitBy ||
+                      (u.first_name + ' ' + u.last_name).toLowerCase() === visitBy.toLowerCase() ||
+                      (u.first_name + ' ' + (u.middle_initial ? u.middle_initial + ' ' : '') + u.last_name).toLowerCase() === visitBy.toLowerCase()
+                    );
+                    if (match) {
+                      setSelectedUserForOverlay(match);
+                    } else {
+                      alert('User details not found.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding user', err);
+                  } finally {
+                    setLoadingUserOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingUserOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View User Details"
+                disabled={loadingUserOverlay}
+              >
+                {loadingUserOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         );
 
@@ -995,7 +1110,37 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Visit With:</div>
-            <div className={valueClass}>{visitWith}</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{visitWith}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingUserOverlay(true);
+                    const allUsers = (await userService.getAllUsers()).data || [];
+                    const match = allUsers.find(u => 
+                      String(u.id) === visitWith ||
+                      u.username === visitWith ||
+                      (u.first_name + ' ' + u.last_name).toLowerCase() === visitWith.toLowerCase() ||
+                      (u.first_name + ' ' + (u.middle_initial ? u.middle_initial + ' ' : '') + u.last_name).toLowerCase() === visitWith.toLowerCase()
+                    );
+                    if (match) {
+                      setSelectedUserForOverlay(match);
+                    } else {
+                      alert('User details not found.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding user', err);
+                  } finally {
+                    setLoadingUserOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingUserOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View User Details"
+                disabled={loadingUserOverlay}
+              >
+                {loadingUserOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         );
 
@@ -1005,7 +1150,37 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Visit With Other:</div>
-            <div className={valueClass}>{visitWithOther}</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{visitWithOther}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingUserOverlay(true);
+                    const allUsers = (await userService.getAllUsers()).data || [];
+                    const match = allUsers.find(u => 
+                      String(u.id) === visitWithOther ||
+                      u.username === visitWithOther ||
+                      (u.first_name + ' ' + u.last_name).toLowerCase() === visitWithOther.toLowerCase() ||
+                      (u.first_name + ' ' + (u.middle_initial ? u.middle_initial + ' ' : '') + u.last_name).toLowerCase() === visitWithOther.toLowerCase()
+                    );
+                    if (match) {
+                      setSelectedUserForOverlay(match);
+                    } else {
+                      alert('User details not found.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding user', err);
+                  } finally {
+                    setLoadingUserOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingUserOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View User Details"
+                disabled={loadingUserOverlay}
+              >
+                {loadingUserOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         );
 
@@ -1102,11 +1277,40 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'assignedEmail':
-        if (!jobOrder.Assigned_Email) return null;
+        const assignedEmail = jobOrder.Assigned_Email || jobOrder.assigned_email;
+        if (!assignedEmail || assignedEmail === 'Not set') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Assigned Email:</div>
-            <div className={valueClass}>{jobOrder.Assigned_Email}</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{assignedEmail}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingUserOverlay(true);
+                    const allUsers = (await userService.getAllUsers()).data || [];
+                    const match = allUsers.find(u => 
+                      u.email_address?.toLowerCase() === assignedEmail.toLowerCase()
+                    );
+                    
+                    if (match) {
+                      setSelectedUserForOverlay(match);
+                    } else {
+                      alert('User details not found for this email.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding user', err);
+                  } finally {
+                    setLoadingUserOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingUserOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View User Details"
+                disabled={loadingUserOverlay}
+              >
+                {loadingUserOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         );
 
@@ -1282,8 +1486,145 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           onMouseDown={handleMouseDownResize}
         />
       )}
-      <div className={`p-3 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}>
+
+      {hasActiveOverlay && (
+        <div className="absolute inset-0 z-50 bg-white dark:bg-gray-900 overflow-hidden flex flex-col h-full w-full">
+          {loadingPlanOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-orange-500" />
+                <p>Loading plan details...</p>
+              </div>
+            </div>
+          )}
+          {loadingUserOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-blue-500" />
+                <p>Loading user details...</p>
+              </div>
+            </div>
+          )}
+          {loadingCustomerOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-green-500" />
+                <p>Loading customer details...</p>
+              </div>
+            </div>
+          )}
+          {loadingInventoryOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-yellow-500" />
+                <p>Loading inventory details...</p>
+              </div>
+            </div>
+          )}
+          {selectedPlanForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
+                  <p>Loading plan overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <PlanListDetails
+                  plan={selectedPlanForOverlay}
+                  onClose={() => setSelectedPlanForOverlay(null)}
+                  isMobile={isMobile}
+                />
+              </div>
+            </React.Suspense>
+          )}
+          {selectedUserForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
+                  <p>Loading user overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <UserDetails
+                  user={selectedUserForOverlay}
+                  onClose={() => setSelectedUserForOverlay(null)}
+                  onEdit={() => {}}
+                  onDelete={() => {}}
+                  isMobile={isMobile}
+                  isDarkMode={isDarkMode}
+                  colorPalette={colorPalette}
+                />
+              </div>
+            </React.Suspense>
+          )}
+          {selectedCustomerForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-green-500 border-t-transparent animate-spin" />
+                  <p>Loading customer overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <CustomerDetails
+                  billingRecord={selectedCustomerForOverlay}
+                  onClose={() => setSelectedCustomerForOverlay(null)}
+                />
+              </div>
+            </React.Suspense>
+          )}
+          {selectedInventoryForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-yellow-500 border-t-transparent animate-spin" />
+                  <p>Loading inventory overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <InventoryDetails
+                  item={selectedInventoryForOverlay}
+                  onClose={() => setSelectedInventoryForOverlay(null)}
+                />
+              </div>
+            </React.Suspense>
+          )}
+          {selectedUserForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                  <p>Loading user overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0 flex justify-center p-0 md:p-6 bg-gray-50 dark:bg-gray-950">
+                <div className="bg-white dark:bg-gray-900 w-full h-full shadow-lg rounded-none md:rounded-lg overflow-hidden border dark:border-gray-800">
+                  <UserDetails
+                    user={selectedUserForOverlay}
+                    onClose={() => setSelectedUserForOverlay(null)}
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                    isMobile={true}
+                    isDarkMode={isDarkMode}
+                    colorPalette={colorPalette}
+                  />
+                </div>
+              </div>
+            </React.Suspense>
+          )}
+        </div>
+      )}
+
+      <div className={hasActiveOverlay ? 'hidden' : 'block h-full flex flex-col w-full'}>
+        <div className={`p-3 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
         <div className="flex items-center flex-1 min-w-0">
           <h2 className={`font-medium truncate ${isMobile ? 'max-w-[200px] text-sm' : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>{getClientFullName()}</h2>
@@ -1423,7 +1764,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto w-full">
         <div className={`max-w-2xl mx-auto py-6 px-4 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
           }`}>
           <div className="space-y-4">
@@ -1434,6 +1775,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             ))}
           </div>
         </div>
+      </div>
       </div>
 
       <JobOrderDoneFormModal

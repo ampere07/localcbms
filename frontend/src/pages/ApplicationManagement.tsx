@@ -49,7 +49,11 @@ const allColumns = [
   { key: 'createTime', label: 'Create Time', width: 'min-w-28' }
 ];
 
-const ApplicationManagement: React.FC = () => {
+interface ApplicationManagementProps {
+  onNavigate?: (section: string, extra?: string) => void;
+}
+
+const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigate }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -1680,6 +1684,7 @@ const ApplicationManagement: React.FC = () => {
             application={selectedApplication}
             onClose={() => setSelectedApplication(null)}
             onApplicationUpdate={handleApplicationUpdate}
+            onNavigate={onNavigate}
           />
         </div>
       )}
