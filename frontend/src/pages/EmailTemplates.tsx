@@ -15,6 +15,8 @@ interface EmailTemplateData {
   email_sender: string;
   sender_name: string;
   reply_to: string;
+  Page_Margin?: string;
+  Image_Margin?: string;
 }
 
 interface EmailTemplateResponse {
@@ -44,8 +46,9 @@ const EmailTemplates: React.FC = () => {
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState<boolean>(false);
   const tinymceRef = useRef<any>(null);
   const [paperPadding, setPaperPadding] = useState('1in');
+  const [imageMargin, setImageMargin] = useState('0px');
 
-  
+
   const [formData, setFormData] = useState({
     Template_Code: '',
     Subject_Line: '',
@@ -57,7 +60,9 @@ const EmailTemplates: React.FC = () => {
     Body_HTML: '',
     Description: '',
     Is_Active: true,
-    email_body: ''
+    email_body: '',
+    Page_Margin: '1in',
+    Image_Margin: '0px'
   });
 
   const availableVariables = [
@@ -109,8 +114,12 @@ const EmailTemplates: React.FC = () => {
             Body_HTML: response.data.data[0].Body_HTML,
             Description: response.data.data[0].Description || '',
             Is_Active: response.data.data[0].Is_Active,
-            email_body: response.data.data[0].email_body || ''
+            email_body: response.data.data[0].email_body || '',
+            Page_Margin: response.data.data[0].Page_Margin || '1in',
+            Image_Margin: response.data.data[0].Image_Margin || '0px'
           });
+          setPaperPadding(response.data.data[0].Page_Margin || '1in');
+          setImageMargin(response.data.data[0].Image_Margin || '0px');
         }
       }
     } catch (error) {
@@ -168,8 +177,12 @@ const EmailTemplates: React.FC = () => {
       Body_HTML: template.Body_HTML,
       Description: template.Description || '',
       Is_Active: template.Is_Active,
-      email_body: template.email_body || ''
+      email_body: template.email_body || '',
+      Page_Margin: template.Page_Margin || '1in',
+      Image_Margin: template.Image_Margin || '0px'
     });
+    setPaperPadding(template.Page_Margin || '1in');
+    setImageMargin(template.Image_Margin || '0px');
     setIsEditing(false);
     setIsCreating(false);
   };
@@ -201,8 +214,12 @@ const EmailTemplates: React.FC = () => {
       Body_HTML: '',
       Description: '',
       Is_Active: true,
-      email_body: ''
+      email_body: '',
+      Page_Margin: '1in',
+      Image_Margin: '0px'
     });
+    setPaperPadding('1in');
+    setImageMargin('0px');
   };
 
   const handleSave = async () => {
@@ -216,7 +233,9 @@ const EmailTemplates: React.FC = () => {
 
       const payload = {
         ...formData,
-        Body_HTML: currentBodyHtml
+        Body_HTML: currentBodyHtml,
+        Page_Margin: paperPadding,
+        Image_Margin: imageMargin
       };
 
       if (isCreating) {
@@ -309,8 +328,12 @@ const EmailTemplates: React.FC = () => {
         Body_HTML: selectedTemplate.Body_HTML,
         Description: selectedTemplate.Description || '',
         Is_Active: selectedTemplate.Is_Active,
-        email_body: selectedTemplate.email_body || ''
+        email_body: selectedTemplate.email_body || '',
+        Page_Margin: selectedTemplate.Page_Margin || '1in',
+        Image_Margin: selectedTemplate.Image_Margin || '0px'
       });
+      setPaperPadding(selectedTemplate.Page_Margin || '1in');
+      setImageMargin(selectedTemplate.Image_Margin || '0px');
     }
     setIsEditing(false);
     setIsCreating(false);
@@ -898,7 +921,7 @@ const EmailTemplates: React.FC = () => {
                           toolbar: 'undo redo | blocks | ' +
                             'bold italic forecolor | alignleft aligncenter ' +
                             'alignright alignjustify | bullist numlist outdent indent | ' +
-                            'removeformat | table cell_props page_margins | image | help',
+                            'removeformat | table cell_props page_margins image_margins | image | help',
                           content_style: `
                             body { 
                               font-family:Helvetica,Arial,sans-serif; 
@@ -910,15 +933,42 @@ const EmailTemplates: React.FC = () => {
                               background: white;
                               box-shadow: 0 0 20px rgba(0,0,0,0.15);
                             }
+                            /* Full Bleed Logic: Images with margin: 0 ignore body padding */
+                            img[style*="margin: 0"], img[style*="margin:0"] {
+                              margin-left: calc(-1 * ${paperPadding.includes(' ') ? paperPadding.split(' ')[1] || paperPadding.split(' ')[0] : paperPadding}) !important;
+                              margin-right: calc(-1 * ${paperPadding.includes(' ') ? paperPadding.split(' ')[1] || paperPadding.split(' ')[0] : paperPadding}) !important;
+                              width: calc(100% + 2 * ${paperPadding.includes(' ') ? paperPadding.split(' ')[1] || paperPadding.split(' ')[0] : paperPadding}) !important;
+                              max-width: none !important;
+                              display: block;
+                            }
+                            /* If it's the very first element, also bleed top */
+                            body > img[style*="margin: 0"]:first-child, 
+                            body > p:first-child > img[style*="margin: 0"] {
+                              margin-top: calc(-1 * ${paperPadding.split(' ')[0]}) !important;
+                            }
+                            img:not([style*="margin: 0"]):not([style*="margin:0"]) {
+                              margin: ${imageMargin};
+                            }
+                            img.absolute-image {
+                              position: absolute;
+                              cursor: move;
+                            }
                             html {
                               background-color: #f0f0f0;
                             }
                           `,
                           branding: false,
-                          contextmenu: 'link image table',
+                          contextmenu: 'link image table custom_image_margin absolute_pos',
                           table_cell_advtab: true,
                           table_advtab: true,
                           table_row_advtab: true,
+                          image_advtab: true,
+                          image_description: true,
+                          image_dimensions: true,
+                          image_class_list: [
+                            { title: 'None', value: '' },
+                            { title: 'Absolute Position', value: 'absolute-image' }
+                          ],
                           table_cell_styles: [
                             { title: 'Black Top Border', value: { 'border-top': '1px solid black' } },
                             { title: 'White Top Border', value: { 'border-top': '1px solid white' } },
@@ -947,48 +997,145 @@ const EmailTemplates: React.FC = () => {
                                   { type: 'menuitem', text: 'Moderate (0.75 inch)', onAction: () => setMargin('0.75in') },
                                   { type: 'menuitem', text: 'Wide (2 inches)', onAction: () => setMargin('2in') },
                                   { type: 'menuitem', text: 'None', onAction: () => setMargin('0in') },
-                                  { 
-                                    type: 'menuitem', 
-                                    text: 'Custom...', 
+                                  {
+                                    type: 'menuitem',
+                                    text: 'Custom...',
                                     onAction: () => {
                                       editor.windowManager.open({
-                                        title: 'Custom Margins',
+                                        title: 'Custom Page Margins',
                                         body: {
                                           type: 'panel',
                                           items: [
-                                            {
-                                              type: 'input',
-                                              name: 'margin',
-                                              label: 'Margin (e.g., 1.5in, 20px, 3cm)'
-                                            }
+                                            { type: 'input', name: 'top', label: 'Top (e.g., 1in, 20px)' },
+                                            { type: 'input', name: 'left', label: 'Left' },
+                                            { type: 'input', name: 'right', label: 'Right' },
+                                            { type: 'input', name: 'bottom', label: 'Bottom' }
                                           ]
                                         },
                                         buttons: [
-                                          {
-                                            type: 'cancel',
-                                            text: 'Cancel'
-                                          },
-                                          {
-                                            type: 'submit',
-                                            text: 'Apply',
-                                            primary: true
-                                          }
+                                          { type: 'cancel', text: 'Cancel' },
+                                          { type: 'submit', text: 'Apply', primary: true }
                                         ],
                                         onSubmit: (api: any) => {
                                           const data = api.getData();
-                                          if (data.margin) {
-                                            setMargin(data.margin);
-                                          }
+                                          // CSS shorthand order: top right bottom left
+                                          const marginStr = `${data.top || '0'} ${data.right || '0'} ${data.bottom || '0'} ${data.left || '0'}`;
+                                          setMargin(marginStr);
                                           api.close();
                                         }
                                       });
                                     }
-                                  },
-                                ];
-                                callback(items as any);
-                              }
+                                  }
+                                  ];
+                                 callback(items as any);
+                               }
                             });
 
+                             editor.ui.registry.addMenuButton('image_margins', {
+                               text: 'Image Margins',
+                               tooltip: 'Adjust Image Margins',
+                               fetch: (callback: (items: any[]) => void) => {
+                                 const setImgMargin = (margin: string) => {
+                                   setImageMargin(margin);
+                                   const images = editor.dom.select('img');
+                                   images.forEach((img: any) => {
+                                     const currentStyle = img.getAttribute('style') || '';
+                                     if (!currentStyle.includes('margin: 0') && !currentStyle.includes('margin:0')) {
+                                       editor.dom.setStyle(img, 'margin', margin);
+                                     }
+                                   });
+                                 };
+
+                                 const items = [
+                                   { type: 'menuitem', text: 'None (0px)', onAction: () => setImgMargin('0px') },
+                                   { type: 'menuitem', text: 'Small (5px)', onAction: () => setImgMargin('5px') },
+                                   { type: 'menuitem', text: 'Medium (10px)', onAction: () => setImgMargin('10px') },
+                                   { type: 'menuitem', text: 'Large (20px)', onAction: () => setImgMargin('20px') },
+                                   {
+                                     type: 'menuitem',
+                                     text: 'Custom...',
+                                     onAction: () => {
+                                       editor.windowManager.open({
+                                         title: 'Custom Image Margins',
+                                         body: {
+                                           type: 'panel',
+                                           items: [
+                                             { type: 'input', name: 'top', label: 'Top (e.g., 10px, 1em)' },
+                                             { type: 'input', name: 'left', label: 'Left' },
+                                             { type: 'input', name: 'right', label: 'Right' },
+                                             { type: 'input', name: 'bottom', label: 'Bottom' }
+                                           ]
+                                         },
+                                         buttons: [
+                                           { type: 'cancel', text: 'Cancel' },
+                                           { type: 'submit', text: 'Apply', primary: true }
+                                         ],
+                                         onSubmit: (api: any) => {
+                                           const data = api.getData();
+                                           // User order: top left right bottom. CSS standard: top right bottom left
+                                           const marginStr = `${data.top || '0'} ${data.right || '0'} ${data.bottom || '0'} ${data.left || '0'}`;
+                                           setImgMargin(marginStr);
+                                           api.close();
+                                         }
+                                       });
+                                     }
+                                   },
+                                 ];
+                                 callback(items as any);
+                               }
+                             });
+ 
+                             editor.ui.registry.addMenuItem('custom_image_margin', {
+                               text: 'Set Image Margin...',
+                               icon: 'image',
+                               onAction: () => {
+                                 const node = editor.selection.getNode();
+                                 if (node.nodeName === 'IMG') {
+                                   editor.windowManager.open({
+                                     title: 'Set Image Margin',
+                                     body: {
+                                       type: 'panel',
+                                       items: [
+                                         { type: 'input', name: 'top', label: 'Top (e.g. 10px, 1in)' },
+                                         { type: 'input', name: 'left', label: 'Left' },
+                                         { type: 'input', name: 'right', label: 'Right' },
+                                         { type: 'input', name: 'bottom', label: 'Bottom' }
+                                       ]
+                                     },
+                                     buttons: [
+                                       { type: 'cancel', text: 'Cancel' },
+                                       { type: 'submit', text: 'Apply', primary: true }
+                                     ],
+                                     onSubmit: (api: any) => {
+                                       const data = api.getData();
+                                       // User order: top left right bottom. CSS standard: top right bottom left
+                                       const marginStr = `${data.top || '0'} ${data.right || '0'} ${data.bottom || '0'} ${data.left || '0'}`;
+                                       editor.dom.setStyle(node, 'margin', marginStr);
+                                       api.close();
+                                     }
+                                   });
+                                 }
+                               }
+                             });
+ 
+                             editor.ui.registry.addMenuItem('absolute_pos', {
+                               text: 'Toggle Absolute Position',
+                               icon: 'move',
+                               onAction: () => {
+                                 const node = editor.selection.getNode();
+                                 if (node.nodeName === 'IMG') {
+                                   const isAbs = editor.dom.getStyle(node, 'position') === 'absolute';
+                                   if (isAbs) {
+                                     editor.dom.setStyle(node, 'position', 'static');
+                                     editor.dom.removeClass(node, 'absolute-image');
+                                   } else {
+                                     editor.dom.setStyle(node, 'position', 'absolute');
+                                     editor.dom.addClass(node, 'absolute-image');
+                                   }
+                                 }
+                               }
+                             });
+ 
                             editor.ui.registry.addMenuButton('cell_props', {
                               text: 'Cell Props',
                               tooltip: 'Table Cell Borders',
@@ -996,15 +1143,15 @@ const EmailTemplates: React.FC = () => {
                                 const toggleBorder = (side: string) => {
                                   editor.undoManager.transact(() => {
                                     const selectedCells = editor.dom.select('td[data-mce-selected], th[data-mce-selected]');
-                                    const targetCells = selectedCells.length > 0 
-                                      ? selectedCells 
+                                    const targetCells = selectedCells.length > 0
+                                      ? selectedCells
                                       : [editor.dom.getParent(editor.selection.getStart(), 'td,th')];
 
                                     targetCells.forEach((cell: any) => {
                                       if (!cell) return;
                                       const styleName = `border-${side}`;
                                       const currentStyle = editor.dom.getStyle(cell, styleName);
-                                      
+
                                       // If it is black or anything else, turn it white.
                                       // If it is already white or none, turn it black.
                                       if (currentStyle && !currentStyle.includes('white') && currentStyle !== 'none' && currentStyle !== '') {
@@ -1035,7 +1182,7 @@ const EmailTemplates: React.FC = () => {
                       : 'bg-gray-100 border-gray-300'
                       }`}>
                       <Editor
-                        key="preview-editor"
+                        key={`preview-${selectedTemplate?.Template_Code}-${paperPadding}`}
                         apiKey="f539el807y6kwefdib0nm8ml3wq8efjee4nzc9i79rplyld5"
                         value={selectedTemplate?.Body_HTML || ''}
                         disabled={true}
@@ -1055,6 +1202,24 @@ const EmailTemplates: React.FC = () => {
                               padding: ${paperPadding};
                               background: white;
                               box-shadow: 0 0 20px rgba(0,0,0,0.15);
+                            }
+                            /* Full Bleed Logic */
+                            img[style*="margin: 0"], img[style*="margin:0"] {
+                              margin-left: calc(-1 * ${paperPadding.includes(' ') ? paperPadding.split(' ')[1] || paperPadding.split(' ')[0] : paperPadding}) !important;
+                              margin-right: calc(-1 * ${paperPadding.includes(' ') ? paperPadding.split(' ')[1] || paperPadding.split(' ')[0] : paperPadding}) !important;
+                              width: calc(100% + 2 * ${paperPadding.includes(' ') ? paperPadding.split(' ')[1] || paperPadding.split(' ')[0] : paperPadding}) !important;
+                              max-width: none !important;
+                              display: block;
+                            }
+                            body > img[style*="margin: 0"]:first-child, 
+                            body > p:first-child > img[style*="margin: 0"] {
+                              margin-top: calc(-1 * ${paperPadding.split(' ')[0]}) !important;
+                            }
+                            img:not([style*="margin: 0"]):not([style*="margin:0"]) {
+                              margin: ${imageMargin};
+                            }
+                            img.absolute-image {
+                              position: absolute;
                             }
                             html {
                               background-color: #f0f0f0;
