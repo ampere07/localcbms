@@ -207,6 +207,9 @@ const PaymentPortal: React.FC = () => {
     return {};
   });
 
+  const [dateTimeFrom, setDateTimeFrom] = useState<string>('');
+  const [dateTimeTo, setDateTimeTo] = useState<string>('');
+
   const removeFilter = (key: string) => {
     const newFilters = { ...activeFilters };
     delete newFilters[key];
@@ -223,7 +226,7 @@ const PaymentPortal: React.FC = () => {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   // Format currency function
   const formatCurrency = (amount: number) => {
@@ -436,19 +439,19 @@ const PaymentPortal: React.FC = () => {
 
           if (filter.type === 'checklist') {
             if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
-            
+
             const valStr = String(val || '').toLowerCase().trim();
-            
+
             if (key === 'barangay' || key === 'city' || key === 'region') {
-               const directVal = String(record[key] || '').toLowerCase().trim();
-               const address = String(record.address || '').toLowerCase();
-               
-               return (filter.value as string[]).some(option => {
-                  const opt = option.toLowerCase().trim();
-                  return directVal === opt || address.includes(opt);
-               });
+              const directVal = String(record[key] || '').toLowerCase().trim();
+              const address = String(record.address || '').toLowerCase();
+
+              return (filter.value as string[]).some(option => {
+                const opt = option.toLowerCase().trim();
+                return directVal === opt || address.includes(opt);
+              });
             }
-            
+
             return (filter.value as string[]).some(option => valStr === option.toLowerCase().trim());
           }
 
@@ -487,8 +490,32 @@ const PaymentPortal: React.FC = () => {
       });
     }
 
+    // Apply sidebar date range filters for date_time
+    if (dateTimeFrom || dateTimeTo) {
+      filtered = filtered.filter(record => {
+        if (!record.date_time) return false;
+
+        const dateValue = new Date(record.date_time).getTime();
+        if (isNaN(dateValue)) return false;
+
+        if (dateTimeFrom) {
+          const fromDate = new Date(dateTimeFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (dateValue < fromDate.getTime()) return false;
+        }
+
+        if (dateTimeTo) {
+          const toDate = new Date(dateTimeTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (dateValue > toDate.getTime()) return false;
+        }
+
+        return true;
+      });
+    }
+
     return filtered;
-  }, [records, searchQuery, activeFilters]);
+  }, [records, searchQuery, activeFilters, dateTimeFrom, dateTimeTo]);
 
   // Generate location items with hierarchy - Now using globalFilteredRecords
   const locationItems = useMemo(() => {
@@ -579,7 +606,7 @@ const PaymentPortal: React.FC = () => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLocation, searchQuery, itemsPerPage]);
+  }, [selectedLocation, searchQuery, itemsPerPage, dateTimeFrom, dateTimeTo, activeFilters]);
 
   // Scroll to top on page change
   useEffect(() => {
@@ -673,6 +700,55 @@ const PaymentPortal: React.FC = () => {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
+          {/* Date Range Filter Section */}
+          <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Date Range
+              </span>
+              {(dateTimeFrom || dateTimeTo) && (
+                <button
+                  onClick={() => {
+                    setDateTimeFrom('');
+                    setDateTimeTo('');
+                  }}
+                  className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                  style={{ color: colorPalette?.primary || '#7c3aed' }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                <input
+                  type="date"
+                  value={dateTimeFrom}
+                  onChange={(e) => setDateTimeFrom(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={dateTimeFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                <input
+                  type="date"
+                  value={dateTimeTo}
+                  onChange={(e) => setDateTimeTo(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={dateTimeTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* All Level */}
           <button
             onClick={() => setSelectedLocation('all')}
@@ -1157,6 +1233,55 @@ const PaymentPortal: React.FC = () => {
                   {locationItems.total}
                 </span>
               </button>
+
+              {/* Mobile Date Range Filter Section */}
+              <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Date Time Range
+                  </span>
+                  {(dateTimeFrom || dateTimeTo) && (
+                    <button
+                      onClick={() => {
+                        setDateTimeFrom('');
+                        setDateTimeTo('');
+                      }}
+                      className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                      style={{ color: colorPalette?.primary || '#7c3aed' }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                    <input
+                      type="date"
+                      value={dateTimeFrom}
+                      onChange={(e) => setDateTimeFrom(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={dateTimeFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                    <input
+                      type="date"
+                      value={dateTimeTo}
+                      onChange={(e) => setDateTimeTo(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={dateTimeTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                </div>
+              </div>
 
               {/* Region Level */}
               {locationItems.regions.map((region: any) => (

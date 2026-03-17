@@ -151,10 +151,10 @@ interface ServiceOrderState {
     searchQuery: string;
     lastUpdated: Date | null;
 
-    fetchServiceOrders: (force?: boolean, silent?: boolean) => Promise<void>;
+    fetchServiceOrders: (force?: boolean, silent?: boolean, assignedEmail?: string) => Promise<void>;
     refreshServiceOrders: () => Promise<void>;
-    silentRefresh: () => Promise<void>;
-    fetchUpdates: () => Promise<void>;
+    silentRefresh: (assignedEmail?: string) => Promise<void>;
+    fetchUpdates: (assignedEmail?: string) => Promise<void>;
 }
 
 export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
@@ -167,7 +167,7 @@ export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
     searchQuery: '',
     lastUpdated: null,
 
-    fetchServiceOrders: async (force = false, silent = false) => {
+    fetchServiceOrders: async (force = false, silent = false, assignedEmail?: string) => {
         const { serviceOrders, isLoading, totalCount } = get();
 
         // Prevent re-fetching if we already have data and not forced
@@ -175,67 +175,90 @@ export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
             return;
         }
 
+        // If already loading and not forced, ignore
         if (isLoading && !force) return;
 
         const isInitialFetch = serviceOrders.length === 0;
 
-        if (!silent && isInitialFetch) {
+        // Only show loading if not silent OR if we have no data
+        if (!silent || isInitialFetch) {
             set({ isLoading: true, error: null });
         }
 
         try {
-            const authData = localStorage.getItem('authData');
-            let assignedEmail: string | undefined;
-
-            if (authData) {
-                try {
-                    const userData = JSON.parse(authData);
-                    if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
-                        assignedEmail = userData.email;
-                    }
-                } catch (err) { }
+            // Use provided email or fallback to localStorage
+            let fetchEmail = assignedEmail;
+            if (!fetchEmail) {
+                const authData = localStorage.getItem('authData');
+                if (authData) {
+                    try {
+                        const userData = JSON.parse(authData);
+                        if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
+                            fetchEmail = userData.email;
+                        }
+                    } catch (err) { }
+                }
             }
 
             const CHUNK_SIZE = 2000;
-            let allFetchedRecords = force ? [] : [...serviceOrders];
-            let currentOffset = allFetchedRecords.length;
+            // If forced but silent, we use a map to merge with current orders to avoid "blank" states
+            const ordersMap = new Map();
+            if (!(force && !silent)) {
+                serviceOrders.forEach(o => ordersMap.set(o.id, o));
+            }
+            
+            let currentOffset = (force) ? 0 : serviceOrders.length;
             let currentFetchPage = Math.floor(currentOffset / CHUNK_SIZE) + 1;
 
-            console.log(`Fetching ServiceOrder records in chunks... Current offset: ${currentOffset}`);
+            console.log(`[ServiceOrderStore] Fetching records... Page: ${currentFetchPage}, Limit: ${CHUNK_SIZE}`);
 
-            const firstResult = (await getServiceOrders(assignedEmail, currentFetchPage, CHUNK_SIZE, '')) as any;
+            const firstResult = (await getServiceOrders(fetchEmail, currentFetchPage, CHUNK_SIZE, '')) as any;
 
             if (firstResult && firstResult.success && Array.isArray(firstResult.data)) {
-                const dbTotal = firstResult.pagination?.total || firstResult.data.length;
+                const dbTotal = firstResult.pagination?.total_count || firstResult.pagination?.total || firstResult.data.length;
                 const newTransformed = firstResult.data.map(transformServiceOrder);
-                allFetchedRecords = force ? newTransformed : [...allFetchedRecords, ...newTransformed];
+                
+                newTransformed.forEach((o: ServiceOrder) => ordersMap.set(o.id, o));
+
+                const mergedOrders = Array.from(ordersMap.values()).sort((a: any, b: any) => {
+                    const idA = parseInt(a.id) || 0;
+                    const idB = parseInt(b.id) || 0;
+                    return idB - idA;
+                });
 
                 set({
-                    serviceOrders: allFetchedRecords,
+                    serviceOrders: mergedOrders,
                     totalCount: dbTotal,
                     lastUpdated: new Date(),
                     error: null,
                     isLoading: false
                 });
 
-                let hasMore = firstResult.pagination?.has_more ?? (allFetchedRecords.length < dbTotal);
+                // Continue fetching remaining chunks progressively
+                let hasMore = firstResult.pagination?.has_more ?? (mergedOrders.length < dbTotal);
                 currentFetchPage++;
 
                 while (hasMore) {
                     try {
-                        console.log(`Progressive ServiceOrder fetch: ${allFetchedRecords.length} / ${dbTotal}`);
-                        const result = (await getServiceOrders(assignedEmail, currentFetchPage, CHUNK_SIZE, '')) as any;
+                        const result = (await getServiceOrders(fetchEmail, currentFetchPage, CHUNK_SIZE, '')) as any;
 
                         if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
                             const chunkTransformed = result.data.map(transformServiceOrder);
-                            allFetchedRecords = [...allFetchedRecords, ...chunkTransformed];
-
-                            set({
-                                serviceOrders: [...allFetchedRecords],
-                                totalCount: result.pagination?.total || dbTotal
+                            chunkTransformed.forEach((o: ServiceOrder) => ordersMap.set(o.id, o));
+                            
+                            const updatedMerged = Array.from(ordersMap.values()).sort((a: any, b: any) => {
+                                const idA = parseInt(a.id) || 0;
+                                const idB = parseInt(b.id) || 0;
+                                return idB - idA;
                             });
 
-                            hasMore = result.pagination?.has_more ?? (allFetchedRecords.length < (result.pagination?.total || dbTotal));
+                            const currentTotal = result.pagination?.total_count || result.pagination?.total || dbTotal;
+                            set({
+                                serviceOrders: updatedMerged,
+                                totalCount: currentTotal
+                            });
+
+                            hasMore = result.pagination?.has_more ?? (updatedMerged.length < currentTotal);
                             currentFetchPage++;
                         } else {
                             hasMore = false;
@@ -248,7 +271,7 @@ export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
             } else {
                 if (force || serviceOrders.length === 0) {
                     set({
-                        serviceOrders: force ? [] : get().serviceOrders,
+                        serviceOrders: (force && !silent) ? [] : get().serviceOrders,
                         hasMore: false,
                         isLoading: false,
                         error: firstResult.message || 'Failed to fetch service orders'
@@ -272,35 +295,38 @@ export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
         await get().fetchServiceOrders(true, false);
     },
 
-    silentRefresh: async () => {
-        await get().fetchServiceOrders(true, true);
+    silentRefresh: async (assignedEmail?: string) => {
+        await get().fetchServiceOrders(true, true, assignedEmail);
     },
 
-    fetchUpdates: async () => {
+    fetchUpdates: async (assignedEmail?: string) => {
         const { serviceOrders, lastUpdated } = get();
-        if (!lastUpdated) {
-            await get().silentRefresh();
-            return;
-        }
-
-        try {
+        
+        // Use provided email or fallback to auto-detection
+        let fetchEmail = assignedEmail;
+        if (!fetchEmail) {
             const authData = localStorage.getItem('authData');
-            let assignedEmail: string | undefined;
-
             if (authData) {
                 try {
                     const userData = JSON.parse(authData);
                     if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
-                        assignedEmail = userData.email;
+                        fetchEmail = userData.email;
                     }
                 } catch (err) { }
             }
+        }
 
+        if (!lastUpdated) {
+            await get().silentRefresh(fetchEmail);
+            return;
+        }
+
+        try {
             // Format date for MySQL: YYYY-MM-DD HH:mm:ss
             const formattedDate = lastUpdated.toISOString().slice(0, 19).replace('T', ' ');
             
             console.log(`[ServiceOrderStore] Fetching updates since: ${formattedDate}`);
-            const result = await getServiceOrders(assignedEmail, 1, 1000, '', formattedDate) as any;
+            const result = await getServiceOrders(fetchEmail, 1, 1000, '', formattedDate) as any;
 
             if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
                 console.log(`[ServiceOrderStore] Received ${result.data.length} updates/new records`);

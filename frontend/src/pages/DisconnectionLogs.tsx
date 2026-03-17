@@ -170,6 +170,20 @@ const DisconnectionLogs: React.FC = () => {
     return false;
   };
 
+  const formatDate = (dateStr?: string): string => {
+    if (!dateStr) return '-';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   // Memoize filtered records for performance
   const filteredLogRecords = useMemo(() => {
     return logRecords.filter(record => {
@@ -212,7 +226,7 @@ const DisconnectionLogs: React.FC = () => {
   const renderCellValue = (record: DisconnectionLogRecord, columnKey: string) => {
     switch (columnKey) {
       case 'date':
-        return record.date || (record.disconnectionDate ? record.disconnectionDate.split(' ')[0] : '-');
+        return formatDate(record.date || record.disconnectionDate);
       case 'accountNo':
         return <span className="text-red-400">{record.accountNo}</span>;
       case 'username':
@@ -247,7 +261,7 @@ const DisconnectionLogs: React.FC = () => {
       case 'balance':
         return record.balance ? `₱ ${record.balance.toFixed(2)}` : '-';
       case 'disconnectionDate':
-        return record.disconnectionDate || '-';
+        return formatDate(record.disconnectionDate);
       case 'disconnectedBy':
         return record.disconnectedBy || '-';
       case 'reason':
@@ -255,7 +269,7 @@ const DisconnectionLogs: React.FC = () => {
       case 'remarks':
         return record.remarks || '-';
       case 'appliedDate':
-        return record.appliedDate || '-';
+        return formatDate(record.appliedDate);
       case 'reconnectionFee':
         return record.reconnectionFee ? `₱ ${record.reconnectionFee.toFixed(2)}` : '-';
       case 'daysDisconnected':

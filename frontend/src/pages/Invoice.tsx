@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, X, ArrowUp, ArrowDown, Columns3, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Search, X, ArrowUp, ArrowDown, Columns3, ChevronsLeft, ChevronsRight, Menu, Globe, Calendar, ChevronDown, Filter } from 'lucide-react';
 import InvoiceDetails from '../components/InvoiceDetails';
 
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -10,7 +10,6 @@ import { getCustomerDetail, CustomerDetailData } from '../services/customerDetai
 import { BillingDetailRecord } from '../types/billing';
 import InvoiceFunnelFilter, { FilterValues, allColumns as filterColumns } from '../filter/InvoiceFunnelFilter';
 import pusher from '../services/pusherService';
-import { Filter } from 'lucide-react';
 
 const hexToRgba = (hex: string, opacity: number) => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -199,7 +198,7 @@ const Invoice: React.FC = () => {
 
   // Table State
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   const [sortColumn, setSortColumn] = useState<string | null>('id');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -224,6 +223,11 @@ const Invoice: React.FC = () => {
     }
     return {};
   });
+
+  const [invoiceDateFrom, setInvoiceDateFrom] = useState<string>('');
+  const [invoiceDateTo, setInvoiceDateTo] = useState<string>('');
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   const removeFilter = (key: string) => {
     const newFilters = { ...activeFilters };
@@ -354,14 +358,39 @@ const Invoice: React.FC = () => {
       });
     }
 
+    // Apply sidebar date range filters for invoice date
+    if (invoiceDateFrom || invoiceDateTo) {
+      filtered = filtered.filter(record => {
+        if (!record.invoiceDateRaw && !record.invoiceDate) return false;
+
+        const dateStr = record.invoiceDateRaw || record.invoiceDate;
+        const dateValue = new Date(dateStr).getTime();
+        if (isNaN(dateValue)) return false;
+
+        if (invoiceDateFrom) {
+          const fromDate = new Date(invoiceDateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (dateValue < fromDate.getTime()) return false;
+        }
+
+        if (invoiceDateTo) {
+          const toDate = new Date(invoiceDateTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (dateValue > toDate.getTime()) return false;
+        }
+
+        return true;
+      });
+    }
+
     return filtered;
-  }, [invoiceRecords, searchQuery, activeFilters]);
+  }, [invoiceRecords, searchQuery, activeFilters, invoiceDateFrom, invoiceDateTo]);
 
   // Derive date items from context data instead of fetching separately or static
   const dateItems = useMemo(() => {
     const dateCounts: Record<string, number> = {};
     const dates = new Map<string, string>();
-    
+
     globalFilteredInvoices.forEach(record => {
       if (record.invoiceDate && record.invoiceDate !== 'N/A') {
         dateCounts[record.invoiceDate] = (dateCounts[record.invoiceDate] || 0) + 1;
@@ -567,6 +596,20 @@ const Invoice: React.FC = () => {
 
 
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString || dateString === 'N/A' || dateString === '-') return dateString || '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return dateString;
+    }
+  };
+
   const filteredRecords = useMemo(() => {
     let filtered = globalFilteredInvoices.filter(record => {
       const matchesDate = selectedDate === 'All' || record.invoiceDate === selectedDate;
@@ -607,12 +650,12 @@ const Invoice: React.FC = () => {
     }
 
     return filtered;
-  }, [globalFilteredInvoices, selectedDate, sortColumn, sortDirection]);
+  }, [globalFilteredInvoices, selectedDate, sortColumn, sortDirection, invoiceDateFrom, invoiceDateTo]);
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedDate, searchQuery, itemsPerPage]);
+  }, [selectedDate, searchQuery, itemsPerPage, invoiceDateFrom, invoiceDateTo, activeFilters]);
 
   // Scroll to top on page change
   useEffect(() => {
@@ -931,7 +974,7 @@ const Invoice: React.FC = () => {
       case 'accountNo':
         return <span className="text-red-400">{record.accountNo}</span>;
       case 'invoiceDate':
-        return record.invoiceDate;
+        return formatDate(record.invoiceDate);
       case 'invoiceBalance':
         return `₱ ${(record.invoiceBalance ?? 0).toFixed(2)}`;
       case 'serviceCharge':
@@ -947,11 +990,11 @@ const Invoice: React.FC = () => {
       case 'receivedPayment':
         return `₱ ${(record.receivedPayment ?? 0).toFixed(2)}`;
       case 'dueDate':
-        return record.dueDate || '-';
+        return formatDate(record.dueDate) || '-';
       case 'paymentMethod':
         return record.paymentMethod || 'N/A';
       case 'dateProcessed':
-        return record.dateProcessed || 'N/A';
+        return formatDate(record.dateProcessed) || 'N/A';
       case 'processedBy':
         return record.processedBy || 'N/A';
       case 'paymentPortalLogRef':
@@ -959,11 +1002,11 @@ const Invoice: React.FC = () => {
       case 'transactionId':
         return record.transactionId || 'NULL';
       case 'createdAt':
-        return record.createdAt || '-';
+        return formatDate(record.createdAt) || '-';
       case 'createdBy':
         return record.createdBy || '-';
       case 'updatedAt':
-        return record.updatedAt || '-';
+        return formatDate(record.updatedAt) || '-';
       case 'updatedBy':
         return record.updatedBy || '-';
       case 'fullName':
@@ -977,7 +1020,7 @@ const Invoice: React.FC = () => {
       case 'plan':
         return record.plan || '-';
       case 'dateInstalled':
-        return record.dateInstalled || '-';
+        return formatDate(record.dateInstalled) || '-';
       case 'barangay':
         return record.barangay || '-';
       case 'city':
@@ -1003,6 +1046,55 @@ const Invoice: React.FC = () => {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
+            {/* Date Range Filter Section */}
+            <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+              <div className="flex items-center justify-between">
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Invoice Date Range
+                </span>
+                {(invoiceDateFrom || invoiceDateTo) && (
+                  <button
+                    onClick={() => {
+                      setInvoiceDateFrom('');
+                      setInvoiceDateTo('');
+                    }}
+                    className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                    style={{ color: colorPalette?.primary || '#7c3aed' }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="relative">
+                  <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                  <input
+                    type="date"
+                    value={invoiceDateFrom}
+                    onChange={(e) => setInvoiceDateFrom(e.target.value)}
+                    className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                      }`}
+                    style={invoiceDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                  />
+                </div>
+                <div className="relative">
+                  <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                  <input
+                    type="date"
+                    value={invoiceDateTo}
+                    onChange={(e) => setInvoiceDateTo(e.target.value)}
+                    className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                      }`}
+                    style={invoiceDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* All Level */}
             <button
               onClick={() => setSelectedDate('All')}
@@ -1032,41 +1124,66 @@ const Invoice: React.FC = () => {
               </span>
             </button>
 
-            {/* Date Levels */}
-            {dateItems.dates.map((item, index) => (
+            {/* Invoice Month Dropdown */}
+            <div className={`p-0 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-100'}`}>
               <button
-                key={index}
-                onClick={() => setSelectedDate(item.date)}
+                onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
                 className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                  } ${selectedDate === item.date
-                    ? ''
-                    : isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}
-                style={selectedDate === item.date ? {
-                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#7c3aed'
-                } : {}}
+                  } ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
               >
                 <div className="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                  </svg>
-                  <span>{item.date}</span>
+                  <span className="font-medium">Invoice Month</span>
                 </div>
-                <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${selectedDate === item.date
-                    ? 'text-white'
-                    : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
-                    }`}
-                  style={selectedDate === item.date ? {
-                    backgroundColor: colorPalette?.primary || '#7c3aed'
-                  } : {}}
-                >
-                  {item.count}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                      }`}
+                  >
+                    {dateItems.dates.length}
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform duration-200 ${isDateDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </div>
               </button>
-            ))}
+
+              {isDateDropdownOpen && (
+                <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50/50 shadow-inner'}`}>
+                  {dateItems.dates.map((item, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedDate(item.date)}
+                      className={`w-full flex items-center justify-between px-6 py-2.5 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                        } ${selectedDate === item.date
+                          ? ''
+                          : isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}
+                      style={selectedDate === item.date ? {
+                        backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                        color: colorPalette?.primary || '#7c3aed',
+                        fontWeight: 500
+                      } : {}}
+                    >
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-3 opacity-60" />
+                        <span className="truncate">{item.date}</span>
+                      </div>
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${selectedDate === item.date
+                          ? 'text-white'
+                          : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-200 text-gray-500'
+                          }`}
+                        style={selectedDate === item.date ? {
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
+                        } : {}}
+                      >
+                        {item.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div
@@ -1095,6 +1212,15 @@ const Invoice: React.FC = () => {
           <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
             }`}>
             <div className="flex items-center space-x-3">
+              {userRole !== 'customer' && (
+                <button
+                  onClick={() => setMobileMenuOpen(true)}
+                  className={`md:hidden p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                    }`}
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+              )}
               <div className="relative flex-1">
                 <input
                   type="text"
@@ -1480,188 +1606,376 @@ const Invoice: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
 
-      {selectedRecord && userRole !== 'customer' && (
-        <div className="flex-shrink-0 overflow-hidden">
-          <InvoiceDetails
-            invoiceRecord={selectedRecord as any}
-            onViewCustomer={handleViewCustomer}
-            onClose={handleCloseDetails}
-          />
-        </div>
-      )}
-
-      {(selectedCustomer || isLoadingDetails) && (
-        <div className="flex-shrink-0 overflow-hidden">
-          {isLoadingDetails ? (
-            <div className={`w-[600px] h-full flex items-center justify-center border-l ${isDarkMode
-              ? 'bg-gray-900 text-white border-white border-opacity-30'
-              : 'bg-white text-gray-900 border-gray-300'
+        {/* Mobile Overlay Menu */}
+        {mobileMenuOpen && userRole !== 'customer' && (
+          <div className="fixed inset-0 z-50 md:hidden">
+            <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
+            <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
               }`}>
-              <div className="text-center">
-                <div
-                  className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-                  style={{ borderBottomColor: colorPalette?.primary || '#7c3aed' }}
-                ></div>
-                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
-              </div>
-            </div>
-          ) : selectedCustomer ? (
-            <BillingDetails
-              billingRecord={convertCustomerDataToBillingDetail(selectedCustomer)}
-              onlineStatusRecords={[]}
-              onClose={() => setSelectedCustomer(null)}
-            />
-          ) : null}
-        </div>
-      )}
-
-      {showPaymentVerifyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div
-            className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
-              }`}
-          >
-            <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-              }`}>
-              <h3 className="text-xl font-bold text-center">Confirm Payment</h3>
-            </div>
-
-            <div className="p-6">
-              <div className={`p-4 rounded mb-4 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+              <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
                 }`}>
-                <div className="flex justify-between mb-2">
-                  <span>Account:</span>
-                  <span className="font-bold">{fullName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Current Balance:</span>
-                  <span className={`font-bold ${accountBalance > 0 ? 'text-red-500' : 'text-green-500'
-                    }`}>₱{accountBalance.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {errorMessage && (
-                <div className={`p-3 rounded mb-4 ${isDarkMode ? 'bg-red-900/20 border border-red-800' : 'bg-red-50 border border-red-200'
-                  }`}>
-                  <p className="text-red-500 text-sm text-center">{errorMessage}</p>
-                </div>
-              )}
-
-              <div className="mb-4">
-                <label className="block font-bold mb-2">Payment Amount</label>
-                <input
-                  type="number"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
-                  min="1"
-                  step="0.01"
-                  className={`w-full px-4 py-3 rounded text-lg font-bold ${isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                    } border focus:outline-none focus:ring-2`}
-                  style={{
-                    '--tw-ring-color': colorPalette?.primary || '#7c3aed'
-                  } as React.CSSProperties}
-                />
-                <div className={`text-sm text-right mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                  {accountBalance > 0 ? (
-                    <span>Outstanding balance: ₱{accountBalance.toFixed(2)}</span>
-                  ) : (
-                    <span>Minimum: ₱1.00</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-3">
+                <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Categories</h2>
                 <button
-                  onClick={handleCloseVerifyModal}
-                  disabled={isPaymentProcessing}
-                  className={`flex-1 px-4 py-3 rounded font-bold transition-colors ${isDarkMode
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
                 >
-                  Cancel
+                  <X className="h-6 w-6" />
                 </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {/* All Level */}
                 <button
-                  onClick={handleProceedToCheckout}
-                  disabled={isPaymentProcessing || paymentAmount < 1}
-                  className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    backgroundColor: (isPaymentProcessing || paymentAmount < 1)
-                      ? '#6b7280'
-                      : (colorPalette?.primary || '#7c3aed')
+                  onClick={() => {
+                    setSelectedDate('All');
+                    setMobileMenuOpen(false);
                   }}
-                  onMouseEnter={(e) => {
-                    if (!isPaymentProcessing && paymentAmount >= 1 && colorPalette?.accent) {
-                      e.currentTarget.style.backgroundColor = colorPalette.accent;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isPaymentProcessing && paymentAmount >= 1 && colorPalette?.primary) {
-                      e.currentTarget.style.backgroundColor = colorPalette.primary;
-                    }
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
+                  style={selectedDate === 'All' ? {
+                    backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                    color: colorPalette?.primary || '#7c3aed',
+                    fontWeight: 500
+                  } : {
+                    color: isDarkMode ? '#d1d5db' : '#374151'
                   }}
                 >
-                  {isPaymentProcessing ? (
-                    <span className="flex items-center justify-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Processing...
+                  <div className="flex items-center">
+                    <Globe className="h-4 w-4 mr-2" />
+                    <span>All Records</span>
+                  </div>
+                  <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                    {dateItems.all}
+                  </span>
+                </button>
+
+                {/* Mobile Date Range Filter Section */}
+                <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      Invoice Date Range
                     </span>
-                  ) : (
-                    'PROCEED TO CHECKOUT →'
+                    {(invoiceDateFrom || invoiceDateTo) && (
+                      <button
+                        onClick={() => {
+                          setInvoiceDateFrom('');
+                          setInvoiceDateTo('');
+                        }}
+                        className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                        style={{ color: colorPalette?.primary || '#7c3aed' }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="relative">
+                      <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                      <input
+                        type="date"
+                        value={invoiceDateFrom}
+                        onChange={(e) => setInvoiceDateFrom(e.target.value)}
+                        className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                        style={invoiceDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                      />
+                    </div>
+                    <div className="relative">
+                      <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                      <input
+                        type="date"
+                        value={invoiceDateTo}
+                        onChange={(e) => setInvoiceDateTo(e.target.value)}
+                        className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                        style={invoiceDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mobile Invoice Month Dropdown */}
+                <div className={`border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+                  <button
+                    onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+                    className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-700'
+                      }`}
+                  >
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      <span className="font-medium">Invoice Month</span>
+                    </div>
+                    <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isDateDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isDateDropdownOpen && (
+                    <div className={isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50/50'}>
+                      {dateItems.dates.map((item, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            setSelectedDate(item.date);
+                            setMobileMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-6 py-3 text-sm transition-colors border-b last:border-0 ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
+                            }`}
+                          style={selectedDate === item.date ? {
+                            backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                            color: colorPalette?.primary || '#7c3aed',
+                            fontWeight: 500
+                          } : {
+                            color: isDarkMode ? '#9ca3af' : '#4b5563'
+                          }}
+                        >
+                          <div className="flex items-center">
+                            <Calendar className="h-4 w-4 mr-2 opacity-60" />
+                            <span>{item.date}</span>
+                          </div>
+                          <span className="px-2 py-1 rounded-full text-[10px] bg-gray-700 text-gray-300">
+                            {item.count}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   )}
-                </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )
-      }
+        )}
 
-      {
-        showPendingPaymentModal && pendingPayment && (
+        {selectedRecord && userRole !== 'customer' && (
+          <div className="flex-shrink-0 overflow-hidden">
+            <InvoiceDetails
+              invoiceRecord={selectedRecord as any}
+              onViewCustomer={handleViewCustomer}
+              onClose={handleCloseDetails}
+            />
+          </div>
+        )}
+
+        {(selectedCustomer || isLoadingDetails) && (
+          <div className="flex-shrink-0 overflow-hidden">
+            {isLoadingDetails ? (
+              <div className={`w-[600px] h-full flex items-center justify-center border-l ${isDarkMode
+                ? 'bg-gray-900 text-white border-white border-opacity-30'
+                : 'bg-white text-gray-900 border-gray-300'
+                }`}>
+                <div className="text-center">
+                  <div
+                    className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+                    style={{ borderBottomColor: colorPalette?.primary || '#7c3aed' }}
+                  ></div>
+                  <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
+                </div>
+              </div>
+            ) : selectedCustomer ? (
+              <BillingDetails
+                billingRecord={convertCustomerDataToBillingDetail(selectedCustomer)}
+                onlineStatusRecords={[]}
+                onClose={() => setSelectedCustomer(null)}
+              />
+            ) : null}
+          </div>
+        )}
+
+        {showPaymentVerifyModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div
-              className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
+              className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
+                }`}
             >
-              <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <h3 className="text-xl font-bold text-center">Transaction In Progress</h3>
+              <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
+                <h3 className="text-xl font-bold text-center">Confirm Payment</h3>
               </div>
 
               <div className="p-6">
-                <div className={`p-4 rounded mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                  <p className="text-center mb-4">
-                    You have a pending payment (<b>{pendingPayment?.reference_no}</b>).
-                    <br />The link is still active.
-                  </p>
-                  <div className="flex justify-between mt-4">
-                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
-                    <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#7c3aed' }}>
-                      ₱{pendingPayment?.amount?.toFixed(2) || '0.00'}
-                    </span>
+                <div className={`p-4 rounded mb-4 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                  }`}>
+                  <div className="flex justify-between mb-2">
+                    <span>Account:</span>
+                    <span className="font-bold">{fullName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Current Balance:</span>
+                    <span className={`font-bold ${accountBalance > 0 ? 'text-red-500' : 'text-green-500'
+                      }`}>₱{accountBalance.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {errorMessage && (
+                  <div className={`p-3 rounded mb-4 ${isDarkMode ? 'bg-red-900/20 border border-red-800' : 'bg-red-50 border border-red-200'
+                    }`}>
+                    <p className="text-red-500 text-sm text-center">{errorMessage}</p>
+                  </div>
+                )}
+
+                <div className="mb-4">
+                  <label className="block font-bold mb-2">Payment Amount</label>
+                  <input
+                    type="number"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
+                    min="1"
+                    step="0.01"
+                    className={`w-full px-4 py-3 rounded text-lg font-bold ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                      } border focus:outline-none focus:ring-2`}
+                    style={{
+                      '--tw-ring-color': colorPalette?.primary || '#7c3aed'
+                    } as React.CSSProperties}
+                  />
+                  <div className={`text-sm text-right mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                    {accountBalance > 0 ? (
+                      <span>Outstanding balance: ₱{accountBalance.toFixed(2)}</span>
+                    ) : (
+                      <span>Minimum: ₱1.00</span>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex gap-3">
                   <button
-                    onClick={handleCancelPendingPayment}
+                    onClick={handleCloseVerifyModal}
+                    disabled={isPaymentProcessing}
                     className={`flex-1 px-4 py-3 rounded font-bold transition-colors ${isDarkMode
                       ? 'bg-gray-700 hover:bg-gray-600 text-white'
                       : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                      }`}
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleResumePendingPayment}
-                    className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors"
+                    onClick={handleProceedToCheckout}
+                    disabled={isPaymentProcessing || paymentAmount < 1}
+                    className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      backgroundColor: (isPaymentProcessing || paymentAmount < 1)
+                        ? '#6b7280'
+                        : (colorPalette?.primary || '#7c3aed')
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isPaymentProcessing && paymentAmount >= 1 && colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isPaymentProcessing && paymentAmount >= 1 && colorPalette?.primary) {
+                        e.currentTarget.style.backgroundColor = colorPalette.primary;
+                      }
+                    }}
+                  >
+                    {isPaymentProcessing ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing...
+                      </span>
+                    ) : (
+                      'PROCEED TO CHECKOUT →'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+        }
+
+        {
+          showPendingPaymentModal && pendingPayment && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div
+                className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
+              >
+                <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <h3 className="text-xl font-bold text-center">Transaction In Progress</h3>
+                </div>
+
+                <div className="p-6">
+                  <div className={`p-4 rounded mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                    <p className="text-center mb-4">
+                      You have a pending payment (<b>{pendingPayment?.reference_no}</b>).
+                      <br />The link is still active.
+                    </p>
+                    <div className="flex justify-between mt-4">
+                      <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
+                      <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#7c3aed' }}>
+                        ₱{pendingPayment?.amount?.toFixed(2) || '0.00'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleCancelPendingPayment}
+                      className={`flex-1 px-4 py-3 rounded font-bold transition-colors ${isDarkMode
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                        }`}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleResumePendingPayment}
+                      className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors"
+                      style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (colorPalette?.primary) {
+                          e.currentTarget.style.backgroundColor = colorPalette.primary;
+                        }
+                      }}
+                    >
+                      Pay Now →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        {
+          showPaymentLinkModal && paymentLinkData && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div
+                className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
+              >
+                <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <h3 className="text-xl font-bold text-center">Proceed to Payment Portal</h3>
+                </div>
+
+                <div className="p-6">
+                  <div className={`p-4 rounded mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                    <div className="flex justify-between mb-3">
+                      <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Reference:</span>
+                      <span className="font-mono font-bold">{paymentLinkData?.referenceNo}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
+                      <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#7c3aed' }}>
+                        ₱{paymentLinkData?.amount?.toFixed(2) || '0.00'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleOpenPaymentLink}
+                    className="w-full px-4 py-3 rounded font-bold text-white transition-colors"
                     style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                     onMouseEnter={(e) => {
                       if (colorPalette?.accent) {
@@ -1674,71 +1988,24 @@ const Invoice: React.FC = () => {
                       }
                     }}
                   >
-                    Pay Now →
+                    PROCEED
                   </button>
                 </div>
               </div>
             </div>
-          </div>
-        )
-      }
-
-      {
-        showPaymentLinkModal && paymentLinkData && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div
-              className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
-            >
-              <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <h3 className="text-xl font-bold text-center">Proceed to Payment Portal</h3>
-              </div>
-
-              <div className="p-6">
-                <div className={`p-4 rounded mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                  <div className="flex justify-between mb-3">
-                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Reference:</span>
-                    <span className="font-mono font-bold">{paymentLinkData?.referenceNo}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
-                    <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#7c3aed' }}>
-                      ₱{paymentLinkData?.amount?.toFixed(2) || '0.00'}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleOpenPaymentLink}
-                  className="w-full px-4 py-3 rounded font-bold text-white transition-colors"
-                  style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
-                  onMouseEnter={(e) => {
-                    if (colorPalette?.accent) {
-                      e.currentTarget.style.backgroundColor = colorPalette.accent;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (colorPalette?.primary) {
-                      e.currentTarget.style.backgroundColor = colorPalette.primary;
-                    }
-                  }}
-                >
-                  PROCEED
-                </button>
-              </div>
-            </div>
-          </div>
-        )
-      }
-      <InvoiceFunnelFilter
-        isOpen={isFunnelFilterOpen}
-        onClose={() => setIsFunnelFilterOpen(false)}
-        onApplyFilters={(filters) => {
-          setActiveFilters(filters);
-          localStorage.setItem('invoiceFunnelFilters', JSON.stringify(filters));
-          setIsFunnelFilterOpen(false);
-        }}
-        currentFilters={activeFilters}
-      />
+          )
+        }
+        <InvoiceFunnelFilter
+          isOpen={isFunnelFilterOpen}
+          onClose={() => setIsFunnelFilterOpen(false)}
+          onApplyFilters={(filters) => {
+            setActiveFilters(filters);
+            localStorage.setItem('invoiceFunnelFilters', JSON.stringify(filters));
+            setIsFunnelFilterOpen(false);
+          }}
+          currentFilters={activeFilters}
+        />
+      </div>
     </div>
   );
 };

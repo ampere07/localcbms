@@ -285,7 +285,7 @@ class ServiceOrderController extends Controller
                 'request_support_status' => $supportStatus
             ]);
 
-            $updatedByUser = $request->input('updated_by_user') ?: $request->input('created_by_user') ?: (Auth::user()->name ?? 'System');
+            $updatedByUser = $request->input('updated_by_user') ?: ($request->input('updated_by') ?: ($request->input('created_by_user') ?: (Auth::user()->name ?? 'System')));
 
             $reconnectStatus = null;
             if ($currentConcern && strtolower($currentConcern) === 'reconnect' && $supportStatus === 'resolved') {
@@ -461,7 +461,7 @@ class ServiceOrderController extends Controller
                 ], 404);
             }
 
-            $updatedByUser = $request->input('updated_by_user') ?: (Auth::user()->name ?? 'System');
+            $updatedByUser = $request->input('updated_by_user') ?: ($request->input('updated_by') ?: (Auth::user()->name ?? 'System'));
 
             $updateData = [];
             $billingUpdateData = [];

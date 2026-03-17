@@ -283,7 +283,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 return <InventoryCategoryList />;
             case 'expenses-log':
                 return <ExpensesLog />;
-            case 'logs':
+            case 'system-logs':
                 return <Logs />;
             case 'soa-generation':
                 return <SOAGeneration />;

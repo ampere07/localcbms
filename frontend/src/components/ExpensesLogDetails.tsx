@@ -2,6 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, Edit, ChevronLeft, ChevronRight as ChevronRightNav, Maximize2, X, Info, Mail } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateString;
+  }
+};
+
 interface ExpenseRecord {
   id: string;
   expensesId: string;
@@ -71,7 +85,7 @@ const ExpensesLogDetails: React.FC<ExpensesLogDetailsProps> = ({
         }`}>
         <h1 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
           }`}>
-          {expenseRecord.date}
+          {formatDate(expenseRecord.date)}
         </h1>
         <div className="flex items-center space-x-2">
           <button className={`p-2 rounded transition-colors ${isDarkMode
@@ -130,7 +144,7 @@ const ExpensesLogDetails: React.FC<ExpensesLogDetailsProps> = ({
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Date</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{expenseRecord.date}</span>
+            }`}>{formatDate(expenseRecord.date)}</span>
         </div>
 
         {/* Expenses ID */}
@@ -195,7 +209,7 @@ const ExpensesLogDetails: React.FC<ExpensesLogDetailsProps> = ({
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Modified Date</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{expenseRecord.modifiedDate}</span>
+            }`}>{formatDate(expenseRecord.modifiedDate)}</span>
         </div>
 
         {/* User Email */}
@@ -240,7 +254,7 @@ const ExpensesLogDetails: React.FC<ExpensesLogDetailsProps> = ({
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Received Date</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{expenseRecord.receivedDate}</span>
+            }`}>{formatDate(expenseRecord.receivedDate)}</span>
         </div>
 
         {/* Supplier */}

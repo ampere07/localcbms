@@ -107,7 +107,17 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+
+    // Real-time password validation as requested
+    if (name === 'password') {
+      if (value && value.length < 8) {
+        setErrors(prev => ({ ...prev, password: 'Min 8 chars' }));
+      } else {
+        setErrors(prev => ({ ...prev, password: '' }));
+      }
+    } else if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
   const validate = () => {
@@ -208,11 +218,13 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
             <div>
               <label className={labelClass}>First Name*</label>
               <input name="first_name" value={formData.first_name} onChange={handleInputChange} className={`${inputClass} ${errors.first_name ? 'border-red-500' : ''}`} />
+              {errors.first_name && <p className="text-red-500 text-[10px] mt-1 font-medium">{errors.first_name}</p>}
             </div>
 
             <div>
               <label className={labelClass}>Last Name*</label>
               <input name="last_name" value={formData.last_name} onChange={handleInputChange} className={`${inputClass} ${errors.last_name ? 'border-red-500' : ''}`} />
+              {errors.last_name && <p className="text-red-500 text-[10px] mt-1 font-medium">{errors.last_name}</p>}
             </div>
 
             <div>
@@ -223,11 +235,13 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
             <div>
               <label className={labelClass}>Username*</label>
               <input name="username" value={formData.username} onChange={handleInputChange} className={`${inputClass} ${errors.username ? 'border-red-500' : ''}`} />
+              {errors.username && <p className="text-red-500 text-[10px] mt-1 font-medium">{errors.username}</p>}
             </div>
 
             <div className="col-span-2">
               <label className={labelClass}>Email Address*</label>
               <input type="email" name="email_address" value={formData.email_address} onChange={handleInputChange} className={`${inputClass} ${errors.email_address ? 'border-red-500' : ''}`} />
+              {errors.email_address && <p className="text-red-500 text-[10px] mt-1 font-medium">{errors.email_address}</p>}
             </div>
 
             <div>
@@ -249,27 +263,45 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
                 <option value="">Select Role</option>
                 {roles.map(r => <option key={r.id} value={r.id}>{r.role_name}</option>)}
               </select>
+              {errors.role_id && <p className="text-red-500 text-[10px] mt-1 font-medium">{errors.role_id}</p>}
             </div>
 
             <div className="col-span-2">
               <label className={labelClass}>{isEditMode ? 'New Password (Optional)' : 'Password*'}</label>
               <div className="relative">
-                <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleInputChange} className={`${inputClass} ${errors.password ? 'border-red-500' : ''}`} />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className={`${inputClass} ${errors.password ? 'border-red-500' : ''}`}
+                  placeholder={isEditMode ? 'Leave blank to keep current' : 'At least 8 characters'}
+                />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-gray-500">
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+              {errors.password && <p className="text-red-500 text-xs mt-1 font-medium">{errors.password}</p>}
             </div>
 
             {!isEditMode && (
               <div className="col-span-2">
                 <label className={labelClass}>Confirm Password*</label>
                 <div className="relative">
-                  <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={`${inputClass} ${errors.confirmPassword ? 'border-red-500' : ''}`} />
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      if (errors.confirmPassword) setErrors(prev => ({ ...prev, confirmPassword: '' }));
+                    }}
+                    className={`${inputClass} ${errors.confirmPassword ? 'border-red-500' : ''}`}
+                  />
                   <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-2.5 text-gray-500">
                     {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+                {errors.confirmPassword && <p className="text-red-500 text-xs mt-1 font-medium">{errors.confirmPassword}</p>}
               </div>
             )}
           </div>

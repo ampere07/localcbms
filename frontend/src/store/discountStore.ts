@@ -28,6 +28,8 @@ export interface DiscountRecord {
     region?: string;
     completeAddress?: string;
     onlineStatus?: string;
+    createdAtRaw?: string;
+    processedDateRaw?: string;
 }
 
 const transformDiscountData = (data: any[]): DiscountRecord[] => {
@@ -69,7 +71,9 @@ const transformDiscountData = (data: any[]): DiscountRecord[] => {
             barangay: customer?.barangay,
             city: customer?.city,
             region: customer?.region,
-            onlineStatus: undefined
+            onlineStatus: undefined,
+            createdAtRaw: discount.created_at,
+            processedDateRaw: discount.processed_date
         };
     });
 };

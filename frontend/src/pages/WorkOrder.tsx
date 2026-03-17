@@ -32,7 +32,7 @@ const WorkOrderPage: React.FC = () => {
   }, [mobileView]);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [userRole, setUserRole] = useState<number | null>(null);
   const [userRoleName, setUserRoleName] = useState<string>('');
   const [userEmail, setUserEmail] = useState<string>('');
@@ -194,10 +194,16 @@ const WorkOrderPage: React.FC = () => {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-PH', {
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', hour12: true
-    });
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return dateString;
+    }
   };
 
   const filteredWorkOrders = useMemo(() => {

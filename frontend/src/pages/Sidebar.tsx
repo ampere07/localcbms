@@ -164,15 +164,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       id: 'users',
       label: 'Users',
       icon: Users,
-      allowedRoles: ['administrator'],
+      allowedRoles: ['superadmin'],
       children: [
-        { id: 'user-management', label: 'Users Management', icon: User, allowedRoles: ['administrator'] }
+        { id: 'user-management', label: 'Users Management', icon: User, allowedRoles: ['superadmin'] }
         // { id: 'organization-management', label: 'Organization Management', icon: Building2, allowedRoles: ['administrator'] },
         // { id: 'group-management', label: 'Affiliate', icon: Shield, allowedRoles: ['administrator'] }
       ]
     },
     {
-      id: 'logs',
+      id: 'logs-category',
       label: 'Logs',
       icon: Users,
       allowedRoles: ['administrator'],
@@ -180,7 +180,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         // { id: 'expenses-log', label: 'Expenses Log', icon: FileBarChart, allowedRoles: ['administrator'] },
         { id: 'disconnected-logs', label: 'Disconnected Logs', icon: AlertTriangle, allowedRoles: ['administrator'] },
         { id: 'reconnection-logs', label: 'Reconnection Logs', icon: FileBarChart, allowedRoles: ['administrator'] },
-        { id: 'logs', label: 'System Logs', icon: FileText, allowedRoles: ['superadmin'] }
+        { id: 'system-logs', label: 'System Logs', icon: FileText, allowedRoles: ['superadmin'] }
       ]
     },
     { id: 'settings', label: 'Settings', icon: Settings, allowedRoles: ['administrator', 'technician'] },

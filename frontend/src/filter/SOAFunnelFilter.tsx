@@ -41,6 +41,7 @@ export const allColumns: Column[] = [
     { key: 'emailAddress', label: 'Email Address', dataType: 'varchar' },
     { key: 'plan', label: 'Plan', dataType: 'checklist' },
     { key: 'remarks', label: 'Remarks', dataType: 'varchar' },
+    { key: 'statementDate', label: 'Statement Date', dataType: 'date' },
     { key: 'dateProcessed', label: 'Date Processed', dataType: 'date' },
     { key: 'dueDate', label: 'Due Date', dataType: 'date' },
     { key: 'invoiceStatus', label: 'Invoice Status', dataType: 'checklist' },

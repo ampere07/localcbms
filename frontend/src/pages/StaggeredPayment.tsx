@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
+import { Search, ChevronsLeft, ChevronsRight, X, Menu, Globe, Calendar } from 'lucide-react';
 import StaggeredListDetails from '../components/StaggeredListDetails';
 import StaggeredInstallationFormModal from '../modals/StaggeredInstallationFormModal';
 import { useStaggeredPaymentContext, StaggeredInstallation } from '../contexts/StaggeredPaymentContext';
@@ -72,10 +72,13 @@ const StaggeredPayment: React.FC = () => {
   const [isStaggeredFormModalOpen, setIsStaggeredFormModalOpen] = useState<boolean>(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
+  const [staggeredDateFrom, setStaggeredDateFrom] = useState<string>('');
+  const [staggeredDateTo, setStaggeredDateTo] = useState<string>('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   const formatCurrency = (amount: number | string) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -86,11 +89,11 @@ const StaggeredPayment: React.FC = () => {
     if (!dateStr) return 'No date';
     try {
       const date = new Date(dateStr);
-      return date.toLocaleDateString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric'
-      });
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
     }
@@ -113,8 +116,32 @@ const StaggeredPayment: React.FC = () => {
       filtered = filtered.filter(record => checkValue(record));
     }
 
+    // Apply sidebar date range filters for staggered date
+    if (staggeredDateFrom || staggeredDateTo) {
+      filtered = filtered.filter(record => {
+        if (!record.staggered_date) return false;
+
+        const dateValue = new Date(record.staggered_date).getTime();
+        if (isNaN(dateValue)) return false;
+
+        if (staggeredDateFrom) {
+          const fromDate = new Date(staggeredDateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (dateValue < fromDate.getTime()) return false;
+        }
+
+        if (staggeredDateTo) {
+          const toDate = new Date(staggeredDateTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (dateValue > toDate.getTime()) return false;
+        }
+
+        return true;
+      });
+    }
+
     return filtered;
-  }, [staggeredRecords, searchQuery]);
+  }, [staggeredRecords, searchQuery, staggeredDateFrom, staggeredDateTo]);
 
   // Derive date items from context data
   const dateItems = React.useMemo(() => {
@@ -274,7 +301,7 @@ const StaggeredPayment: React.FC = () => {
   // Reset page when search or date filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedDate, itemsPerPage]);
+  }, [searchQuery, selectedDate, itemsPerPage, staggeredDateFrom, staggeredDateTo]);
 
   // Scroll to top on page change
   useEffect(() => {
@@ -486,6 +513,55 @@ const StaggeredPayment: React.FC = () => {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
+          {/* Date Range Filter Section */}
+          <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Staggered Date Range
+              </span>
+              {(staggeredDateFrom || staggeredDateTo) && (
+                <button
+                  onClick={() => {
+                    setStaggeredDateFrom('');
+                    setStaggeredDateTo('');
+                  }}
+                  className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                  style={{ color: colorPalette?.primary || '#7c3aed' }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                <input
+                  type="date"
+                  value={staggeredDateFrom}
+                  onChange={(e) => setStaggeredDateFrom(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={staggeredDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                <input
+                  type="date"
+                  value={staggeredDateTo}
+                  onChange={(e) => setStaggeredDateTo(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={staggeredDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* All Level */}
           <button
             onClick={() => setSelectedDate('All')}
@@ -578,6 +654,13 @@ const StaggeredPayment: React.FC = () => {
             }`}>
             <div className="flex flex-col space-y-3">
               <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setMobileMenuOpen(true)}
+                  className={`md:hidden p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                    }`}
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
                 <div className="relative flex-1">
                   <input
                     type="text"
@@ -773,6 +856,128 @@ const StaggeredPayment: React.FC = () => {
         onClose={handleCloseStaggeredFormModal}
         onSave={handleSaveStaggered}
       />
+
+      {/* Mobile Overlay Menu */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
+          <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+            }`}>
+            <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Categories</h2>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {/* All Level */}
+              <button
+                onClick={() => {
+                  setSelectedDate('All');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
+                style={selectedDate === 'All' ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#7c3aed',
+                  fontWeight: 500
+                } : {
+                  color: isDarkMode ? '#d1d5db' : '#374151'
+                }}
+              >
+                <div className="flex items-center">
+                  <Globe className="h-4 w-4 mr-2" />
+                  <span>All Records</span>
+                </div>
+                <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                  {dateItems.all}
+                </span>
+              </button>
+
+              {/* Mobile Date Range Filter Section */}
+              <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Staggered Date Range
+                  </span>
+                  {(staggeredDateFrom || staggeredDateTo) && (
+                    <button
+                      onClick={() => {
+                        setStaggeredDateFrom('');
+                        setStaggeredDateTo('');
+                      }}
+                      className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                      style={{ color: colorPalette?.primary || '#7c3aed' }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                    <input
+                      type="date"
+                      value={staggeredDateFrom}
+                      onChange={(e) => setStaggeredDateFrom(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={staggeredDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                    <input
+                      type="date"
+                      value={staggeredDateTo}
+                      onChange={(e) => setStaggeredDateTo(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={staggeredDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Date Categories */}
+              {dateItems.dates.map((item, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setSelectedDate(item.date);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
+                  style={selectedDate === item.date ? {
+                    backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                    color: colorPalette?.primary || '#7c3aed',
+                    fontWeight: 500
+                  } : {
+                    color: isDarkMode ? '#d1d5db' : '#374151'
+                  }}
+                >
+                  <div className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    <span>{item.date}</span>
+                  </div>
+                  <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                    {item.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -592,15 +592,14 @@ const Inventory: React.FC = () => {
                         {item.modified_date && (
                           <div className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                             }`}>
-                            {new Date(item.modified_date).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: '2-digit',
-                              day: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              second: '2-digit',
-                              hour12: true
-                            })}
+                            {(() => {
+                              const date = new Date(item.modified_date);
+                              if (isNaN(date.getTime())) return item.modified_date;
+                              const mm = String(date.getMonth() + 1).padStart(2, '0');
+                              const dd = String(date.getDate()).padStart(2, '0');
+                              const yyyy = date.getFullYear();
+                              return `${mm}/${dd}/${yyyy}`;
+                            })()}
                           </div>
                         )}
                       </div>

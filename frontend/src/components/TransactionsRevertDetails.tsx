@@ -36,7 +36,7 @@ const TransactionsRevertDetails: React.FC<TransactionsRevertDetailsProps> = ({
     const [successMessage, setSuccessMessage] = useState('');
     const [currentRevert, setCurrentRevert] = useState<TransactionRevert>(revert);
 
-    const { refreshBillingRecords } = useBillingStore();
+    const { refreshLatestData } = useBillingStore();
 
     // Update local state when revert prop changes
     useEffect(() => {
@@ -73,10 +73,12 @@ const TransactionsRevertDetails: React.FC<TransactionsRevertDetailsProps> = ({
     const formatDate = (dateStr?: string): string => {
         if (!dateStr) return 'N/A';
         try {
-            return new Date(dateStr).toLocaleString('en-US', {
-                month: '2-digit', day: '2-digit', year: 'numeric',
-                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
-            });
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return dateStr;
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const yyyy = date.getFullYear();
+            return `${mm}/${dd}/${yyyy}`;
         } catch (e) {
             return dateStr;
         }
@@ -145,7 +147,7 @@ const TransactionsRevertDetails: React.FC<TransactionsRevertDetailsProps> = ({
 
                 // Refresh billing data
                 try {
-                    await refreshBillingRecords();
+                    await refreshLatestData();
                 } catch (refreshErr) {
                     console.error('Failed to refresh billing records:', refreshErr);
                 }

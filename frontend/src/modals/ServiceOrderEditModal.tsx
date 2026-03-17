@@ -11,6 +11,7 @@ import { concernService, Concern } from '../services/concernService';
 import { getUsedPorts } from '../services/portService';
 import { getAllLCPNAPs, LCPNAP } from '../services/lcpnapService';
 import { routerModelService, RouterModel } from '../services/routerModelService';
+import { getBillingRecordDetails } from '../services/billingService';
 
 
 interface ServiceOrderEditModalProps {
@@ -125,6 +126,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   const [plans, setPlans] = useState<string[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [routerModels, setRouterModels] = useState<RouterModel[]>([]);
+  const [billingStatusId, setBillingStatusId] = useState<number | null>(null);
 
   const [orderItems, setOrderItems] = useState<OrderItem[]>([{ itemId: '', quantity: '' }]);
 
@@ -559,6 +561,25 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     }
   }, [serviceOrderData, isOpen, currentUserEmail]);
 
+  useEffect(() => {
+    const fetchBillingStatus = async () => {
+      const accountNo = serviceOrderData?.accountNumber || serviceOrderData?.account_no;
+      if (isOpen && accountNo) {
+        try {
+          const details = await getBillingRecordDetails(accountNo);
+          if (details) {
+            setBillingStatusId(details.billing_status_id || null);
+          }
+        } catch (error) {
+          console.error('Error fetching billing status:', error);
+        }
+      } else if (!isOpen) {
+        setBillingStatusId(null);
+      }
+    };
+    fetchBillingStatus();
+  }, [isOpen, serviceOrderData]);
+
   const handleInputChange = (field: keyof ServiceOrderEditFormData, value: string) => {
     setFormData(prev => {
       const newState = { ...prev, [field]: value };
@@ -802,6 +823,17 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       return;
     }
 
+    // Validation: Reconnect concern on Active account
+    if (formData.concern.toLowerCase() === 'reconnect' && billingStatusId === 1) { // 1 is Active
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Validation Error',
+        message: 'The account number is currently active'
+      });
+      return;
+    }
+
     // SmartOLT Validation Logic
     if (formData.connectionType === 'Fiber') {
       // Check if New Router Modem SN field is visible
@@ -967,6 +999,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         concern: updatedFormData.concern,
         concern_remarks: updatedFormData.concernRemarks,
         updated_by: updatedFormData.modifiedBy,
+        updated_by_user: updatedFormData.modifiedBy,
         support_remarks: updatedFormData.supportRemarks,
         service_charge: parseFloat(updatedFormData.serviceCharge),
         status: updatedFormData.status,

@@ -155,9 +155,14 @@ const ApplicationVisitPage: React.FC = () => {
   }, [dropdownRef, filterDropdownRef]);
 
   const formatDate = (dateStr?: string): string => {
-    if (!dateStr) return 'Not scheduled';
+    if (!dateStr || dateStr === 'Not scheduled') return dateStr || 'Not scheduled';
     try {
-      return new Date(dateStr).toLocaleString();
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
     }

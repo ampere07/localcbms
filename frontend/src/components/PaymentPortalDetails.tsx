@@ -9,6 +9,20 @@ import { relatedDataService } from '../services/relatedDataService';
 import RelatedDataTable from './RelatedDataTable';
 import { relatedDataColumns } from '../config/relatedDataColumns';
 
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateString;
+  }
+};
+
 interface PaymentPortalDetailsProps {
   record: {
     id: string | number;
@@ -316,7 +330,7 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
               <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                 }`}>Date Time</div>
               <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>{record.date_time || 'N/A'}</div>
+                }`}>{formatDate(record.date_time)}</div>
             </div>
 
             <div className={`flex py-3 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'

@@ -16,6 +16,20 @@ const PlanListDetails = React.lazy(() => import('./PlanListDetails'));
 const UserDetails = React.lazy(() => import('./UserDetails'));
 const InventoryDetails = React.lazy(() => import('./InventoryDetails'));
 
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateString;
+  }
+};
+
 interface ServiceOrderDetailsProps {
   serviceOrder: {
     id: string;
@@ -464,7 +478,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'ticketId':
         return renderField('Ticket ID', serviceOrder.ticketId);
       case 'timestamp':
-        return renderField('Timestamp', serviceOrder.timestamp);
+        return renderField('Timestamp', formatDate(serviceOrder.timestamp));
       case 'accountNumber':
         const accInfo = [serviceOrder.accountNumber, serviceOrder.fullName, serviceOrder.fullAddress].filter(val =>
           val &&
@@ -492,7 +506,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
           </div>
         );
       case 'dateInstalled':
-        return renderField('Date Installed', serviceOrder.dateInstalled?.includes('T') ? serviceOrder.dateInstalled.split('T')[0] : serviceOrder.dateInstalled);
+        return renderField('Date Installed', formatDate(serviceOrder.dateInstalled));
       case 'fullName':
         return renderField('Full Name', serviceOrder.fullName);
       case 'contactNumber':
@@ -670,7 +684,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'modifiedBy':
         return renderField('Modified By', serviceOrder.modifiedBy);
       case 'modifiedDate':
-        return renderField('Modified Date', serviceOrder.modifiedDate);
+        return renderField('Modified Date', formatDate(serviceOrder.modifiedDate));
       case 'requestedBy':
         return renderField('Requested by', serviceOrder.requestedBy);
       case 'assignedEmail':

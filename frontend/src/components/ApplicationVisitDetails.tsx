@@ -240,10 +240,15 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
     startWidthRef.current = detailsWidth;
   };
 
-  const formatDate = (dateStr: string | undefined) => {
-    if (!dateStr) return 'Not scheduled';
+  const formatDate = (dateStr?: string | null): string => {
+    if (!dateStr) return 'Not provided';
     try {
-      return new Date(dateStr).toLocaleString();
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
     }
@@ -393,7 +398,7 @@ const ApplicationVisitDetails: React.FC<ApplicationVisitDetailsProps> = ({ appli
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Timestamp:</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{formatDate(currentVisitData.created_at) || 'Not available'}</div>
+              }`}>{formatDate(currentVisitData.created_at) || 'Not provided'}</div>
           </div>
         );
 

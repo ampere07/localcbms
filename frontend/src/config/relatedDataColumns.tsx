@@ -1,8 +1,24 @@
+import React from 'react';
+
 export interface TableColumn {
   key: string;
   label: string;
   render?: (value: any, row: any) => React.ReactNode;
 }
+
+const formatDate = (val: any) => {
+  if (!val) return '-';
+  try {
+    const date = new Date(val);
+    if (isNaN(date.getTime())) return val;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return val;
+  }
+};
 
 export const relatedDataColumns = {
   invoices: [
@@ -12,7 +28,7 @@ export const relatedDataColumns = {
     {
       key: 'invoice_date',
       label: 'Invoice Date',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'invoice_balance', label: 'Balance', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'others_and_basic_charges', label: 'Basic Charges', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
@@ -21,7 +37,7 @@ export const relatedDataColumns = {
     {
       key: 'due_date',
       label: 'Due Date',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'payment_portal_log_ref', label: 'Portal Ref', render: (val: any) => val || '-' },
     { key: 'transaction_id', label: 'Trans ID', render: (val: any) => val || '-' },
@@ -29,9 +45,9 @@ export const relatedDataColumns = {
     { key: 'rebate', label: 'Rebate', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'discounts', label: 'Discounts', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'staggered', label: 'Staggered', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'created_by', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
     { key: 'updated_by', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
@@ -45,7 +61,7 @@ export const relatedDataColumns = {
     {
       key: 'date_time',
       label: 'Date Time',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'checkout_id', label: 'Checkout ID', render: (val: any) => val || '-' },
     { key: 'transaction_status', label: 'Trans Status', render: (val: any) => val || '-' },
@@ -53,8 +69,8 @@ export const relatedDataColumns = {
     { key: 'payment_channel', label: 'Channel', render: (val: any) => val || '-' },
     { key: 'type', label: 'Type', render: (val: any) => val || '-' },
     { key: 'payment_url', label: 'Payment URL', render: (val: any) => val ? 'View' : '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' }
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) }
   ] as TableColumn[],
 
   transactions: [
@@ -67,12 +83,12 @@ export const relatedDataColumns = {
     {
       key: 'payment_date',
       label: 'Payment Date',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     {
       key: 'date_processed',
       label: 'Processed Date',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'processed_by_user', label: 'Processed By', render: (val: any) => val || '-' },
     { key: 'payment_method', label: 'Method', render: (val: any) => val || '-' },
@@ -80,9 +96,9 @@ export const relatedDataColumns = {
     { key: 'or_no', label: 'OR No', render: (val: any) => val || '-' },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
     { key: 'image_url', label: 'Image URL', render: (val: any) => val ? 'View' : '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
     { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' },
     { key: 'approved_by', label: 'Approved By', render: (val: any) => val || '-' }
   ] as TableColumn[],
@@ -95,7 +111,7 @@ export const relatedDataColumns = {
     {
       key: 'staggered_date',
       label: 'Date',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'staggered_balance', label: 'Balance', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'months_to_pay', label: 'Months', render: (val: any) => val || 0 },
@@ -104,7 +120,7 @@ export const relatedDataColumns = {
     {
       key: 'modified_date',
       label: 'Modified Date',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'user_email', label: 'User Email', render: (val: any) => val || '-' },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' }
@@ -120,19 +136,19 @@ export const relatedDataColumns = {
     {
       key: 'used_date',
       label: 'Used Date',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     {
       key: 'processed_date',
       label: 'Processed',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'processed_by_user_id', label: 'Processed By', render: (val: any) => val || '-' },
     { key: 'approved_by_user_id', label: 'Approved By', render: (val: any) => val || '-' },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'created_by_user_id', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
     { key: 'updated_by_user_id', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
@@ -145,7 +161,7 @@ export const relatedDataColumns = {
     {
       key: 'timestamp',
       label: 'Timestamp',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'support_status', label: 'Support Status', render: (val: any) => val || '-' },
     { key: 'concern', label: 'Concern', render: (val: any) => val || '-' },
@@ -165,9 +181,9 @@ export const relatedDataColumns = {
     { key: 'image1_url', label: 'Img 1', render: (val: any) => val ? 'View' : '-' },
     { key: 'image2_url', label: 'Img 2', render: (val: any) => val ? 'View' : '-' },
     { key: 'image3_url', label: 'Img 3', render: (val: any) => val ? 'View' : '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
     { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' },
     { key: 'old_lcp', label: 'Old LCP', render: (val: any) => val || '-' },
     { key: 'old_nap', label: 'Old NAP', render: (val: any) => val || '-' },
@@ -195,9 +211,9 @@ export const relatedDataColumns = {
     { key: 'plan_id', label: 'Plan ID', render: (val: any) => val || '-' },
     { key: 'reconnection_fee', label: 'Fee', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
     { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
@@ -207,9 +223,9 @@ export const relatedDataColumns = {
     { key: 'session_id', label: 'Session ID', render: (val: any) => val || '-' },
     { key: 'username', label: 'Username', render: (val: any) => val || '-' },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
     { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
@@ -218,9 +234,9 @@ export const relatedDataColumns = {
     { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
     { key: 'old_details', label: 'Old Details', render: (val: any) => val || '-' },
     { key: 'new_details', label: 'New Details', render: (val: any) => val || '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'created_by_user_id', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
     { key: 'updated_by_user_id', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
@@ -233,17 +249,17 @@ export const relatedDataColumns = {
     {
       key: 'date_changed',
       label: 'Date Changed',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     {
       key: 'date_used',
       label: 'Date Used',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
     { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
@@ -256,12 +272,12 @@ export const relatedDataColumns = {
     {
       key: 'date_used',
       label: 'Date Used',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'created_by', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
     { key: 'updated_by', label: 'Updated By', render: (val: any) => val || '-' },
     { key: 'invoice_id', label: 'Invoice ID', render: (val: any) => val || '-' },
     { key: 'service_charge_type', label: 'Charge Type', render: (val: any) => val || '-' }
@@ -270,13 +286,13 @@ export const relatedDataColumns = {
   changeDueLogs: [
     { key: 'id', label: 'ID' },
     { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
-    { key: 'previous_date', label: 'Prev Date', render: (val: any) => val || '-' },
-    { key: 'changed_date', label: 'Changed Date', render: (val: any) => val || '-' },
+    { key: 'previous_date', label: 'Prev Date', render: (val: any) => formatDate(val) },
+    { key: 'changed_date', label: 'Changed Date', render: (val: any) => formatDate(val) },
     { key: 'added_balance', label: 'Added Bal', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'created_by_user_id', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
     { key: 'updated_by_user_id', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
@@ -288,13 +304,13 @@ export const relatedDataColumns = {
     {
       key: 'payment_date',
       label: 'Payment Date',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'reference_no', label: 'Ref No', render: (val: any) => val || '-' },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
     { key: 'created_by', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' }
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) }
   ] as TableColumn[],
 
   statementOfAccounts: [
@@ -303,7 +319,7 @@ export const relatedDataColumns = {
     {
       key: 'statement_date',
       label: 'Statement Date',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'balance_from_previous_bill', label: 'Bal Prev', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'payment_received_previous', label: 'Pay Prev', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
@@ -314,7 +330,7 @@ export const relatedDataColumns = {
     {
       key: 'due_date',
       label: 'Due Date',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : (val.includes('T') ? val.split('T')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'amount_due', label: 'Amt Due', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'total_amount_due', label: 'Total Due', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
@@ -323,9 +339,9 @@ export const relatedDataColumns = {
     { key: 'rebate', label: 'Rebate', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'discounts', label: 'Discounts', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'staggered', label: 'Staggered', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'created_at', label: 'Created At', render: (val: any) => val || '-' },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'created_by', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
     { key: 'updated_by', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
@@ -334,7 +350,7 @@ export const relatedDataColumns = {
     {
       key: 'date',
       label: 'Date',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'item_name', label: 'Item', render: (val: any) => val || '-' },
     { key: 'item_description', label: 'Description', render: (val: any) => val || '-' },
@@ -352,7 +368,7 @@ export const relatedDataColumns = {
     {
       key: 'date',
       label: 'Date',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'borrowed_by', label: 'Borrowed By', render: (val: any) => val || '-' },
     { key: 'item_quantity', label: 'Quantity', render: (val: any) => val || 0 },
@@ -366,7 +382,7 @@ export const relatedDataColumns = {
     {
       key: 'created_at',
       label: 'Date',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes(' ') ? val.split(' ')[0] : val) : val) : '-'
+      render: (val: any) => formatDate(val)
     }
   ] as TableColumn[],
 
@@ -375,7 +391,7 @@ export const relatedDataColumns = {
     {
       key: 'date',
       label: 'Date',
-      render: (val: any) => val ? (typeof val === 'string' ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : val) : '-'
+      render: (val: any) => formatDate(val)
     },
     { key: 'reported_by', label: 'Reported By', render: (val: any) => val || '-' },
     { key: 'item_quantity', label: 'Qty', render: (val: any) => val || 0 },

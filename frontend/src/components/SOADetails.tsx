@@ -8,6 +8,20 @@ import { BillingDetailRecord } from '../types/billing';
 const PlanListDetails = React.lazy(() => import('./PlanListDetails'));
 const CustomerDetails = React.lazy(() => import('./CustomerDetails'));
 
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateString;
+  }
+};
+
 const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
   return {
     id: customerData.billingAccount?.accountNo || '',
@@ -243,7 +257,7 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Statement Date</span>
-              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{soaRecord.statementDate}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatDate(soaRecord.statementDate)}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
@@ -279,7 +293,7 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Date Installed</span>
-              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{soaRecord.dateInstalled}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatDate(soaRecord.dateInstalled)}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
@@ -392,7 +406,7 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>DUE DATE</span>
-              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{soaRecord.dueDate || '9/30/2025'}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatDate(soaRecord.dueDate)}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
