@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Edit2, Trash2, Loader2, RefreshCw, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Loader2, RefreshCw, ChevronsLeft, ChevronsRight, X, Filter } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { useWorkOrderStore } from '../store/workOrderStore';
@@ -7,6 +7,7 @@ import { WorkOrder } from '../types/workOrder';
 import WorkOrderDetails from '../components/WorkOrderDetails';
 import AssignWorkOrderModal from '../modals/AssignWorkOrderModal';
 import pusher from '../services/pusherService';
+import WorkOrderFunnelFilter, { FilterValues } from '../components/filters/WorkOrderFunnelFilter';
 
 const WorkOrderPage: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
@@ -19,6 +20,20 @@ const WorkOrderPage: React.FC = () => {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [deletingItems, setDeletingItems] = useState<Set<number>>(new Set());
   const [mobileView, setMobileView] = useState<'orders' | 'details'>('orders');
+
+  const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<FilterValues>({});
+
+  useEffect(() => {
+    const saved = localStorage.getItem('workOrderFunnelFilters');
+    if (saved) {
+      try {
+        setActiveFilters(JSON.parse(saved));
+      } catch (err) {
+        console.error('Failed to parse saved filters', err);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -200,6 +215,52 @@ const WorkOrderPage: React.FC = () => {
     });
   };
 
+  const applyFunnelFilters = (orders: WorkOrder[], filters: any): WorkOrder[] => {
+    if (!filters || Object.keys(filters).length === 0) return orders;
+
+    return orders.filter(order => {
+      return Object.entries(filters).every(([key, filter]: [string, any]) => {
+        let orderValue = (order as any)[key];
+        
+        let match = true;
+        if (filter.type === 'text') {
+          if (!filter.value) match = true;
+          else {
+            const value = String(orderValue || '').toLowerCase();
+            match = value.includes(filter.value.toLowerCase());
+          }
+        } else if (filter.type === 'number') {
+          const numValue = Number(orderValue);
+          if (isNaN(numValue)) match = false;
+          else if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) match = false;
+          else if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) match = false;
+          else match = true;
+        } else if (filter.type === 'date') {
+          if (!orderValue) match = false;
+          else {
+            const normalizeDate = (d: any, isEnd: boolean = false) => {
+              let s = String(d).trim().replace(' ', 'T');
+              if (s.length === 10) {
+                s = isEnd ? `${s}T23:59:59.999` : `${s}T00:00:00`;
+              }
+              return new Date(s).getTime();
+            };
+
+            const orderTime = normalizeDate(orderValue);
+            const fromTime = filter.from ? normalizeDate(filter.from) : null;
+            const toTime = filter.to ? normalizeDate(filter.to, true) : null;
+
+            if (fromTime && orderTime < fromTime) match = false;
+            else if (toTime && orderTime > toTime) match = false;
+            else match = true;
+          }
+        }
+
+        return match;
+      });
+    });
+  };
+
   const filteredWorkOrders = useMemo(() => {
     let filtered = workOrders;
 
@@ -212,10 +273,10 @@ const WorkOrderPage: React.FC = () => {
       });
     }
 
-    if (!searchQuery) return filtered;
+    if (!searchQuery) return applyFunnelFilters(filtered, activeFilters);
 
     const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
-    return filtered.filter(wo => {
+    const preFiltered = filtered.filter(wo => {
       const checkValue = (val: any): boolean => {
         if (val === null || val === undefined) return false;
         return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
@@ -228,7 +289,9 @@ const WorkOrderPage: React.FC = () => {
         checkValue(wo.requested_by)
       );
     });
-  }, [workOrders, userRole, userEmail, userName, searchQuery]);
+
+    return applyFunnelFilters(preFiltered, activeFilters);
+  }, [workOrders, userRole, userEmail, userName, searchQuery, activeFilters]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -417,7 +480,37 @@ const WorkOrderPage: React.FC = () => {
                   )}
                 </div>
 
-
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setIsFunnelFilterOpen(true)}
+                    className={`p-2 rounded-lg border transition-colors flex items-center justify-center relative ${isDarkMode
+                        ? 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
+                        : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`}
+                  >
+                    <Filter className="h-5 w-5" />
+                    {activeFilters && Object.keys(activeFilters).length > 0 && (
+                      <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
+                        style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>
+                        {Object.keys(activeFilters).length}
+                      </div>
+                    )}
+                  </button>
+                  {activeFilters && Object.keys(activeFilters).length > 0 && (
+                    <button
+                      onClick={() => {
+                        setActiveFilters({});
+                        localStorage.removeItem('workOrderFunnelFilters');
+                      }}
+                      className={`px-3 py-2 text-sm rounded-lg border transition-colors ${isDarkMode
+                          ? 'border-red-900/30 bg-red-900/20 text-red-400 hover:bg-red-900/40'
+                          : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
+                        }`}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -509,6 +602,17 @@ const WorkOrderPage: React.FC = () => {
           onRefresh={() => fetchWorkOrders(1, 1000, '', '')}
         />
       )}
+
+      <WorkOrderFunnelFilter
+        isOpen={isFunnelFilterOpen}
+        onClose={() => setIsFunnelFilterOpen(false)}
+        currentFilters={activeFilters}
+        onApplyFilters={(filters) => {
+          setActiveFilters(filters);
+          localStorage.setItem('workOrderFunnelFilters', JSON.stringify(filters));
+          setIsFunnelFilterOpen(false);
+        }}
+      />
     </div>
   );
 };
