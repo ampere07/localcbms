@@ -114,6 +114,20 @@ const SMSTemplate: React.FC = () => {
     setIsCreating(false);
   };
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return dateString;
+    }
+  };
+
   const handleCreate = () => {
     setFormData({
       template_name: '',
@@ -514,7 +528,7 @@ const SMSTemplate: React.FC = () => {
                                   Last Updated:
                                 </span>
                                 <p className={`mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                                  {new Date(template.updated_at).toLocaleString()}
+                                  {formatDate(template.updated_at)}
                                 </p>
                               </div>
                             </div>

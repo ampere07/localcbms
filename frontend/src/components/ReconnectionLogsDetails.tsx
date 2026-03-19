@@ -2,6 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Maximize2, X, Info } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateString;
+  }
+};
+
 interface ReconnectionRecord {
   id?: string;
   accountNo: string;
@@ -16,7 +30,6 @@ interface ReconnectionRecord {
   reconnectedBy?: string;
   reason?: string;
   remarks?: string;
-  provider?: string;
   appliedDate?: string;
   reconnectionFee?: number;
   daysDisconnected?: number;
@@ -127,18 +140,6 @@ const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ recon
 
           <div>
             <h3 className={`text-sm uppercase mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>Provider</h3>
-            <div className="flex items-center">
-              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-                {reconnectionRecord.provider || 'SWITCH'}
-              </p>
-              <Info size={16} className={`ml-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
-                }`} />
-            </div>
-          </div>
-
-          <div>
-            <h3 className={`text-sm uppercase mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
               }`}>Username</h3>
             <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
               {reconnectionRecord.username || '-'}
@@ -149,7 +150,7 @@ const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ recon
             <h3 className={`text-sm uppercase mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
               }`}>Date</h3>
             <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-              {reconnectionRecord.date || '-'}
+              {formatDate(reconnectionRecord.date)}
             </p>
           </div>
 
@@ -209,7 +210,7 @@ const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ recon
             <h3 className={`text-sm uppercase mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
               }`}>Date Format</h3>
             <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-              {reconnectionRecord.dateFormat || '-'}
+              {formatDate(reconnectionRecord.dateFormat || reconnectionRecord.date)}
             </p>
           </div>
         </div>

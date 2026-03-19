@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, ChevronDown, ChevronRight, Columns3, ArrowUp, ArrowDown, Menu, X, RefreshCw, Filter, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, Columns3, ArrowUp, ArrowDown, Menu, X, RefreshCw, Filter, ChevronsLeft, ChevronsRight, Globe, Calendar } from 'lucide-react';
 import JobOrderDetails from '../components/JobOrderDetails';
 import JobOrderFunnelFilter, { FilterValues, allColumns as filterColumns } from '../components/filters/JobOrderFunnelFilter';
 import { useJobOrderStore } from '../store/jobOrderStore';
@@ -112,7 +112,10 @@ const JobOrderPage: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [mobileView, setMobileView] = useState<'locations' | 'orders' | 'details'>('locations');
+  const [technicianEmail, setTechnicianEmail] = useState<string | undefined>(undefined);
   const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
+  const [dateInstalledFrom, setDateInstalledFrom] = useState<string>('');
+  const [dateInstalledTo, setDateInstalledTo] = useState<string>('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -143,7 +146,7 @@ const JobOrderPage: React.FC = () => {
   };
 
   // No need for internal currentPage as it's managed by store
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -161,7 +164,7 @@ const JobOrderPage: React.FC = () => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection, itemsPerPage]);
+  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection, itemsPerPage, dateInstalledFrom, dateInstalledTo]);
 
   // Scroll to top on page change
   useEffect(() => {
@@ -192,7 +195,12 @@ const JobOrderPage: React.FC = () => {
   const formatDate = (dateStr?: string | null): string => {
     if (!dateStr) return '-';
     try {
-      return new Date(dateStr).toLocaleString();
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return '-';
     }
@@ -201,7 +209,12 @@ const JobOrderPage: React.FC = () => {
   const formatOnlyDate = (dateStr?: string | null): string => {
     if (!dateStr) return '-';
     try {
-      return new Date(dateStr).toLocaleDateString();
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return '-';
     }
@@ -210,7 +223,12 @@ const JobOrderPage: React.FC = () => {
   const formatDateTime = (dateStr?: string | null): string => {
     if (!dateStr) return '-';
     try {
-      return new Date(dateStr).toLocaleString();
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return '-';
     }
@@ -312,6 +330,10 @@ const JobOrderPage: React.FC = () => {
         }
 
         setAgentName(fullName);
+
+        if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
+          setTechnicianEmail(userData.email);
+        }
       } catch (error) {
         console.error('Failed to parse auth data:', error);
       }
@@ -333,36 +355,16 @@ const JobOrderPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const authData = localStorage.getItem('authData');
-    let email: string | undefined;
-    if (authData) {
-      try {
-        const userData = JSON.parse(authData);
-        if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
-          email = userData.email;
-        }
-      } catch (err) { }
-    }
     // Use silentRefresh on mount to check for updates without showing a spinner if we already have data
-    silentRefresh(email);
-  }, [silentRefresh]);
+    silentRefresh(technicianEmail);
+  }, [silentRefresh, technicianEmail]);
 
   // Pusher/Soketi connection for real-time job order updates
   useEffect(() => {
     const handleJobOrderUpdate = async (data: any) => {
       console.log('[JobOrder Soketi] Update received, silently refreshing:', data);
       try {
-        const authData = localStorage.getItem('authData');
-        let email: string | undefined;
-        if (authData) {
-          try {
-            const userData = JSON.parse(authData);
-            if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
-              email = userData.email;
-            }
-          } catch (err) { }
-        }
-        await silentRefresh(email);
+        await silentRefresh(technicianEmail);
         console.log('[JobOrder Soketi] Data refreshed successfully');
       } catch (err) {
         console.error('[JobOrder Soketi] Failed to refresh data:', err);
@@ -410,7 +412,7 @@ const JobOrderPage: React.FC = () => {
       pusher.unsubscribe('job-orders');
       pusher.unsubscribe('applications');
     };
-  }, [silentRefresh]);
+  }, [silentRefresh, technicianEmail]);
 
   // Polling for updates every 3 seconds - Incremental fetch
   useEffect(() => {
@@ -418,24 +420,14 @@ const JobOrderPage: React.FC = () => {
     const intervalId = setInterval(async () => {
       console.log('[JobOrder Page] Polling for updates...');
       try {
-        const authData = localStorage.getItem('authData');
-        let email: string | undefined;
-        if (authData) {
-          try {
-            const userData = JSON.parse(authData);
-            if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
-              email = userData.email;
-            }
-          } catch (err) { }
-        }
-        await fetchUpdates(email);
+        await fetchUpdates(technicianEmail);
       } catch (err) {
         console.error('[JobOrder Page] Polling failed:', err);
       }
     }, POLLING_INTERVAL);
 
     return () => clearInterval(intervalId);
-  }, [fetchUpdates]);
+  }, [fetchUpdates, technicianEmail]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -445,17 +437,7 @@ const JobOrderPage: React.FC = () => {
     const refreshData = async () => {
       console.log('User idle for 15 minutes, auto-refreshing Job Order data...');
       try {
-        const authData = localStorage.getItem('authData');
-        let email: string | undefined;
-        if (authData) {
-          try {
-            const userData = JSON.parse(authData);
-            if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
-              email = userData.email;
-            }
-          } catch (err) { }
-        }
-        await silentRefresh(email);
+        await silentRefresh(technicianEmail);
       } catch (err) {
         console.error('Idle refresh failed:', err);
       }
@@ -491,7 +473,7 @@ const JobOrderPage: React.FC = () => {
         window.removeEventListener(event, handleActivity);
       });
     };
-  }, [silentRefresh]);
+  }, [silentRefresh, technicianEmail]);
 
   const accessibleJobOrders = useMemo(() => {
     const isAgent = userRole?.toLowerCase() === 'agent' || String(roleId) === '4';
@@ -547,7 +529,7 @@ const JobOrderPage: React.FC = () => {
         }
       } catch (err) { }
     }
-    await refreshJobOrders(email);
+    await fetchUpdates(email);
     setIsRefreshing(false);
   };
 
@@ -677,8 +659,33 @@ const JobOrderPage: React.FC = () => {
       return searchQuery === '' || checkValue(jobOrder);
     });
 
+    // Apply sidebar date range filters for date installed
+    if (dateInstalledFrom || dateInstalledTo) {
+      filtered = filtered.filter(record => {
+        const dateValueStr = record.Date_Installed || record.date_installed;
+        if (!dateValueStr) return false;
+
+        const dateValue = new Date(dateValueStr).getTime();
+        if (isNaN(dateValue)) return false;
+
+        if (dateInstalledFrom) {
+          const fromDate = new Date(dateInstalledFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (dateValue < fromDate.getTime()) return false;
+        }
+
+        if (dateInstalledTo) {
+          const toDate = new Date(dateInstalledTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (dateValue > toDate.getTime()) return false;
+        }
+
+        return true;
+      });
+    }
+
     return applyFunnelFilters(filtered, activeFilters);
-  }, [accessibleJobOrders, searchQuery, activeFilters]);
+  }, [accessibleJobOrders, searchQuery, activeFilters, dateInstalledFrom, dateInstalledTo]);
 
   // Derive statusItems components from the search-filtered set
   const statusItems = useMemo(() => {
@@ -1484,6 +1491,55 @@ const JobOrderPage: React.FC = () => {
                   {statusItems.total}
                 </span>
               </button>
+
+              {/* Mobile Date Range Filter Section */}
+              <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Date Installed Range
+                  </span>
+                  {(dateInstalledFrom || dateInstalledTo) && (
+                    <button
+                      onClick={() => {
+                        setDateInstalledFrom('');
+                        setDateInstalledTo('');
+                      }}
+                      className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                      style={{ color: colorPalette?.primary || '#7c3aed' }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                    <input
+                      type="date"
+                      value={dateInstalledFrom}
+                      onChange={(e) => setDateInstalledFrom(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={dateInstalledFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                    <input
+                      type="date"
+                      value={dateInstalledTo}
+                      onChange={(e) => setDateInstalledTo(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={dateInstalledTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                </div>
+              </div>
 
               {/* Status Items */}
               {statusItems.items.map((status) => {
@@ -2383,7 +2439,7 @@ const JobOrderPage: React.FC = () => {
           <JobOrderDetails
             jobOrder={selectedJobOrder}
             onClose={handleMobileBack}
-            onRefresh={refreshJobOrders}
+            onRefresh={() => fetchUpdates(technicianEmail)}
             isMobile={true}
           />
         </div>
@@ -2394,7 +2450,7 @@ const JobOrderPage: React.FC = () => {
           <JobOrderDetails
             jobOrder={selectedJobOrder}
             onClose={() => setSelectedJobOrder(null)}
-            onRefresh={refreshJobOrders}
+            onRefresh={() => fetchUpdates(technicianEmail)}
             isMobile={false}
           />
         </div>

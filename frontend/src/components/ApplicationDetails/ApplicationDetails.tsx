@@ -206,8 +206,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   const handleConfirmStatusChange = async () => {
     if (loading) return;
     try {
-      const isSilentRefresh = !!detailedApplication;
-      if (!isSilentRefresh) setLoading(true);
+      setLoading(true);
 
       await updateApplication(application.id, { status: pendingStatus });
 
@@ -253,38 +252,23 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   };
 
   useEffect(() => {
-    const fetchApplicationDetails = async (isSilent = false) => {
+    const fetchApplicationDetails = async () => {
       try {
-        if (!isSilent) {
-          setLoading(true);
-          setError(null);
-        }
+        setLoading(true);
+        setError(null);
 
         const result = await getApplication(application.id);
         setDetailedApplication(result);
       } catch (err: any) {
         console.error('Error fetching application details:', err);
-        if (!isSilent) {
-          setError(err.message || 'Failed to load application details');
-        }
+        setError(err.message || 'Failed to load application details');
       } finally {
-        if (!isSilent) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
-    // Initial fetch (not silent if no data)
-    fetchApplicationDetails(!!detailedApplication);
-
-    // Set up silent polling every 5 seconds
-    const intervalId = setInterval(() => {
-      fetchApplicationDetails(true);
-    }, 5000);
-
-    return () => clearInterval(intervalId);
-  }, [application.id]); // Removed detailedApplication from dependencies to avoid infinite loop
-
+    fetchApplicationDetails();
+  }, [application.id]);
 
   const getClientFullName = (): string => {
     return [
@@ -309,7 +293,12 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   const formatDate = (dateStr?: string | null): string => {
     if (!dateStr) return 'Not provided';
     try {
-      return new Date(dateStr).toLocaleString();
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
     }

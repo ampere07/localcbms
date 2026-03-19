@@ -33,6 +33,20 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateString;
+  }
+};
+
 interface OnlineStatusRecord {
   id: string;
   status: string;
@@ -793,7 +807,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Date Installed</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.dateInstalled}</span>
+            }`}>{formatDate(billingRecord.dateInstalled)}</span>
         </div>
       ) : null,
       username: () => billingRecord.username ? (
@@ -977,7 +991,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Created At</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.billingAccountCreatedAt}</span>
+            }`}>{formatDate(billingRecord.billingAccountCreatedAt)}</span>
         </div>
       ) : null,
       billingAccountUpdatedBy: () => {
@@ -1000,7 +1014,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Updated At</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.billingAccountUpdatedAt}</span>
+            }`}>{formatDate(billingRecord.billingAccountUpdatedAt)}</span>
         </div>
       ) : null,
       balanceUpdateDate: () => billingRecord.balanceUpdateDate ? (
@@ -1008,7 +1022,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Balance Update Date</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.balanceUpdateDate}</span>
+            }`}>{formatDate(billingRecord.balanceUpdateDate)}</span>
         </div>
       ) : null,
       totalPaid: () => (billingRecord.totalPaid !== undefined && billingRecord.totalPaid !== null) ? (

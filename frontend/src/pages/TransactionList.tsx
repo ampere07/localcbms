@@ -229,6 +229,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     return {};
   });
 
+  const [processedDateFrom, setProcessedDateFrom] = useState<string>('');
+  const [processedDateTo, setProcessedDateTo] = useState<string>('');
+
   const removeFilter = (key: string) => {
     const newFilters = { ...activeFilters };
     delete newFilters[key];
@@ -244,7 +247,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
 
 
@@ -322,7 +325,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     channel.bind('transaction-updated', async (data: any) => {
       console.log('[TransactionList Soketi] Update received, silently refreshing:', data);
       try {
-        await silentRefresh();
+        await fetchUpdates();
         console.log('[TransactionList Soketi] Data refreshed successfully');
       } catch (err) {
         console.error('[TransactionList Soketi] Failed to refresh data:', err);
@@ -346,7 +349,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
       pusher.connection.unbind('state_change', stateHandler);
       pusher.unsubscribe('transactions');
     };
-  }, [silentRefresh]);
+  }, [fetchUpdates]);
 
   // Polling for updates every 3 seconds - Incremental fetch
   useEffect(() => {
@@ -371,7 +374,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     const refreshData = async () => {
       console.log('User idle for 15 minutes, auto-refreshing transaction data...');
       try {
-        await silentRefresh();
+        await fetchUpdates();
       } catch (err) {
         console.error('Idle refresh failed:', err);
       }
@@ -406,7 +409,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
         window.removeEventListener(event, handleActivity);
       });
     };
-  }, [silentRefresh]);
+  }, [fetchUpdates]);
 
   const toggleLocationExpansion = (e: React.MouseEvent, locationId: string) => {
     e.stopPropagation();
@@ -425,18 +428,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     if (!dateStr) return 'No date';
     try {
       const date = new Date(dateStr);
-      // Check if date is valid
       if (isNaN(date.getTime())) return dateStr || 'Invalid Date';
 
-      return date.toLocaleString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-      });
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       console.warn('Error formatting date:', dateStr, e);
       return dateStr || 'Error';
@@ -492,19 +489,19 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
 
           if (filter.type === 'checklist') {
             if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
-            
+
             const valStr = String(val || '').toLowerCase().trim();
-            
+
             if (key === 'barangay' || key === 'city' || key === 'region') {
-               const directVal = String(val || '').toLowerCase().trim();
-               const address = String(transaction.account?.customer?.address || '').toLowerCase();
-               
-               return (filter.value as string[]).some(option => {
-                  const opt = option.toLowerCase().trim();
-                  return directVal === opt || address.includes(opt);
-               });
+              const directVal = String(val || '').toLowerCase().trim();
+              const address = String(transaction.account?.customer?.address || '').toLowerCase();
+
+              return (filter.value as string[]).some(option => {
+                const opt = option.toLowerCase().trim();
+                return directVal === opt || address.includes(opt);
+              });
             }
-            
+
             return (filter.value as string[]).some(option => valStr === option.toLowerCase().trim());
           }
 
@@ -536,8 +533,32 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
       });
     }
 
+    // Apply sidebar date range filters for date_processed
+    if (processedDateFrom || processedDateTo) {
+      filtered = filtered.filter(transaction => {
+        if (!transaction.date_processed) return false;
+
+        const dateValue = new Date(transaction.date_processed).getTime();
+        if (isNaN(dateValue)) return false;
+
+        if (processedDateFrom) {
+          const fromDate = new Date(processedDateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (dateValue < fromDate.getTime()) return false;
+        }
+
+        if (processedDateTo) {
+          const toDate = new Date(processedDateTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (dateValue > toDate.getTime()) return false;
+        }
+
+        return true;
+      });
+    }
+
     return filtered;
-  }, [transactions, searchQuery, activeFilters]);
+  }, [transactions, searchQuery, activeFilters, processedDateFrom, processedDateTo]);
 
   // Generate hierarchical location items - Now using globalFilteredTransactions
   const locationItems = useMemo(() => {
@@ -621,7 +642,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLocation, searchQuery, activeFilters, itemsPerPage]);
+  }, [selectedLocation, searchQuery, activeFilters, itemsPerPage, processedDateFrom, processedDateTo]);
 
   // Scroll to top on page change
   useEffect(() => {
@@ -676,7 +697,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
   };
 
   const handleApprovalSuccess = async () => {
-    await silentRefresh();
+    await fetchUpdates();
     // Sync selectedTransaction with fresh store data
     if (selectedTransaction) {
       const freshTransactions = useTransactionStore.getState().transactions;
@@ -784,7 +805,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
         setSelectedTransactionIds([]);
 
         // Refresh transactions using context
-        await silentRefresh();
+        await fetchUpdates();
         // Refresh customer panel if open
         if (selectedCustomer) {
           const accountNo = selectedCustomer.billingAccount?.accountNo;
@@ -878,6 +899,55 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
+          {/* Date Range Filter Section */}
+          <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                DATE RANGE
+              </span>
+              {(processedDateFrom || processedDateTo) && (
+                <button
+                  onClick={() => {
+                    setProcessedDateFrom('');
+                    setProcessedDateTo('');
+                  }}
+                  className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                  style={{ color: colorPalette?.primary || '#7c3aed' }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                <input
+                  type="date"
+                  value={processedDateFrom}
+                  onChange={(e) => setProcessedDateFrom(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={processedDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                <input
+                  type="date"
+                  value={processedDateTo}
+                  onChange={(e) => setProcessedDateTo(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={processedDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* All Level */}
           <button
             onClick={() => setSelectedLocation('all')}
@@ -1485,6 +1555,55 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                   {locationItems.total}
                 </span>
               </button>
+
+              {/* Mobile Date Range Filter Section */}
+              <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Date Processed Range
+                  </span>
+                  {(processedDateFrom || processedDateTo) && (
+                    <button
+                      onClick={() => {
+                        setProcessedDateFrom('');
+                        setProcessedDateTo('');
+                      }}
+                      className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                      style={{ color: colorPalette?.primary || '#7c3aed' }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                    <input
+                      type="date"
+                      value={processedDateFrom}
+                      onChange={(e) => setProcessedDateFrom(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={processedDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                    <input
+                      type="date"
+                      value={processedDateTo}
+                      onChange={(e) => setProcessedDateTo(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={processedDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                </div>
+              </div>
 
               {/* Region Level */}
               {locationItems.regions.map((region: any) => (

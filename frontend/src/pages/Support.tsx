@@ -44,7 +44,7 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const ITEMS_PER_PAGE = 5;
 
-  const { serviceOrders, isLoading: storeIsLoading, fetchServiceOrders: fetchStoreServiceOrders } = useServiceOrderStore();
+  const { serviceOrders, isLoading: storeIsLoading, fetchServiceOrders: fetchStoreServiceOrders, fetchUpdates } = useServiceOrderStore();
 
   const concernOptions = [
     'No Internet',
@@ -127,7 +127,7 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
     const handleUpdate = async (data: any) => {
       console.log('[Support Soketi] Update received, refreshing:', data);
       try {
-        await fetchStoreServiceOrders();
+        await fetchUpdates();
         console.log('[Support Soketi] Data refreshed successfully');
       } catch (err) {
         console.error('[Support Soketi] Failed to refresh data:', err);
@@ -163,7 +163,7 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
       .slice(0, 1)
       .map(order => ({
         id: order.id,
-        date: order.timestamp ? new Date(order.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
+        date: order.timestamp ? new Date(order.timestamp).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '',
         requestId: order.ticketId,
         issue: order.concern || '',
         issueDetails: order.concernRemarks || '',

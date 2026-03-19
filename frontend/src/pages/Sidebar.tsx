@@ -97,7 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   }, []);
 
   const menuItems: MenuItem[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['administrator'] },
+    // { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['administrator', 'customer'] },
     { id: 'live-monitor', label: 'Monitoring', icon: Activity, allowedRoles: ['superadmin'] },
     {
       id: 'billing',
@@ -109,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         { id: 'transaction-list', label: 'Transaction List', icon: Receipt, allowedRoles: ['administrator'] },
         { id: 'transactions-revert', label: 'Revert Requests', icon: RefreshCw, allowedRoles: ['superadmin'] },
         { id: 'payment-portal', label: 'Payment Portal', icon: DollarSign, allowedRoles: ['administrator'] },
-        { id: 'soa', label: 'Statements', icon: FileText, allowedRoles: ['administrator'] },
+        { id: 'soa', label: 'SOA', icon: FileText, allowedRoles: ['administrator'] },
         { id: 'invoice', label: 'Invoice', icon: Receipt, allowedRoles: ['administrator'] },
         { id: 'overdue', label: 'Overdue', icon: Clock, allowedRoles: ['administrator'] },
         { id: 'dc-notice', label: 'DC Notice', icon: AlertTriangle, allowedRoles: ['administrator'] },
@@ -164,15 +164,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       id: 'users',
       label: 'Users',
       icon: Users,
-      allowedRoles: ['administrator'],
+      allowedRoles: ['superadmin'],
       children: [
-        { id: 'user-management', label: 'Users Management', icon: User, allowedRoles: ['administrator'] }
+        { id: 'user-management', label: 'Users Management', icon: User, allowedRoles: ['superadmin'] }
         // { id: 'organization-management', label: 'Organization Management', icon: Building2, allowedRoles: ['administrator'] },
         // { id: 'group-management', label: 'Affiliate', icon: Shield, allowedRoles: ['administrator'] }
       ]
     },
     {
-      id: 'logs',
+      id: 'logs-category',
       label: 'Logs',
       icon: Users,
       allowedRoles: ['administrator'],
@@ -180,7 +180,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         // { id: 'expenses-log', label: 'Expenses Log', icon: FileBarChart, allowedRoles: ['administrator'] },
         { id: 'disconnected-logs', label: 'Disconnected Logs', icon: AlertTriangle, allowedRoles: ['administrator'] },
         { id: 'reconnection-logs', label: 'Reconnection Logs', icon: FileBarChart, allowedRoles: ['administrator'] },
-        { id: 'logs', label: 'System Logs', icon: FileText, allowedRoles: ['superadmin'] }
+        { id: 'system-logs', label: 'System Logs', icon: FileText, allowedRoles: ['superadmin'] }
       ]
     },
     { id: 'settings', label: 'Settings', icon: Settings, allowedRoles: ['administrator', 'technician'] },

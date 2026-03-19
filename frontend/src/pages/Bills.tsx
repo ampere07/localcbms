@@ -244,7 +244,16 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
 
     const formatDate = (dateStr?: string) => {
         if (!dateStr) return '-';
-        return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        try {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return dateStr;
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const yyyy = date.getFullYear();
+            return `${mm}/${dd}/${yyyy}`;
+        } catch (e) {
+            return dateStr;
+        }
     };
 
     const formatCurrency = (amount?: number) => {

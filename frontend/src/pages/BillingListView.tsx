@@ -69,7 +69,7 @@ const BillingListView: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
-  const { billingRecords, totalCount, isLoading, error, fetchBillingRecords, refreshBillingRecords } = useBillingStore();
+  const { billingRecords, totalCount, isLoading, error, fetchBillingRecords, refreshLatestData } = useBillingStore();
   const [cities, setCities] = useState<City[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
@@ -213,7 +213,7 @@ const BillingListView: React.FC = () => {
   };
 
   const handleRefresh = async () => {
-    await refreshBillingRecords();
+    await refreshLatestData();
   };
 
   const toggleColumn = (columnKey: string) => {

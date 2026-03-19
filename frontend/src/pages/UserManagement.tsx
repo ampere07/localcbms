@@ -6,6 +6,8 @@ import { settingsColorPaletteService, ColorPalette } from '../services/settingsC
 import UserDetails from '../components/UserDetails';
 import UserModal from '../modals/UserModal';
 
+import { useUserStore } from '../store/userStore';
+
 const UserManagement: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -14,17 +16,26 @@ const UserManagement: React.FC = () => {
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
+  // Store
+  const { 
+    users, 
+    isLoading, 
+    error, 
+    fetchUsers, 
+    refreshUsers, 
+    silentRefresh,
+    addUser, 
+    updateUser, 
+    removeUser 
+  } = useUserStore();
+
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [mobileView, setMobileView] = useState<'users' | 'details'>('users');
   const [userTypeFilter, setUserTypeFilter] = useState<'All' | 'Operations' | 'Customer'>('All');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   useEffect(() => {
     const handleResize = () => {
@@ -51,26 +62,11 @@ const UserManagement: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
-  const loadUsers = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await userService.getAllUsers();
-      if (response.success && response.data) {
-        setUsers(response.data);
-      } else {
-        setError(response.message || 'Failed to fetch users');
-      }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Use the store to load users once
   useEffect(() => {
-    loadUsers();
-  }, []);
+    fetchUsers(); // No force, so it caches
+    silentRefresh(); // Optional: silent refresh if returning to tab
+  }, [fetchUsers, silentRefresh]);
 
   const getFullName = (u: User): string => {
     const parts = [u.first_name, u.middle_initial, u.last_name].filter(Boolean);
@@ -111,7 +107,7 @@ const UserManagement: React.FC = () => {
     try {
       const res = await userService.deleteUser(user.id);
       if (res.success) {
-        setUsers(prev => prev.filter(u => u.id !== user.id));
+        removeUser(user.id);
         if (selectedUser?.id === user.id) setSelectedUser(null);
       } else {
         alert(res.message || 'Failed to delete user');
@@ -122,11 +118,12 @@ const UserManagement: React.FC = () => {
   };
 
   const handleSaveUser = (savedUser: User) => {
-    setUsers(prev => {
-      const exists = prev.find(u => u.id === savedUser.id);
-      if (exists) return prev.map(u => (u.id === savedUser.id ? savedUser : u));
-      return [savedUser, ...prev];
-    });
+    const exists = users.find(u => u.id === savedUser.id);
+    if (exists) {
+      updateUser(savedUser);
+    } else {
+      addUser(savedUser);
+    }
     setSelectedUser(savedUser);
   };
 
@@ -170,8 +167,8 @@ const UserManagement: React.FC = () => {
               <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Manage system users and permissions</p>
             </div>
             <div className="flex items-center gap-2">
-              <button 
-                onClick={loadUsers} 
+              <button
+                onClick={() => refreshUsers()}
                 className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
               >
                 <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
@@ -197,9 +194,9 @@ const UserManagement: React.FC = () => {
                 onFocus={() => setIsSearchFocused(true)}
                 onBlur={() => setIsSearchFocused(false)}
                 className={`w-full pl-10 pr-10 py-2 text-sm rounded-lg border transition-all focus:outline-none ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}`}
-                style={{ 
-                  borderColor: isSearchFocused 
-                    ? (colorPalette?.primary || '#3b82f6') 
+                style={{
+                  borderColor: isSearchFocused
+                    ? (colorPalette?.primary || '#3b82f6')
                     : (isDarkMode ? '#374151' : '#d1d5db') // gray-700 for dark, gray-300 for light
                 }}
               />
@@ -219,9 +216,9 @@ const UserManagement: React.FC = () => {
               onFocus={() => setIsFilterFocused(true)}
               onBlur={() => setIsFilterFocused(false)}
               className={`px-3 py-2 text-sm rounded-lg border transition-all focus:outline-none ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}`}
-              style={{ 
-                borderColor: isFilterFocused 
-                  ? (colorPalette?.primary || '#3b82f6') 
+              style={{
+                borderColor: isFilterFocused
+                  ? (colorPalette?.primary || '#3b82f6')
                   : (isDarkMode ? '#374151' : '#d1d5db')
               }}
             >
@@ -252,11 +249,11 @@ const UserManagement: React.FC = () => {
                 <div
                   key={user.id}
                   onClick={() => { setSelectedUser(user); if (window.innerWidth < 768) setMobileView('details'); }}
-                  className={`flex items-center p-4 cursor-pointer transition-all hover:pl-6 border-l-4 ${selectedUser?.id === user.id 
-                    ? (isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50') 
+                  className={`flex items-center p-4 cursor-pointer transition-all hover:pl-6 border-l-4 ${selectedUser?.id === user.id
+                    ? (isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50')
                     : (isDarkMode ? 'hover:bg-gray-900 border-transparent' : 'hover:bg-gray-50 border-transparent')
-                  }`}
-                  style={{ 
+                    }`}
+                  style={{
                     borderLeftColor: selectedUser?.id === user.id ? (colorPalette?.primary || '#3b82f6') : 'transparent'
                   }}
                 >
@@ -281,7 +278,7 @@ const UserManagement: React.FC = () => {
             </div>
           )}
         </div>
-        
+
         {!isLoading && filteredUsers.length > 0 && <PaginationControls />}
       </div>
 

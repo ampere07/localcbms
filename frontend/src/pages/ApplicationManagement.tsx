@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { FileText, Search, Columns3, ChevronDown, ArrowUp, ArrowDown, Menu, X, Filter, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ExternalLink } from 'lucide-react';
+import { FileText, Search, Columns3, ChevronDown, ArrowUp, ArrowDown, Menu, X, Filter, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ExternalLink, Globe, Calendar } from 'lucide-react';
 import ApplicationDetails from '../components/ApplicationDetails';
 import AddApplicationModal from '../modals/AddApplicationModal';
 import ApplicationFunnelFilter, { allColumns as filterColumns } from '../filter/ApplicationFunnelFilter';
@@ -103,6 +103,8 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
+  const [timestampFrom, setTimestampFrom] = useState<string>('');
+  const [timestampTo, setTimestampTo] = useState<string>('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -113,7 +115,7 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(50);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(25);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -254,13 +256,12 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
     };
   }, [silentRefresh]);
 
-  // Silent polling every 3-5 seconds to ensure latest data is always fetched
-  // This is now safe because JOAssignFormModal has been decoupled from these updates
+  // Silent polling every 5 seconds to ensure latest data is always fetched
   useEffect(() => {
-    const POLL_INTERVAL = 3000; // 3 seconds
+    const POLL_INTERVAL = 3000; // 5 seconds
 
     const pollData = async () => {
-      console.log('[ApplicationManagement] Polling latest data (3s interval)...');
+      console.log('[ApplicationManagement] Polling latest data (5s interval)...');
       try {
         await silentRefresh();
       } catch (err) {
@@ -275,7 +276,6 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
 
     return () => clearInterval(intervalId);
   }, [silentRefresh]);
-
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -433,8 +433,33 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
       return matchesSearch && matchesFunnel;
     });
 
+    // Apply sidebar date range filters for timestamp
+    if (timestampFrom || timestampTo) {
+      filtered = filtered.filter(record => {
+        const dateValueStr = record.timestamp;
+        if (!dateValueStr) return false;
+
+        const dateValue = new Date(dateValueStr).getTime();
+        if (isNaN(dateValue)) return false;
+
+        if (timestampFrom) {
+          const fromDate = new Date(timestampFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (dateValue < fromDate.getTime()) return false;
+        }
+
+        if (timestampTo) {
+          const toDate = new Date(timestampTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (dateValue > toDate.getTime()) return false;
+        }
+
+        return true;
+      });
+    }
+
     return filtered;
-  }, [applications, searchQuery, funnelFilters]);
+  }, [applications, searchQuery, funnelFilters, timestampFrom, timestampTo]);
 
   const statusItems = useMemo(() => {
     const statuses = [
@@ -599,7 +624,7 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLocation, searchQuery, funnelFilters, sortColumn, sortDirection, itemsPerPage]);
+  }, [selectedLocation, searchQuery, funnelFilters, sortColumn, sortDirection, itemsPerPage, timestampFrom, timestampTo]);
 
   // Scroll to top on page change
   useEffect(() => {
@@ -778,12 +803,26 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
     sidebarStartWidthRef.current = sidebarWidth;
   };
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString || dateString === '-' || dateString === 'N/A') return dateString || '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return dateString;
+    }
+  };
+
   const renderCellValue = (application: Application, columnKey: string) => {
     switch (columnKey) {
       case 'timestamp':
         return application.create_date && application.create_time
-          ? `${application.create_date} ${application.create_time}`
-          : application.timestamp || '-';
+          ? `${formatDate(application.create_date)} ${application.create_time}`
+          : formatDate(application.timestamp) || '-';
       case 'status':
         return application.status || '-';
       case 'customerName':
@@ -818,7 +857,7 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
       case 'referredBy':
         return application.referred_by || '-';
       case 'createDate':
-        return application.create_date || '-';
+        return formatDate(application.create_date) || '-';
       case 'createTime':
         return application.create_time || '-';
       default:
@@ -876,6 +915,55 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
+          {/* Date Range Filter Section */}
+          <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Timestamp Range
+              </span>
+              {(timestampFrom || timestampTo) && (
+                <button
+                  onClick={() => {
+                    setTimestampFrom('');
+                    setTimestampTo('');
+                  }}
+                  className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                  style={{ color: colorPalette?.primary || '#7c3aed' }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                <input
+                  type="date"
+                  value={timestampFrom}
+                  onChange={(e) => setTimestampFrom(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={timestampFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                <input
+                  type="date"
+                  value={timestampTo}
+                  onChange={(e) => setTimestampTo(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={timestampTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* All Level */}
           <button
             onClick={() => setSelectedLocation('all')}
@@ -997,13 +1085,62 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
                 } : {}}
               >
                 <div className="flex items-center">
-                  <FileText className="h-4 w-4 mr-2" />
+                  <Globe className="h-4 w-4 mr-2" />
                   <span>All Applications</span>
                 </div>
                 <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
                   {statusItems.total}
                 </span>
               </button>
+
+              {/* Mobile Date Range Filter Section */}
+              <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Timestamp Range
+                  </span>
+                  {(timestampFrom || timestampTo) && (
+                    <button
+                      onClick={() => {
+                        setTimestampFrom('');
+                        setTimestampTo('');
+                      }}
+                      className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                      style={{ color: colorPalette?.primary || '#7c3aed' }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                    <input
+                      type="date"
+                      value={timestampFrom}
+                      onChange={(e) => setTimestampFrom(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={timestampFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                    <input
+                      type="date"
+                      value={timestampTo}
+                      onChange={(e) => setTimestampTo(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={timestampTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                </div>
+              </div>
 
               {/* Status Items */}
               {statusItems.items.map((status) => {
@@ -1035,7 +1172,7 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
                     } : {}}
                   >
                     <div className="flex items-center">
-                      <div className={`h-2.5 w-2.5 rounded-full mr-3 ${getStatusColor(status.id.split(':')[1]).replace('text-', 'bg-')}`} />
+                      <Calendar className="h-4 w-4 mr-2" />
                       <span>{status.name}</span>
                     </div>
                     {status.count > 0 && (

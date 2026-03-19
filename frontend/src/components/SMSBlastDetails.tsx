@@ -2,6 +2,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Edit, X } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateString;
+  }
+};
+
 interface SMSBlastRecord {
   id?: string;
   title?: string;
@@ -184,7 +198,7 @@ const SMSBlastDetails: React.FC<SMSBlastDetailsProps> = ({ smsBlastRecord, onClo
               {renderField('Billing Day', smsBlastRecord.billing_day)}
               {renderField('Recipient Count', smsBlastRecord.message_count)}
               {renderField('Credit Used', smsBlastRecord.credit_used)}
-              {renderField('Modified Date', smsBlastRecord.modifiedDate)}
+              {renderField('Modified Date', formatDate(smsBlastRecord.modifiedDate))}
               {renderField('Modified Email', smsBlastRecord.modifiedEmail)}
               {renderField('Created By', smsBlastRecord.userEmail)}
             </div>

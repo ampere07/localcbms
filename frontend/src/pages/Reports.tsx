@@ -47,7 +47,12 @@ const DEFAULT_VISIBLE = [
 const formatDate = (d?: string | null) => {
     if (!d) return '—';
     try {
-        return `${new Date(d).toLocaleString()} GMT+8`;
+        const date = new Date(d);
+        if (isNaN(date.getTime())) return d;
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        const yyyy = date.getFullYear();
+        return `${mm}/${dd}/${yyyy}`;
     } catch {
         return d;
     }
@@ -106,7 +111,7 @@ const Reports: React.FC = () => {
     // UI state
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [itemsPerPage, setItemsPerPage] = useState(25);
     const [sortColumn, setSortColumn] = useState<string | null>('created_at');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
     const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE);

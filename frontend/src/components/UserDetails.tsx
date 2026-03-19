@@ -188,7 +188,14 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Member Since:</div>
-            <div className={valueClass}>{user.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}</div>
+            <div className={valueClass}>{user.created_at ? (() => {
+              const date = new Date(user.created_at);
+              if (isNaN(date.getTime())) return user.created_at;
+              const mm = String(date.getMonth() + 1).padStart(2, '0');
+              const dd = String(date.getDate()).padStart(2, '0');
+              const yyyy = date.getFullYear();
+              return `${mm}/${dd}/${yyyy}`;
+            })() : 'N/A'}</div>
           </div>
         );
       default:

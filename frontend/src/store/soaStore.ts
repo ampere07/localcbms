@@ -60,52 +60,65 @@ interface SOAState {
     fetchSOARecords: (force?: boolean, silent?: boolean) => Promise<void>;
     silentRefresh: () => Promise<void>;
     refreshSOARecords: () => Promise<void>;
+    pollLatestUpdates: () => Promise<void>;
 }
 
-const transform = (record: SOARecord): SOARecordUI => ({
-    id: record.id.toString(),
-    accountNo: record.account_no || record.account?.account_no || '',
-    statementDate: record.statement_date ? new Date(record.statement_date).toLocaleDateString() : 'N/A',
-    statementDateRaw: record.statement_date,
-    balanceFromPreviousBill: Number(record.balance_from_previous_bill) || 0,
-    paymentReceivedPrevious: Number(record.payment_received_previous) || 0,
-    remainingBalancePrevious: Number(record.remaining_balance_previous) || 0,
-    monthlyServiceFee: Number(record.monthly_service_fee) || 0,
-    serviceCharge: Number(record.service_charge) || 0,
-    rebate: Number(record.rebate) || 0,
-    discounts: Number(record.discounts) || 0,
-    staggered: Number(record.staggered) || 0,
-    vat: Number(record.vat) || 0,
-    dueDate: record.due_date ? new Date(record.due_date).toLocaleDateString() : 'N/A',
-    amountDue: Number(record.amount_due) || 0,
-    totalAmountDue: Number(record.total_amount_due) || 0,
-    printLink: record.print_link,
-    createdAt: record.created_at ? new Date(record.created_at).toLocaleString() : '',
-    createdBy: record.created_by,
-    updatedAt: record.updated_at ? new Date(record.updated_at).toLocaleString() : '',
-    updatedBy: record.updated_by,
-    fullName: record.account?.customer?.full_name || 'Unknown',
-    contactNumber: record.account?.customer?.contact_number_primary || 'N/A',
-    emailAddress: record.account?.customer?.email_address || 'N/A',
-    address: record.account?.customer?.address || 'N/A',
-    plan: record.account?.customer?.desired_plan || 'No Plan',
-    dateInstalled: record.account?.date_installed ? new Date(record.account.date_installed).toLocaleDateString() : 'N/A',
-    barangay: record.account?.customer?.barangay || '',
-    city: record.account?.customer?.city || '',
-    region: record.account?.customer?.region || '',
-    provider: 'SWITCH',
-    statementNo: '2509180' + record.id.toString(),
-    paymentReceived: Number(record.payment_received_previous) || 0,
-    remainingBalance: Number(record.remaining_balance_previous) || 0,
-    modifiedBy: record.updated_by,
-    modifiedDate: record.updated_at ? new Date(record.updated_at).toLocaleDateString() : undefined,
-    remarks: (record as any).remarks || '',
-    dateProcessed: (record as any).date_processed || '',
-    invoiceStatus: (record as any).status || '',
-    referenceNo: (record as any).reference_no || '',
-    orNo: (record as any).or_no || '',
-    transactionId: (record as any).transaction_id || '',
-});
+const transform = (record: SOARecord): SOARecordUI => {
+    const formatDateObj = (date?: string | Date) => {
+        if (!date) return 'N/A';
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return 'N/A';
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        return `${mm}/${dd}/${yyyy}`;
+    };
+
+    return {
+        id: record.id.toString(),
+        accountNo: record.account_no || record.account?.account_no || '',
+        statementDate: formatDateObj(record.statement_date),
+        statementDateRaw: record.statement_date,
+        balanceFromPreviousBill: Number(record.balance_from_previous_bill) || 0,
+        paymentReceivedPrevious: Number(record.payment_received_previous) || 0,
+        remainingBalancePrevious: Number(record.remaining_balance_previous) || 0,
+        monthlyServiceFee: Number(record.monthly_service_fee) || 0,
+        serviceCharge: Number(record.service_charge) || 0,
+        rebate: Number(record.rebate) || 0,
+        discounts: Number(record.discounts) || 0,
+        staggered: Number(record.staggered) || 0,
+        vat: Number(record.vat) || 0,
+        dueDate: formatDateObj(record.due_date),
+        amountDue: Number(record.amount_due) || 0,
+        totalAmountDue: Number(record.total_amount_due) || 0,
+        printLink: record.print_link,
+        createdAt: formatDateObj(record.created_at),
+        createdBy: record.created_by,
+        updatedAt: formatDateObj(record.updated_at),
+        updatedBy: record.updated_by,
+        fullName: record.account?.customer?.full_name || 'Unknown',
+        contactNumber: record.account?.customer?.contact_number_primary || 'N/A',
+        emailAddress: record.account?.customer?.email_address || 'N/A',
+        address: record.account?.customer?.address || 'N/A',
+        plan: record.account?.customer?.desired_plan || 'No Plan',
+        dateInstalled: formatDateObj(record.account?.date_installed),
+        barangay: record.account?.customer?.barangay || '',
+        city: record.account?.customer?.city || '',
+        region: record.account?.customer?.region || '',
+        provider: 'SWITCH',
+        statementNo: '2509180' + record.id.toString(),
+        paymentReceived: Number(record.payment_received_previous) || 0,
+        remainingBalance: Number(record.remaining_balance_previous) || 0,
+        modifiedBy: record.updated_by,
+        modifiedDate: formatDateObj(record.updated_at),
+        remarks: (record as any).remarks || '',
+        dateProcessed: (record as any).date_processed || '',
+        invoiceStatus: (record as any).status || '',
+        referenceNo: (record as any).reference_no || '',
+        orNo: (record as any).or_no || '',
+        transactionId: (record as any).transaction_id || '',
+    };
+};
 
 export const useSOAStore = create<SOAState>((set, get) => ({
     soaRecords: [],
@@ -117,26 +130,28 @@ export const useSOAStore = create<SOAState>((set, get) => ({
     fetchSOARecords: async (force = false, silent = false) => {
         const { soaRecords, isLoading, totalCount } = get();
 
+        // Lock fetching to avoid overlapping loops
+        if (isLoading) return;
+
         // Prevent re-fetching if we already have data and not forced
         if (!force && soaRecords.length >= totalCount && totalCount > 0) {
             return;
         }
 
-        if (isLoading && !force) return;
-
         const isInitialFetch = soaRecords.length === 0;
 
-        if (!silent && isInitialFetch) {
-            set({ isLoading: true });
-        }
+        // Set loading state (always lock, but only show loader if not silent)
+        set({ isLoading: true, error: null });
 
         try {
             const CHUNK_SIZE = 2000;
-            let allFetchedRecords = force ? [] : [...soaRecords];
-            let currentOffset = allFetchedRecords.length;
-            let currentFetchPage = Math.floor(currentOffset / CHUNK_SIZE) + 1;
+            // If it's a forced refresh but silent, don't clear immediate data to avoid flickering
+            let allFetchedRecords = (force && !silent) ? [] : [...soaRecords];
+            let currentFetchPage = (force) ? 1 : Math.floor(allFetchedRecords.length / CHUNK_SIZE) + 1;
 
-            console.log(`Fetching SOA records in chunks... Current offset: ${currentOffset}`);
+            if (force) {
+                console.log(`[SOA Store] ${silent ? 'Silent' : 'Forced'} refresh starting...`);
+            }
 
             // Fetch first/next chunk
             const firstResult = await soaService.getAllStatementsWithTotal(false, currentFetchPage, CHUNK_SIZE);
@@ -144,30 +159,46 @@ export const useSOAStore = create<SOAState>((set, get) => ({
             if (firstResult && firstResult.data) {
                 const dbTotal = firstResult.total || firstResult.data.length;
                 const newTransformed = firstResult.data.map(transform);
-                allFetchedRecords = force ? newTransformed : [...allFetchedRecords, ...newTransformed];
+
+                // Use Map for efficient merging and to prevent duplicates during forced refreshes
+                const currentMap = new Map();
+                if (force && silent) {
+                    soaRecords.forEach(r => currentMap.set(r.id, r));
+                } else if (!force) {
+                    allFetchedRecords.forEach(r => currentMap.set(r.id, r));
+                }
+
+                newTransformed.forEach(r => currentMap.set(r.id, r));
+                allFetchedRecords = Array.from(currentMap.values());
 
                 set({
-                    soaRecords: allFetchedRecords,
+                    soaRecords: [...allFetchedRecords].sort((a, b) => parseInt(b.id) - parseInt(a.id)),
                     totalCount: dbTotal,
                     lastUpdated: new Date(),
-                    error: null,
                     isLoading: false
                 });
 
                 // Progressive background loading
-                let hasMore = allFetchedRecords.length < dbTotal;
+                let hasMore = firstResult.pagination?.has_more || allFetchedRecords.length < dbTotal;
                 currentFetchPage++;
 
                 while (hasMore) {
                     try {
-                        console.log(`Progressive SOA fetch: ${allFetchedRecords.length} / ${dbTotal}`);
+                        console.log(`[SOA Store] Progressive fetch: ${allFetchedRecords.length} / ${dbTotal}`);
                         const result = await soaService.getAllStatementsWithTotal(false, currentFetchPage, CHUNK_SIZE);
 
                         if (result && result.data && result.data.length > 0) {
                             const chunkTransformed = result.data.map(transform);
-                            allFetchedRecords = [...allFetchedRecords, ...chunkTransformed];
+
+                            // Merge new chunk
+                            const updateMap = new Map();
+                            allFetchedRecords.forEach(r => updateMap.set(r.id, r));
+                            chunkTransformed.forEach(r => updateMap.set(r.id, r));
+
+                            allFetchedRecords = Array.from(updateMap.values());
+
                             set({
-                                soaRecords: [...allFetchedRecords],
+                                soaRecords: [...allFetchedRecords].sort((a, b) => parseInt(b.id) - parseInt(a.id)),
                                 totalCount: result.total || dbTotal
                             });
 
@@ -177,13 +208,13 @@ export const useSOAStore = create<SOAState>((set, get) => ({
                             hasMore = false;
                         }
                     } catch (chunkErr) {
-                        console.error(`Error fetching SOA chunk:`, chunkErr);
+                        console.error(`[SOA Store] Error fetching chunk:`, chunkErr);
                         hasMore = false;
                     }
                 }
             }
         } catch (err: any) {
-            console.error('Failed to fetch SOA records:', err);
+            console.error('[SOA Store] Fetch failed:', err);
             if (!silent && get().soaRecords.length === 0) {
                 set({ error: 'Failed to load SOA records. Please try again.' });
             }
@@ -198,5 +229,39 @@ export const useSOAStore = create<SOAState>((set, get) => ({
 
     silentRefresh: async () => {
         await get().fetchSOARecords(true, true);
+    },
+
+    pollLatestUpdates: async () => {
+        const { lastUpdated, soaRecords, totalCount } = get();
+        if (!lastUpdated || soaRecords.length === 0) return;
+
+        try {
+            const isoString = lastUpdated.toISOString();
+            
+            // Note: Keep fastMode false to ensure we get customer details for any updated records
+            const result = await soaService.getAllStatementsWithTotal(false, 1, 1000, isoString);
+            
+            if (result && result.data && result.data.length > 0) {
+                const newTransformed = result.data.map(transform);
+                
+                const updateMap = new Map();
+                soaRecords.forEach(r => updateMap.set(r.id, r));
+                newTransformed.forEach(r => updateMap.set(r.id, r));
+                
+                const allFetchedRecords = Array.from(updateMap.values());
+                
+                set({
+                    soaRecords: [...allFetchedRecords].sort((a, b) => parseInt(b.id) - parseInt(a.id)),
+                    totalCount: result.total || totalCount,
+                    lastUpdated: new Date()
+                });
+                console.log(`[SOA Store] Polled and integrated ${newTransformed.length} updated records.`);
+            } else {
+                set({ lastUpdated: new Date() });
+            }
+        } catch (err) {
+            console.error('[SOA Store] Poll failed:', err);
+        }
     }
 }));
+

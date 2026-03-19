@@ -19,6 +19,20 @@ const hexToRgba = (hex: string, opacity: number) => {
   return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${opacity})` : hex;
 };
 
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateString;
+  }
+};
+
 const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
   return {
     id: customerData.billingAccount?.accountNo || '',
@@ -240,7 +254,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>(initialSearchQuery || '');
-  const { billingRecords, totalCount, isLoading: isTableLoading, error: contextError, fetchBillingRecords, refreshBillingRecords, refreshLatestData } = useBillingStore();
+  const { billingRecords, totalCount, isLoading: isTableLoading, error: contextError, fetchBillingRecords, refreshLatestData } = useBillingStore();
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
   const [cities, setCities] = useState<City[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
@@ -527,7 +541,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     const refreshData = async () => {
       console.log('User idle for 15 minutes, auto-refreshing customer data...');
       try {
-        await refreshBillingRecords();
+        await refreshLatestData();
       } catch (err) {
         console.error('Idle refresh failed:', err);
       }
@@ -563,7 +577,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
         window.removeEventListener(event, handleActivity);
       });
     };
-  }, [refreshBillingRecords]);
+  }, [refreshLatestData]);
 
   // Memoize city name lookup for performance
   const getCityName = useMemo(() => {
@@ -848,7 +862,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   // Reset page when filters or items per page change
   useEffect(() => {
@@ -954,7 +968,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       case 'accountNo':
         return <span className="text-red-400">{record.applicationId}</span>;
       case 'dateInstalled':
-        return record.dateInstalled || '-';
+        return formatDate(record.dateInstalled);
       case 'customerName':
         return record.customerName;
       case 'address':
@@ -995,7 +1009,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
         const rawMod = record.modifiedBy;
         return (rawMod && !isNaN(Number(rawMod))) ? (userEmailCache[rawMod] || rawMod) : (rawMod || '-');
       case 'modifiedDate':
-        return record.modifiedDate || '-';
+        return formatDate(record.modifiedDate);
       case 'barangay':
         return record.barangay || '-';
       case 'city':
@@ -1023,11 +1037,11 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       case 'location':
         return (record as any).location || '-';
       case 'customerCreatedAt':
-        return (record as any).customerCreatedAt || '-';
+        return formatDate((record as any).customerCreatedAt);
       case 'billingAccountCreatedAt':
-        return (record as any).billingAccountCreatedAt || '-';
+        return formatDate((record as any).billingAccountCreatedAt);
       case 'techCreatedAt':
-        return (record as any).techCreatedAt || '-';
+        return formatDate((record as any).techCreatedAt);
 
       // Related records - placeholders
       case 'relatedInvoices':
@@ -1114,7 +1128,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       } else {
         alert('✅ Overdue notifications processed successfully!\n\nCheck logs for details.');
         // Refresh data
-        refreshBillingRecords();
+        refreshLatestData();
       }
     } catch (err) {
       console.error('Processing failed:', err);
@@ -1154,7 +1168,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       } else {
         alert('✅ Disconnection notices processed successfully!\n\nCheck logs for details.');
         // Refresh data
-        refreshBillingRecords();
+        refreshLatestData();
       }
     } catch (err) {
       console.error('Processing failed:', err);
@@ -1216,7 +1230,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
       }
 
       // Refresh data
-      refreshBillingRecords();
+      refreshLatestData();
       setError(null);
 
       const invoiceCount = result.data?.invoices?.success || 0;
@@ -1625,8 +1639,8 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                   <button
                     onClick={() => setSearchQuery('')}
                     className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode
-                        ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                      ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                       }`}
                     title="Clear search"
                   >
@@ -1908,7 +1922,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
                   <p>{error}</p>
                   <button
-                    onClick={refreshBillingRecords}
+                    onClick={refreshLatestData}
                     className={`mt-4 px-4 py-2 rounded ${isDarkMode
                       ? 'bg-gray-700 hover:bg-gray-600 text-white'
                       : 'bg-gray-200 hover:bg-gray-300 text-gray-900'

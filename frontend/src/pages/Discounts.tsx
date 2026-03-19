@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Receipt, Search, ChevronRight, Tag, ChevronDown, Menu, X, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Receipt, Search, ChevronRight, Tag, ChevronDown, Menu, X, ChevronsLeft, ChevronsRight, Globe, Calendar } from 'lucide-react';
 import DiscountDetails from '../components/DiscountDetails';
 import DiscountFormModal from '../modals/DiscountFormModal';
 import { useDiscountStore, DiscountRecord } from '../store/discountStore';
@@ -88,10 +88,12 @@ const Discounts: React.FC = () => {
   const [isDiscountFormModalOpen, setIsDiscountFormModalOpen] = useState<boolean>(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
+  const [createdDateFrom, setCreatedDateFrom] = useState<string>('');
+  const [createdDateTo, setCreatedDateTo] = useState<string>('');
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -246,15 +248,39 @@ const Discounts: React.FC = () => {
 
     if (searchQuery) {
       const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
-      filtered = filtered.filter(record => 
+      filtered = filtered.filter(record =>
         record.fullName.toLowerCase().replace(/\s+/g, '').includes(normalizedQuery) ||
         record.address.toLowerCase().replace(/\s+/g, '').includes(normalizedQuery) ||
         record.accountNo.replace(/\s+/g, '').includes(normalizedQuery)
       );
     }
 
+    // Apply sidebar date range filters for created date
+    if (createdDateFrom || createdDateTo) {
+      filtered = filtered.filter(record => {
+        if (!record.createdAtRaw) return false;
+
+        const dateValue = new Date(record.createdAtRaw).getTime();
+        if (isNaN(dateValue)) return false;
+
+        if (createdDateFrom) {
+          const fromDate = new Date(createdDateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (dateValue < fromDate.getTime()) return false;
+        }
+
+        if (createdDateTo) {
+          const toDate = new Date(createdDateTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (dateValue > toDate.getTime()) return false;
+        }
+
+        return true;
+      });
+    }
+
     return filtered;
-  }, [discountRecords, searchQuery]);
+  }, [discountRecords, searchQuery, createdDateFrom, createdDateTo]);
 
   // Generate hierarchical location items (Derive counts from search results)
   const locationItems = useMemo(() => {
@@ -334,7 +360,7 @@ const Discounts: React.FC = () => {
   // Reset page when search or location changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedLocation, itemsPerPage]);
+  }, [searchQuery, selectedLocation, itemsPerPage, createdDateFrom, createdDateTo]);
 
   // Scroll to top on page change
   useEffect(() => {
@@ -551,6 +577,55 @@ const Discounts: React.FC = () => {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
+          {/* Date Range Filter Section */}
+          <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Created Date Range
+              </span>
+              {(createdDateFrom || createdDateTo) && (
+                <button
+                  onClick={() => {
+                    setCreatedDateFrom('');
+                    setCreatedDateTo('');
+                  }}
+                  className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                  style={{ color: colorPalette?.primary || '#7c3aed' }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                <input
+                  type="date"
+                  value={createdDateFrom}
+                  onChange={(e) => setCreatedDateFrom(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={createdDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                <input
+                  type="date"
+                  value={createdDateTo}
+                  onChange={(e) => setCreatedDateTo(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={createdDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* All Level */}
           <button
             onClick={() => setSelectedLocation('all')}
@@ -729,38 +804,38 @@ const Discounts: React.FC = () => {
               <Menu className="h-5 w-5" />
             </button>
             <div className="relative flex-1">
-                <input
-                  type="text"
-                  placeholder="Search discounts..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-10 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
-                    ? 'bg-gray-800 text-white border border-gray-700'
-                    : 'bg-white text-gray-900 border border-gray-300'
+              <input
+                type="text"
+                placeholder="Search discounts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`w-full rounded pl-10 pr-10 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
+                  ? 'bg-gray-800 text-white border border-gray-700'
+                  : 'bg-white text-gray-900 border border-gray-300'
+                  }`}
+                style={{
+                  '--tw-ring-color': colorPalette?.primary || '#7c3aed'
+                } as React.CSSProperties}
+                onFocus={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.borderColor = colorPalette.primary;
+                  }
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                }}
+              />
+              <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`} />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
                     }`}
-                  style={{
-                    '--tw-ring-color': colorPalette?.primary || '#7c3aed'
-                  } as React.CSSProperties}
-                  onFocus={(e) => {
-                    if (colorPalette?.primary) {
-                      e.currentTarget.style.borderColor = colorPalette.primary;
-                    }
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
-                  }}
-                />
-                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`} />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
             <div className="md:hidden">
               <button
@@ -885,6 +960,55 @@ const Discounts: React.FC = () => {
                   {locationItems.total}
                 </span>
               </button>
+
+              {/* Mobile Date Range Filter Section */}
+              <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Created Date Range
+                  </span>
+                  {(createdDateFrom || createdDateTo) && (
+                    <button
+                      onClick={() => {
+                        setCreatedDateFrom('');
+                        setCreatedDateTo('');
+                      }}
+                      className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                      style={{ color: colorPalette?.primary || '#7c3aed' }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                    <input
+                      type="date"
+                      value={createdDateFrom}
+                      onChange={(e) => setCreatedDateFrom(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={createdDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                    <input
+                      type="date"
+                      value={createdDateTo}
+                      onChange={(e) => setCreatedDateTo(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={createdDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                </div>
+              </div>
 
               {/* Region Level */}
               {locationItems.regions.map((region: any) => (

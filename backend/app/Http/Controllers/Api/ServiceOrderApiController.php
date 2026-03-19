@@ -83,20 +83,16 @@ class ServiceOrderApiController extends Controller
                 });
             }
 
-            $query->orderBy('so.created_at', 'desc');
+            // Get total count of filtered records before pagination
+            $totalCount = $query->count();
 
             // Fetch one extra record to check if there are more pages
             $serviceOrders = $query->skip(($page - 1) * $limit)
-                ->take($limit + 1)
+                ->take($limit)
                 ->get();
 
             // Check if there are more pages
-            $hasMore = $serviceOrders->count() > $limit;
-
-            // Remove the extra record if it exists
-            if ($hasMore) {
-                $serviceOrders = $serviceOrders->slice(0, $limit);
-            }
+            $hasMore = ($page * $limit) < $totalCount;
 
             // Extract Account Numbers for eager loading
             $accountNos = $serviceOrders->pluck('account_no')->filter()->unique()->values();
@@ -155,7 +151,8 @@ class ServiceOrderApiController extends Controller
                     'current_page' => (int)$page,
                     'per_page' => (int)$limit,
                     'has_more' => $hasMore,
-                    'count' => $mappedOrders->count()
+                    'count' => $mappedOrders->count(),
+                    'total_count' => $totalCount
                 ]
             ]);
         }
@@ -311,7 +308,7 @@ class ServiceOrderApiController extends Controller
                     Log::info('Triggering auto-reconnect for NEW Service Order with Reconnect concern', [
                         'account_no' => $validated['account_no']
                     ]);
-                    $serviceOrderUpdatedByUser = $validated['updated_by_user'] ?? (Auth::user()->name ?? 'System');
+                    $serviceOrderUpdatedByUser = $request->input('updated_by_user') ?: ($request->input('updated_by') ?: (Auth::user()->name ?? 'System'));
                     $reconnectStatus = $this->attemptReconnection($billingAccount, $id, $serviceOrderUpdatedByUser);
                 }
             }
@@ -483,7 +480,7 @@ class ServiceOrderApiController extends Controller
                 ], 404);
             }
 
-            $updatedByUser = $request->input('updated_by_user') ?: (Auth::user()->name ?? 'System');
+            $updatedByUser = $request->input('updated_by_user') ?: ($request->input('updated_by') ?: (Auth::user()->name ?? 'System'));
 
             $allowedFields = [
                 'account_no',
@@ -739,7 +736,7 @@ class ServiceOrderApiController extends Controller
                 }
             }
 
-            $updatedByUser = $request->input('updated_by_user') ?: (Auth::user()->name ?? 'System');
+            $updatedByUser = $request->input('updated_by_user') ?: ($request->input('updated_by') ?: (Auth::user()->name ?? 'System'));
 
             // Trigger Reconnection if concern is 'Reconnect'
             $currentConcern = trim($request->input('concern'));

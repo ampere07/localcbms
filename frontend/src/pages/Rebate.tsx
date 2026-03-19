@@ -90,7 +90,7 @@ const Rebate: React.FC = () => {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   // 1. Initial search filtering (Global filtered set for sidebar counts)
   const globalFilteredRecords = React.useMemo(() => {

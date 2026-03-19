@@ -47,6 +47,14 @@ const EmailTemplates: React.FC = () => {
   const tinymceRef = useRef<any>(null);
   const [paperPadding, setPaperPadding] = useState('1in');
   const [imageMargin, setImageMargin] = useState('0px');
+  const [borderModal, setBorderModal] = useState<{
+    isOpen: boolean;
+    side: 'top' | 'bottom' | 'left' | 'right';
+    width: string;
+    style: string;
+    color: string;
+  } | null>(null);
+  const targetCellsRef = useRef<any[]>([]);
 
 
   const [formData, setFormData] = useState({
@@ -368,6 +376,61 @@ const EmailTemplates: React.FC = () => {
     } else {
       insertVariableToBody(tag);
     }
+  };
+
+  const handleApplyBorder = () => {
+    if (!borderModal || !tinymceRef.current) return;
+
+    const { side, width, style, color } = borderModal;
+    const editor = tinymceRef.current;
+
+    editor.undoManager.transact(() => {
+      const targetCells = targetCellsRef.current.length > 0
+        ? targetCellsRef.current
+        : [editor.dom.getParent(editor.selection.getStart(), 'td,th')];
+
+      targetCells.forEach((cell: HTMLElement) => {
+        if (!cell) return;
+
+        // Ensure we have a reference to the parent table
+        const table = editor.dom.getParent(cell, 'table') as HTMLElement | null;
+
+        if (style === 'none') {
+          // If the table has a legacy 'border' attribute, it will override cell-level 'none' for edge borders.
+          // We convert the table-wide border to individual cell borders to allow specific side removal.
+          if (table && table.hasAttribute('border')) {
+             table.removeAttribute('border');
+             table.style.borderCollapse = 'collapse';
+             
+             // Apply a default border to other cells if they don't have one, to maintain the table's look
+             const allCells = editor.dom.select('td,th', table);
+             allCells.forEach((c: any) => {
+               if (!c.style.border && !targetCells.includes(c)) {
+                 c.style.border = '1px solid black';
+               }
+             });
+          }
+
+          // Directly set individual properties with !important to ensure removal
+          // This targets the specific side requested by the user
+          cell.style.setProperty(`border-${side}-width`, '0px', 'important');
+          cell.style.setProperty(`border-${side}-style`, 'none', 'important');
+          cell.style.setProperty(`border-${side}-color`, 'transparent', 'important');
+          
+          // Set the shorthand as a final override
+          cell.style.setProperty(`border-${side}`, '0px none transparent', 'important');
+
+          // Also remove any legacy attribute from the cell itself
+          cell.removeAttribute('border');
+        } else {
+          // When setting a border, we use the standard helper
+          editor.dom.setStyle(cell, `border-${side}`, `${width} ${style} ${color}`);
+        }
+      });
+    });
+
+    setBorderModal(null);
+    targetCellsRef.current = [];
   };
 
   const insertHeader = () => {
@@ -918,10 +981,10 @@ const EmailTemplates: React.FC = () => {
                             'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
                             'insertdatetime', 'media', 'table', 'help', 'wordcount'
                           ],
-                          toolbar: 'undo redo | cell_props | fontfamily fontsizeinput | bold italic forecolor | alignleft aligncenter ' +
-                            'alignright alignjustify | bullist numlist outdent indent | removeformat | ' +
-                            'blocks table page_margins image_margins | image | help',
-                          toolbar_mode: 'sliding',
+                          toolbar: 'undo redo | blocks | ' +
+                            'bold italic forecolor | alignleft aligncenter ' +
+                            'alignright alignjustify | bullist numlist outdent indent | ' +
+                            'removeformat cell_props | table page_margins image_margins | image | help',
                           content_style: `
                             body { 
                               font-family:Helvetica,Arial,sans-serif; 
@@ -1140,34 +1203,61 @@ const EmailTemplates: React.FC = () => {
                               text: 'Cell Props',
                               tooltip: 'Table Cell Borders',
                               fetch: (callback: (items: any[]) => void) => {
-                                const toggleBorder = (side: string) => {
-                                  editor.undoManager.transact(() => {
-                                    const selectedCells = editor.dom.select('td[data-mce-selected], th[data-mce-selected]');
-                                    const targetCells = selectedCells.length > 0
-                                      ? selectedCells
-                                      : [editor.dom.getParent(editor.selection.getStart(), 'td,th')];
+                                // Capture selection state as soon as menu is opened
+                                const getCells = (): any[] => {
+                                  // 1. Check for standard TinyMCE table selection markers
+                                  const selectedByAttr = editor.dom.select('td[data-mce-selected], th[data-mce-selected], td[data-mce-first-selected], th[data-mce-first-selected]');
+                                  if (selectedByAttr.length > 0) return Array.from(selectedByAttr);
 
-                                    targetCells.forEach((cell: any) => {
-                                      if (!cell) return;
-                                      const styleName = `border-${side}`;
-                                      const currentStyle = editor.dom.getStyle(cell, styleName);
+                                  // 2. Check for blocks in selection
+                                  const selectedByBlocks = editor.selection.getSelectedBlocks().filter((b: any) => b.nodeName === 'TD' || b.nodeName === 'TH');
+                                  if (selectedByBlocks.length > 0) return selectedByBlocks;
 
-                                      // If it is black or anything else, turn it white.
-                                      // If it is already white or none, turn it black.
-                                      if (currentStyle && !currentStyle.includes('white') && currentStyle !== 'none' && currentStyle !== '') {
-                                        editor.dom.setStyle(cell, styleName, '1px solid white');
-                                      } else {
-                                        editor.dom.setStyle(cell, styleName, '1px solid black');
-                                      }
-                                    });
+                                  // 3. Fallback: Check for parents of selected blocks (e.g. if text inside cell is selected)
+                                  const fromParents: any[] = [];
+                                  editor.selection.getSelectedBlocks().forEach((block: any) => {
+                                    const cell = editor.dom.getParent(block, 'td,th');
+                                    if (cell && !fromParents.includes(cell)) {
+                                      fromParents.push(cell);
+                                    }
+                                  });
+                                  if (fromParents.length > 0) return fromParents;
+
+                                  // 4. Final Fallback: Single cell under cursor
+                                  const singleCell = editor.dom.getParent(editor.selection.getStart(), 'td,th');
+                                  return singleCell ? [singleCell] : [];
+                                };
+
+                                const targetCells = getCells();
+                                targetCellsRef.current = Array.from(new Set(targetCells)); // De-duplicate
+
+                                const openBorderModal = (side: 'top' | 'bottom' | 'left' | 'right') => {
+                                  if (targetCellsRef.current.length === 0) return;
+
+                                  const firstCell = targetCellsRef.current[0];
+                                  const styleName = `border-${side}`;
+                                  const currentBorder = editor.dom.getStyle(firstCell, styleName) || '1px solid #000000';
+
+                                  // Parse current border (e.g., "1px solid rgb(0, 0, 0)")
+                                  const parts = currentBorder.split(' ');
+                                  const width = parts[0] || '1px';
+                                  const style = parts[1] || 'solid';
+                                  const color = parts.slice(2).join(' ') || '#000000';
+
+                                  setBorderModal({
+                                    isOpen: true,
+                                    side,
+                                    width,
+                                    style,
+                                    color
                                   });
                                 };
 
                                 const items = [
-                                  { type: 'menuitem', text: 'Top Border', onAction: () => toggleBorder('top') },
-                                  { type: 'menuitem', text: 'Bottom Border', onAction: () => toggleBorder('bottom') },
-                                  { type: 'menuitem', text: 'Left Border', onAction: () => toggleBorder('left') },
-                                  { type: 'menuitem', text: 'Right Border', onAction: () => toggleBorder('right') },
+                                  { type: 'menuitem', text: 'Top Border', onAction: () => openBorderModal('top') },
+                                  { type: 'menuitem', text: 'Bottom Border', onAction: () => openBorderModal('bottom') },
+                                  { type: 'menuitem', text: 'Left Border', onAction: () => openBorderModal('left') },
+                                  { type: 'menuitem', text: 'Right Border', onAction: () => openBorderModal('right') },
                                 ];
                                 callback(items as any);
                               }
@@ -1368,6 +1458,90 @@ const EmailTemplates: React.FC = () => {
                   OK
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Border Properties Modal */}
+      {borderModal?.isOpen && (
+        <div className="fixed top-20 right-4 w-72 z-50 animate-in fade-in slide-in-from-right-4">
+          <div className={`p-4 border rounded-lg shadow-2xl ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+            }`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wider">
+                {borderModal.side} Border
+              </h3>
+              <button
+                onClick={() => setBorderModal(null)}
+                className={`p-1 rounded-full hover:bg-opacity-10 ${isDarkMode ? 'hover:bg-white' : 'hover:bg-black'}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium mb-1 opacity-70">Style (Pattern)</label>
+                <select
+                  value={borderModal.style}
+                  onChange={(e) => setBorderModal({ ...borderModal, style: e.target.value })}
+                  className={`w-full px-2 py-1.5 text-sm border rounded ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}
+                >
+                  <option value="solid">Solid</option>
+                  <option value="dashed">Dashed</option>
+                  <option value="dotted">Dotted</option>
+                  <option value="double">Double</option>
+                  <option value="none">None</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1 opacity-70">Color</label>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={borderModal.color.startsWith('#') ? borderModal.color : '#000000'}
+                    onChange={(e) => setBorderModal({ ...borderModal, color: e.target.value })}
+                    className="w-8 h-8 rounded border-0 cursor-pointer p-0 bg-transparent"
+                  />
+                  <input
+                    type="text"
+                    value={borderModal.color}
+                    onChange={(e) => setBorderModal({ ...borderModal, color: e.target.value })}
+                    className={`flex-1 px-2 py-1 text-sm border rounded ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}
+                    placeholder="#000000"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1 opacity-70">Width</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    step="1"
+                    value={parseInt(borderModal.width) || 1}
+                    onChange={(e) => setBorderModal({ ...borderModal, width: `${e.target.value}px` })}
+                    className="flex-1 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <span className="text-sm w-8 text-right font-mono truncate">{borderModal.width}</span>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-opacity-10 border-white">
+                <button
+                  onClick={handleApplyBorder}
+                  className="w-full py-2 px-4 rounded text-sm font-semibold text-white transition-all shadow-lg active:scale-95"
+                  style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
+                >
+                  Apply {borderModal.side} Border
+                </button>
+              </div>
             </div>
           </div>
         </div>

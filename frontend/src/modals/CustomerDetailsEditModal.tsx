@@ -14,7 +14,6 @@ import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/i
 import { billingStatusService, BillingStatus } from '../services/billingStatusService';
 import { getUsedPorts } from '../services/portService';
 import apiClient from '../config/api';
-import { useBillingStore } from '../store/billingStore';
 
 interface CustomerDetailsEditModalProps {
   isOpen: boolean;
@@ -46,7 +45,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [editType, setEditType] = useState<'customer_details' | 'billing_details' | 'technical_details'>(initialEditType);
-  const { refreshBillingRecords } = useBillingStore();
+
 
   const [formData, setFormData] = useState<any>({});
 
@@ -227,7 +226,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
         });
       }
     }
-  }, [isOpen, recordData, editType]);
+    // Using granular IDs instead of the whole recordData object prevents 
+    // the form from resetting when background polling updates the record data object reference
+  }, [isOpen, editType, recordData?.id, recordData?.job_order_id, recordData?.JobOrder_ID]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -657,14 +658,6 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
 
       await onSave(formData, editType);
 
-      // Auto-refresh customer data
-      try {
-        await refreshBillingRecords();
-        console.log('Customer data refreshed after edit');
-      } catch (refreshErr) {
-        console.error('Failed to auto-refresh customer data:', refreshErr);
-      }
-
       setModal({
         isOpen: true,
         type: 'success',
@@ -874,6 +867,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                   />
                   {errors.emailAddress && <p className="text-red-500 text-xs mt-1">{errors.emailAddress}</p>}
+                  <p className={`text-[10px] mt-1 italic ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    * Updating this will also update the user's login email and password.
+                  </p>
                 </div>
 
                 <div>
@@ -898,6 +894,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                   />
                   {errors.contactNumberPrimary && <p className="text-red-500 text-xs mt-1">{errors.contactNumberPrimary}</p>}
+                  <p className={`text-[10px] mt-1 italic ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    * Updating this will also update the user's login contact number and password.
+                  </p>
                 </div>
 
                 <div>

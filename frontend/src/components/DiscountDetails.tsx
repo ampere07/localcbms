@@ -3,6 +3,20 @@ import { Mail, ExternalLink, Check, ChevronLeft, ChevronRight, Maximize2, X, Inf
 import { update } from '../services/discountService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateString;
+  }
+};
+
 interface DiscountRecord {
   id?: string;
   fullName: string;
@@ -299,7 +313,7 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Date Created</span>
-              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.dateCreated}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatDate(discountRecord.dateCreated)}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
@@ -313,7 +327,7 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Processed Date</span>
-              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.processedDate}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatDate(discountRecord.processedDate)}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
@@ -336,7 +350,7 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Modified Date</span>
-              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.modifiedDate}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatDate(discountRecord.modifiedDate)}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">

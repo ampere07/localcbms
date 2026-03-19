@@ -76,13 +76,14 @@ export const soaService = {
   /**
    * Fetches SOA records and includes total results count from database
    */
-  async getAllStatementsWithTotal(fastMode: boolean = false, page: number = 1, perPage: number = 100): Promise<SOAResponse> {
+  async getAllStatementsWithTotal(fastMode: boolean = false, page: number = 1, perPage: number = 100, updatedSince?: string): Promise<SOAResponse> {
     try {
       const response = await apiClient.get<SOAResponse>('/soa-records', {
         params: {
           fast: fastMode ? '1' : '0',
           page,
-          per_page: perPage
+          per_page: perPage,
+          updated_since: updatedSince
         }
       });
       if (response.data.success) {

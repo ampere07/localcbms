@@ -71,7 +71,12 @@ const ServiceOrderPage: React.FC = () => {
   const formatDateTime = (dateStr?: string | null): string => {
     if (!dateStr) return '-';
     try {
-      return new Date(dateStr).toLocaleString();
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return '-';
     }
@@ -97,8 +102,9 @@ const ServiceOrderPage: React.FC = () => {
       .map(col => col.key)
       .filter(key => key !== 'startTime' && key !== 'endTime' && key !== 'duration')
   );
+  const [technicianEmail, setTechnicianEmail] = useState<string | undefined>(undefined);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
@@ -140,7 +146,7 @@ const ServiceOrderPage: React.FC = () => {
   };
 
   // Pagination State - Managed by store
-  const [itemsPerPage, setItemsPerPage] = useState<number>(50);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(25);
 
 
   useEffect(() => {
@@ -210,6 +216,9 @@ const ServiceOrderPage: React.FC = () => {
         const userData = JSON.parse(authData);
         setUserRole(userData.role || '');
         setRoleId(userData.role_id || null);
+        if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
+          setTechnicianEmail(userData.email);
+        }
       } catch (error) {
         console.error('Error parsing auth data:', error);
       }
@@ -243,17 +252,17 @@ const ServiceOrderPage: React.FC = () => {
     // SelectedLocation is now mainly derived from status which is stable.
   }, [selectedLocation]);
 
-  // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
   useEffect(() => {
-    silentRefresh();
-  }, [silentRefresh]);
+    // Use silentRefresh on mount to check for updates without showing a spinner if we already have data
+    silentRefresh(technicianEmail);
+  }, [silentRefresh, technicianEmail]);
 
   // Real-time updates via Pusher/Soketi
   useEffect(() => {
     const handleUpdate = async (data: any) => {
       console.log('[ServiceOrder Soketi] Update received, silently refreshing:', data);
       try {
-        await silentRefresh();
+        await silentRefresh(technicianEmail);
         console.log('[ServiceOrder Soketi] Data refreshed successfully');
       } catch (err) {
         console.error('[ServiceOrder Soketi] Failed to refresh data:', err);
@@ -287,7 +296,7 @@ const ServiceOrderPage: React.FC = () => {
       pusher.connection.unbind('state_change', stateHandler);
       pusher.unsubscribe('service-orders');
     };
-  }, [silentRefresh]);
+  }, [technicianEmail, silentRefresh]);
 
   // Polling for updates every 3 seconds - Incremental fetch
   useEffect(() => {
@@ -295,14 +304,14 @@ const ServiceOrderPage: React.FC = () => {
     const intervalId = setInterval(async () => {
       console.log('[ServiceOrder Page] Polling for updates...');
       try {
-        await fetchUpdates();
+        await fetchUpdates(technicianEmail);
       } catch (err) {
         console.error('[ServiceOrder Page] Polling failed:', err);
       }
     }, POLLING_INTERVAL);
 
     return () => clearInterval(intervalId);
-  }, [fetchUpdates]);
+  }, [technicianEmail, fetchUpdates]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -312,7 +321,7 @@ const ServiceOrderPage: React.FC = () => {
     const refreshData = async () => {
       console.log('User idle for 15 minutes, auto-refreshing Service Order data...');
       try {
-        await silentRefresh();
+        await fetchUpdates(technicianEmail);
       } catch (err) {
         console.error('Idle refresh failed:', err);
       }
@@ -348,7 +357,7 @@ const ServiceOrderPage: React.FC = () => {
         window.removeEventListener(event, handleActivity);
       });
     };
-  }, [silentRefresh]);
+  }, [technicianEmail, silentRefresh, fetchUpdates]);
 
   // Update selectedServiceOrder with fresh data after refresh
   useEffect(() => {
@@ -361,7 +370,7 @@ const ServiceOrderPage: React.FC = () => {
   }, [serviceOrders]);
 
   const handleRefresh = async () => {
-    await refreshServiceOrders();
+    await fetchUpdates();
   };
 
   const toggleLocationExpansion = (e: React.MouseEvent, locationId: string) => {
@@ -2083,7 +2092,7 @@ const ServiceOrderPage: React.FC = () => {
             <ServiceOrderDetails
               serviceOrder={selectedServiceOrder}
               onClose={handleMobileBack}
-              onRefresh={refreshServiceOrders}
+              onRefresh={fetchUpdates}
               isMobile={true}
             />
           </div>
@@ -2096,7 +2105,7 @@ const ServiceOrderPage: React.FC = () => {
             <ServiceOrderDetails
               serviceOrder={selectedServiceOrder}
               onClose={() => setSelectedServiceOrder(null)}
-              onRefresh={refreshServiceOrders}
+              onRefresh={fetchUpdates}
               isMobile={false}
             />
           </div>

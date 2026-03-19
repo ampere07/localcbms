@@ -171,6 +171,20 @@ const ReconnectionLogs: React.FC = () => {
     return false;
   };
 
+  const formatDate = (dateStr?: string): string => {
+    if (!dateStr) return '-';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   // Memoize filtered records for performance
   const filteredLogRecords = useMemo(() => {
     return logRecords.filter(record => {
@@ -213,7 +227,7 @@ const ReconnectionLogs: React.FC = () => {
   const renderCellValue = (record: ReconnectionLogRecord, columnKey: string) => {
     switch (columnKey) {
       case 'date':
-        return record.date || (record.reconnectionDate ? record.reconnectionDate.split(' ')[0] : '-');
+        return formatDate(record.date || record.reconnectionDate);
       case 'accountNo':
         return <span className="text-red-400">{record.accountNo}</span>;
       case 'username':
@@ -250,13 +264,13 @@ const ReconnectionLogs: React.FC = () => {
       case 'balance':
         return record.balance ? `₱ ${record.balance.toFixed(2)}` : '-';
       case 'reconnectionDate':
-        return record.reconnectionDate || '-';
+        return formatDate(record.reconnectionDate);
       case 'reconnectedBy':
         return record.reconnectedBy || '-';
       case 'reason':
         return record.reason || '-';
       case 'appliedDate':
-        return record.appliedDate || '-';
+        return formatDate(record.appliedDate);
       case 'daysDisconnected':
         return record.daysDisconnected !== undefined ? record.daysDisconnected : '-';
       case 'reconnectionCode':

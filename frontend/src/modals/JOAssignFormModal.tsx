@@ -46,6 +46,7 @@ interface JOFormData {
   remarks: string;
   installationFee: number | string;
   billingDay: string;
+  isLastDayOfMonth: boolean;
   onsiteStatus: string;
   assignedEmail: string;
   modifiedBy: string;
@@ -97,7 +98,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     remarks: '',
     installationFee: 0,
     billingDay: '',
-
+    isLastDayOfMonth: false,
     onsiteStatus: 'In Progress',
     assignedEmail: '',
     modifiedBy: currentUserEmail,
@@ -369,28 +370,26 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
 
 
 
-  // Only initialize form data when the modal opens to avoid resetting user input during external polling
   useEffect(() => {
     if (applicationData && isOpen) {
       setFormData(prev => ({
         ...prev,
-        referredBy: prev.referredBy || applicationData.referred_by || '',
-        firstName: prev.firstName || applicationData.first_name || '',
-        middleInitial: prev.middleInitial || applicationData.middle_initial || '',
-        lastName: prev.lastName || applicationData.last_name || '',
-        contactNumber: prev.contactNumber || applicationData.mobile_number || '',
-        email: prev.email || applicationData.email_address || '',
-        address: prev.address || applicationData.installation_address || '',
-        barangay: prev.barangay || applicationData.barangay || '',
-        city: prev.city || applicationData.city || '',
-        region: prev.region || applicationData.region || '',
-        choosePlan: prev.choosePlan || applicationData.desired_plan || '',
-        promo: prev.promo || applicationData.promo || '',
-        installationLandmark: prev.installationLandmark || applicationData.landmark || ''
+        referredBy: applicationData.referred_by || '',
+        firstName: applicationData.first_name || '',
+        middleInitial: applicationData.middle_initial || '',
+        lastName: applicationData.last_name || '',
+        contactNumber: applicationData.mobile_number || '',
+        email: applicationData.email_address || '',
+        address: applicationData.installation_address || '',
+        barangay: applicationData.barangay || '',
+        city: applicationData.city || '',
+        region: applicationData.region || '',
+        choosePlan: applicationData.desired_plan || '',
+        promo: applicationData.promo || '',
+        installationLandmark: applicationData.landmark || ''
       }));
     }
-  }, [isOpen]); // Removed applicationData from dependencies to prevent external polling from resetting the form while typing
-
+  }, [applicationData, isOpen]);
 
   const handleInputChange = (field: keyof JOFormData, value: string | number | boolean) => {
     if (field === 'middleInitial' && typeof value === 'string') {
@@ -409,7 +408,9 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
 
-
+      if (field === 'isLastDayOfMonth' && value === true) {
+        newData.billingDay = '0';
+      }
 
       if (field === 'region') {
         newData.city = '';
@@ -518,10 +519,12 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
 
 
     const billingDayNum = parseInt(formData.billingDay);
-    if (isNaN(billingDayNum) || billingDayNum < 1) {
-      newErrors.billingDay = 'Billing Day must be at least 1';
-    } else if (billingDayNum > 30) {
-      newErrors.billingDay = 'Billing Day cannot exceed 30';
+    if (!formData.isLastDayOfMonth) {
+      if (isNaN(billingDayNum) || billingDayNum < 1) {
+        newErrors.billingDay = 'Billing Day must be at least 1';
+      } else if (billingDayNum > 30) {
+        newErrors.billingDay = 'Billing Day cannot exceed 30';
+      }
     }
 
     if (formData.status === 'Confirmed') {
@@ -562,7 +565,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
       application_id: applicationId,
       timestamp: formattedTimestamp,
       installation_fee: Number(data.installationFee) || 0,
-      billing_day: parseInt(data.billingDay) || 30,
+      billing_day: data.isLastDayOfMonth ? 0 : (parseInt(data.billingDay) || 30),
       billing_status: 'In Progress',
       modem_router_sn: null,
       onsite_status: data.onsiteStatus || 'In Progress',
@@ -1252,6 +1255,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     max="30"
                     value={formData.billingDay}
                     onChange={(e) => handleInputChange('billingDay', e.target.value)}
+                    disabled={formData.isLastDayOfMonth}
                     className={`flex-1 px-3 py-2 bg-transparent focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'text-white' : 'text-gray-900'
                       } ${errors.billingDay ? 'border-red-500' : ''}`}
                   />
@@ -1259,6 +1263,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleNumberChange('billingDay', false)}
+                      disabled={formData.isLastDayOfMonth}
                       className={`px-3 py-2 border-l transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
                         ? 'text-gray-400 hover:text-white border-gray-700'
                         : 'text-gray-600 hover:text-gray-900 border-gray-300'
@@ -1269,6 +1274,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleNumberChange('billingDay', true)}
+                      disabled={formData.isLastDayOfMonth}
                       className={`px-3 py-2 border-l transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
                         ? 'text-gray-400 hover:text-white border-gray-700'
                         : 'text-gray-600 hover:text-gray-900 border-gray-300'
@@ -1279,9 +1285,22 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   </div>
                 </div>
 
+                <div className="mt-2 flex items-center">
+                  <input
+                    type="checkbox"
+                    id="isLastDayOfMonth"
+                    checked={formData.isLastDayOfMonth}
+                    onChange={(e) => handleInputChange('isLastDayOfMonth', e.target.checked)}
+                    className={`w-4 h-4 rounded text-orange-600 focus:ring-orange-500 focus:ring-2 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                      }`}
+                  />
+                  <label htmlFor="isLastDayOfMonth" className={`ml-2 text-sm cursor-pointer ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                    Always use last day of the month
+                  </label>
+                </div>
 
-
-                {parseInt(formData.billingDay) > 30 && (
+                {parseInt(formData.billingDay) > 30 && !formData.isLastDayOfMonth && (
                   <p className="text-orange-500 text-xs mt-1 flex items-center">
                     <span className="mr-1">⚠</span>
                     Billing Day must be between 1 and 30

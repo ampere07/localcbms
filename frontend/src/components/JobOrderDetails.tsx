@@ -308,19 +308,19 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const formatDate = (dateStr?: string | null): string => {
     if (!dateStr) return 'Not scheduled';
     try {
-      return new Date(dateStr).toLocaleString();
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
     }
   };
 
   const formatOnlyDate = (dateStr?: string | null): string => {
-    if (!dateStr) return 'Not scheduled';
-    try {
-      return new Date(dateStr).toLocaleDateString();
-    } catch (e) {
-      return dateStr;
-    }
+    return formatDate(dateStr);
   };
 
   const calculateDuration = (start?: string | null, end?: string | null): string => {
@@ -1543,7 +1543,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             <React.Suspense fallback={
               <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                  <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
                   <p>Loading user overlay...</p>
                 </div>
               </div>
@@ -1595,7 +1595,30 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
               </div>
             </React.Suspense>
           )}
-
+          {selectedUserForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                  <p>Loading user overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0 flex justify-center p-0 md:p-6 bg-gray-50 dark:bg-gray-950">
+                <div className="bg-white dark:bg-gray-900 w-full h-full shadow-lg rounded-none md:rounded-lg overflow-hidden border dark:border-gray-800">
+                  <UserDetails
+                    user={selectedUserForOverlay}
+                    onClose={() => setSelectedUserForOverlay(null)}
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                    isMobile={true}
+                    isDarkMode={isDarkMode}
+                    colorPalette={colorPalette}
+                  />
+                </div>
+              </div>
+            </React.Suspense>
+          )}
         </div>
       )}
 

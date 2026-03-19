@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, ArrowUp, ArrowDown, Columns3, X, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, Columns3, X, ChevronsLeft, ChevronsRight, Menu, Globe, Calendar, ChevronDown, Filter } from 'lucide-react';
 import SOADetails from '../components/SOADetails';
 import '../services/soaService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -10,16 +10,12 @@ import { getCustomerDetail, CustomerDetailData } from '../services/customerDetai
 import { BillingDetailRecord } from '../types/billing';
 import SOAFunnelFilter, { FilterValues, allColumns as filterColumns } from '../filter/SOAFunnelFilter';
 import pusher from '../services/pusherService';
-import { Filter } from 'lucide-react';
 
 const hexToRgba = (hex: string, opacity: number) => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${opacity})` : hex;
 };
 
-// Removed local SOARecordUI interface
-
-// Removed local SOARecordUI interface
 
 const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
   return {
@@ -169,15 +165,48 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
   );
 };
 
-const SOA: React.FC = () => {
-  const { soaRecords, totalCount, isLoading, error, fetchSOARecords, refreshSOARecords, silentRefresh } = useSOAStore();
+const allColumns = [
+  { key: 'statementDate', label: 'Statement Date', width: 'min-w-36' },
+  { key: 'accountNo', label: 'Account No', width: 'min-w-36' },
+  { key: 'dateInstalled', label: 'Date Installed', width: 'min-w-32' },
+  { key: 'fullName', label: 'Full Name', width: 'min-w-40' },
+  { key: 'contactNumber', label: 'Contact No', width: 'min-w-36' },
+  { key: 'emailAddress', label: 'Email Address', width: 'min-w-48' },
+  { key: 'plan', label: 'Plan', width: 'min-w-32' },
+  { key: 'balanceFromPreviousBill', label: 'Balance From Previous Bill', width: 'min-w-48' },
+  { key: 'statementNo', label: 'Statement No', width: 'min-w-36' },
+  { key: 'paymentReceivedPrevious', label: 'Payment Received From Previous Bill', width: 'min-w-64' },
+  { key: 'remainingBalancePrevious', label: 'Remaining Balance From Previous Bill', width: 'min-w-64' },
+  { key: 'monthlyServiceFee', label: 'Monthly Service Fee', width: 'min-w-40' },
+  { key: 'staggered', label: 'Staggered Installation', width: 'min-w-40' },
+  { key: 'serviceCharge', label: 'Service Charge', width: 'min-w-36' },
+  { key: 'discounts', label: 'Discounts', width: 'min-w-28' },
+  { key: 'rebate', label: 'Rebates', width: 'min-w-28' },
+  { key: 'vat', label: 'VAT', width: 'min-w-28' },
+  { key: 'dueDate', label: 'Due Date', width: 'min-w-32' },
+  { key: 'disconnectionDate', label: 'Disconnection Date', width: 'min-w-40' },
+  { key: 'amountDue', label: 'Amount Due', width: 'min-w-32' },
+  { key: 'totalAmountDue', label: 'Total Amount Due', width: 'min-w-36' },
+  { key: 'updatedBy', label: 'Modified By', width: 'min-w-32' },
+  { key: 'updatedAt', label: 'Modified Date', width: 'min-w-40' },
+  { key: 'printLink', label: 'Print Link', width: 'min-w-28' },
+  { key: 'barangay', label: 'Barangay', width: 'min-w-32' },
+  { key: 'city', label: 'City', width: 'min-w-32' },
+  { key: 'region', label: 'Region', width: 'min-w-32' },
+];
 
-  // Fetch data on mount if empty
+const customerColumns = [
+  { key: 'statementDate', label: 'Statement Date', width: 'min-w-36' },
+  { key: 'id', label: 'ID', width: 'min-w-20' },
+  { key: 'action', label: 'Action', width: 'min-w-32' },
+];
+
+const SOA: React.FC = () => {
+  const { soaRecords, totalCount, isLoading, error, fetchSOARecords, refreshSOARecords, silentRefresh, pollLatestUpdates } = useSOAStore();
+
+  // Initial data fetch
   useEffect(() => {
-    if (soaRecords.length === 0) {
-      fetchSOARecords();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchSOARecords();
   }, [fetchSOARecords]);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>('All');
@@ -206,7 +235,7 @@ const SOA: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   const [sortColumn, setSortColumn] = useState<string | null>('id');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -233,6 +262,11 @@ const SOA: React.FC = () => {
     return {};
   });
 
+  const [statementDateFrom, setStatementDateFrom] = useState<string>('');
+  const [statementDateTo, setStatementDateTo] = useState<string>('');
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+
   const removeFilter = (key: string) => {
     const newFilters = { ...activeFilters };
     delete newFilters[key];
@@ -240,41 +274,7 @@ const SOA: React.FC = () => {
     localStorage.setItem('soaFunnelFilters', JSON.stringify(newFilters));
   };
 
-  const allColumns = [
-    { key: 'statementDate', label: 'Statement Date', width: 'min-w-36' },
-    { key: 'accountNo', label: 'Account No', width: 'min-w-36' },
-    { key: 'dateInstalled', label: 'Date Installed', width: 'min-w-32' },
-    { key: 'fullName', label: 'Full Name', width: 'min-w-40' },
-    { key: 'contactNumber', label: 'Contact No', width: 'min-w-36' },
-    { key: 'emailAddress', label: 'Email Address', width: 'min-w-48' },
-    { key: 'plan', label: 'Plan', width: 'min-w-32' },
-    { key: 'balanceFromPreviousBill', label: 'Balance From Previous Bill', width: 'min-w-48' },
-    { key: 'statementNo', label: 'Statement No', width: 'min-w-36' },
-    { key: 'paymentReceivedPrevious', label: 'Payment Received From Previous Bill', width: 'min-w-64' },
-    { key: 'remainingBalancePrevious', label: 'Remaining Balance From Previous Bill', width: 'min-w-64' },
-    { key: 'monthlyServiceFee', label: 'Monthly Service Fee', width: 'min-w-40' },
-    { key: 'staggered', label: 'Staggered Installation', width: 'min-w-40' },
-    { key: 'serviceCharge', label: 'Service Charge', width: 'min-w-36' },
-    { key: 'discounts', label: 'Discounts', width: 'min-w-28' },
-    { key: 'rebate', label: 'Rebates', width: 'min-w-28' },
-    { key: 'vat', label: 'VAT', width: 'min-w-28' },
-    { key: 'dueDate', label: 'Due Date', width: 'min-w-32' },
-    { key: 'disconnectionDate', label: 'Disconnection Date', width: 'min-w-40' },
-    { key: 'amountDue', label: 'Amount Due', width: 'min-w-32' },
-    { key: 'totalAmountDue', label: 'Total Amount Due', width: 'min-w-36' },
-    { key: 'updatedBy', label: 'Modified By', width: 'min-w-32' },
-    { key: 'updatedAt', label: 'Modified Date', width: 'min-w-40' },
-    { key: 'printLink', label: 'Print Link', width: 'min-w-28' },
-    { key: 'barangay', label: 'Barangay', width: 'min-w-32' },
-    { key: 'city', label: 'City', width: 'min-w-32' },
-    { key: 'region', label: 'Region', width: 'min-w-32' },
-  ];
 
-  const customerColumns = [
-    { key: 'statementDate', label: 'Statement Date', width: 'min-w-36' },
-    { key: 'id', label: 'ID', width: 'min-w-20' },
-    { key: 'action', label: 'Action', width: 'min-w-32' },
-  ];
 
   const displayColumns = userRole === 'customer' ? customerColumns : allColumns;
 
@@ -355,8 +355,33 @@ const SOA: React.FC = () => {
       });
     }
 
+    // Apply sidebar date range filters for statement date
+    if (statementDateFrom || statementDateTo) {
+      filtered = filtered.filter(record => {
+        if (!record.statementDateRaw && !record.statementDate) return false;
+
+        const dateStr = record.statementDateRaw || record.statementDate;
+        const dateValue = new Date(dateStr).getTime();
+        if (isNaN(dateValue)) return false;
+
+        if (statementDateFrom) {
+          const fromDate = new Date(statementDateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (dateValue < fromDate.getTime()) return false;
+        }
+
+        if (statementDateTo) {
+          const toDate = new Date(statementDateTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (dateValue > toDate.getTime()) return false;
+        }
+
+        return true;
+      });
+    }
+
     return filtered;
-  }, [soaRecords, searchQuery, activeFilters]);
+  }, [soaRecords, searchQuery, activeFilters, statementDateFrom, statementDateTo]);
 
   // Derive date items from context data instead of fetching separately or static - Now using globalFilteredRecords
   const dateItems = useMemo(() => {
@@ -439,20 +464,11 @@ const SOA: React.FC = () => {
 
   // Pusher/Soketi connection for real-time SOA updates
   useEffect(() => {
-    let lastRefreshTime = 0;
-    const DEBOUNCE_MS = 10000; // Minimum 10s between Pusher-triggered refreshes
-
     const handleUpdate = async (data: any) => {
-      const now = Date.now();
-      if (now - lastRefreshTime < DEBOUNCE_MS) {
-        console.log('[SOA Soketi] Skipping refresh (debounce)');
-        return;
-      }
-      lastRefreshTime = now;
-      console.log('[SOA Soketi] Update received, silently refreshing:', data);
+      console.log('[SOA Soketi] Update received, fetching latest changes:', data);
       try {
-        await silentRefresh();
-        console.log('[SOA Soketi] Data refreshed successfully');
+        await pollLatestUpdates();
+        console.log('[SOA Soketi] Latest changes fetched successfully');
       } catch (err) {
         console.error('[SOA Soketi] Failed to refresh data:', err);
       }
@@ -485,22 +501,22 @@ const SOA: React.FC = () => {
       pusher.connection.unbind('state_change', stateHandler);
       pusher.unsubscribe('soa');
     };
-  }, [silentRefresh]);
+  }, [pollLatestUpdates]);
 
-  // Polling for updates every 3 seconds
+  // Polling for updates every 60 seconds (fetches only latest modified data)
   useEffect(() => {
-    const POLLING_INTERVAL = 3000; // 3 seconds
+    const POLLING_INTERVAL = 60000; // 60 seconds
     const intervalId = setInterval(async () => {
       console.log('[SOA Page] Polling for updates...');
       try {
-        await silentRefresh();
+        await pollLatestUpdates();
       } catch (err) {
         console.error('[SOA Page] Polling failed:', err);
       }
     }, POLLING_INTERVAL);
 
     return () => clearInterval(intervalId);
-  }, [silentRefresh]);
+  }, [pollLatestUpdates]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -604,12 +620,12 @@ const SOA: React.FC = () => {
     }
 
     return filtered;
-  }, [globalFilteredRecords, selectedDate, sortColumn, sortDirection]);
+  }, [globalFilteredRecords, selectedDate, sortColumn, sortDirection, statementDateFrom, statementDateTo]);
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedDate, searchQuery, itemsPerPage]);
+  }, [selectedDate, searchQuery, itemsPerPage, statementDateFrom, statementDateTo, activeFilters]);
 
   // Scroll to top on page change
   useEffect(() => {
@@ -625,11 +641,11 @@ const SOA: React.FC = () => {
 
   // Use totalCount for total pages if no filter/search is active
   const totalDisplayCount = useMemo(() => {
-    if (searchQuery || selectedDate !== 'All' || Object.keys(activeFilters).length > 0) {
-      return filteredRecords.length;
+    if (selectedDate === 'All' && searchQuery === '' && Object.keys(activeFilters).length === 0) {
+      return totalCount;
     }
-    return Math.max(totalCount, soaRecords.length);
-  }, [filteredRecords.length, totalCount, soaRecords.length, searchQuery, selectedDate, activeFilters]);
+    return filteredRecords.length;
+  }, [filteredRecords.length, totalCount, selectedDate, searchQuery, activeFilters]);
 
   const totalPages = Math.ceil(totalDisplayCount / itemsPerPage);
 
@@ -900,6 +916,20 @@ const SOA: React.FC = () => {
     }
   };
 
+  const formatDate = (dateString: string | null | undefined): string => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return dateString;
+    }
+  };
+
   useEffect(() => {
     if (!resizingColumn) return;
 
@@ -951,7 +981,7 @@ const SOA: React.FC = () => {
       case 'accountNo':
         return <span className="text-red-400">{record.accountNo}</span>;
       case 'statementDate':
-        return record.statementDate;
+        return formatDate(record.statementDate);
       case 'disconnectionDate':
         return '-';
       case 'action':
@@ -999,7 +1029,7 @@ const SOA: React.FC = () => {
       case 'vat':
         return `₱ ${(record.vat ?? 0).toFixed(2)}`;
       case 'dueDate':
-        return record.dueDate || '-';
+        return formatDate(record.dueDate);
       case 'amountDue':
         return `₱ ${(record.amountDue ?? 0).toFixed(2)}`;
       case 'totalAmountDue':
@@ -1007,11 +1037,11 @@ const SOA: React.FC = () => {
       case 'printLink':
         return record.printLink || 'NULL';
       case 'createdAt':
-        return record.createdAt || '-';
+        return formatDate(record.createdAt);
       case 'createdBy':
         return record.createdBy || '-';
       case 'updatedAt':
-        return record.updatedAt || '-';
+        return formatDate(record.updatedAt);
       case 'updatedBy':
         return record.updatedBy || '-';
       case 'fullName':
@@ -1025,7 +1055,7 @@ const SOA: React.FC = () => {
       case 'plan':
         return record.plan || '-';
       case 'dateInstalled':
-        return record.dateInstalled || '-';
+        return formatDate(record.dateInstalled);
       case 'barangay':
         return record.barangay || '-';
       case 'city':
@@ -1051,6 +1081,55 @@ const SOA: React.FC = () => {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
+            {/* Date Range Filter Section */}
+            <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+              <div className="flex items-center justify-between">
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Statement Date Range
+                </span>
+                {(statementDateFrom || statementDateTo) && (
+                  <button
+                    onClick={() => {
+                      setStatementDateFrom('');
+                      setStatementDateTo('');
+                    }}
+                    className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                    style={{ color: colorPalette?.primary || '#7c3aed' }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="relative">
+                  <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                  <input
+                    type="date"
+                    value={statementDateFrom}
+                    onChange={(e) => setStatementDateFrom(e.target.value)}
+                    className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                      }`}
+                    style={statementDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                  />
+                </div>
+                <div className="relative">
+                  <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                  <input
+                    type="date"
+                    value={statementDateTo}
+                    onChange={(e) => setStatementDateTo(e.target.value)}
+                    className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                      }`}
+                    style={statementDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* All Level */}
             <button
               onClick={() => setSelectedDate('All')}
@@ -1080,41 +1159,66 @@ const SOA: React.FC = () => {
               </span>
             </button>
 
-            {/* Date Levels */}
-            {dateItems.dates.map((item, index) => (
+            {/* Statement Month Dropdown */}
+            <div className={`p-0 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-100'}`}>
               <button
-                key={index}
-                onClick={() => setSelectedDate(item.date)}
+                onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
                 className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                  } ${selectedDate === item.date
-                    ? ''
-                    : isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}
-                style={selectedDate === item.date ? {
-                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#7c3aed'
-                } : {}}
+                  } ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
               >
                 <div className="flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                  </svg>
-                  <span>{item.date}</span>
+                  <span className="font-medium">Statement Month</span>
                 </div>
-                <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${selectedDate === item.date
-                    ? 'text-white'
-                    : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
-                    }`}
-                  style={selectedDate === item.date ? {
-                    backgroundColor: colorPalette?.primary || '#7c3aed'
-                  } : {}}
-                >
-                  {item.count}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                      }`}
+                  >
+                    {dateItems.dates.length}
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform duration-200 ${isDateDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </div>
               </button>
-            ))}
+
+              {isDateDropdownOpen && (
+                <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50/50 shadow-inner'}`}>
+                  {dateItems.dates.map((item, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedDate(item.date)}
+                      className={`w-full flex items-center justify-between px-6 py-2.5 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                        } ${selectedDate === item.date
+                          ? ''
+                          : isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}
+                      style={selectedDate === item.date ? {
+                        backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                        color: colorPalette?.primary || '#7c3aed',
+                        fontWeight: 500
+                      } : {}}
+                    >
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-3 opacity-60" />
+                        <span className="truncate">{item.date}</span>
+                      </div>
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${selectedDate === item.date
+                          ? 'text-white'
+                          : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-200 text-gray-500'
+                          }`}
+                        style={selectedDate === item.date ? {
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
+                        } : {}}
+                      >
+                        {item.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div
@@ -1143,6 +1247,15 @@ const SOA: React.FC = () => {
           <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
             }`}>
             <div className="flex items-center space-x-3">
+              {userRole !== 'customer' && (
+                <button
+                  onClick={() => setMobileMenuOpen(true)}
+                  className={`md:hidden p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                    }`}
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+              )}
               <div className="relative flex-1">
                 <input
                   type="text"
@@ -1397,7 +1510,7 @@ const SOA: React.FC = () => {
 
           <div className="flex-1 overflow-hidden flex flex-col">
             <div className="flex-1 overflow-hidden">
-              {isLoading ? (
+              {isLoading && soaRecords.length === 0 ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
                   <div className="animate-pulse flex flex-col items-center">
@@ -1525,6 +1638,147 @@ const SOA: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Mobile Overlay Menu */}
+      {mobileMenuOpen && userRole !== 'customer' && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
+          <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+            }`}>
+            <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Categories</h2>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {/* All Level */}
+              <button
+                onClick={() => {
+                  setSelectedDate('All');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
+                style={selectedDate === 'All' ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#7c3aed',
+                  fontWeight: 500
+                } : {
+                  color: isDarkMode ? '#d1d5db' : '#374151'
+                }}
+              >
+                <div className="flex items-center">
+                  <Globe className="h-4 w-4 mr-2" />
+                  <span>All Records</span>
+                </div>
+                <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                  {dateItems.all}
+                </span>
+              </button>
+
+              {/* Mobile Date Range Filter Section */}
+              <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Statement Date Range
+                  </span>
+                  {(statementDateFrom || statementDateTo) && (
+                    <button
+                      onClick={() => {
+                        setStatementDateFrom('');
+                        setStatementDateTo('');
+                      }}
+                      className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                      style={{ color: colorPalette?.primary || '#7c3aed' }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                    <input
+                      type="date"
+                      value={statementDateFrom}
+                      onChange={(e) => setStatementDateFrom(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={statementDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                    <input
+                      type="date"
+                      value={statementDateTo}
+                      onChange={(e) => setStatementDateTo(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={statementDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile Statement Month Dropdown */}
+              <div className={`border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+                <button
+                  onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-700'
+                    }`}
+                >
+                  <div className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    <span className="font-medium">Statement Month</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isDateDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isDateDropdownOpen && (
+                  <div className={isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50/50'}>
+                    {dateItems.dates.map((item, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          setSelectedDate(item.date);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-6 py-3 text-sm transition-colors border-b last:border-0 ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
+                          }`}
+                        style={selectedDate === item.date ? {
+                          backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                          color: colorPalette?.primary || '#7c3aed',
+                          fontWeight: 500
+                        } : {
+                          color: isDarkMode ? '#9ca3af' : '#4b5563'
+                        }}
+                      >
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-2 opacity-60" />
+                          <span>{item.date}</span>
+                        </div>
+                        <span className="px-2 py-1 rounded-full text-[10px] bg-gray-700 text-gray-300">
+                          {item.count}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedRecord && userRole !== 'customer' && (
         <div className="flex-shrink-0 overflow-hidden">

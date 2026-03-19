@@ -11,6 +11,20 @@ import { BillingDetailRecord } from '../types/billing';
 const PlanListDetails = React.lazy(() => import('./PlanListDetails'));
 const CustomerDetails = React.lazy(() => import('./CustomerDetails'));
 
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateString;
+  }
+};
+
 const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
   return {
     id: customerData.billingAccount?.accountNo || '',
@@ -316,7 +330,7 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord, onViewCu
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Invoice Date</span>
-              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{invoiceRecord.invoiceDate}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatDate(invoiceRecord.invoiceDate)}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
@@ -427,7 +441,7 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord, onViewCu
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Due Date</span>
-              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{invoiceRecord.dueDate || '9/30/2025'}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatDate(invoiceRecord.dueDate)}</span>
             </div>
           </div>
         </div>
