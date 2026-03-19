@@ -87,7 +87,7 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
   };
 
   const currentUser = getCurrentUser();
-  const currentUserEmail = currentUser?.email || 'unknown@ampere.com';
+  const currentUserEmail = currentUser?.email || 'unknown@email.com';
 
   const [formData, setFormData] = useState<JOFormData>({
     timestamp: new Date().toLocaleString('sv-SE').replace(' ', ' '),

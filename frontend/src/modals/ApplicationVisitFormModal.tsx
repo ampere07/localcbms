@@ -72,7 +72,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
   };
 
   const currentUser = getCurrentUser();
-  const currentUserEmail = currentUser?.email || 'unknown@ampere.com';
+  const currentUserEmail = currentUser?.email || 'unknown@email.com';
 
   useEffect(() => {
     if (isOpen && applicationData) {
@@ -586,8 +586,8 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
       <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
         }`}>
         <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-gray-100 border-gray-300'
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-300'
           }`}>
           <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>Application Form Visit</h2>
@@ -595,8 +595,8 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
             <button
               onClick={handleCancel}
               className={`px-4 py-2 rounded text-sm ${isDarkMode
-                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                 }`}
             >
               Cancel
@@ -684,8 +684,8 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                   e.currentTarget.style.boxShadow = 'none';
                 }}
                 className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
                   }`}
               />
             </div>
@@ -762,8 +762,8 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                   e.currentTarget.style.boxShadow = 'none';
                 }}
                 className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
                   }`}
               />
             </div>
@@ -1040,8 +1040,8 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                   className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${isDarkMode
-                      ? 'bg-gray-800 border-gray-700 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
                     }`}
                 >
                   <option value="">Select Promo</option>
@@ -1079,8 +1079,8 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                   e.currentTarget.style.boxShadow = 'none';
                 }}
                 className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors resize-none ${isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
                   }`}
               />
             </div>
@@ -1128,8 +1128,8 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
       {modal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
           <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode
-              ? 'bg-gray-900 border-gray-700'
-              : 'bg-white border-gray-300'
+            ? 'bg-gray-900 border-gray-700'
+            : 'bg-white border-gray-300'
             }`}>
             {modal.type === 'loading' ? (
               <div className="text-center">
@@ -1150,8 +1150,8 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                       <button
                         onClick={modal.onCancel}
                         className={`px-4 py-2 rounded transition-colors ${isDarkMode
-                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                           }`}
                       >
                         Cancel

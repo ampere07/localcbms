@@ -109,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         { id: 'transaction-list', label: 'Transaction List', icon: Receipt, allowedRoles: ['administrator'] },
         { id: 'transactions-revert', label: 'Revert Requests', icon: RefreshCw, allowedRoles: ['superadmin'] },
         { id: 'payment-portal', label: 'Payment Portal', icon: DollarSign, allowedRoles: ['administrator'] },
-        { id: 'soa', label: 'SOA', icon: FileText, allowedRoles: ['administrator'] },
+        { id: 'soa', label: 'Statements', icon: FileText, allowedRoles: ['administrator'] },
         { id: 'invoice', label: 'Invoice', icon: Receipt, allowedRoles: ['administrator'] },
         { id: 'overdue', label: 'Overdue', icon: Clock, allowedRoles: ['administrator'] },
         { id: 'dc-notice', label: 'DC Notice', icon: AlertTriangle, allowedRoles: ['administrator'] },

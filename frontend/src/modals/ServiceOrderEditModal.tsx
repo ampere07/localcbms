@@ -112,7 +112,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   };
 
   const currentUser = getCurrentUser();
-  const currentUserEmail = currentUser?.email || 'unknown@ampere.com';
+  const currentUserEmail = currentUser?.email || 'unknown@email.com';
   const isTechnician = currentUser?.role_id === 2 || (typeof currentUser?.role === 'string' && currentUser.role.toLowerCase() === 'technician');
 
   const [technicians, setTechnicians] = useState<Array<{ name: string; email: string }>>([]);

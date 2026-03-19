@@ -96,7 +96,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                     return 'live-monitor';
                 }
                 if (normalizedRole === 'administrator' || String(user.role_id) === '1') {
-                    return 'customer';
+                    return 'dashboard';
                 }
                 if (normalizedRole === 'osp' || String(user.role_id) === '6') {
                     return 'work-order';

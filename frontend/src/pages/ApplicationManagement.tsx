@@ -256,26 +256,7 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
     };
   }, [silentRefresh]);
 
-  // Silent polling every 5 seconds to ensure latest data is always fetched
-  useEffect(() => {
-    const POLL_INTERVAL = 3000; // 5 seconds
 
-    const pollData = async () => {
-      console.log('[ApplicationManagement] Polling latest data (5s interval)...');
-      try {
-        await silentRefresh();
-      } catch (err) {
-        console.error('[ApplicationManagement] Polling refresh failed:', err);
-      }
-    };
-
-    const intervalId = setInterval(pollData, POLL_INTERVAL);
-
-    // Initial silent refresh
-    pollData();
-
-    return () => clearInterval(intervalId);
-  }, [silentRefresh]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -329,7 +310,7 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
   };
 
   const handleApplicationUpdate = () => {
-    refreshApplications();
+    silentRefresh();
   };
 
   const removeFilter = (key: string) => {

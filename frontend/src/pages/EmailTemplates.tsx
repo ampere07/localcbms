@@ -399,16 +399,16 @@ const EmailTemplates: React.FC = () => {
           // If the table has a legacy 'border' attribute, it will override cell-level 'none' for edge borders.
           // We convert the table-wide border to individual cell borders to allow specific side removal.
           if (table && table.hasAttribute('border')) {
-             table.removeAttribute('border');
-             table.style.borderCollapse = 'collapse';
-             
-             // Apply a default border to other cells if they don't have one, to maintain the table's look
-             const allCells = editor.dom.select('td,th', table);
-             allCells.forEach((c: any) => {
-               if (!c.style.border && !targetCells.includes(c)) {
-                 c.style.border = '1px solid black';
-               }
-             });
+            table.removeAttribute('border');
+            table.style.borderCollapse = 'collapse';
+
+            // Apply a default border to other cells if they don't have one, to maintain the table's look
+            const allCells = editor.dom.select('td,th', table);
+            allCells.forEach((c: any) => {
+              if (!c.style.border && !targetCells.includes(c)) {
+                c.style.border = '1px solid black';
+              }
+            });
           }
 
           // Directly set individual properties with !important to ensure removal
@@ -416,7 +416,7 @@ const EmailTemplates: React.FC = () => {
           cell.style.setProperty(`border-${side}-width`, '0px', 'important');
           cell.style.setProperty(`border-${side}-style`, 'none', 'important');
           cell.style.setProperty(`border-${side}-color`, 'transparent', 'important');
-          
+
           // Set the shorthand as a final override
           cell.style.setProperty(`border-${side}`, '0px none transparent', 'important');
 
@@ -828,7 +828,7 @@ const EmailTemplates: React.FC = () => {
                         type="text"
                         value={formData.cc}
                         onChange={(e) => handleInputChange('cc', e.target.value)}
-                        placeholder="CC (Comma separated)"
+                        placeholder="CC"
                         className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
                           ? 'bg-gray-700 border-gray-600 text-white'
                           : 'bg-white border-gray-300 text-gray-900'
@@ -838,7 +838,7 @@ const EmailTemplates: React.FC = () => {
                         type="text"
                         value={formData.bcc}
                         onChange={(e) => handleInputChange('bcc', e.target.value)}
-                        placeholder="BCC (Comma separated)"
+                        placeholder="BCC"
                         className={`w-full px-3 py-2 text-sm border rounded ${isDarkMode
                           ? 'bg-gray-700 border-gray-600 text-white'
                           : 'bg-white border-gray-300 text-gray-900'
@@ -981,10 +981,11 @@ const EmailTemplates: React.FC = () => {
                             'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
                             'insertdatetime', 'media', 'table', 'help', 'wordcount'
                           ],
-                          toolbar: 'undo redo | blocks | ' +
+                          toolbar: 'undo redo | custom_fontsize | ' +
                             'bold italic forecolor | alignleft aligncenter ' +
                             'alignright alignjustify | bullist numlist outdent indent | ' +
-                            'removeformat cell_props | table page_margins image_margins | image | help',
+                            'removeformat cell_props | blocks table page_margins image_margins | image | help',
+                          fontsize_formats: '8pt 10pt 12pt 14pt 18pt 24pt 36pt 48pt',
                           content_style: `
                             body { 
                               font-family:Helvetica,Arial,sans-serif; 
@@ -1089,116 +1090,161 @@ const EmailTemplates: React.FC = () => {
                                       });
                                     }
                                   }
-                                  ];
-                                 callback(items as any);
-                               }
+                                ];
+                                callback(items as any);
+                              }
                             });
 
-                             editor.ui.registry.addMenuButton('image_margins', {
-                               text: 'Image Margins',
-                               tooltip: 'Adjust Image Margins',
-                               fetch: (callback: (items: any[]) => void) => {
-                                 const setImgMargin = (margin: string) => {
-                                   setImageMargin(margin);
-                                   const images = editor.dom.select('img');
-                                   images.forEach((img: any) => {
-                                     const currentStyle = img.getAttribute('style') || '';
-                                     if (!currentStyle.includes('margin: 0') && !currentStyle.includes('margin:0')) {
-                                       editor.dom.setStyle(img, 'margin', margin);
-                                     }
-                                   });
-                                 };
+                            editor.ui.registry.addMenuButton('image_margins', {
+                              text: 'Image Margins',
+                              tooltip: 'Adjust Image Margins',
+                              fetch: (callback: (items: any[]) => void) => {
+                                const setImgMargin = (margin: string) => {
+                                  setImageMargin(margin);
+                                  const images = editor.dom.select('img');
+                                  images.forEach((img: any) => {
+                                    const currentStyle = img.getAttribute('style') || '';
+                                    if (!currentStyle.includes('margin: 0') && !currentStyle.includes('margin:0')) {
+                                      editor.dom.setStyle(img, 'margin', margin);
+                                    }
+                                  });
+                                };
 
-                                 const items = [
-                                   { type: 'menuitem', text: 'None (0px)', onAction: () => setImgMargin('0px') },
-                                   { type: 'menuitem', text: 'Small (5px)', onAction: () => setImgMargin('5px') },
-                                   { type: 'menuitem', text: 'Medium (10px)', onAction: () => setImgMargin('10px') },
-                                   { type: 'menuitem', text: 'Large (20px)', onAction: () => setImgMargin('20px') },
-                                   {
-                                     type: 'menuitem',
-                                     text: 'Custom...',
-                                     onAction: () => {
-                                       editor.windowManager.open({
-                                         title: 'Custom Image Margins',
-                                         body: {
-                                           type: 'panel',
-                                           items: [
-                                             { type: 'input', name: 'top', label: 'Top (e.g., 10px, 1em)' },
-                                             { type: 'input', name: 'left', label: 'Left' },
-                                             { type: 'input', name: 'right', label: 'Right' },
-                                             { type: 'input', name: 'bottom', label: 'Bottom' }
-                                           ]
-                                         },
-                                         buttons: [
-                                           { type: 'cancel', text: 'Cancel' },
-                                           { type: 'submit', text: 'Apply', primary: true }
-                                         ],
-                                         onSubmit: (api: any) => {
-                                           const data = api.getData();
-                                           // User order: top left right bottom. CSS standard: top right bottom left
-                                           const marginStr = `${data.top || '0'} ${data.right || '0'} ${data.bottom || '0'} ${data.left || '0'}`;
-                                           setImgMargin(marginStr);
-                                           api.close();
-                                         }
-                                       });
-                                     }
-                                   },
-                                 ];
-                                 callback(items as any);
-                               }
-                             });
- 
-                             editor.ui.registry.addMenuItem('custom_image_margin', {
-                               text: 'Set Image Margin...',
-                               icon: 'image',
-                               onAction: () => {
-                                 const node = editor.selection.getNode();
-                                 if (node.nodeName === 'IMG') {
-                                   editor.windowManager.open({
-                                     title: 'Set Image Margin',
-                                     body: {
-                                       type: 'panel',
-                                       items: [
-                                         { type: 'input', name: 'top', label: 'Top (e.g. 10px, 1in)' },
-                                         { type: 'input', name: 'left', label: 'Left' },
-                                         { type: 'input', name: 'right', label: 'Right' },
-                                         { type: 'input', name: 'bottom', label: 'Bottom' }
-                                       ]
-                                     },
-                                     buttons: [
-                                       { type: 'cancel', text: 'Cancel' },
-                                       { type: 'submit', text: 'Apply', primary: true }
-                                     ],
-                                     onSubmit: (api: any) => {
-                                       const data = api.getData();
-                                       // User order: top left right bottom. CSS standard: top right bottom left
-                                       const marginStr = `${data.top || '0'} ${data.right || '0'} ${data.bottom || '0'} ${data.left || '0'}`;
-                                       editor.dom.setStyle(node, 'margin', marginStr);
-                                       api.close();
-                                     }
-                                   });
-                                 }
-                               }
-                             });
- 
-                             editor.ui.registry.addMenuItem('absolute_pos', {
-                               text: 'Toggle Absolute Position',
-                               icon: 'move',
-                               onAction: () => {
-                                 const node = editor.selection.getNode();
-                                 if (node.nodeName === 'IMG') {
-                                   const isAbs = editor.dom.getStyle(node, 'position') === 'absolute';
-                                   if (isAbs) {
-                                     editor.dom.setStyle(node, 'position', 'static');
-                                     editor.dom.removeClass(node, 'absolute-image');
-                                   } else {
-                                     editor.dom.setStyle(node, 'position', 'absolute');
-                                     editor.dom.addClass(node, 'absolute-image');
-                                   }
-                                 }
-                               }
-                             });
- 
+                                const items = [
+                                  { type: 'menuitem', text: 'None (0px)', onAction: () => setImgMargin('0px') },
+                                  { type: 'menuitem', text: 'Small (5px)', onAction: () => setImgMargin('5px') },
+                                  { type: 'menuitem', text: 'Medium (10px)', onAction: () => setImgMargin('10px') },
+                                  { type: 'menuitem', text: 'Large (20px)', onAction: () => setImgMargin('20px') },
+                                  {
+                                    type: 'menuitem',
+                                    text: 'Custom...',
+                                    onAction: () => {
+                                      editor.windowManager.open({
+                                        title: 'Custom Image Margins',
+                                        body: {
+                                          type: 'panel',
+                                          items: [
+                                            { type: 'input', name: 'top', label: 'Top (e.g., 10px, 1em)' },
+                                            { type: 'input', name: 'left', label: 'Left' },
+                                            { type: 'input', name: 'right', label: 'Right' },
+                                            { type: 'input', name: 'bottom', label: 'Bottom' }
+                                          ]
+                                        },
+                                        buttons: [
+                                          { type: 'cancel', text: 'Cancel' },
+                                          { type: 'submit', text: 'Apply', primary: true }
+                                        ],
+                                        onSubmit: (api: any) => {
+                                          const data = api.getData();
+                                          // User order: top left right bottom. CSS standard: top right bottom left
+                                          const marginStr = `${data.top || '0'} ${data.right || '0'} ${data.bottom || '0'} ${data.left || '0'}`;
+                                          setImgMargin(marginStr);
+                                          api.close();
+                                        }
+                                      });
+                                    }
+                                  },
+                                ];
+                                callback(items as any);
+                              }
+                            });
+
+                            editor.ui.registry.addMenuItem('custom_image_margin', {
+                              text: 'Set Image Margin...',
+                              icon: 'image',
+                              onAction: () => {
+                                const node = editor.selection.getNode();
+                                if (node.nodeName === 'IMG') {
+                                  editor.windowManager.open({
+                                    title: 'Set Image Margin',
+                                    body: {
+                                      type: 'panel',
+                                      items: [
+                                        { type: 'input', name: 'top', label: 'Top (e.g. 10px, 1in)' },
+                                        { type: 'input', name: 'left', label: 'Left' },
+                                        { type: 'input', name: 'right', label: 'Right' },
+                                        { type: 'input', name: 'bottom', label: 'Bottom' }
+                                      ]
+                                    },
+                                    buttons: [
+                                      { type: 'cancel', text: 'Cancel' },
+                                      { type: 'submit', text: 'Apply', primary: true }
+                                    ],
+                                    onSubmit: (api: any) => {
+                                      const data = api.getData();
+                                      // User order: top left right bottom. CSS standard: top right bottom left
+                                      const marginStr = `${data.top || '0'} ${data.right || '0'} ${data.bottom || '0'} ${data.left || '0'}`;
+                                      editor.dom.setStyle(node, 'margin', marginStr);
+                                      api.close();
+                                    }
+                                  });
+                                }
+                              }
+                            });
+
+                            editor.ui.registry.addMenuItem('absolute_pos', {
+                              text: 'Toggle Absolute Position',
+                              icon: 'move',
+                              onAction: () => {
+                                const node = editor.selection.getNode();
+                                if (node.nodeName === 'IMG') {
+                                  const isAbs = editor.dom.getStyle(node, 'position') === 'absolute';
+                                  if (isAbs) {
+                                    editor.dom.setStyle(node, 'position', 'static');
+                                    editor.dom.removeClass(node, 'absolute-image');
+                                  } else {
+                                    editor.dom.setStyle(node, 'position', 'absolute');
+                                    editor.dom.addClass(node, 'absolute-image');
+                                  }
+                                }
+                              }
+                            });
+
+                            editor.ui.registry.addMenuButton('custom_fontsize', {
+                              text: 'Size',
+                              tooltip: 'Font Size',
+                              fetch: (callback: (items: any[]) => void) => {
+                                const items = [
+                                  { type: 'menuitem', text: '8pt', onAction: () => editor.execCommand('FontSize', false, '8pt') },
+                                  { type: 'menuitem', text: '10pt', onAction: () => editor.execCommand('FontSize', false, '10pt') },
+                                  { type: 'menuitem', text: '12pt', onAction: () => editor.execCommand('FontSize', false, '12pt') },
+                                  { type: 'menuitem', text: '14pt', onAction: () => editor.execCommand('FontSize', false, '14pt') },
+                                  { type: 'menuitem', text: '18pt', onAction: () => editor.execCommand('FontSize', false, '18pt') },
+                                  { type: 'menuitem', text: '24pt', onAction: () => editor.execCommand('FontSize', false, '24pt') },
+                                  { type: 'menuitem', text: '36pt', onAction: () => editor.execCommand('FontSize', false, '36pt') },
+                                  { type: 'menuitem', text: '48pt', onAction: () => editor.execCommand('FontSize', false, '48pt') },
+                                  { type: 'separator' },
+                                  {
+                                    type: 'menuitem',
+                                    text: 'Custom...',
+                                    onAction: () => {
+                                      editor.windowManager.open({
+                                        title: 'Custom Font Size',
+                                        body: {
+                                          type: 'panel',
+                                          items: [{ type: 'input', name: 'size', label: 'Size (e.g. 15, 20px, 1.5rem)' }]
+                                        },
+                                        buttons: [
+                                          { type: 'cancel', text: 'Cancel' },
+                                          { type: 'submit', text: 'Apply', primary: true }
+                                        ],
+                                        onSubmit: (api: any) => {
+                                          const data = api.getData();
+                                          let size = data.size;
+                                          if (size && !isNaN(Number(size))) size = `${size}pt`;
+                                          if (size) {
+                                            editor.execCommand('FontSize', false, size);
+                                          }
+                                          api.close();
+                                        }
+                                      });
+                                    }
+                                  }
+                                ];
+                                callback(items as any);
+                              }
+                            });
+
                             editor.ui.registry.addMenuButton('cell_props', {
                               text: 'Cell Props',
                               tooltip: 'Table Cell Borders',

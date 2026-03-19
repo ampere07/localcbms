@@ -1077,7 +1077,7 @@ const SOA: React.FC = () => {
             }`}>
             <div className="flex items-center justify-between mb-1">
               <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>SOA</h2>
+                }`}>Statements</h2>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">

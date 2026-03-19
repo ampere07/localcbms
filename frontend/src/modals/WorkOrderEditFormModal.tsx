@@ -134,7 +134,7 @@ const WorkOrderEditFormModal: React.FC<WorkOrderEditFormModalProps> = ({
   };
 
   const currentUser = getCurrentUser();
-  const currentUserEmail = currentUser?.email || 'unknown@ampere.com';
+  const currentUserEmail = currentUser?.email || 'unknown@email.com';
 
   const getTodayDate = () => {
     const today = new Date();
