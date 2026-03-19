@@ -918,10 +918,10 @@ const EmailTemplates: React.FC = () => {
                             'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
                             'insertdatetime', 'media', 'table', 'help', 'wordcount'
                           ],
-                          toolbar: 'undo redo | blocks | ' +
-                            'bold italic forecolor | alignleft aligncenter ' +
-                            'alignright alignjustify | bullist numlist outdent indent | ' +
-                            'removeformat | table cell_props page_margins image_margins | image | help',
+                          toolbar: 'undo redo | cell_props | fontfamily fontsizeinput | bold italic forecolor | alignleft aligncenter ' +
+                            'alignright alignjustify | bullist numlist outdent indent | removeformat | ' +
+                            'blocks table page_margins image_margins | image | help',
+                          toolbar_mode: 'sliding',
                           content_style: `
                             body { 
                               font-family:Helvetica,Arial,sans-serif; 

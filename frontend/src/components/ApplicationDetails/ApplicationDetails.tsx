@@ -206,7 +206,8 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   const handleConfirmStatusChange = async () => {
     if (loading) return;
     try {
-      setLoading(true);
+      const isSilentRefresh = !!detailedApplication;
+      if (!isSilentRefresh) setLoading(true);
 
       await updateApplication(application.id, { status: pendingStatus });
 
@@ -252,23 +253,38 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   };
 
   useEffect(() => {
-    const fetchApplicationDetails = async () => {
+    const fetchApplicationDetails = async (isSilent = false) => {
       try {
-        setLoading(true);
-        setError(null);
+        if (!isSilent) {
+          setLoading(true);
+          setError(null);
+        }
 
         const result = await getApplication(application.id);
         setDetailedApplication(result);
       } catch (err: any) {
         console.error('Error fetching application details:', err);
-        setError(err.message || 'Failed to load application details');
+        if (!isSilent) {
+          setError(err.message || 'Failed to load application details');
+        }
       } finally {
-        setLoading(false);
+        if (!isSilent) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchApplicationDetails();
-  }, [application.id]);
+    // Initial fetch (not silent if no data)
+    fetchApplicationDetails(!!detailedApplication);
+
+    // Set up silent polling every 5 seconds
+    const intervalId = setInterval(() => {
+      fetchApplicationDetails(true);
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [application.id]); // Removed detailedApplication from dependencies to avoid infinite loop
+
 
   const getClientFullName = (): string => {
     return [

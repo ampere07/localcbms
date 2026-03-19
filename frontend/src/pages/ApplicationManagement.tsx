@@ -254,12 +254,13 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
     };
   }, [silentRefresh]);
 
-  // Silent polling every 5 seconds to ensure latest data is always fetched
+  // Silent polling every 3-5 seconds to ensure latest data is always fetched
+  // This is now safe because JOAssignFormModal has been decoupled from these updates
   useEffect(() => {
-    const POLL_INTERVAL = 3000; // 5 seconds
+    const POLL_INTERVAL = 3000; // 3 seconds
 
     const pollData = async () => {
-      console.log('[ApplicationManagement] Polling latest data (5s interval)...');
+      console.log('[ApplicationManagement] Polling latest data (3s interval)...');
       try {
         await silentRefresh();
       } catch (err) {
@@ -274,6 +275,7 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
 
     return () => clearInterval(intervalId);
   }, [silentRefresh]);
+
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
