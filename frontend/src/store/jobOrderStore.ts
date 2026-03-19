@@ -51,7 +51,11 @@ export const useJobOrderStore = create<JobOrderState>((set, get) => ({
                     fullJOs.forEach(jo => currentMap.set(jo.id, jo));
 
                     return {
-                        jobOrders: Array.from(currentMap.values()).sort((a, b) => {
+                        jobOrders: Array.from(currentMap.values()).sort((a: JobOrder, b: JobOrder) => {
+                            const timeA = new Date(a.Timestamp || a.timestamp || 0).getTime();
+                            const timeB = new Date(b.Timestamp || b.timestamp || 0).getTime();
+                            if (timeA !== timeB) return timeB - timeA;
+                            
                             const idA = parseInt(String(a.id)) || 0;
                             const idB = parseInt(String(b.id)) || 0;
                             return idB - idA;
@@ -114,6 +118,10 @@ export const useJobOrderStore = create<JobOrderState>((set, get) => ({
 
                     return {
                         jobOrders: Array.from(currentMap.values()).sort((a: JobOrder, b: JobOrder) => {
+                            const timeA = new Date(a.Timestamp || a.timestamp || 0).getTime();
+                            const timeB = new Date(b.Timestamp || b.timestamp || 0).getTime();
+                            if (timeA !== timeB) return timeB - timeA;
+
                             const idA = parseInt(String(a.id)) || 0;
                             const idB = parseInt(String(b.id)) || 0;
                             return idB - idA;

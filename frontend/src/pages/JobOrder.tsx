@@ -100,8 +100,8 @@ const JobOrderPage: React.FC = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(['timestamp', 'dateInstalled', 'referredBy', 'fullName', 'address', 'onsiteStatus', 'billingStatus', 'assignedEmail', 'billingDay', 'installationFee', 'modifiedBy', 'modifiedDate']);
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortColumn, setSortColumn] = useState<string | null>('timestamp');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
@@ -781,6 +781,10 @@ const JobOrderPage: React.FC = () => {
     });
 
     const presorted = [...filtered].sort((a, b) => {
+      const timeA = new Date(getVal(a, 'timestamp') || 0).getTime();
+      const timeB = new Date(getVal(b, 'timestamp') || 0).getTime();
+      if (timeA !== timeB) return timeB - timeA;
+      
       const idA = parseInt(String(a.id)) || 0;
       const idB = parseInt(String(b.id)) || 0;
       return idB - idA;

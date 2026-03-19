@@ -97,7 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   }, []);
 
   const menuItems: MenuItem[] = [
-    // { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['administrator', 'customer'] },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['admin-only'] },
     { id: 'live-monitor', label: 'Monitoring', icon: Activity, allowedRoles: ['superadmin'] },
     {
       id: 'billing',
@@ -220,6 +220,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         const normalizedRole = role.toLowerCase().trim();
         if (normalizedRole === 'technician') return isTechnician;
         if (normalizedRole === 'administrator') return normalizedUserRole === 'administrator' || String(roleId) === '1' || String(roleId) === '7';
+        if (normalizedRole === 'admin-only') return normalizedUserRole === 'administrator' || String(roleId) === '1';
         if (normalizedRole === 'superadmin') return normalizedUserRole === 'superadmin' || String(roleId) === '7';
         if (normalizedRole === 'osp') return normalizedUserRole === 'Osp'.toLowerCase() || String(roleId) === '6';
         if (normalizedRole === 'inventorystaff') return isInventoryStaff;
