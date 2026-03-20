@@ -1502,12 +1502,24 @@ Route::get('/plans/{id}/related', function ($id) {
         $applications = collect([]);
         try {
             $applications = \Illuminate\Support\Facades\DB::table('applications')
+                ->leftJoin('application_visits', 'applications.id', '=', 'application_visits.application_id')
+                ->leftJoin('job_orders', 'applications.id', '=', 'job_orders.application_id')
                 ->where(function($query) use ($planName) {
-                    $query->where('desired_plan', $planName)
-                          ->orWhere('desired_plan', 'LIKE', '%' . $planName . '%');
+                    $query->where('applications.desired_plan', $planName)
+                          ->orWhere('applications.desired_plan', 'LIKE', '%' . $planName . '%');
                 })
-                ->select('id', 'first_name', 'last_name', 'desired_plan', 'status', 'installation_address', 'created_at')
-                ->orderBy('created_at', 'desc')
+                ->select(
+                    'applications.*',
+                    'application_visits.visit_by',
+                    'application_visits.visit_with',
+                    'application_visits.visit_with_other',
+                    'application_visits.visit_remarks as remarks',
+                    'job_orders.usage_type',
+                    \Illuminate\Support\Facades\DB::raw('NULL as ownership'),
+                    'applications.promo as applying_for',
+                    \Illuminate\Support\Facades\DB::raw('(SELECT COUNT(*) FROM job_orders jo2 WHERE jo2.application_id = applications.id) as job_orders_count')
+                )
+                ->orderBy('applications.created_at', 'desc')
                 ->limit(50)
                 ->get()
                 ->map(function ($app) {
@@ -1524,22 +1536,86 @@ Route::get('/plans/{id}/related', function ($id) {
             $applicationIds = $applications->pluck('id')->toArray();
             if (!empty($applicationIds)) {
                 $jobOrders = \Illuminate\Support\Facades\DB::table('job_orders')
-                    ->join('applications', 'job_orders.application_id', '=', 'applications.id')
-                    ->whereIn('job_orders.application_id', $applicationIds)
-                    ->select(
-                        'job_orders.id',
-                        'job_orders.created_at',
-                        'applications.status as status',
-                        'applications.first_name',
-                        'applications.last_name',
-                        'applications.desired_plan'
-                    )
-                    ->orderBy('job_orders.created_at', 'desc')
+                    ->whereIn('application_id', $applicationIds)
+                    ->orderBy('created_at', 'desc')
                     ->limit(50)
                     ->get()
                     ->map(function($jo) {
-                        $jo->job_order_no = 'JO-' . str_pad($jo->id, 5, '0', STR_PAD_LEFT);
-                        $jo->customer_name = trim(($jo->first_name ?? '') . ' ' . ($jo->last_name ?? ''));
+                        try {
+                            $app = \Illuminate\Support\Facades\DB::table('applications')->where('id', $jo->application_id)->first();
+                            $visit = \Illuminate\Support\Facades\DB::table('application_visits')->where('application_id', $jo->application_id)->first();
+                            
+                            $billing = null;
+                            if (isset($jo->account_id)) {
+                                $billing = \Illuminate\Support\Facades\DB::table('billing_accounts')->where('id', $jo->account_id)->first();
+                            }
+                            
+                            $updatedBy = null;
+                            if (isset($jo->updated_by_user_id)) {
+                                $updatedBy = \Illuminate\Support\Facades\DB::table('users')->where('id', $jo->updated_by_user_id)->first();
+                            }
+                            
+                            $visitByUser = null;
+                            if (isset($jo->visit_by_user_id)) {
+                                $visitByUser = \Illuminate\Support\Facades\DB::table('users')->where('id', $jo->visit_by_user_id)->first();
+                            }
+                            
+                            $first_name = $jo->first_name ?? ($app ? $app->first_name : '');
+                            $last_name = $jo->last_name ?? ($app ? $app->last_name : '');
+                            
+                            $jo->first_name = $first_name;
+                            $jo->last_name = $last_name;
+                            $jo->email_address = $jo->email_address ?? ($app ? $app->email_address : '');
+                            $jo->mobile_number = $jo->mobile_number ?? ($app ? $app->mobile_number : '');
+                            $jo->installation_address = $jo->installation_address ?? ($app ? $app->installation_address : '');
+                            $jo->barangay = $jo->barangay ?? ($app ? $app->barangay : '');
+                            $jo->city = $jo->city ?? ($app ? $app->city : '');
+                            $jo->region = $jo->region ?? ($app ? $app->region : '');
+                            $jo->desired_plan = $jo->desired_plan ?? ($app ? $app->desired_plan : '');
+                            $jo->referred_by = $jo->referred_by ?? ($app ? $app->referred_by : '');
+                            $jo->applying_for = $jo->applying_for ?? ($app ? $app->promo : '');
+                            $jo->terms_agreed = $jo->terms_agreed ?? ($app ? $app->terms_agreed : '');
+
+                            $jo->visit_with_other = $jo->visit_with_other ?? ($visit ? ($visit->visit_with_other ?? '') : '');
+                            $jo->visit_remarks = $jo->visit_remarks ?? ($visit ? ($visit->visit_remarks ?? '') : '');
+                            
+                            $jo->account_no = $jo->account_no ?? ($billing ? $billing->account_no : '');
+
+                            $modifier_first = $updatedBy ? $updatedBy->first_name : '';
+                            $modifier_last = $updatedBy ? $updatedBy->last_name : '';
+                            $jo->modified_by = trim($modifier_first . ' ' . $modifier_last);
+                            if (empty($jo->modified_by)) {
+                                $jo->modified_by = $jo->updated_by ?? '';
+                            }
+
+                            $v_first = $visitByUser ? $visitByUser->first_name : '';
+                            $v_last = $visitByUser ? $visitByUser->last_name : '';
+                            $computedUser = trim($v_first . ' ' . $v_last);
+                            
+                            $jo->computed_visit_by = $computedUser ?: ($jo->visit_by ?? ($visit ? ($visit->visit_by ?? '') : ''));
+
+                            $jo->job_order_no = 'JO-' . str_pad($jo->id, 5, '0', STR_PAD_LEFT);
+                            $jo->customer_name = trim($first_name . ' ' . $last_name);
+                            $jo->computed_full_address = trim(implode(', ', array_filter([$jo->installation_address, $jo->barangay, $jo->city, $jo->region])));
+                            
+                            $jo->duration = null;
+                            if (isset($jo->start_time) && isset($jo->end_time) && $jo->start_time && $jo->end_time) {
+                                try {
+                                    $start = new \DateTime($jo->start_time);
+                                    $end = new \DateTime($jo->end_time);
+                                    $interval = $start->diff($end);
+                                    $jo->duration = $interval->format('%H:%I:%S');
+                                } catch (\Exception $e) {}
+                            }
+                            
+                            $lcpnap = isset($jo->lcpnap) ? $jo->lcpnap : '';
+                            $port = isset($jo->port) ? $jo->port : '';
+                            $jo->lcpnapport = trim($lcpnap . ' ' . $port);
+                            
+                        } catch (\Exception $e) {
+                            \Log::error('Job Order mapping error: ' . $e->getMessage());
+                        }
+                        
                         return $jo;
                     });
             }

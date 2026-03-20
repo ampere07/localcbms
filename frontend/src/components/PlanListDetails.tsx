@@ -650,15 +650,56 @@ const PlanListDetails: React.FC<PlanListDetailsProps> = ({ plan, onClose, isMobi
                   'applications',
                   relatedApplications,
                   [
+                    { key: 'first_name', label: 'First Name', render: (val: any) => val || '-' },
+                    { key: 'id', label: 'ID', render: (val: any) => val || '-' },
+                    { 
+                      key: 'created_at', 
+                      label: 'Timestamp', 
+                      render: (val: any) => val ? (typeof val === 'string' ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : val) : '-' 
+                    },
+                    { key: 'email_address', label: 'Email Address', render: (val: any) => val || '-' },
+                    { key: 'region', label: 'Region', render: (val: any) => val || '-' },
+                    { key: 'city', label: 'City', render: (val: any) => val || '-' },
+                    { key: 'barangay', label: 'Barangay', render: (val: any) => val || '-' },
+                    { key: 'referred_by', label: 'Referred By', render: (val: any) => val || '-' },
+                    { key: 'middle_initial', label: 'Middle Initial', render: (val: any) => val || '-' },
+                    { key: 'last_name', label: 'Last Name', render: (val: any) => val || '-' },
+                    { key: 'installation_address', label: 'Address', render: (val: any) => val || '-' },
+                    { key: 'landmark', label: 'Landmark', render: (val: any) => val || '-' },
+                    { key: 'desired_plan', label: 'Desired Plan', render: (val: any) => val || '-' },
+                    { key: 'usage_type', label: 'Usage Type', render: (val: any) => val || '-' },
+                    { key: 'ownership', label: 'Ownership', render: (val: any) => val || '-' },
+                    { 
+                      key: 'terms_agreed', 
+                      label: 'I Agree', 
+                      render: (val: any) => {
+                        if (val === 1 || val === true || val === '1' || val === 'yes' || val === 'Yes' || val === 'Agreed') return 'Yes';
+                        if (val === 0 || val === false || val === '0') return 'No';
+                        return val ? String(val) : '-';
+                      } 
+                    },
+                    { key: 'applying_for', label: 'Applying For', render: (val: any) => val || '-' },
                     { key: 'status', label: 'Status', render: (val: any) => val || '-' },
+                    { key: 'visit_by', label: 'Visit By', render: (val: any) => val || '-' },
+                    { key: 'visit_with', label: 'Visit With', render: (val: any) => val || '-' },
+                    { key: 'visit_with_other', label: 'Visit With Other', render: (val: any) => val || '-' },
+                    { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
+                    { key: 'updated_by', label: 'Modified By', render: (val: any) => val || '-' },
+                    { key: 'updated_at', label: 'Modified Date', render: (val: any) => val ? (typeof val === 'string' ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : val) : '-' },
                     { key: 'full_name', label: 'Full Name', render: (val: any) => val || '-' },
-                    { key: 'desired_plan', label: 'Plan', render: (val: any) => val || '-' },
-                    { key: 'installation_address', label: 'Address', render: (val: any) => val ? val.split(',')[0] : '-' },
-                    {
-                      key: 'created_at',
-                      label: 'Date',
-                      render: (val: any) => val ? (typeof val === 'string' ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : val) : '-'
-                    }
+                    { 
+                      key: '_computed_time', 
+                      label: 'Computed Time', 
+                      render: (val: any, row: any) => {
+                        const time = row.create_time || (row.created_at && typeof row.created_at === 'string' ? (row.created_at.includes('T') ? row.created_at.split('T')[1].substring(0, 8) : (row.created_at.includes(' ') ? row.created_at.split(' ')[1].substring(0, 8) : null)) : null);
+                        return time || '-';
+                      }
+                    },
+                    { key: '_full_address', label: 'Full Address', render: (val: any, row: any) => {
+                        const parts = [row.installation_address, row.barangay, row.city, row.region].filter(Boolean);
+                        return parts.length > 0 ? parts.join(', ') : '-';
+                    }},
+                    { key: 'job_orders_count', label: 'Related Job Orders', render: (val: any) => val ?? '-' }
                   ],
                   handleApplicationRowClick
                 )}
@@ -669,15 +710,70 @@ const PlanListDetails: React.FC<PlanListDetailsProps> = ({ plan, onClose, isMobi
                   'jobOrders',
                   relatedJobOrders,
                   [
+                    { key: 'onsite_status', label: 'Onsite Status', render: (val: any) => val || '-' },
+                    { key: 'customer_name', label: 'Full Name of Client', render: (val: any) => val || '-' },
+                    { key: 'computed_full_address', label: 'Full Address of Client', render: (val: any) => val || '-' },
+                    { key: 'timestamp', label: 'TImestamp', render: (val: any) => val ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : '-' },
+                    { key: 'email_address', label: 'Email Address', render: (val: any) => val || '-' },
+                    { key: 'referred_by', label: 'Referred by:', render: (val: any) => val || '-' },
+                    { key: 'first_name', label: 'FIrst Name', render: (val: any) => val || '-' },
+                    { key: 'last_name', label: 'Last Name', render: (val: any) => val || '-' },
+                    { key: 'mobile_number', label: 'Contact Number', render: (val: any) => val || '-' },
+                    { key: 'installation_address', label: 'Address', render: (val: any) => val || '-' },
+                    { key: 'barangay', label: 'Barangay', render: (val: any) => val || '-' },
+                    { key: 'city', label: 'City', render: (val: any) => val || '-' },
+                    { key: 'region', label: 'Region', render: (val: any) => val || '-' },
+                    { key: 'desired_plan', label: 'Choose Plan', render: (val: any) => val || '-' },
+                    { key: 'visit_remarks', label: 'Remarks', render: (val: any) => val || '-' },
+                    { key: 'installation_fee', label: 'Installation Fee', render: (val: any) => val !== null ? val : '-' },
+                    { key: '_contract_template', label: 'Contract Template', render: (_: any, row: any) => row.contract_link || '-' },
+                    { key: 'billing_day', label: 'Billing Day', render: (val: any) => val !== null ? val : '-' },
+                    { key: 'status_remarks', label: 'JO Remarks', render: (val: any) => val || '-' },
                     { key: 'status', label: 'Status', render: (val: any) => val || '-' },
-                    { key: 'job_order_no', label: 'JO No.', render: (val: any) => val || '-' },
-                    { key: 'customer_name', label: 'Customer', render: (val: any) => val || '-' },
-                    { key: 'desired_plan', label: 'Plan', render: (val: any) => val || '-' },
-                    {
-                      key: 'created_at',
-                      label: 'Date',
-                      render: (val: any) => val ? (typeof val === 'string' ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : val) : '-'
-                    }
+                    { key: 'modem_router_sn', label: 'Modem SN', render: (val: any) => val || '-' },
+                    { key: 'provider', label: 'Provider', render: (val: any) => val || '-' },
+                    { key: 'lcp', label: 'LCP', render: (val: any, row: any) => {
+                        if (row.lcpnap) {
+                            return row.lcpnap; // Wait, actually I don't have separate lcp/nap readily queried. I return the joined lcpnap.
+                        }
+                        return '-';
+                    }},
+                    { key: 'nap', label: 'NAP', render: (val: any, row: any) => {
+                        if (row.lcpnap) return row.lcpnap; // LCPNAP usually combines both
+                        return '-';
+                    }},
+                    { key: 'port', label: 'PORT', render: (val: any) => val || '-' },
+                    { key: 'vlan', label: 'VLAN', render: (val: any) => val || '-' },
+                    { key: 'username', label: 'Username', render: (val: any) => val || '-' },
+                    { key: 'computed_visit_by', label: 'Visit By', render: (val: any) => val || '-' },
+                    { key: 'visit_with', label: 'VIsit WIth', render: (val: any) => val || '-' },
+                    { key: 'visit_with_other', label: 'Visit WIth(other)', render: (val: any) => val || '-' },
+                    { key: 'onsite_remarks', label: 'Onsite Remarks', render: (val: any) => val || '-' },
+                    { key: 'modified_by', label: 'Modified By', render: (val: any) => val || '-' },
+                    { key: 'updated_at', label: 'Modified Date', render: (val: any) => val ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : '-' },
+                    { key: 'contract_link', label: 'Contract Link', render: (val: any) => val || '-' },
+                    { key: 'connection_type', label: 'Connection Type', render: (val: any) => val || '-' },
+                    { key: 'assigned_email', label: 'Assigned Email', render: (val: any) => val || '-' },
+                    { key: 'setup_image_url', label: 'Setup Image', render: (val: any) => val || '-' },
+                    { key: 'start_time', label: 'Start Time', render: (val: any) => val ? (val.includes('T') ? val.replace('T', ' ').substring(0, 19) : val) : '-' },
+                    { key: 'end_time', label: 'End TIme', render: (val: any) => val ? (val.includes('T') ? val.replace('T', ' ').substring(0, 19) : val) : '-' },
+                    { key: 'duration', label: 'Duration', render: (val: any) => val || '-' },
+                    { key: 'id', label: 'id', render: (val: any) => val || '-' },
+                    { key: 'lcpnap', label: 'LCPNAP', render: (val: any) => val || '-' },
+                    { key: 'billing_status', label: 'Billing Status', render: (val: any) => val || '-' },
+                    { key: 'router_model', label: 'Router Model', render: (val: any) => val || '-' },
+                    { key: 'date_installed', label: 'Date Installed', render: (val: any) => val ? (val.includes('T') ? val.split('T')[0] : (val.includes(' ') ? val.split(' ')[0] : val)) : '-' },
+                    { key: 'client_signature_url', label: 'Client Signature', render: (val: any) => val || '-' },
+                    { key: 'ip_address', label: 'IP', render: (val: any) => val || '-' },
+                    { key: 'signed_contract_image_url', label: 'Signed Contract Image', render: (val: any) => val || '-' },
+                    { key: 'lcpnapport', label: 'LCPNAPPORT', render: (val: any) => val || '-' },
+                    { key: 'usage_type_id', label: 'Usage Type', render: (val: any, row: any) => row.usage_type || val || '-' },
+                    { key: 'ownership', label: 'Ownership', render: (val: any) => val || '-' },
+                    { key: 'account_no', label: 'Account No,', render: (val: any) => val || '-' },
+                    { key: '_computed_time', label: '_Computed Time', render: (_: any, row: any) => {
+                        const val = row.timestamp;
+                        return val ? (val.includes('T') ? val.replace('T', ' ').substring(0, 19) : val) : '-';
+                    }}
                   ],
                   handleJobOrderRowClick
                 )}
