@@ -329,12 +329,7 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
     if (selectedColumn.dataType === 'checklist') {
       let options: { label: string, value: string }[] = [];
       if (selectedColumn.key === 'plan' || selectedColumn.key === 'desiredPlan') {
-        options = plans.map(p => {
-          const parts = p.split(' ');
-          parts.pop(); // Remove price
-          const name = parts.join(' ');
-          return { label: p, value: name };
-        });
+        options = plans.map(p => ({ label: p, value: p }));
       } else if (selectedColumn.key === 'barangay') {
         options = barangays.map(b => ({ label: b, value: b }));
       } else if (selectedColumn.key === 'city') {

@@ -466,12 +466,6 @@ const ServiceOrderPage: React.FC = () => {
 
           return filter.value.some((val: string) => {
             const filterVal = String(val).toLowerCase().trim();
-            if (['supportStatus', 'visitStatus', 'status', 'usageType', 'routerModel'].includes(key)) {
-              return valStr === filterVal;
-            }
-            if (key === 'plan') {
-              return valStr.includes(filterVal);
-            }
             return valStr === filterVal;
           });
         }

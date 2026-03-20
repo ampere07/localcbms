@@ -683,10 +683,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
           const valStr = String(recordValue || '').toLowerCase();
           return filter.value.some((v: string) => {
             const filterVal = String(v).toLowerCase();
-            // Use partial match for plans, exact match for others to avoid "Active" matching "Inactive"
-            if (key === 'plan' || key === 'desiredPlan') {
-              return valStr.includes(filterVal);
-            }
+            // Use exact match for all checklist options to avoid "Ultra" matching "Ultra-Plus 2099"
             return valStr === filterVal;
           });
         }
